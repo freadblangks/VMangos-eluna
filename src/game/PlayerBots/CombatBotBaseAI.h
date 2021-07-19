@@ -109,7 +109,7 @@ public:
     bool AreOthersOnSameTarget(ObjectGuid guid, bool checkMelee = true, bool checkSpells = true) const;
 
     SpellCastResult DoCastSpell(Unit* pTarget, SpellEntry const* pSpellEntry);
-    bool CanTryToCastSpell(Unit const* pTarget, SpellEntry const* pSpellEntry) const;
+    virtual bool CanTryToCastSpell(Unit const* pTarget, SpellEntry const* pSpellEntry) const;
     bool IsWearingShield() const;
 
     void EquipOrUseNewItem();
@@ -117,6 +117,8 @@ public:
 
     bool SummonShamanTotems();
     SpellCastResult CastWeaponBuff(SpellEntry const* pSpellEntry, EquipmentSlots slot);
+    void UseTrinketEffects();
+    bool UseItemEffect(Item* pItem);
 
     virtual void UpdateInCombatAI() = 0;
     virtual void UpdateOutOfCombatAI() = 0;
@@ -344,6 +346,7 @@ public:
             SpellEntry const* pIceBlock;
             SpellEntry const* pBlizzard;
             SpellEntry const* pBlastWave;
+            SpellEntry const* pCombustion;
         } mage;
         struct
         {
@@ -370,6 +373,7 @@ public:
             SpellEntry const* pSilence;
             SpellEntry const* pFade;
             SpellEntry const* pShackleUndead;
+            SpellEntry const* pSmite;
         } priest;
         struct
         {

@@ -133,6 +133,35 @@ bool ForcedDespawnDelayEvent::Execute(uint64 /*e_time*/, uint32 /*p_time*/)
     return true;
 }
 
+bool TargetedEmoteEvent::Execute(uint64 /*e_time*/, uint32 /*p_time*/)
+{
+    if (!m_owner.IsInCombat() && !m_owner.IsMoving())
+    {
+        if (Unit* pTarget = m_owner.GetMap()->GetUnit(m_targetGuid))
+        {
+            m_owner.SetFacingToObject(pTarget);
+            m_owner.HandleEmote(m_emoteId);
+            return true;
+        }
+    }
+
+    m_owner.ClearCreatureState(CSTATE_TARGETED_EMOTE);
+    return true;
+}
+
+bool TargetedEmoteCleanupEvent::Execute(uint64 /*e_time*/, uint32 /*p_time*/)
+{
+    if (m_owner.HasCreatureState(CSTATE_TARGETED_EMOTE))
+    {
+        if (!m_owner.IsInCombat() && !m_owner.IsMoving())
+            m_owner.SetFacingTo(m_orientation);
+        m_owner.HandleEmoteState(0);
+        m_owner.ClearCreatureState(CSTATE_TARGETED_EMOTE);
+    }
+
+    return true;
+}
+
 void CreatureCreatePos::SelectFinalPoint(Creature* cr)
 {
     // if object provided then selected point at specific dist/angle from object forward look
@@ -2196,6 +2225,10 @@ bool Creature::CanAssistTo(Unit const* u, Unit const* enemy, bool checkfaction /
     if (!IsHostileTo(enemy))
         return false;
 
+    // prevent player from being stuck in combat with creature out of visibility radius
+    if (enemy->IsCharmerOrOwnerPlayerOrPlayerItself() && !isWithinVisibilityDistanceOf(enemy, enemy) && !GetMap()->IsDungeon())
+        return false;
+
     return true;
 }
 
@@ -2829,6 +2862,32 @@ bool Creature::HasSpell(uint32 spellId) const
         if (spellId == m_spells[i])
             break;
     return i < CREATURE_MAX_SPELLS;                         // break before end of iteration of known spells
+}
+
+void Creature::LockOutSpells(SpellSchoolMask schoolMask, uint32 duration)
+{
+    if (GetCreatureInfo()->mechanic_immune_mask & (1 << (MECHANIC_SILENCE - 1)))
+        return;
+
+    SpellCaster::LockOutSpells(schoolMask, duration);
+}
+
+void Creature::AddCooldown(SpellEntry const& spellEntry, ItemPrototype const* /*itemProto*/, bool /*permanent*/, uint32 forcedDuration)
+{
+    uint32 recTime = forcedDuration ? forcedDuration : spellEntry.RecoveryTime;
+    if (recTime || spellEntry.CategoryRecoveryTime)
+    {
+        uint32 categoryRecTime = spellEntry.CategoryRecoveryTime;
+        if (Player* modOwner = GetSpellModOwner())
+        {
+            if (recTime)
+                modOwner->ApplySpellMod(spellEntry.Id, SPELLMOD_COOLDOWN, recTime);
+            else if (spellEntry.Category && categoryRecTime)
+                modOwner->ApplySpellMod(spellEntry.Id, SPELLMOD_COOLDOWN, categoryRecTime);
+        }
+
+        m_cooldownMap.AddCooldown(sWorld.GetCurrentClockTime(), spellEntry.Id, recTime, spellEntry.Category, categoryRecTime);
+    }
 }
 
 time_t Creature::GetRespawnTimeEx() const

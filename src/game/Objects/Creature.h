@@ -80,7 +80,7 @@ class Creature : public Unit
     public:
 
         explicit Creature(CreatureSubtype subtype = CREATURE_SUBTYPE_GENERIC);
-        ~Creature() override;
+        virtual ~Creature() override;
 
         void AddToWorld() override;
         void RemoveFromWorld() override;
@@ -221,6 +221,9 @@ class Creature : public Unit
 
         bool HasSpell(uint32 spellId) const override;
 
+        void LockOutSpells(SpellSchoolMask schoolMask, uint32 duration) final;
+        void AddCooldown(SpellEntry const& spellEntry, ItemPrototype const* itemProto = nullptr, bool permanent = false, uint32 forcedDuration = 0) final;
+
         bool UpdateEntry(uint32 entry, CreatureData const* data = nullptr, GameEventCreatureData const* eventData = nullptr, bool preserveHPAndPower = true);
 
         void ApplyGameEventSpells(GameEventCreatureData const* eventData, bool activated);
@@ -329,7 +332,7 @@ class Creature : public Unit
 
         MovementGeneratorType GetDefaultMovementType() const { return m_defaultMovementType; }
         void SetDefaultMovementType(MovementGeneratorType mgt) { m_defaultMovementType = mgt; }
-        void PauseOutOfCombatMovement();
+        void PauseOutOfCombatMovement(uint32 pauseTime = NPC_MOVEMENT_PAUSE_TIME);
 
         bool IsVisibleInGridForPlayer(Player const* pl) const override;
 
@@ -670,6 +673,29 @@ class ForcedDespawnDelayEvent : public BasicEvent
 
     private:
         Creature& m_owner;
+};
+
+class TargetedEmoteEvent : public BasicEvent
+{
+public:
+    explicit TargetedEmoteEvent(Creature& owner, ObjectGuid const& targetGuid, uint32 emoteId) : BasicEvent(), m_owner(owner), m_targetGuid(targetGuid), m_emoteId(emoteId) { }
+    bool Execute(uint64 e_time, uint32 p_time) override;
+
+private:
+    Creature& m_owner;
+    ObjectGuid m_targetGuid;
+    uint32 m_emoteId;
+};
+
+class TargetedEmoteCleanupEvent : public BasicEvent
+{
+public:
+    explicit TargetedEmoteCleanupEvent(Creature& owner, float orientation) : BasicEvent(), m_owner(owner), m_orientation(orientation) { }
+    bool Execute(uint64 e_time, uint32 p_time) override;
+
+private:
+    Creature& m_owner;
+    float m_orientation;
 };
 
 #endif

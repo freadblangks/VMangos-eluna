@@ -35,7 +35,12 @@
 
 Transport::Transport(TransportTemplate const& transportTemplate) : GenericTransport(), m_transportTemplate(transportTemplate), m_isMoving(true), m_pendingStop(false)
 {
-    m_updateFlag = (UPDATEFLAG_TRANSPORT | UPDATEFLAG_ALL | UPDATEFLAG_HAS_POSITION);
+    m_updateFlag = UPDATEFLAG_TRANSPORT;
+
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_8_4
+    m_updateFlag |= UPDATEFLAG_ALL | UPDATEFLAG_HAS_POSITION;
+#endif
+
     SetPeriod(transportTemplate.pathTime);
 }
 
@@ -268,14 +273,14 @@ void GenericTransport::RemoveFollowerFromTransport(Unit* passenger, Unit* follow
     }
 }
 
-void Transport::Update(uint32 update_diff, uint32 /*time_diff*/)
+void Transport::Update(uint32 /*update_diff*/, uint32 /*time_diff*/)
 {
     uint32 const positionUpdateDelay = 50;
 
     if (GetKeyFrames().size() <= 1)
         return;
 
-    uint32 currentMsTime = sWorld.GetCurrentMSTime() - m_movementStarted;
+    uint32 currentMsTime = sWorld.GetCurrentMSTime();
     if (m_pathProgress >= currentMsTime) // map transition and update happened in same tick due to MT
         return;
 
@@ -370,20 +375,20 @@ bool ElevatorTransport::Create(uint32 guidlow, uint32 name_id, Map* map, float x
 {
     if (GenericTransport::Create(guidlow, name_id, map, x, y, z, ang, rotation0, rotation1, rotation2, rotation3, animprogress, go_state))
     {
-        m_pathProgress = 0;
         m_animationInfo = sTransportMgr.GetTransportAnimInfo(GetGOInfo()->id);
+        m_pathProgress = m_animationInfo ? (sWorld.GetCurrentMSTime() % m_animationInfo->TotalTime) : 0;
         m_currentSeg = 0;
         return true;
     }
     return false;
 }
 
-void ElevatorTransport::Update(uint32 update_diff, uint32 /*time_diff*/)
+void ElevatorTransport::Update(uint32 /*update_diff*/, uint32 /*time_diff*/)
 {
     if (!m_animationInfo)
         return;
 
-    m_pathProgress = (sWorld.GetCurrentMSTime() - m_movementStarted) % m_animationInfo->TotalTime;
+    m_pathProgress = sWorld.GetCurrentMSTime() % m_animationInfo->TotalTime;
     TransportAnimationEntry const* nodeNext = m_animationInfo->GetNextAnimNode(m_pathProgress);
     TransportAnimationEntry const* nodePrev = m_animationInfo->GetPrevAnimNode(m_pathProgress);
     if (nodeNext && nodePrev)
@@ -411,11 +416,11 @@ void ElevatorTransport::Update(uint32 update_diff, uint32 /*time_diff*/)
         currentPos.y = -currentPos.y; // magical sign flip but it works - vanilla/tbc only
         currentPos += G3D::Vector3(m_stationaryPosition.x, m_stationaryPosition.y, m_stationaryPosition.z);
 
-        GetMap()->GameObjectRelocation(this, currentPos.x, currentPos.y, currentPos.z, GetOrientation());
-        // SummonCreature(1, currentPos.x, currentPos.y, currentPos.z, GetOrientation(), TEMPSPAWN_TIMED_DESPAWN, 5000);
+        Relocate(currentPos.x, currentPos.y, currentPos.z, GetOrientation());
         UpdateModelPosition();
-
         UpdatePassengerPositions(GetPassengers());
+
+        //SummonCreature(1, currentPos.x, currentPos.y, currentPos.z, GetOrientation(), TEMPSUMMON_TIMED_DESPAWN, 1000);
     }
 }
 
@@ -510,7 +515,7 @@ void GenericTransport::CalculatePassengerOffset(float& x, float& y, float& z, fl
     x = (inx + iny * std::tan(transO)) / (std::cos(transO) + std::sin(transO) * std::tan(transO));
 }
 
-void Transport::SendOutOfRangeUpdateToMap()
+void GenericTransport::SendOutOfRangeUpdateToMap()
 {
     Map::PlayerList const& players = GetMap()->GetPlayers();
     if (!players.isEmpty())
@@ -525,7 +530,7 @@ void Transport::SendOutOfRangeUpdateToMap()
     }
 }
 
-void Transport::SendCreateUpdateToMap()
+void GenericTransport::SendCreateUpdateToMap()
 {
     Map::PlayerList const& players = GetMap()->GetPlayers();
     if (!players.isEmpty())

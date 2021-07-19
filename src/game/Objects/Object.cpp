@@ -289,9 +289,6 @@ void Object::BuildCreateUpdateBlockForPlayer(UpdateData& data, Player* target) c
         updateFlags |= UPDATEFLAG_SELF;
 #endif
 
-    if (isType(TYPEMASK_GAMEOBJECT) && static_cast<GameObject const*>(this)->GetGoType() == GAMEOBJECT_TYPE_TRANSPORT)
-        updateFlags |= UPDATEFLAG_TRANSPORT;
-
     //DEBUG_LOG("BuildCreateUpdate: update-type: %u, object-type: %u got updateFlags: %X", updatetype, m_objectTypeId, updateFlags);
 
     ByteBuffer buf(500);
@@ -513,42 +510,24 @@ void Object::BuildMovementUpdate(ByteBuffer* data, uint8 updateFlags) const
             *data << uint32(sWorld.GetCurrentMSTime());
     }
 #else
-    Unit const* unit = ToUnit();
-    if (unit)
+    WorldObject const* wobject = ToWorldObject();
+    MovementInfo m = wobject ? wobject->m_movementInfo : MovementInfo();
+    if (!m.ctime)
     {
-        WorldObject const* wobject = (WorldObject*)this;
-        MovementInfo m = wobject->m_movementInfo;
-        if (!m.ctime)
+        m.stime = WorldTimer::getMSTime() + 1000;
+        if (updateFlags & UPDATEFLAG_TRANSPORT)
         {
-            m.stime = WorldTimer::getMSTime() + 1000;
+            GameObject const* go = static_cast<GameObject const*>(wobject);
+            m.ChangePosition(go->GetStationaryX(), go->GetStationaryY(), go->GetStationaryZ(), go->GetStationaryO());
+        }
+        else if (wobject)
             m.ChangePosition(wobject->GetPositionX(), wobject->GetPositionY(), wobject->GetPositionZ(), wobject->GetOrientation());
-        }
-        if (unit->IsCreature())
-            m.moveFlags = m.moveFlags & ~MOVEFLAG_ROOT;
-        *data << m;
     }
-    else
-    {
-        *data << uint32(0); // movement flags
-        *data << uint32(WorldTimer::getMSTime());
-        if (WorldObject const* pObject = ToWorldObject())
-        {
-            *data << float(pObject->GetPositionX());
-            *data << float(pObject->GetPositionY());
-            *data << float(pObject->GetPositionZ());
-            *data << float(pObject->GetOrientation());
-        }
-        else
-        {
-            *data << float(0); // x
-            *data << float(0); // y
-            *data << float(0); // z
-            *data << float(0); // o
-        }
-        *data << float(0); // unk
-    }
+    if (IsCreature())
+        m.moveFlags = m.moveFlags & ~MOVEFLAG_ROOT;
+    *data << m;
     
-    if (unit)
+    if (Unit const* unit = ToUnit())
     {
         *data << float(unit->GetSpeed(MOVE_WALK));
         *data << float(unit->GetSpeed(MOVE_RUN));
@@ -1848,24 +1827,9 @@ bool WorldObject::HasInArc(WorldObject const* target, float const arcangle, floa
     return ((angle >= lborder) && (angle <= rborder));
 }
 
-bool WorldObject::isInFrontInMap(WorldObject const* target, float distance,  float arc) const
+bool WorldObject::IsFacingTarget(WorldObject const* target) const
 {
-    return IsWithinDistInMap(target, distance) && HasInArc(target, arc);
-}
-
-bool WorldObject::isInBackInMap(WorldObject const* target, float distance, float arc) const
-{
-    return IsWithinDistInMap(target, distance) && !HasInArc(target, 2 * M_PI_F - arc);
-}
-
-bool WorldObject::isInFront(WorldObject const* target, float distance,  float arc) const
-{
-    return IsWithinDist(target, distance) && HasInArc(target, arc);
-}
-
-bool WorldObject::isInBack(WorldObject const* target, float distance, float arc) const
-{
-    return IsWithinDist(target, distance) && !HasInArc(target, 2 * M_PI_F - arc);
+    return (GetDistance2dToCenter(target) < NO_FACING_CHECKS_DISTANCE) || HasInArc(target);
 }
 
 bool WorldObject::GetRandomPoint(float x, float y, float z, float distance, float &rand_x, float &rand_y, float &rand_z) const
@@ -2782,7 +2746,7 @@ void WorldObject::DestroyForNearbyPlayers()
     }
 }
 
-Creature* WorldObject::FindNearestCreature(uint32 uiEntry, float range, bool alive, Creature const* except) const
+Creature* WorldObject::FindNearestCreature(uint32 entry, float range, bool alive, Creature const* except) const
 {
     Creature* pCreature = nullptr;
 
@@ -2790,7 +2754,7 @@ Creature* WorldObject::FindNearestCreature(uint32 uiEntry, float range, bool ali
     Cell cell(pair);
     cell.SetNoCreate();
 
-    MaNGOS::NearestCreatureEntryWithLiveStateInObjectRangeCheck creature_check(*this, uiEntry, alive, range, except);
+    MaNGOS::NearestCreatureEntryWithLiveStateInObjectRangeCheck creature_check(*this, entry, alive, range, except);
     MaNGOS::CreatureLastSearcher<MaNGOS::NearestCreatureEntryWithLiveStateInObjectRangeCheck> searcher(pCreature, creature_check);
 
     TypeContainerVisitor<MaNGOS::CreatureLastSearcher<MaNGOS::NearestCreatureEntryWithLiveStateInObjectRangeCheck>, GridTypeMapContainer> creature_searcher(searcher);
@@ -2800,10 +2764,10 @@ Creature* WorldObject::FindNearestCreature(uint32 uiEntry, float range, bool ali
     return pCreature;
 }
 
-Creature* WorldObject::FindRandomCreature(uint32 uiEntry, float range, bool alive, Creature const* except) const
+Creature* WorldObject::FindRandomCreature(uint32 entry, float range, bool alive, Creature const* except) const
 {
     std::list<Creature*> targets;
-    GetCreatureListWithEntryInGrid(targets, uiEntry, range);
+    GetCreatureListWithEntryInGrid(targets, entry, range);
 
     // remove current target
     if (except)
@@ -2834,7 +2798,7 @@ Creature* WorldObject::FindRandomCreature(uint32 uiEntry, float range, bool aliv
     return *tcIter;
 }
 
-GameObject* WorldObject::FindNearestGameObject(uint32 uiEntry, float fMaxSearchRange) const
+GameObject* WorldObject::FindNearestGameObject(uint32 entry, float range) const
 {
     GameObject* pGo = nullptr;
 
@@ -2842,14 +2806,44 @@ GameObject* WorldObject::FindNearestGameObject(uint32 uiEntry, float fMaxSearchR
     Cell cell(pair);
     cell.SetNoCreate();
 
-    MaNGOS::NearestGameObjectEntryInObjectRangeCheck go_check(*this, uiEntry, fMaxSearchRange);
+    MaNGOS::NearestGameObjectEntryInObjectRangeCheck go_check(*this, entry, range);
     MaNGOS::GameObjectLastSearcher<MaNGOS::NearestGameObjectEntryInObjectRangeCheck> searcher(pGo, go_check);
 
     TypeContainerVisitor<MaNGOS::GameObjectLastSearcher<MaNGOS::NearestGameObjectEntryInObjectRangeCheck>, GridTypeMapContainer> go_searcher(searcher);
 
-    cell.Visit(pair, go_searcher, *(GetMap()), *this, fMaxSearchRange);
+    cell.Visit(pair, go_searcher, *(GetMap()), *this, range);
 
     return pGo;
+}
+
+GameObject* WorldObject::FindRandomGameObject(uint32 entry, float range) const
+{
+    std::list<GameObject*> targets;
+    GetGameObjectListWithEntryInGrid(targets, entry, range);
+
+    for (std::list<GameObject*>::iterator tIter = targets.begin(); tIter != targets.end();)
+    {
+        if (!(*tIter)->isSpawned())
+        {
+            std::list<GameObject*>::iterator tIter2 = tIter;
+            ++tIter;
+            targets.erase(tIter2);
+        }
+        else
+            ++tIter;
+    }
+
+    // no appropriate targets
+    if (targets.empty())
+        return nullptr;
+
+    // select random
+    uint32 rIdx = urand(0, targets.size() - 1);
+    std::list<GameObject*>::const_iterator tcIter = targets.begin();
+    for (uint32 i = 0; i < rIdx; ++i)
+        ++tcIter;
+
+    return *tcIter;
 }
 
 Player* WorldObject::FindNearestPlayer(float range) const

@@ -10580,7 +10580,7 @@ Item* Player::EquipItem(uint16 pos, Item* pItem, bool update)
 #else
                     m_weaponChangeTimer = (GetClass() == CLASS_ROGUE) ? 1000 : spellProto->StartRecoveryTime;
 #endif
-                    AddGCD(*spellProto, true);
+                    AddGCD(*spellProto, 0, true);
                 }
             }
 #endif
@@ -13293,11 +13293,11 @@ void Player::RewardQuest(Quest const* pQuest, uint32 reward, WorldObject* questE
     QuestStatusData& q_status = mQuestStatus[quest_id];
     q_status.m_reward_choice = pQuest->RewChoiceItemId[reward];
 
-    // Not give XP in case already completed once repeatable quest
-    uint32 XP = q_status.m_rewarded ? 0 : uint32(pQuest->XPValue(this) * (GetPersonalXpRate() >= 0.0f ? GetPersonalXpRate() : sWorld.getConfig(CONFIG_FLOAT_RATE_XP_QUEST)));
+    // Used for client inform but rewarded only in case not max level
+    uint32 xp = uint32(pQuest->XPValue(this) * (GetPersonalXpRate() >= 0.0f ? GetPersonalXpRate() : sWorld.getConfig(CONFIG_FLOAT_RATE_XP_QUEST)));
 
     if (GetLevel() < sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
-        GiveXP(XP , nullptr);
+        GiveXP(xp , nullptr);
     else if (int32 money = pQuest->GetRewMoneyMaxLevelAtComplete())
         LogModifyMoney(money, "QuestMaxLevel", questEnder->GetObjectGuid(), quest_id);
 
@@ -13336,7 +13336,7 @@ void Player::RewardQuest(Quest const* pQuest, uint32 reward, WorldObject* questE
         q_status.uState = QUEST_CHANGED;
 
     if (announce)
-        SendQuestReward(pQuest, XP, questEnder);
+        SendQuestReward(pQuest, xp, questEnder);
 
     bool handled = false;
 
@@ -16285,13 +16285,13 @@ bool Player::SaveNewPlayer(WorldSession* session, uint32 guidlow, std::string co
         "`map`, `position_x`, `position_y`, `position_z`, `orientation`, "
         "`known_taxi_mask`, `current_taxi_path`, `online`, `extra_flags`, `at_login_flags`, "
         "`health`, `power1`, `power2`, `power3`, `power4`, `power5`, "
-        "`explored_zones`, `equipment_cache`, `ammo_id`, `world_phase_mask`, `create_time`) "
+        "`explored_zones`, `equipment_cache`, `ammo_id`, `world_phase_mask`, `create_time`, `logout_time`) "
         "VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, "
         "?, ?, ?, ?, ?, "
         "?, ?, ?, ?, ?, "
         "?, ?, ?, ?, ?, "
         "?, ?, ?, ?, ?, ?, "
-        "?, ?, ?, ?, ?)");
+        "?, ?, ?, ?, ?, ?)");
 
     uberInsert.addUInt32(guidlow);
     uberInsert.addUInt32(session->GetAccountId());
@@ -16393,7 +16393,8 @@ bool Player::SaveNewPlayer(WorldSession* session, uint32 guidlow, std::string co
 
     uberInsert.addUInt32(ammoId);
     uberInsert.addUInt32(WORLD_DEFAULT_CHAR);
-    uberInsert.addUInt64(uint64(time(nullptr)));
+    uberInsert.addUInt64(uint64(time(nullptr))); // create time
+    uberInsert.addUInt64(uint64(time(nullptr))); // logout time (for rested xp)
     uberInsert.Execute();
 
     sObjectMgr.SetPlayerWorldMask(guidlow, WORLD_DEFAULT_CHAR);
@@ -20236,19 +20237,6 @@ bool Player::CanUseBattleGroundObject() const
                IsAlive() &&                                   // live player
                !HasUnitState(UNIT_STAT_CAN_NOT_REACT_OR_LOST_CONTROL)  // Nostalrius : en cecite ou fear par exemple
            );
-}
-
-bool Player::IsTotalImmune() const
-{
-    AuraList const& immune = GetAurasByType(SPELL_AURA_SCHOOL_IMMUNITY);
-
-    uint32 immuneMask = 0;
-    for (const auto itr : immune)
-    {
-        immuneMask |= itr->GetModifier()->m_miscvalue;
-    }
-
-    return (immuneMask == SPELL_SCHOOL_MASK_ALL);
 }
 
 void Player::AutoStoreLoot(Loot& loot, bool broadcast, uint8 bag, uint8 slot)
