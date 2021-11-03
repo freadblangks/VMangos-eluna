@@ -21,6 +21,7 @@
 
 #include "Common.h"
 #include "Log.h"
+#include "Opcodes.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
 #include "CreatureAI.h"
@@ -90,6 +91,8 @@ void WorldSession::HandleSetSheathedOpcode(WorldPacket& recv_data)
     if (sheathed >= MAX_SHEATH_STATE)
         return;
 
+    GetPlayer()->InterruptSpellsWithChannelFlags(AURA_INTERRUPT_SHEATHING_CANCELS);
+    GetPlayer()->RemoveAurasWithInterruptFlags(AURA_INTERRUPT_SHEATHING_CANCELS);
     GetPlayer()->SetSheath(SheathState(sheathed));
 }
 

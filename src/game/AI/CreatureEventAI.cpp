@@ -20,22 +20,16 @@
  */
 
 #include "Common.h"
+#include "Creature.h"
 #include "CreatureEventAI.h"
 #include "CreatureEventAIMgr.h"
-#include "ObjectMgr.h"
-#include "Spell.h"
-#include "World.h"
-#include "Cell.h"
-#include "CellImpl.h"
-#include "GameEventMgr.h"
-#include "GridNotifiers.h"
-#include "GridNotifiersImpl.h"
-#include "InstanceData.h"
+#include "Player.h"
+#include "SpellAuras.h"
 #include "Chat.h"
 #include "Language.h"
-#include "ScriptMgr.h"
-#include "CreatureAI.h"
 #include "GuardMgr.h"
+#include "Conditions.h"
+#include "Map.h"
 
 bool CreatureEventAIHolder::UpdateRepeatTimer(Creature* creature, uint32 repeatMin, uint32 repeatMax)
 {
@@ -123,7 +117,7 @@ CreatureEventAI::CreatureEventAI(Creature* c) : CreatureAI(c)
     Reset();
 }
 
-bool CreatureEventAI::ProcessEvent(CreatureEventAIHolder& pHolder, Unit* pActionInvoker)
+bool CreatureEventAI::ProcessEvent(CreatureEventAIHolder& pHolder, SpellCaster* pActionInvoker)
 {
     if (!pHolder.Enabled || pHolder.Time)
         return false;
@@ -132,7 +126,7 @@ bool CreatureEventAI::ProcessEvent(CreatureEventAIHolder& pHolder, Unit* pAction
     if (pHolder.Event.event_inverse_phase_mask & (1 << m_Phase))
         return false;
 
-    if (pHolder.Event.condition_id && !sObjectMgr.IsConditionSatisfied(pHolder.Event.condition_id, pActionInvoker ? pActionInvoker : m_creature->GetVictim(), m_creature->GetMap(), m_creature, CONDITION_FROM_EVENTAI))
+    if (pHolder.Event.condition_id && !IsConditionSatisfied(pHolder.Event.condition_id, pActionInvoker ? pActionInvoker : m_creature->GetVictim(), m_creature->GetMap(), m_creature, CONDITION_FROM_EVENTAI))
         return false;
 
     CreatureEventAI_Event const& event = pHolder.Event;
@@ -433,7 +427,7 @@ bool CreatureEventAI::ProcessEvent(CreatureEventAIHolder& pHolder, Unit* pAction
     return true;
 }
 
-void CreatureEventAI::ProcessAction(ScriptMap* action, uint32 EventId, Unit* pActionInvoker)
+void CreatureEventAI::ProcessAction(ScriptMap* action, uint32 EventId, SpellCaster* pActionInvoker)
 {
     if (!action)
         return;
@@ -659,13 +653,13 @@ void CreatureEventAI::MoveInLineOfSight(Unit* pWho)
             UpdateEventsOn_MoveInLineOfSight(pWho);
 
         if (m_bCanSummonGuards && pWho->IsPlayer() && m_creature->IsWithinDistInMap(pWho, m_creature->GetDetectionRange()) &&
-            m_creature->IsHostileTo(pWho) && pWho->IsTargetableForAttack() && m_creature->IsWithinLOSInMap(pWho))
+            m_creature->IsHostileTo(pWho) && pWho->IsTargetable(true, false) && m_creature->IsWithinLOSInMap(pWho))
         {
             m_bCanSummonGuards = !sGuardMgr.SummonGuard(m_creature, static_cast<Player*>(pWho));
         } 
     }
 
-    if (m_creature->GetCreatureInfo()->flags_extra & CREATURE_FLAG_EXTRA_NO_AGGRO || m_creature->IsNeutralToAll())
+    if (m_creature->HasExtraFlag(CREATURE_FLAG_EXTRA_NO_AGGRO) || m_creature->IsNeutralToAll())
         return;
 
     // Check this now to prevent calling expensive functions (IsInAccessablePlaceFor / IsWithinLOSInMap)
@@ -675,10 +669,10 @@ void CreatureEventAI::MoveInLineOfSight(Unit* pWho)
     if (!m_creature->CanFly() && m_creature->GetDistanceZ(pWho) > CREATURE_Z_ATTACK_RANGE)
         return;
 
-    if (m_creature->CanInitiateAttack() && pWho->IsTargetableForAttack())
+    if (m_creature->CanInitiateAttack() && pWho->IsTargetable(true, false))
     {
         float attackRadius = m_creature->GetAttackDistance(pWho);
-        if (m_creature->IsWithinDistInMap(pWho, attackRadius) && m_creature->IsHostileTo(pWho))
+        if (m_creature->IsWithinDistInMap(pWho, attackRadius, true, false) && m_creature->IsHostileTo(pWho))
         {
             if (!m_creature->GetVictim())
             {
@@ -709,9 +703,9 @@ void CreatureEventAI::UpdateEventsOn_MoveInLineOfSight(Unit* pWho)
             //if range is ok and we are actually in LOS
             if (m_creature->IsWithinDistInMap(pWho, fMaxAllowedRange))
             {
-                //if friendly event&&who is not hostile OR hostile event&&who is hostile
-                if ((itr.Event.ooc_los.noHostile && !m_creature->IsHostileTo(pWho)) ||
-                    (!itr.Event.ooc_los.noHostile && m_creature->IsHostileTo(pWho)))
+                if ((itr.Event.ooc_los.reaction == ULR_ANY) ||
+                    (itr.Event.ooc_los.reaction == ULR_NON_HOSTILE && !m_creature->IsHostileTo(pWho)) ||
+                    (itr.Event.ooc_los.reaction == ULR_HOSTILE && m_creature->IsHostileTo(pWho)))
                     if (m_creature->IsWithinLOSInMap(pWho))
                         ProcessEvent(itr, pWho);
             }
@@ -719,7 +713,7 @@ void CreatureEventAI::UpdateEventsOn_MoveInLineOfSight(Unit* pWho)
     }
 }
 
-void CreatureEventAI::SpellHit(Unit* pUnit, SpellEntry const* pSpell)
+void CreatureEventAI::SpellHit(SpellCaster* pCaster, SpellEntry const* pSpell)
 {
     if (m_bEmptyList)
         return;
@@ -733,13 +727,13 @@ void CreatureEventAI::SpellHit(Unit* pUnit, SpellEntry const* pSpell)
                 //If spell id matches (or no spell id) & if spell school matches (or no spell school)
                 if (!i.Event.hit_by_spell.spellId || pSpell->Id == i.Event.hit_by_spell.spellId)
                     if (GetSchoolMask(pSpell->School) & i.Event.hit_by_spell.schoolMask)
-                        ProcessEvent(i, pUnit);
+                        ProcessEvent(i, pCaster);
                 break;
             }
             case EVENT_T_HIT_BY_AURA:
             {
                 if (!i.Event.hit_by_aura.auraType || pSpell->HasAura(AuraType(i.Event.hit_by_aura.auraType)))
-                    ProcessEvent(i, pUnit);
+                    ProcessEvent(i, pCaster);
                 break;
             }
         }
@@ -881,7 +875,7 @@ void CreatureEventAI::DamageTaken(Unit* /*done_by*/, uint32& damage)
     }
 }
 
-void CreatureEventAI::MapScriptEventHappened(ScriptedEvent* pEvent, uint32 uiData)
+void CreatureEventAI::OnScriptEventHappened(uint32 uiEvent, uint32 uiData, WorldObject* pInvoker)
 {
     if (m_bEmptyList)
         return;
@@ -889,8 +883,8 @@ void CreatureEventAI::MapScriptEventHappened(ScriptedEvent* pEvent, uint32 uiDat
     for (auto& i : m_CreatureEventAIList)
     {
         if (i.Event.event_type == EVENT_T_MAP_SCRIPT_EVENT)
-            if ((i.Event.map_event.eventId == pEvent->m_uiEventId) && (i.Event.map_event.data == uiData))
-                ProcessEvent(i);
+            if ((i.Event.map_event.eventId == uiEvent) && (i.Event.map_event.data == uiData))
+                ProcessEvent(i, ToUnit(pInvoker));
     }
 }
 

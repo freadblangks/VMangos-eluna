@@ -30,8 +30,6 @@
 #include "Timer.h"
 #include "Policies/Singleton.h"
 #include "SharedDefines.h"
-#include "ace/Atomic_Op.h"
-#include "Commands/Nostalrius.h"
 #include "ObjectGuid.h"
 #include "Chat/AbstractPlayer.h"
 #include "WorldPacket.h"
@@ -42,6 +40,7 @@
 #include <chrono>
 #include <memory>
 #include <unordered_map>
+#include <thread>
 
 class Object;
 class WorldSession;
@@ -166,7 +165,8 @@ enum eConfigUInt32Values
     CONFIG_UINT32_ANTICRASH_OPTIONS,
     CONFIG_UINT32_MAX_POINTS_PER_MVT_PACKET,
     CONFIG_UINT32_DEBUFF_LIMIT,
-    CONFIG_UINT32_SPELLS_CCDELAY,
+    CONFIG_UINT32_SPELL_EFFECT_DELAY,
+    CONFIG_UINT32_SPELL_PROC_DELAY,
     CONFIG_UINT32_PET_DEFAULT_LOYALTY,
     CONFIG_UINT32_MAP_OBJECTSUPDATE_THREADS,
     CONFIG_UINT32_MAP_OBJECTSUPDATE_TIMEOUT,
@@ -188,7 +188,6 @@ enum eConfigUInt32Values
     CONFIG_UINT32_CHARACTERS_CREATING_DISABLED,
     CONFIG_UINT32_CHARACTERS_PER_ACCOUNT,
     CONFIG_UINT32_CHARACTERS_PER_REALM,
-    CONFIG_UINT32_SKIP_CINEMATICS,
     CONFIG_UINT32_MAX_PLAYER_LEVEL,
     CONFIG_UINT32_START_PLAYER_LEVEL,
     CONFIG_UINT32_START_PLAYER_MONEY,
@@ -243,12 +242,9 @@ enum eConfigUInt32Values
     CONFIG_UINT32_BATTLEGROUND_QUEUE_ANNOUNCER_JOIN,
     CONFIG_UINT32_GROUP_OFFLINE_LEADER_DELAY,
     CONFIG_UINT32_GUILD_EVENT_LOG_COUNT,
-    CONFIG_UINT32_TIMERBAR_FATIGUE_GMLEVEL,
-    CONFIG_UINT32_TIMERBAR_FATIGUE_MAX,
-    CONFIG_UINT32_TIMERBAR_BREATH_GMLEVEL,
-    CONFIG_UINT32_TIMERBAR_BREATH_MAX,
-    CONFIG_UINT32_TIMERBAR_FIRE_GMLEVEL,
-    CONFIG_UINT32_TIMERBAR_FIRE_MAX,
+    CONFIG_UINT32_MIRRORTIMER_FATIGUE_MAX,
+    CONFIG_UINT32_MIRRORTIMER_BREATH_MAX,
+    CONFIG_UINT32_MIRRORTIMER_ENVIRONMENTAL_MAX,
     CONFIG_UINT32_MIN_LEVEL_STAT_SAVE,
     CONFIG_UINT32_MAINTENANCE_DAY,
     CONFIG_UINT32_CHARDELETE_KEEP_DAYS,
@@ -266,6 +262,7 @@ enum eConfigUInt32Values
     CONFIG_UINT32_WAR_EFFORT_AUTOCOMPLETE_PERIOD,
     CONFIG_UINT32_ACCOUNT_CONCURRENT_AUCTION_LIMIT,
     CONFIG_UINT32_BANLIST_RELOAD_TIMER,
+    CONFIG_UINT32_AC_MOVEMENT_PACKET_LOG_SIZE,
     CONFIG_UINT32_AC_MOVEMENT_BAN_DURATION,
     CONFIG_UINT32_AC_MOVEMENT_CHEAT_REVERSE_TIME_THRESHOLD,
     CONFIG_UINT32_AC_MOVEMENT_CHEAT_REVERSE_TIME_PENALTY,
@@ -326,14 +323,17 @@ enum eConfigUInt32Values
     CONFIG_UINT32_AC_MOVEMENT_CHEAT_FORBIDDEN_AREA_THRESHOLD,
     CONFIG_UINT32_AC_MOVEMENT_CHEAT_FORBIDDEN_AREA_PENALTY,
     CONFIG_UINT32_MOVEMENT_CHANGE_ACK_TIME,
+    CONFIG_UINT32_AC_WARDEN_NUM_SCANS,
     CONFIG_UINT32_AC_WARDEN_CLIENT_RESPONSE_DELAY,
-    CONFIG_UINT32_AC_WARDEN_CLIENT_CHECK_HOLDOFF,
+    CONFIG_UINT32_AC_WARDEN_SCAN_FREQUENCY,
     CONFIG_UINT32_AC_WARDEN_DEFAULT_PENALTY,
     CONFIG_UINT32_AC_WARDEN_CLIENT_BAN_DURATION,
-    CONFIG_UINT32_AC_WARDEN_NUM_MEM_CHECKS,
-    CONFIG_UINT32_AC_WARDEN_NUM_OTHER_CHECKS,
     CONFIG_UINT32_AC_WARDEN_DB_LOGLEVEL,
     CONFIG_UINT32_AUTOBROADCAST_INTERVAL,
+    CONFIG_UINT32_PARTY_BOT_MAX_BOTS,
+    CONFIG_UINT32_PARTY_BOT_AUTO_EQUIP,
+    CONFIG_UINT32_BATTLE_BOT_AUTO_EQUIP,
+    CONFIG_UINT32_PARTY_BOT_RANDOM_GEAR_LEVEL_DIFFERENCE,
     CONFIG_UINT32_VALUE_COUNT
 };
 
@@ -364,6 +364,7 @@ enum eConfigFloatValues
     CONFIG_FLOAT_RATE_HEALTH = 0,
     CONFIG_FLOAT_MAX_CREATURE_ATTACK_RADIUS,
     CONFIG_FLOAT_MAX_PLAYERS_STEALTH_DETECT_RANGE,
+    CONFIG_FLOAT_MAX_CREATURES_STEALTH_DETECT_RANGE,
     CONFIG_FLOAT_DYN_RESPAWN_CHECK_RANGE,
     CONFIG_FLOAT_DYN_RESPAWN_PERCENT_PER_PLAYER,
     CONFIG_FLOAT_DYN_RESPAWN_MAX_REDUCTION_RATE,
@@ -372,7 +373,6 @@ enum eConfigFloatValues
     CONFIG_FLOAT_RATE_POWER_RAGE_LOSS,
     CONFIG_FLOAT_RATE_POWER_FOCUS,
     CONFIG_FLOAT_RATE_POWER_ENERGY,
-    CONFIG_FLOAT_RATE_SKILL_DISCOVERY,
     CONFIG_FLOAT_RATE_DROP_ITEM_POOR,
     CONFIG_FLOAT_RATE_DROP_ITEM_NORMAL,
     CONFIG_FLOAT_RATE_DROP_ITEM_UNCOMMON,
@@ -467,7 +467,9 @@ enum eConfigBoolValues
     CONFIG_BOOL_OUTDOORPVP_EP_ENABLE,
     CONFIG_BOOL_OUTDOORPVP_SI_ENABLE,
     CONFIG_BOOL_MMAP_ENABLED,
+    CONFIG_BOOL_SKIP_CINEMATICS,
     CONFIG_BOOL_PLAYER_COMMANDS,
+    CONFIG_BOOL_FORCE_LOGOUT_DELAY,
     CONFIG_BOOL_SAVE_RESPAWN_TIME_IMMEDIATELY,
     CONFIG_BOOL_ALLOW_TWO_SIDE_ACCOUNTS,
     CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_CHAT,
@@ -514,7 +516,9 @@ enum eConfigBoolValues
     CONFIG_BOOL_VMAP_INDOOR_CHECK,
     CONFIG_BOOL_PET_UNSUMMON_AT_MOUNT,
     CONFIG_BOOL_ENABLE_DK,
-    CONFIG_BOOL_ENABLE_MOVEMENT_INTERP,
+    CONFIG_BOOL_ENABLE_CITY_PROTECTOR,
+    CONFIG_BOOL_ENABLE_MOVEMENT_EXTRAPOLATION_CHARGE,
+    CONFIG_BOOL_ENABLE_MOVEMENT_EXTRAPOLATION_PET,
     CONFIG_BOOL_WHISPER_RESTRICTION,
     CONFIG_BOOL_MAILSPAM_ITEM,
     CONFIG_BOOL_ACCURATE_PVP_EQUIP_REQUIREMENTS,
@@ -579,11 +583,13 @@ enum eConfigBoolValues
     CONFIG_BOOL_AC_MOVEMENT_CHEAT_EXPLORE_ENABLED,
     CONFIG_BOOL_AC_MOVEMENT_CHEAT_EXPLORE_HIGH_LEVEL_ENABLED,
     CONFIG_BOOL_AC_MOVEMENT_CHEAT_FORBIDDEN_AREA_ENABLED,
-    CONFIG_BOOL_AC_WARDEN_WIN_ENABLED,
-    CONFIG_BOOL_AC_WARDEN_OSX_ENABLED,
     CONFIG_BOOL_AC_WARDEN_PLAYERS_ONLY,
+    CONFIG_BOOL_AC_WARDEN_OSX_ENABLED,
+    CONFIG_BOOL_AC_WARDEN_WIN_ENABLED,
     CONFIG_BOOL_VISIBILITY_FORCE_ACTIVE_OBJECTS,
     CONFIG_BOOL_PLAYER_BOT_SHOW_IN_WHO_LIST,
+    CONFIG_BOOL_PARTY_BOT_SKIP_CHECKS,
+    CONFIG_BOOL_WORLD_AVAILABLE,
     CONFIG_BOOL_VALUE_COUNT
 };
 
@@ -634,18 +640,12 @@ enum RealmZone
     REALM_ZONE_CN9           = 29                           // basic-Latin at create, any at login
 };
 
-class AsyncTask
+class SessionPacketSendTask
 {
-public:
-    virtual ~AsyncTask() {}
-    virtual void run() = 0;
-};
-
-class SessionPacketSendTask : public AsyncTask
-{
+    SessionPacketSendTask(const SessionPacketSendTask&) = delete;
 public:
     SessionPacketSendTask(uint32 accountId, WorldPacket& data) : m_accountId(accountId), m_data(data) {}
-    void run() override;
+    void operator ()();
 private:
     uint32 m_accountId;
     WorldPacket m_data;
@@ -695,6 +695,8 @@ struct CliCommandHolder
 
     ~CliCommandHolder() { delete[] m_command; }
 };
+
+class ThreadPool;
 
 /// The World
 class World
@@ -846,7 +848,6 @@ class World
         static float GetRelocationLowerLimitSq()            { return m_relocation_lower_limit_sq; }
         static uint32 GetRelocationAINotifyDelay()          { return m_relocation_ai_notify_delay; }
 
-        static uint32 GetCreatureSummonCountLimit()         { return m_creatureSummonCountLimit; }
         std::string const& GetWardenModuleDirectory() const { return m_wardenModuleDirectory; }
 
         void ProcessCliCommands();
@@ -874,9 +875,10 @@ class World
          * The tasks will be executed *while* maps are updated. So don't touch the mobs, pets, etc ...
          * includes reading, unless the read itself is serialized
          */
-        void AddAsyncTask(AsyncTask* task) { _asyncTasks.add(task); }
-        bool GetNextAsyncTask(AsyncTask*& task) { return _asyncTasks.next(task); }
-        ACE_Based::LockedQueue<AsyncTask*, ACE_Thread_Mutex> _asyncTasks;
+        void AddAsyncTask(std::function<void ()> task);
+        std::mutex m_asyncTaskQueueMutex;
+        std::vector<std::function<void()>> _asyncTasks;
+        std::vector<std::function<void()>> _asyncTasksBusy;
         /**
          * Database logs system
          */
@@ -908,6 +910,10 @@ class World
         **/
         void InvalidatePlayerDataToAllClient(ObjectGuid guid);
 
+        static uint32 GetCurrentMSTime() { return m_currentMSTime; }
+        static TimePoint GetCurrentClockTime() { return m_currentTime; }
+        static uint32 GetCurrentDiff() { return m_currentDiff; }
+
         // Manually override timer update secs to force a faster update
         void SetWorldUpdateTimer(WorldTimers timer, uint32 current);
         time_t GetWorldUpdateTimer(WorldTimers timer);
@@ -938,10 +944,10 @@ class World
 
         static volatile bool m_stopEvent;
         static uint8 m_ExitCode;
-        uint32 m_ShutdownTimer;
-        uint32 m_ShutdownMask;
+        uint32 m_ShutdownTimer = 0;
+        uint32 m_ShutdownMask = 0;
 
-        uint32 m_MaintenanceTimeChecker;
+        uint32 m_MaintenanceTimeChecker = 0;
 
         time_t m_startTime;
         time_t m_gameTime;
@@ -954,8 +960,8 @@ class World
         std::map<uint32 /*accountId*/, time_t /*last logout*/> m_accountsLastLogout;
         bool CanSkipQueue(WorldSession const* session);
 
-        uint32 m_maxActiveSessionCount;
-        uint32 m_maxQueuedSessionCount;
+        uint32 m_maxActiveSessionCount = 0;
+        uint32 m_maxQueuedSessionCount = 0;
 
         uint32 m_configUint32Values[CONFIG_UINT32_VALUE_COUNT];
         int32 m_configInt32Values[CONFIG_INT32_VALUE_COUNT];
@@ -966,7 +972,7 @@ class World
         uint8 m_wowPatch;
 
         LocaleConstant m_defaultDbcLocale;                     // from config for one from loaded DBC locales
-        uint32 m_availableDbcLocaleMask;                       // by loaded DBC
+        uint32 m_availableDbcLocaleMask = 0;                       // by loaded DBC
         void DetectDBCLang();
         bool m_allowMovement;
         std::string m_motd;
@@ -986,27 +992,31 @@ class World
         static float  m_relocation_lower_limit_sq;
         static uint32 m_relocation_ai_notify_delay;
 
-        static uint32 m_creatureSummonCountLimit;
-
         // CLI command holder to be thread safe
-        ACE_Based::LockedQueue<CliCommandHolder*,ACE_Thread_Mutex> cliCmdQueue;
+        LockedQueue<CliCommandHolder*,std::mutex> cliCmdQueue;
 
         //Player Queue
         Queue m_QueuedSessions;
 
         //sessions that are added async
         void AddSession_(WorldSession* s);
-        ACE_Based::LockedQueue<WorldSession*, ACE_Thread_Mutex> addSessQueue;
+        LockedQueue<WorldSession*, std::mutex> addSessQueue;
 
         //used versions
-        uint32      m_anticrashRearmTimer;
-        ACE_Based::Thread* m_charDbWorkerThread;
+        uint32      m_anticrashRearmTimer = 0;
+        std::unique_ptr<std::thread> m_charDbWorkerThread;
 
         typedef std::unordered_map<uint32, ArchivedLogMessage> LogMessagesMap;
         LogMessagesMap m_logMessages;
 
         // Packet broadcaster
         std::unique_ptr<MovementBroadcaster> m_broadcaster;
+
+        std::unique_ptr<ThreadPool> m_updateThreads;
+        
+        static uint32 m_currentMSTime;
+        static TimePoint m_currentTime;
+        static uint32 m_currentDiff;
 };
 
 extern uint32 realmID;

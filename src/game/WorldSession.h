@@ -300,6 +300,8 @@ class WorldSession
         Player* GetPlayer() const { return _player; }
         char const* GetPlayerName() const;
         void SetSecurity(AccountTypes security) { _security = security; }
+        uint32 GetFingerprint() const { return 0; } // TODO
+        void CleanupFingerprintHistory() {} // TODO
         std::string const& GetRemoteAddress() const { return m_Address; }
         std::string const& GetClientHash() const { return _clientHash; }
         void SetPlayer(Player* plr) { _player = plr; }
@@ -346,31 +348,33 @@ class WorldSession
         void SendNameQueryOpcodeFromDB(ObjectGuid guid);
         static void SendNameQueryOpcodeFromDBCallBack(QueryResult* result, uint32 accountId);
 
+        // Trainer
         void SendTrainerList(ObjectGuid guid);
         void SendTrainerList(ObjectGuid guid, std::string const& strTitle);
         void SendTrainingSuccess(ObjectGuid guid, uint32 spellId);
         void SendTrainingFailure(ObjectGuid guid, uint32 serviceId, uint32 errorCode);
 
+        // NPC
         void SendListInventory(ObjectGuid guid, uint8 menu_type = VENDOR_MENU_ALL);
         bool CheckBanker(ObjectGuid guid);
         void SendShowBank(ObjectGuid guid);
-        bool CheckMailBox(ObjectGuid guid);
         void SendTabardVendorActivate(ObjectGuid guid);
         void SendSpiritResurrect();
         void SendBindPoint(Creature* npc);
-
         void SendAttackStop(Unit const* enemy);
 
-        void SendBattlegGroundList(ObjectGuid guid, BattleGroundTypeId bgTypeId);
-
+        // Mail
+        bool CheckMailBox(ObjectGuid guid);
+        void SendMailResult(uint32 mailId, MailResponseType mailAction, MailResponseResult mailError, uint32 equipError = 0, uint32 item_guid = 0, uint32 item_count = 0);
+        void SendNewMail();
+        
+        // Trade
         void SendTradeStatus(TradeStatus status);
         void SendUpdateTrade(bool trader_state = true);
         void SendCancelTrade();
 
-        void SendPetitionQueryOpcode(uint32 petitionguid);
-
-        //pet
-        void SendPetNameQuery(ObjectGuid guid, uint32 petnumber);
+        // Pet
+        void SendPetNameQuery(ObjectGuid guid, uint32 petNumber);
         void SendStablePet(ObjectGuid guid);
         void SendStableResult(uint8 res);
         bool CheckStableMaster(ObjectGuid guid);
@@ -396,7 +400,7 @@ class WorldSession
 
         bool SendItemInfo(uint32 itemid, WorldPacket data);
 
-        //auction
+        // Auction
         void SendAuctionHello(Unit* unit);
         void SendAuctionCommandResult(AuctionEntry* auc, AuctionAction Action, AuctionError ErrorCode, InventoryResult invError = EQUIP_ERR_OK);
         void SendAuctionBidderNotification(AuctionEntry* auction, bool won);
@@ -406,11 +410,11 @@ class WorldSession
         void SendAuctionCancelledToBidderMail(AuctionEntry* auction);
         AuctionHouseEntry const* GetCheckedAuctionHouseForAuctioneer(ObjectGuid guid);
 
-        //Item Enchantment
+        // Item Enchantment
         void SendEnchantmentLog(ObjectGuid targetGuid, ObjectGuid casterGuid, uint32 itemId, uint32 spellId);
         void SendItemEnchantTimeUpdate(ObjectGuid playerGuid, ObjectGuid itemGuid, uint32 slot, uint32 duration);
 
-        //Taxi
+        // Taxi
         void SendTaxiStatus(ObjectGuid guid);
         void SendTaxiMenu(Creature* unit);
         void SendDoFlight(uint32 mountDisplayId, uint32 path, uint32 pathNode = 0);
@@ -420,12 +424,16 @@ class WorldSession
         void SendGuildCommandResult(uint32 typecmd, std::string const& str, uint32 cmdresult);
         void SendPetitionShowList(ObjectGuid& guid);
         void SendSaveGuildEmblem(uint32 msg);
+
+        // Battleground
         void SendBattleGroundJoinError(uint8 err);
+        void SendBattleGroundList(ObjectGuid guid, BattleGroundTypeId bgTypeId);
 
         // Meetingstone
         void SendMeetingstoneFailed(uint8 status);
         void SendMeetingstoneSetqueue(uint32 areaid, uint8 status);
 
+        // Group
         void BuildPartyMemberStatsChangedPacket(Player* player, WorldPacket* data);
         void BuildPartyMemberStatsPacket(Player* player, WorldPacket* data, uint32 updateMask, bool sendAllAuras);
 
@@ -911,7 +919,7 @@ class WorldSession
         uint32 m_latency;
         uint32 m_Tutorials[ACCOUNT_TUTORIALS_COUNT];
         TutorialDataState m_tutorialState;
-        ACE_Based::LockedQueue<WorldPacket*, ACE_Thread_Mutex> _recvQueue[PACKET_PROCESS_MAX_TYPE];
+        LockedQueue<WorldPacket*, std::mutex> _recvQueue[PACKET_PROCESS_MAX_TYPE];
         bool _receivedPacketType[PACKET_PROCESS_MAX_TYPE];
 
         Warden* m_warden;

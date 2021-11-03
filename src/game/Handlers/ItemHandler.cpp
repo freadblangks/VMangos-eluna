@@ -27,8 +27,9 @@
 #include "ObjectMgr.h"
 #include "Player.h"
 #include "Item.h"
-#include "UpdateData.h"
+#include "Bag.h"
 #include "Chat.h"
+#include "Conditions.h"
 #include "Anticheat.h"
 
 void WorldSession::HandleSplitItemOpcode(WorldPacket& recv_data)
@@ -444,7 +445,13 @@ void WorldSession::HandleItemQuerySingleOpcode(WorldPacket& recv_data)
     }
     else
     {
-        DEBUG_LOG("WORLD: CMSG_ITEM_QUERY_SINGLE - NO item INFO! (ENTRY: %u)", item);
+        if (pProto && !pProto->m_bDiscovered)
+        {
+            std::stringstream oss;
+            oss << "Requested info for undiscovered item " << pProto->ItemId;;
+            ProcessAnticheatAction("PassiveAnticheat", oss.str().c_str(), CHEAT_ACTION_LOG);
+        }
+        
         WorldPacket data(SMSG_ITEM_QUERY_SINGLE_RESPONSE, 4);
         data << uint32(item | 0x80000000);
         SendPacket(&data);
@@ -526,7 +533,7 @@ void WorldSession::HandleSellItemOpcode(WorldPacket& recv_data)
     }
 
     // remove fake death
-    if (GetPlayer()->HasUnitState(UNIT_STAT_DIED))
+    if (GetPlayer()->HasUnitState(UNIT_STAT_FEIGN_DEATH))
         GetPlayer()->RemoveSpellsCausingAura(SPELL_AURA_FEIGN_DEATH);
 
     Item *pItem = _player->GetItemByGuid(itemGuid);
@@ -660,7 +667,7 @@ void WorldSession::HandleBuybackItem(WorldPacket& recv_data)
     }
 
     // remove fake death
-    if (GetPlayer()->HasUnitState(UNIT_STAT_DIED))
+    if (GetPlayer()->HasUnitState(UNIT_STAT_FEIGN_DEATH))
         GetPlayer()->RemoveSpellsCausingAura(SPELL_AURA_FEIGN_DEATH);
 
     Item *pItem = _player->GetItemFromBuyBackSlot(slot);
@@ -767,12 +774,15 @@ void WorldSession::SendListInventory(ObjectGuid vendorguid, uint8 menu_type)
     }
 
     // remove fake death
-    if (GetPlayer()->HasUnitState(UNIT_STAT_DIED))
+    if (GetPlayer()->HasUnitState(UNIT_STAT_FEIGN_DEATH))
         GetPlayer()->RemoveSpellsCausingAura(SPELL_AURA_FEIGN_DEATH);
 
     // Stop the npc if moving
-    if (!pCreature->IsStopped())
-        pCreature->StopMoving();
+    if (!pCreature->HasExtraFlag(CREATURE_FLAG_EXTRA_NO_MOVEMENT_PAUSE))
+        pCreature->PauseOutOfCombatMovement();
+
+    GetPlayer()->InterruptSpellsWithChannelFlags(AURA_INTERRUPT_INTERACTING_CANCELS);
+    GetPlayer()->RemoveAurasWithInterruptFlags(AURA_INTERRUPT_INTERACTING_CANCELS);
 
     VendorItemData const* vItems = menu_type & VENDOR_MENU_NORMAL ? pCreature->GetVendorItems() : nullptr;
     VendorItemData const* tItems = menu_type & VENDOR_MENU_TEMPLATE ? pCreature->GetVendorTemplateItems() : nullptr;
@@ -823,7 +833,7 @@ void WorldSession::SendListInventory(ObjectGuid vendorguid, uint8 menu_type)
                             ReputationRank(pProto->RequiredReputationRank) > _player->GetReputationRank(pCreature->getFactionTemplateEntry()->faction))
                         continue;
 
-                    if (crItem->conditionId && !sObjectMgr.IsConditionSatisfied(crItem->conditionId, _player, pCreature->GetMap(), pCreature, CONDITION_FROM_VENDOR))
+                    if (crItem->conditionId && !IsConditionSatisfied(crItem->conditionId, _player, pCreature->GetMap(), pCreature, CONDITION_FROM_VENDOR))
                         continue;
                 }
 

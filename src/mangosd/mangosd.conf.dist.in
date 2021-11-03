@@ -317,8 +317,9 @@ Continents.MotionUpdate.Threads         = 0
 AsyncTasks.Threads                      = 1
 AsyncQueriesTickTimeout = 0
 
-# Movement interpolation system - not stable now
-Movement.Interpolation = 0
+# Movement extrapolation system - not stable now
+Movement.ExtrapolateChargePosition = 1
+Movement.ExtrapolatePetPosition = 1
 
 # Delayed repositionning checks (mounts inside / swimming ...). 0 to disable.
 Movement.RelocationVmapsCheckDelay = 0
@@ -382,6 +383,10 @@ Anticrash.Rearm.Timer = 60000
 #    PvP.DishonorableKills
 #        Whether to give dishonorable kills to players who kill civilians.
 #        Default: 1
+#  
+#    PvP.CityProtector
+#        Whether to assign City Protector titles on honor update or not.
+#        Default: 0
 #
 #    Progression.AccuratePetStatistics
 #        Whether to allow Blizzlike pet statistic (damage, speed, resists) progression.
@@ -434,6 +439,7 @@ PvP.AccuratePurchaseRequirements = 1
 PvP.AccurateTimeline = 1
 PvP.AccurateRewards = 1
 PvP.DishonorableKills = 1
+PvP.CityProtector = 0
 
 Progression.RestoreDeletedItems = 1
 Progression.AccuratePetStatistics = 1
@@ -800,6 +806,11 @@ PerformanceLog.SlowPacketBroadcast      = 0
 #        Minimal name length (1..12)
 #        Default: 2
 #
+#    WorldAvailable
+#        If players are allowed to enter the world. Character creation will still be possible if world is disabled.
+#        Default: 1 (Enabled)
+#                 0 (Disabled)
+#
 #    CharactersCreatingDisabled
 #        Disable characters creating for specific team or any (non-player accounts not affected)
 #        Default: 0 - enabled
@@ -863,6 +874,11 @@ PerformanceLog.SlowPacketBroadcast      = 0
 #    InstantLogout
 #        Enable or disable instant logout for security level (0..4) or high (NOT in combat/while dueling/while falling)
 #        Default: 1 (Mods/GMs/Admins)
+#
+#    ForceLogoutDelay
+#        Keep player characters ingame for some time after a client disconnects unexpectedly.
+#        Default: 1 (true)
+#                 0 (false)
 #
 #    AutoHonorRestart
 #        Server will schedule a restart on its own when it's time to perform PvP rank calculations.
@@ -950,32 +966,20 @@ PerformanceLog.SlowPacketBroadcast      = 0
 #        You can set it to very high value to prevent oldest guild events to be rewritten by latest guild events - but it can slow down performance
 #        Default: 100
 #
-#    TimerBar.Fatigue.GMLevel
-#        Disable/enable fatigue for security level (0..4) or high
-#        Default: 4 (None)
-#
-#    TimerBar.Fatigue.Max
+#    MirrorTimer.Fatigue.Max
 #        Fatigue max timer value (in secs)
 #        Default: 60 (1 minute)
-#                  0 (instant death)
+#                  0 (instant exhaustion damage start)
 #
-#    TimerBar.Breath.GMLevel
-#        Disable/enable waterbreathing for security level (0..4) or high
-#        Default: 4 (None)
-#
-#    TimerBar.Breath.Max
+#    MirrorTimer.Breath.Max
 #        Waterbreathing max timer value (in secs)
-#        Default:  60
-#                   0 (instant underwater breathing damage start)
+#        Default: 60
+#                  0 (instant underwater breathing damage start)
 #
-#    TimerBar.Fire.GMLevel
-#        Disable/enable lava fire damage for security level (0..4) or high
-#        Default: 4 (None)
-#
-#    TimerBar.Fire.Max
-#        Lava damage delay max timer value (in secs)
+#    MirrorTimer.Environmental.Max
+#        Generic environmental (lava/slime/etc) damage delay max timer value (in secs)
 #        Default:  1
-#                  0 (instant in lava damage start)
+#                  0 (instant in liquid damage start)
 #
 #    MaxPrimaryTradeSkill
 #        Max count that player can learn the primary trade skill.
@@ -1027,6 +1031,15 @@ PerformanceLog.SlowPacketBroadcast      = 0
 #        Server autobroadcast interval set in miliseconds.
 #        Default: 1800000 = 30 min
 #
+#    Spell.EffectDelay
+#        Delay in milliseconds before most spell effects are processed.
+#        Default: 400
+#
+#    Spell.ProcDelay
+#        Delay in milliseconds before processing procs. Spells triggered by aura procs also seem
+#        to be subject to a batching delay, so we double the procs delay to recreate the effect.
+#        Default: 800
+#
 #    BeepAtStart
 #        Beep at mangosd start finished (mostly work only at Unix/Linux systems)
 #        Default: 1 (true)
@@ -1059,6 +1072,7 @@ StrictPetNames = 0
 MinPlayerName = 2
 MinCharterName = 2
 MinPetName = 2
+WorldAvailable = 1
 CharactersCreatingDisabled = 0
 CharactersPerAccount = 50
 CharactersPerRealm = 10
@@ -1070,6 +1084,7 @@ StartPlayerMoney = 0
 MinHonorKills = 15
 MaintenanceDay = 3
 InstantLogout = 1
+ForceLogoutDelay = 0
 AutoHonorRestart = 1
 AllFlightPaths = 0
 AlwaysMaxSkillForLevel = 0
@@ -1087,12 +1102,9 @@ Quests.HighLevelHideDiff = 7
 Quests.IgnoreRaid = 0
 Group.OfflineLeaderDelay = 300
 Guild.EventLogRecordsCount = 100
-TimerBar.Fatigue.GMLevel = 4
-TimerBar.Fatigue.Max = 60
-TimerBar.Breath.GMLevel = 4
-TimerBar.Breath.Max = 60
-TimerBar.Fire.GMLevel = 4
-TimerBar.Fire.Max = 1
+MirrorTimer.Fatigue.Max = 60
+MirrorTimer.Breath.Max = 60
+MirrorTimer.Environmental.Max = 1
 MaxPrimaryTradeSkill = 2
 MinPetitionSigns = 9
 MaxGroupXPDistance = 74
@@ -1104,6 +1116,8 @@ PetDefaultLoyalty = 1
 PlayerCommands = 1
 Event.Announce = 0
 AutoBroadcast.Timer = 1800000
+Spell.EffectDelay = 400
+Spell.ProcDelay = 800
 BeepAtStart = 1
 ShowProgressBars = 0
 WaitAtStartupError = 0
@@ -1159,7 +1173,7 @@ AllowTwoSide.AddFriend = 0
 #    ThreatRadius
 #        Radius for creature to evade after being pulled away from combat start point
 #        If ThreatRadius is less than creature aggro radius then aggro radius will be used
-#        Default: 100 yards
+#        Default: 50 yards
 #
 #    MaxCreaturesAttackRadius
 #        Creatures won't search for target farther than this.
@@ -1169,12 +1183,12 @@ AllowTwoSide.AddFriend = 0
 #    MaxPlayersStealthDetectRange
 #        Players won't search for stealthed units farther than this.
 #        Reduce for better performances.
-#        Default: 40 yards
+#        Default: 30 yards
 #
 #    MaxCreaturesStealthDetectRange
 #        Creatures won't search for stealthed units farther than this.
 #        Reduce for better performances.
-#        Default: 15 yards
+#        Default: 30 yards
 #
 #    MaxCreatureSummonLimit
 #       Game objects (and other creatures) won't be able to summon more creatures than this limit
@@ -1276,11 +1290,11 @@ AllowTwoSide.AddFriend = 0
 #
 ###################################################################################################################
 
-ThreatRadius = 100
+ThreatRadius = 50
 Rate.Creature.Aggro = 1
 MaxCreaturesAttackRadius = 40
-MaxPlayersStealthDetectRange = 40
-MaxCreaturesStealthDetectRange = 15
+MaxPlayersStealthDetectRange = 30
+MaxCreaturesStealthDetectRange = 30
 MaxCreatureSummonLimit = 100
 CreatureFamilyFleeAssistanceRadius = 30
 CreatureFamilyAssistanceRadius = 10
@@ -1441,47 +1455,39 @@ Antiflood.Sanction = 4
 #
 #    Warden.WinEnabled
 #        Description: Enables Warden checks for Windows clients.
-#        Default:     0 - (Disabled)
-#                     1 - (Enabled)
-#
-#    Warden.OSXEnabled
-#        Description: Enables Warden checks for OSX clients.
-#        Default:     0 - (Disabled)
-#                     1 - (Enabled)
-#
-#    Warden.PlayersOnly
-#        Description: Ignore game master accounts.
 #        Default:     1 - (Enabled)
 #                     0 - (Disabled)
 #
-#    Warden.NumMemChecks
-#        Description: Number of Warden memory checks that are sent to the client each cycle.
-#        Default:     3 - (Enabled)
+#    Warden.OSXEnabled
+#        Description: Enables Warden checks for OSX clients.
+#        Default:     1 - (Enabled)
 #                     0 - (Disabled)
 #
-#    Warden.NumOtherChecks
-#        Description: Number of Warden checks other than memory checks that are added to request
-#                     each checking cycle.
-#        Default:     7 - (Enabled)
-#                     0 - (Disabled)
+#    Warden.PlayersOnly
+#        Description: Ignore game master accounts.
+#        Default:     0 - (Disabled)
+#                     1 - (Enabled)
+#
+#    Warden.NumScans
+#        Description: Number of Warden memory checks that are sent to the client each cycle.
+#        Default:     10
 #
 #    Warden.ClientResponseDelay
 #        Description: Time (in seconds) before client is getting disconnecting for not responding.
-#        Default:     120 - (2 Minutes)
+#        Default:     20 - (20 Seconds)
 #                     0 - (Disabled, client won't be kicked)
 #
-#    Warden.ClientCheckHoldOff
+#    Warden.ScanFrequency
 #        Description: Time (in seconds) to wait before sending the next check request to the client.
 #                     A low number increases traffic and load on client and server side.
-#        Default:     30 - (30 Seconds)
-#                     0  - (Send check as soon as possible)
+#        Default:     15 - (15 Seconds)
 #
 #    Warden.DefaultPenalty
 #        Description: Default action being taken if a client check failed. Penalties can be
 #                     customized per check id in the warden_checks table.
-#        Default:     2 - (Ban)
-#                     0 - (Disabled, Logging only)
+#        Default:     0 - (Disabled, Logging only)
 #                     1 - (Kick)
+#                     2 - (Ban)
 #
 #    Warden.BanDuration
 #        Description: Time (in seconds) an account will be banned if Penalty is set
@@ -1507,14 +1513,13 @@ Antiflood.Sanction = 4
 #
 ###################################################################################################
 
-Warden.WinEnabled            = 0
-Warden.OSXEnabled            = 0
-Warden.PlayersOnly           = 1
-Warden.NumMemChecks          = 3
-Warden.NumOtherChecks        = 7
-Warden.ClientResponseDelay   = 120
-Warden.ClientCheckHoldOff    = 30
-Warden.DefaultPenalty        = 2
+Warden.WinEnabled            = 1
+Warden.OSXEnabled            = 1
+Warden.PlayersOnly           = 0
+Warden.NumScans              = 10
+Warden.ClientResponseDelay   = 20
+Warden.ScanFrequency         = 15
+Warden.DefaultPenalty        = 0
 Warden.BanDuration           = 86400
 Warden.DebugLog              = 0
 Warden.DBLogLevel            = 0
@@ -1539,8 +1544,7 @@ Warden.ModuleDir             = "warden_modules"
 #                     1 - (Enabled)
 #
 #    Anticheat.BanDuration
-#        Description: Time (in seconds) an account will be banned if Penalty is set
-#                     to ban.
+#        Description: Time (in seconds) an account will be banned if Penalty is set to ban.
 #        Default:     86400 - (24 hours)
 #                     0     - (Permanent ban)
 #
@@ -1549,8 +1553,14 @@ Warden.ModuleDir             = "warden_modules"
 #        Default:     0 - (Disabled)
 #                     1 - (Enabled)
 #
+#    Anticheat.PacketLogSize
+#        Description: How many previous movement packets to dump to file upon detection resulting in kick or ban.
+#                     File is saved in pkt format that can be parsed with WowPacketParser.
+#        Default:     100
+#                     0 - (Disabled)
+#
 #    Anticheat.MaxAllowedDesync
-#        Description: Client time desynchronization allowed when doing movement interpolation.
+#        Description: Client time desynchronization allowed when doing movement extrapolation.
 #        Default:     0
 #
 #    Anticheat.ReverseTime.Enable
@@ -2012,6 +2022,7 @@ Anticheat.PlayersOnly = 1
 Anticheat.NotifyCheaters = 0
 Anticheat.BanDuration = 86400
 Anticheat.LogData = 0
+Anticheat.PacketLogSize = 100
 Anticheat.MaxAllowedDesync = 0
 Anticheat.ReverseTime.Enable = 1
 Anticheat.ReverseTime.Threshold = 1
@@ -2299,10 +2310,6 @@ Visibility.ForceActiveObjects      = 1
 #        Health and power regeneration and rage income from damage.
 #        Default: 1
 #
-#    Rate.Skill.Discovery
-#         Skill Discovery Rates
-#         Default: 1
-#
 #    Rate.Drop.Item.Poor
 #    Rate.Drop.Item.Normal
 #    Rate.Drop.Item.Uncommon
@@ -2472,7 +2479,6 @@ Rate.Rage.Loss = 1
 Rate.Focus = 1
 Rate.Loyalty = 1
 Rate.Energy = 1
-Rate.Skill.Discovery = 1
 Rate.Drop.Item.Poor = 1
 Rate.Drop.Item.Normal = 1
 Rate.Drop.Item.Uncommon = 1
@@ -2793,24 +2799,89 @@ AHBot.itemcount = 50
 #AHBot.bot.account = 32377
 
 ###################################################################################################################
+# PLAYER BOTS
+#
+#    RandomBot.Enable
+#        Enables automatic spawning of random bots. These bots have no AI. You have to code one and assign it.
+#        Default: 0 - off
+#                 1 - on
+#
+#    RandomBot.MinBots
+#        Minimum amount of random bots the server will try to spawn.
+#        Default: 0
+#
+#    RandomBot.MaxBots
+#        Maximum amount of random bots the server will try to spawn.
+#        Default: 0
+#
+#    RandomBot.Refresh
+#        How often the the server will check if there are enough bots spawned.
+#        Default: 60000 (1 minute)
+#
+#    PlayerBot.Debug
+#        Enables additional debugging information about bots that is printed in the console.
+#        Default: 0 - off
+#                 1 - on
+#
+#    PlayerBot.UpdateMs
+#        How often the AI of bots will be updated. A bigger delay will make them less responsive.
+#        Default: 1000 (1 second)
+#
+#    PlayerBot.ShowInWhoList
+#        Enables displaying characters controlled by bots in /who results.
+#        Default: 0 - off
+#                 1 - on
+#
+#    PartyBot.MaxBots
+#        Maximum number of party bots that normal players are allowed to summon.
+#        Default: 0 (no limit)
+#
+#    PartyBot.SkipChecks
+#        Disables the additional restrictions that apply when a normal player tries to summon a party bot.
+#        Default: 0 (restricted)
+#                 1 (no restrictions)
+#
+#    PartyBot.AutoEquip
+#        What gear will new partybots spawn with.
+#        Default: 1 (random items)
+#                 0 (normal starting items)
+#                 2 (premade gear template)
+#
+#    PartyBot.RandomGearLevelDifference
+#        Item level difference for random items that will bots equip. Has only effect if PartyBot.AutoEquip is set to 1.
+#        A lower number equals to gear being more close to the bot level.
+#        Default: 10 (bots will equip gear down to a minimum of 10 item level difference)
+#
+#    BattleBot.AutoEquip
+#        What gear will new battlebots spawn with.
+#        Default: 1 (random items)
+#                 0 (normal starting items)
+#                 2 (premade gear template)
+#
+###################################################################################################################
+RandomBot.Enable = 0
+RandomBot.MinBots = 0
+RandomBot.MaxBots = 0
+RandomBot.Refresh = 60000
+
+PlayerBot.Debug = 0
+PlayerBot.UpdateMs = 1000
+PlayerBot.ShowInWhoList = 0
+
+PartyBot.MaxBots = 0
+PartyBot.SkipChecks = 0
+PartyBot.AutoEquip = 1
+PartyBot.RandomGearLevelDifference = 10
+
+BattleBot.AutoEquip = 1
+
+###################################################################################################################
 #    Database-based chat
 ###################################################################################################################
 OfflineChat.Enable = 0
 OfflineChat.Port   = 3444
 OfflineChat.IP     = 0.0.0.0
 OfflineChat.Password= "p8zqkt"
-
-###################################################################################################################
-#    Player bots
-###################################################################################################################
-PlayerBot.Enable = 1
-PlayerBot.Debug = 0
-PlayerBot.UpdateMs = 1000
-PlayerBot.MinBots = 0
-PlayerBot.MaxBots = 0
-PlayerBot.Refresh = 10000
-PlayerBot.ForceLogoutDelay = 1
-PlayerBot.ShowInWhoList = 0
 
 ###################################################################################################################
 #    Mail flooding mitigation
@@ -2832,10 +2903,4 @@ DynamicRespawn.AffectRespawnTimeBelow   = 0
 DynamicRespawn.AffectLevelBelow         = 0
 DynamicRespawn.PlayersThreshold         = 0
 DynamicRespawn.PlayersMaxLevelDiff      = 0
-
-###################################################################################################################
-#    Others settings
-###################################################################################################################
-
-Spells.CCDelay = 200
 

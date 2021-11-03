@@ -11,6 +11,8 @@ EndScriptData */
 
 #include "ScriptedFollowerAI.h"
 #include "Chat.h"
+#include "Player.h"
+#include "Group.h"
 
 float const MAX_PLAYER_DISTANCE = 100.0f;
 
@@ -55,7 +57,7 @@ bool FollowerAI::AssistPlayerInCombat(Unit* pWho)
     if (m_creature->CanAssistPlayers())
         return false;
 
-    if (m_creature->HasUnitState(UNIT_STAT_STUNNED | UNIT_STAT_DIED))
+    if (m_creature->HasUnitState(UNIT_STAT_STUNNED | UNIT_STAT_FEIGN_DEATH))
         return false;
 
     //not a player
@@ -88,7 +90,7 @@ bool FollowerAI::AssistPlayerInCombat(Unit* pWho)
 
 void FollowerAI::MoveInLineOfSight(Unit* pWho)
 {
-    if (pWho->IsTargetableForAttack() && pWho->IsInAccessablePlaceFor(m_creature))
+    if (pWho->IsTargetable(true, m_creature->IsCharmerOrOwnerPlayerOrPlayerItself()) && pWho->IsInAccessablePlaceFor(m_creature))
     {
         // AssistPlayerInCombat can start, so return if true
         if (HasFollowState(STATE_FOLLOW_INPROGRESS) && AssistPlayerInCombat(pWho))
@@ -103,7 +105,7 @@ void FollowerAI::MoveInLineOfSight(Unit* pWho)
         if (m_creature->IsHostileTo(pWho))
         {
             float fAttackRadius = m_creature->GetAttackDistance(pWho);
-            if (m_creature->IsWithinDistInMap(pWho, fAttackRadius) && m_creature->IsWithinLOSInMap(pWho))
+            if (m_creature->IsWithinDistInMap(pWho, fAttackRadius, true, false) && m_creature->IsWithinLOSInMap(pWho))
             {
                 if (!m_creature->GetVictim())
                 {
@@ -144,6 +146,8 @@ void FollowerAI::JustDied(Unit* /*pKiller*/)
             if (pPlayer->GetQuestStatus(m_pQuestForFollow->GetQuestId()) == QUEST_STATUS_INCOMPLETE)
                 pPlayer->FailQuest(m_pQuestForFollow->GetQuestId());
         }
+
+        OnEscortFailed(true);
     }
 }
 
@@ -162,6 +166,7 @@ void FollowerAI::JustRespawned()
 
 void FollowerAI::EnterEvadeMode()
 {
+    m_creature->ClearComboPointHolders();
     m_creature->RemoveAurasAtReset();
     m_creature->DeleteThreatList();
     m_creature->CombatStop(true);
@@ -266,6 +271,7 @@ void FollowerAI::UpdateAI(uint32 const uiDiff)
             {
                 sLog.outDebug("FollowerAI failed because quest failed or player/group was to far away or not found");
                 SetFollowPaused(false);
+                OnEscortFailed(false);
                 m_creature->DisappearAndDie();
                 return;
             }

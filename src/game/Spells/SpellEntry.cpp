@@ -21,7 +21,7 @@ SpellSpecific Spells::GetSpellSpecific(uint32 spellId)
                 return SPELL_ASPECT;
 
             // Food / Drinks (mostly)
-            if (spellInfo->AuraInterruptFlags & AURA_INTERRUPT_FLAG_NOT_SEATED)
+            if (spellInfo->HasAuraInterruptFlag(AURA_INTERRUPT_STANDING_CANCELS))
             {
                 bool food = false;
                 bool drink = false;
@@ -88,8 +88,8 @@ SpellSpecific Spells::GetSpellSpecific(uint32 spellId)
         {
             // "Well Fed" buff from Blessed Sunfruit, Blessed Sunfruit Juice, Alterac Spring Water
             if ((spellInfo->Attributes & SPELL_ATTR_CASTABLE_WHILE_SITTING) &&
-                    (spellInfo->InterruptFlags & SPELL_INTERRUPT_FLAG_AUTOATTACK) &&
-                    (spellInfo->SpellIconID == 52 || spellInfo->SpellIconID == 79))
+                 spellInfo->HasSpellInterruptFlag(SPELL_INTERRUPT_FLAG_COMBAT) &&
+                (spellInfo->SpellIconID == 52 || spellInfo->SpellIconID == 79))
                 return SPELL_WELL_FED;
             break;
         }
@@ -157,13 +157,13 @@ SpellSpecific Spells::GetSpellSpecific(uint32 spellId)
 
     // Attack speed reduction
     if (spellInfo->HasSingleAura(SPELL_AURA_MOD_MELEE_HASTE))
-        for (int i = 0; i < MAX_EFFECT_INDEX; ++i)
+        for (uint8 i = 0; i < MAX_EFFECT_INDEX; ++i)
             if (AuraType(spellInfo->EffectApplyAuraName[i]) == SPELL_AURA_MOD_MELEE_HASTE && spellInfo->EffectBasePoints[i] < 0)
                 return SPELL_NEGATIVE_HASTE;
 
     // Movement speed reduction
     // Dazes are not affected
-    if (spellInfo->HasSingleAura(SPELL_AURA_MOD_DECREASE_SPEED) && !(spellInfo->AttributesEx & SPELL_ATTR_EX_UNK18))
+    if (spellInfo->HasSingleAura(SPELL_AURA_MOD_DECREASE_SPEED) && !(spellInfo->AttributesEx & SPELL_ATTR_EX_PREVENTS_ANIM))
         return SPELL_SNARE;
 
     return SPELL_NORMAL;
@@ -176,7 +176,7 @@ int32 Spells::CompareAuraRanks(uint32 spellId_1, uint32 spellId_2)
     if (!spellInfo_1 || !spellInfo_2) return 0;
     if (spellId_1 == spellId_2) return 0;
 
-    for (int32 i = 0; i < MAX_EFFECT_INDEX; ++i)
+    for (uint8 i = 0; i < MAX_EFFECT_INDEX; ++i)
     {
         if (spellInfo_1->Effect[i] != 0 && spellInfo_2->Effect[i] != 0 && spellInfo_1->Effect[i] == spellInfo_2->Effect[i])
         {
@@ -194,9 +194,9 @@ bool Spells::CompareSpellSpecificAuras(SpellEntry const* spellInfo_1, SpellEntry
     if (!spellInfo_1 || !spellInfo_2) return 0;
     if (spellInfo_1 == spellInfo_2) return 0;
 
-    for (int32 i = 0; i < MAX_EFFECT_INDEX; ++i)
+    for (uint8 i = 0; i < MAX_EFFECT_INDEX; ++i)
     {
-        for (int32 j = 0; j < MAX_EFFECT_INDEX; ++j)
+        for (uint8 j = 0; j < MAX_EFFECT_INDEX; ++j)
         {
             if (spellInfo_1->Effect[i] == SPELL_EFFECT_APPLY_AURA
                 && spellInfo_1->EffectApplyAuraName[i] == spellInfo_2->EffectApplyAuraName[j])
@@ -305,6 +305,7 @@ void SpellEntry::ComputeBinary()
                     case SPELL_AURA_MOD_ROOT:
                     case SPELL_AURA_MOD_SILENCE:
                     case SPELL_AURA_MOD_DISARM:
+                    case SPELL_AURA_MOD_RESISTANCE:
                     case SPELL_AURA_MOD_DAMAGE_TAKEN:
                         foundNoDamageAura = true;
                         break;
@@ -597,7 +598,7 @@ uint32 SpellEntry::GetCastTime(Spell* spell) const
                 castTime = int32(castTime * (1.0f + pUnit->GetInt32Value(UNIT_MOD_CAST_SPEED) / 100.0f));
 #endif
             }
-            else if (spell->IsRangedSpell() && !spell->IsAutoRepeat())
+            else if (spell->m_spellInfo->IsRangedSpell() && !spell->IsAutoRepeat())
             {
                 castTime = int32(castTime * pUnit->m_modAttackSpeedPct[RANGED_ATTACK]);
             }
@@ -625,11 +626,11 @@ uint32 SpellEntry::GetCastTimeForBonus(DamageEffectType damagetype) const
     bool DirectDamage = false;
     bool AreaEffect   = false;
 
-    for (uint32 i = 0; i < MAX_EFFECT_INDEX; ++i)
+    for (uint8 i = 0; i < MAX_EFFECT_INDEX; ++i)
         if (IsAreaEffectTarget(SpellTarget(EffectImplicitTargetA[i])) || IsAreaEffectTarget(SpellTarget(EffectImplicitTargetB[i])))
             AreaEffect = true;
 
-    for (uint32 i = 0; i < MAX_EFFECT_INDEX; ++i)
+    for (uint8 i = 0; i < MAX_EFFECT_INDEX; ++i)
     {
         switch (Effect[i])
         {
@@ -695,10 +696,10 @@ uint32 SpellEntry::GetCastTimeForBonus(DamageEffectType damagetype) const
         CastingTime /= 2;
 
     // 50% for damage and healing spells for leech spells from damage bonus and 0% from healing
-    for (int j = 0; j < MAX_EFFECT_INDEX; ++j)
+    for (uint8 j = 0; j < MAX_EFFECT_INDEX; ++j)
     {
         if (Effect[j] == SPELL_EFFECT_HEALTH_LEECH ||
-                (Effect[j] == SPELL_EFFECT_APPLY_AURA && EffectApplyAuraName[j] == SPELL_AURA_PERIODIC_LEECH))
+           (Effect[j] == SPELL_EFFECT_APPLY_AURA && EffectApplyAuraName[j] == SPELL_AURA_PERIODIC_LEECH))
         {
             CastingTime /= 2;
             break;
@@ -852,7 +853,7 @@ uint16 SpellEntry::GetAuraMaxTicks() const
     if (DotDuration > 30000)
         DotDuration = 30000;
 
-    for (int j = 0; j < MAX_EFFECT_INDEX; ++j)
+    for (uint8 j = 0; j < MAX_EFFECT_INDEX; ++j)
     {
         if (Effect[j] == SPELL_EFFECT_APPLY_AURA && (
             EffectApplyAuraName[j] == SPELL_AURA_PERIODIC_DAMAGE ||
@@ -874,7 +875,7 @@ bool SpellEntry::IsPositiveSpell(WorldObject const* caster, WorldObject const* v
         return false;
     // spells with at least one negative effect are considered negative
     // some self-applied spells have negative effects but in self casting case negative check ignored.
-    for (int i = 0; i < MAX_EFFECT_INDEX; ++i)
+    for (uint8 i = 0; i < MAX_EFFECT_INDEX; ++i)
         if (Effect[i] && !IsPositiveEffect(SpellEffectIndex(i), caster, victim))
             return false;
     return true;
@@ -978,6 +979,7 @@ bool SpellEntry::IsPositiveEffect(SpellEffectIndex effIndex, WorldObject const* 
                     if (CalculateSimpleValue(effIndex) > 0)
                         return true;                        // some expected positive spells have unclear target modes // maybe don't need this at all now that we don't check for what was SPELL_ATTR_EX_NEGATIVE
                     break;
+                case SPELL_AURA_MOD_INCREASE_HEALTH:
                 case SPELL_AURA_ADD_TARGET_TRIGGER:
                     return true;
                 case SPELL_AURA_PERIODIC_TRIGGER_SPELL:
@@ -989,7 +991,7 @@ bool SpellEntry::IsPositiveEffect(SpellEffectIndex effIndex, WorldObject const* 
                         if (spellTriggeredProto)
                         {
                             // non-positive targets of main spell return early
-                            for (int i = 0; i < MAX_EFFECT_INDEX; ++i)
+                            for (uint8 i = 0; i < MAX_EFFECT_INDEX; ++i)
                             {
                                 // if non-positive trigger cast targeted to positive target this main cast is non-positive
                                 // this will place this spell auras as debuffs
@@ -1007,10 +1009,6 @@ bool SpellEntry::IsPositiveEffect(SpellEffectIndex effIndex, WorldObject const* 
                 case SPELL_AURA_MOD_STUN:                   //have positive and negative spells, we can't sort its correctly at this moment.
                     if (effIndex == EFFECT_INDEX_0 && Effect[EFFECT_INDEX_1] == 0 && Effect[EFFECT_INDEX_2] == 0)
                         return false;                       // but all single stun aura spells is negative
-
-                    // Petrification
-                    if (Id == 17624)
-                        return false;
                     break;
                 case SPELL_AURA_MOD_PACIFY_SILENCE:
                     if (Id == 24740)            // Wisp Costume
@@ -1150,4 +1148,36 @@ SpellCastResult SpellEntry::GetErrorAtShapeshiftedCast(uint32 form) const
     }
 
     return SPELL_CAST_OK;
+}
+
+bool SpellEntry::IsTargetInRange(WorldObject const* pCaster, WorldObject const* pTarget) const
+{
+    switch (rangeIndex)
+    {
+        case SPELL_RANGE_IDX_SELF_ONLY:
+            for (auto radiusIndex : EffectRadiusIndex)
+            {
+                if (radiusIndex)
+                    return pCaster->GetCombatDistance(pTarget) <= Spells::GetSpellRadius(sSpellRadiusStore.LookupEntry(radiusIndex));
+            }
+            for (auto triggeredSpell : EffectTriggerSpell)
+            {
+                if (triggeredSpell)
+                    if (SpellEntry const* pSpellEntry = sSpellMgr.GetSpellEntry(triggeredSpell))
+                        if (pSpellEntry->IsTargetInRange(pCaster, pTarget))
+                            return true;
+            }
+            return pCaster == pTarget;
+        case SPELL_RANGE_IDX_ANYWHERE:
+            return true;
+        case SPELL_RANGE_IDX_COMBAT:
+            return pCaster->CanReachWithMeleeSpellAttack(pTarget);
+    }
+
+    SpellRangeEntry const* srange = sSpellRangeStore.LookupEntry(rangeIndex);
+    float max_range = Spells::GetSpellMaxRange(srange);
+    float min_range = Spells::GetSpellMinRange(srange);
+    float dist = pCaster->GetCombatDistance(pTarget);
+
+    return dist < max_range && dist >= min_range;
 }

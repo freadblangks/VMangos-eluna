@@ -96,17 +96,20 @@ void WorldSession::HandleQuestgiverHelloOpcode(WorldPacket& recv_data)
     }
 
     // remove fake death
-    if (GetPlayer()->HasUnitState(UNIT_STAT_DIED))
+    if (GetPlayer()->HasUnitState(UNIT_STAT_FEIGN_DEATH))
         GetPlayer()->RemoveSpellsCausingAura(SPELL_AURA_FEIGN_DEATH);
 
     // Stop the npc if moving
-    if (!pCreature->IsStopped())
-        pCreature->StopMoving();
+    if (!pCreature->HasExtraFlag(CREATURE_FLAG_EXTRA_NO_MOVEMENT_PAUSE))
+        pCreature->PauseOutOfCombatMovement();
+
+    GetPlayer()->InterruptSpellsWithChannelFlags(AURA_INTERRUPT_INTERACTING_CANCELS);
+    GetPlayer()->RemoveAurasWithInterruptFlags(AURA_INTERRUPT_INTERACTING_CANCELS);
 
     if (sScriptMgr.OnGossipHello(_player, pCreature))
         return;
 
-    _player->PrepareGossipMenu(pCreature, pCreature->GetCreatureInfo()->gossip_menu_id);
+    _player->PrepareGossipMenu(pCreature, pCreature->GetDefaultGossipMenuId());
     _player->SendPreparedGossip(pCreature);
 }
 
@@ -167,7 +170,7 @@ void WorldSession::HandleQuestgiverAcceptQuestOpcode(WorldPacket& recv_data)
                     {
                         Player* pPlayer = itr->getSource();
 
-                        if (!pPlayer || pPlayer == _player)     // not self
+                        if (!pPlayer || pPlayer == _player || !pPlayer->IsInMap(_player))     // not self and in same map
                             continue;
 
                         if (pPlayer->CanTakeQuest(qInfo, true))

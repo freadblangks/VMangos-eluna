@@ -9,10 +9,12 @@ SDComment:
 SDCategory: Npc
 EndScriptData */
 
-#include "ScriptMgr.h"
 #include "ScriptedEscortAI.h"
+#include "ScriptMgr.h"
 #include "Chat.h"
-#include "PointMovementGenerator.h"
+#include "MovementGenerator.h"
+#include "Player.h"
+#include "Group.h"
 
 float const DEFAULT_MAX_PLAYER_DISTANCE = 100.0f;
 float const DEFAULT_MAX_ASSIST_DISTANCE =  40.0f;
@@ -92,6 +94,11 @@ void npc_escortAI::Aggro(Unit* /*pEnemy*/)
 {
 }
 
+Player* npc_escortAI::GetPlayerForEscort() const
+{
+    return m_creature->GetMap()->GetPlayer(m_uiPlayerGUID);
+}
+
 bool npc_escortAI::AssistPlayerInCombat(Unit* pWho)
 {
     if (!m_uiPlayerGUID)
@@ -104,7 +111,7 @@ bool npc_escortAI::AssistPlayerInCombat(Unit* pWho)
     if (!m_creature->CanAssistPlayers())
         return false;
 
-    if (m_creature->HasUnitState(UNIT_STAT_STUNNED | UNIT_STAT_DIED))
+    if (m_creature->HasUnitState(UNIT_STAT_STUNNED | UNIT_STAT_FEIGN_DEATH))
         return false;
 
     //not a player
@@ -135,7 +142,7 @@ bool npc_escortAI::AssistPlayerInCombat(Unit* pWho)
 
 void npc_escortAI::MoveInLineOfSight(Unit* pWho)
 {
-    if (pWho->IsTargetableForAttack() && pWho->IsInAccessablePlaceFor(m_creature))
+    if (pWho->IsTargetable(true, false) && pWho->IsInAccessablePlaceFor(m_creature))
     {
         if (HasEscortState(STATE_ESCORT_ESCORTING) && AssistPlayerInCombat(pWho))
             return;
@@ -148,7 +155,7 @@ void npc_escortAI::MoveInLineOfSight(Unit* pWho)
         if (m_creature->IsHostileTo(pWho))
         {
             float fAttackRadius = m_creature->GetAttackDistance(pWho);
-            if (m_creature->IsWithinDistInMap(pWho, fAttackRadius) && m_creature->IsWithinLOSInMap(pWho))
+            if (m_creature->IsWithinDistInMap(pWho, fAttackRadius, true, false) && m_creature->IsWithinLOSInMap(pWho))
             {
                 if (!m_creature->GetVictim())
                 {
@@ -196,6 +203,7 @@ void npc_escortAI::JustRespawned()
 
 void npc_escortAI::EnterEvadeMode()
 {
+    m_creature->ClearComboPointHolders();
     m_creature->RemoveAurasAtReset();
     m_creature->DeleteThreatList();
     m_creature->CombatStop(true);
