@@ -239,8 +239,15 @@ void Group::ConvertToRaid()
 
     // update quest related GO states (quest activity dependent from raid membership)
     for (const auto& itr : m_memberSlots)
+    {
         if (Player* player = sObjectMgr.GetPlayer(itr.guid))
-            player->UpdateForQuestWorldObjects();
+        {
+            player->m_Events.AddLambdaEventAtOffset([player]
+            {
+                player->UpdateForQuestWorldObjects();
+            }, 1);
+        }
+    }
 }
 
 bool Group::AddInvite(Player* player)
@@ -343,7 +350,12 @@ bool Group::AddMember(ObjectGuid guid, char const* name, uint8 joinMethod)
 
         // quest related GO state dependent from raid membership
         if (isRaidGroup())
-            player->UpdateForQuestWorldObjects();
+        {
+            player->m_Events.AddLambdaEventAtOffset([player]
+            {
+                player->UpdateForQuestWorldObjects();
+            }, 1);
+        }
 
         if (isInLFG())
         {
@@ -431,7 +443,12 @@ uint32 Group::RemoveMember(ObjectGuid guid, uint8 removeMethod)
         {
             // quest related GO state dependent from raid membership
             if (isRaidGroup())
-                player->UpdateForQuestWorldObjects();
+            {
+                player->m_Events.AddLambdaEventAtOffset([player]
+                {
+                    player->UpdateForQuestWorldObjects();
+                }, 1);
+            }
 
             WorldPacket data;
 
@@ -535,7 +552,12 @@ void Group::Disband(bool hideDestroy)
 
         // quest related GO state dependent from raid membership
         if (isRaidGroup())
-            player->UpdateForQuestWorldObjects();
+        {
+            player->m_Events.AddLambdaEventAtOffset([player]
+            {
+                player->UpdateForQuestWorldObjects();
+            }, 1);
+        }
 
         if (!player->GetSession())
             continue;

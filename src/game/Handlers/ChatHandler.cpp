@@ -155,7 +155,7 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recv_data)
         SendNotification(LANG_UNKNOWN_LANGUAGE);
         return;
     }
-    if (_player && !IsReplaying() && langDesc->skill_id != 0 && !_player->HasSkill(langDesc->skill_id))
+    if (_player && langDesc->skill_id != 0 && !_player->HasSkill(langDesc->skill_id))
     {
         SendNotification(LANG_NOT_LEARNED_LANGUAGE);
         return;
@@ -686,7 +686,7 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recv_data)
 
 void WorldSession::HandleEmoteOpcode(WorldPacket& recv_data)
 {
-    if (!GetPlayer()->IsAlive() || GetPlayer()->HasUnitState(UNIT_STAT_FEIGN_DEATH))
+    if (!GetPlayer()->IsAlive() || GetPlayer()->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PREVENT_ANIM))
         return;
 
     if (!GetPlayer()->CanSpeak())
@@ -703,7 +703,8 @@ void WorldSession::HandleEmoteOpcode(WorldPacket& recv_data)
     if (emote != EMOTE_ONESHOT_NONE && emote != EMOTE_ONESHOT_WAVE)
         return;
 
-    GetPlayer()->InterruptSpellsWithChannelFlags(CHANNEL_FLAG_ANIM_CANCELS);
+    GetPlayer()->InterruptSpellsWithChannelFlags(AURA_INTERRUPT_ANIM_CANCELS);
+    GetPlayer()->RemoveAurasWithInterruptFlags(AURA_INTERRUPT_ANIM_CANCELS);
     GetPlayer()->HandleEmoteCommand(emote);
 }
 
@@ -741,7 +742,7 @@ private:
 
 void WorldSession::HandleTextEmoteOpcode(WorldPacket& recv_data)
 {
-    if (!GetPlayer()->IsAlive())
+    if (!GetPlayer()->IsAlive() || GetPlayer()->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PREVENT_ANIM))
         return;
 
     if (!GetPlayer()->CanSpeak())
@@ -773,11 +774,8 @@ void WorldSession::HandleTextEmoteOpcode(WorldPacket& recv_data)
             break;
         default:
         {
-            // in feign death state allowed only text emotes.
-            if (GetPlayer()->HasUnitState(UNIT_STAT_FEIGN_DEATH))
-                break;
-
-            GetPlayer()->InterruptSpellsWithChannelFlags(CHANNEL_FLAG_ANIM_CANCELS);
+            GetPlayer()->InterruptSpellsWithChannelFlags(AURA_INTERRUPT_ANIM_CANCELS);
+            GetPlayer()->RemoveAurasWithInterruptFlags(AURA_INTERRUPT_ANIM_CANCELS);
             GetPlayer()->HandleEmoteCommand(emote_id);
             break;
         }

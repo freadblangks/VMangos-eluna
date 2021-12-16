@@ -1376,6 +1376,18 @@ void ObjectMgr::CheckCreatureTemplates()
             }
         }
 
+        if (cInfo->spawn_spell_id)
+        {
+            SpellEntry const* pSpellEntry = sSpellMgr.GetSpellEntry(cInfo->spawn_spell_id);
+            if (!pSpellEntry || !pSpellEntry->HasEffect(SPELL_EFFECT_SPAWN))
+            {
+                sLog.outErrorDb("Creature (Entry: %u) has invalid spawn_spell_id (%u), set to 0", cInfo->entry, cInfo->spawn_spell_id);
+                sLog.out(LOG_DBERRFIX, "UPDATE creature_template SET `spawn_spell_id`=0 WHERE `entry`=%u;",  cInfo->entry);
+                const_cast<CreatureInfo*>(cInfo)->spawn_spell_id = 0;
+            }
+        }
+        
+
         for (int j = 0; j < CREATURE_MAX_SPELLS; ++j)
         {
             if (cInfo->spells[j] && !sSpellMgr.GetSpellEntry(cInfo->spells[j]))
@@ -1706,7 +1718,7 @@ void ObjectMgr::LoadCreatureSpells()
         do
         {
             Field* fields = result->Fetch();
-            uint32 id = fields[0].GetUInt32();;
+            uint32 id = fields[0].GetUInt32();
             spellScriptSet.insert(id);
         } while (result->NextRow());
     }
@@ -1750,7 +1762,7 @@ void ObjectMgr::LoadCreatureSpells()
         bar.step();
         Field* fields = result->Fetch();
 
-        uint32 entry = fields[0].GetUInt32();;
+        uint32 entry = fields[0].GetUInt32();
 
         CreatureSpellsList spellsList;
 
@@ -4057,7 +4069,9 @@ void ObjectMgr::LoadPlayerInfo()
 
                 uint32 item_id = fields[2].GetUInt32();
 
-                if (!GetItemPrototype(item_id))
+                if (ItemPrototype const* pProto = GetItemPrototype(item_id))
+                    pProto->m_bDiscovered = true;
+                else
                 {
                     sLog.outErrorDb("Item id %u (race %u class %u) in `playercreateinfo_item` table but not listed in `item_template`, ignoring.", item_id, current_race, current_class);
                     continue;
@@ -4462,7 +4476,7 @@ void ObjectMgr::LoadPlayerInfo()
             m_PlayerXPperLevel[current_level] = current_xp;
             ++count;
         }
-        while (result->NextRow());;
+        while (result->NextRow());
 
         sLog.outString();
         sLog.outString(">> Loaded %u xp for level definitions", count);
@@ -11000,7 +11014,7 @@ void ObjectMgr::LoadPlayerPremadeTemplates()
                     break;
                 default:
                     sLog.outErrorDb("Wrong class %hhu for entry %u in table `player_premade_template`", requiredClass, entry);
-                    continue;;
+                    continue;
             }
 
             if (!(level >= 1 && level <= PLAYER_MAX_LEVEL))
@@ -11123,7 +11137,7 @@ void ObjectMgr::LoadPlayerPremadeTemplates()
                     break;
                 default:
                     sLog.outErrorDb("Wrong class %hhu for entry %u in table `player_premade_template`", requiredClass, entry);
-                    continue;;
+                    continue;
             }
 
             if (!(level >= 1 && level <= PLAYER_MAX_LEVEL))
@@ -11247,7 +11261,7 @@ void ObjectMgr::ApplyPremadeSpecTemplateToPlayer(uint32 entry, Player* pPlayer) 
         return;
     }
 
-    if (pPlayer->GetLevel() != itr->second.level)
+    if (pPlayer->GetLevel() < itr->second.level)
     {
         pPlayer->GiveLevel(itr->second.level);
         pPlayer->InitTalentForLevel();
