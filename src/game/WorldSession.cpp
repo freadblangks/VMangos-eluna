@@ -138,7 +138,7 @@ void WorldSession::SendPacket(WorldPacket const* packet)
 		return;
 	}
 
-	if (!m_Socket)
+	if (!m_socket)
 	{
 		if (GetBot() && GetBot()->ai)
 			GetBot()->ai->OnPacketReceived(packet);

@@ -253,6 +253,8 @@ class WorldSession
         bool isNingerSession;
         void HandlePlayerLogin_Simple(ObjectGuid pmCharacterGUID);
 
+        AccountTypes GetSecurity() const { return m_security; }
+        uint32 GetAccountId() const { return m_accountId; }
         std::string GetUsername() const { return m_username; }
         void SetUsername(std::string const& s) { m_username = s; }
         uint32 GetLatency() const { return m_latency; }

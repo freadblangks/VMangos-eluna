@@ -481,8 +481,7 @@ uint32 NingerManager::CreateNingerCharacter(uint32 pmAccountID, uint32 pmCharact
 			sLog.outBasic("Try again");
 			continue;
 		}
-		newPlayer->GetMotionMaster()->Initialize();
-		newPlayer->SetCinematic(2);
+		newPlayer->GetMotionMaster()->Initialize();		
 		newPlayer->SetAtLoginFlag(AT_LOGIN_NONE);
 		newPlayer->SaveToDB(true);
 		result = newPlayer->GetGUIDLow();
