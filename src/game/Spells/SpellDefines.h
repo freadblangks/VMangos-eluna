@@ -908,20 +908,24 @@ enum SpellAttributesCustom
 // Custom flags assigned by the core based on spell template data
 enum SpellAttributesInternal
 {
-    SPELL_INTERNAL_APPLIES_AURA             = 0x0001,
-    SPELL_INTERNAL_APPLIES_PERIODIC_AURA    = 0x0002,
-    SPELL_INTERNAL_PASSIVE_STACK_WITH_RANKS = 0x0004,
-    SPELL_INTERNAL_POSITIVE                 = 0x0008,
-    SPELL_INTERNAL_HEAL                     = 0x0010,
-    SPELL_INTERNAL_DIRECT_DAMAGE            = 0x0020,
-    SPELL_INTERNAL_CASTER_SOURCE_TARGETS    = 0x0040,
-    SPELL_INTERNAL_AOE                      = 0x0080,
-    SPELL_INTERNAL_AOE_AURA                 = 0x0100,
-    SPELL_INTERNAL_DISMOUNT                 = 0x0200,
-    SPELL_INTERNAL_CHARM                    = 0x0400,
-    SPELL_INTERNAL_REFLECTABLE              = 0x0800,
-    SPELL_INTERNAL_CUSTOM                   = 0x1000,
-    SPELL_INTERNAL_DELAYABLE_EFFECTS        = 0x2000,
+    SPELL_INTERNAL_APPLIES_AURA             = 0x00001,
+    SPELL_INTERNAL_APPLIES_PERIODIC_AURA    = 0x00002,
+    SPELL_INTERNAL_PASSIVE_STACK_WITH_RANKS = 0x00004,
+    SPELL_INTERNAL_POSITIVE                 = 0x00008,
+    SPELL_INTERNAL_HEAL                     = 0x00010,
+    SPELL_INTERNAL_DIRECT_DAMAGE            = 0x00020,
+    SPELL_INTERNAL_CASTER_SOURCE_TARGETS    = 0x00040,
+    SPELL_INTERNAL_AOE                      = 0x00080,
+    SPELL_INTERNAL_AOE_AURA                 = 0x00100,
+    SPELL_INTERNAL_DISMOUNT                 = 0x00200,
+    SPELL_INTERNAL_CHARM                    = 0x00400,
+    SPELL_INTERNAL_REFLECTABLE              = 0x00800,
+    SPELL_INTERNAL_CUSTOM                   = 0x01000,
+    SPELL_INTERNAL_DELAYABLE_EFFECTS        = 0x02000,
+    SPELL_INTERNAL_BINARY                   = 0x04000,
+    SPELL_INTERNAL_NON_PERIODIC_DISPEL      = 0x08000,
+    SPELL_INTERNAL_PVE_HEARTBEAT            = 0x10000,
+    SPELL_INTERNAL_CROWD_CONTROL            = 0x20000,
 };
 
 // Spell proc event related declarations
@@ -977,16 +981,6 @@ enum ProcFlags
     PROC_FLAG_TAKEN_PERIODIC_SPELL_HIT       = 0x20000000    // 29 Taken spell periodic (procs only on initial cast)
 };
 
-#define ON_CAST_PROC_FLAGS (PROC_FLAG_DEAL_HELPFUL_ABILITY | \
-                            PROC_FLAG_DEAL_HARMFUL_ABILITY | \
-                            PROC_FLAG_DEAL_HELPFUL_SPELL | \
-                            PROC_FLAG_DEAL_HARMFUL_SPELL | \
-                            PROC_FLAG_SUCCESSFUL_AOE | \
-                            PROC_FLAG_SUCCESSFUL_SPELL_CAST | \
-                            PROC_FLAG_SUCCESSFUL_MANA_SPELL_CAST | \
-                            PROC_FLAG_SUCCESSFUL_CURE_SPELL_CAST | \
-                            PROC_FLAG_SUCCESSFUL_PERIODIC_SPELL_HIT)
-
 #define MELEE_BASED_TRIGGER_MASK (PROC_FLAG_DEAL_MELEE_SWING        | \
                                   PROC_FLAG_TAKE_MELEE_SWING        | \
                                   PROC_FLAG_DEAL_MELEE_ABILITY      | \
@@ -1022,9 +1016,9 @@ enum ProcFlagsEx
     PROC_EX_RESERVED2           = 0x0004000,
     PROC_EX_RESERVED3           = 0x0008000,
     PROC_EX_EX_TRIGGER_ALWAYS   = 0x0010000,                // If set trigger always ( no matter another flags) used for drop charges
-    PROC_EX_EX_ONE_TIME_TRIGGER = 0x0020000,                // If set trigger always but only one time (not used)
+    PROC_EX_NO_PERIODIC         = 0x0020000,                // Will never proc if periodic proc flag present
     PROC_EX_PERIODIC_POSITIVE   = 0x0040000,                // For periodic heal
-    PROC_EX_NO_PERIODIC         = 0x0080000,                // Will never proc if periodic proc flag present
+    PROC_EX_CAST_END            = 0x0080000,                // Procs on end of cast only
 };
 
 // original names, do not edit
