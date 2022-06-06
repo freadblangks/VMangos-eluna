@@ -623,7 +623,9 @@ void Unit::RemoveFearEffectsByDamageTaken(uint32 damage, uint32 exceptSpellId, D
         {
             case MECHANIC_FEAR:
             case MECHANIC_TURN: // [Turn Undead] #2878
-                canRemoveAura = true;
+                // only fears with proc flags mention that damage may interrupt the effect on tooltip
+                // example: Flash Bomb does not break on damage
+                canRemoveAura = (*iter)->GetSpellProto()->procFlags;
                 break;
         }
         if (!canRemoveAura)
@@ -5588,6 +5590,13 @@ UnitMountResult Unit::Mount(uint32 mount, uint32 spellId)
     InterruptSpellsWithChannelFlags(AURA_INTERRUPT_MOUNT_CANCELS);
     RemoveAurasWithInterruptFlags(AURA_INTERRUPT_MOUNT_CANCELS);
     SetUInt32Value(UNIT_FIELD_MOUNTDISPLAYID, mount);
+
+    if (IsCreature())
+    {
+        UpdateSpeed(MOVE_WALK, false);
+        UpdateSpeed(MOVE_RUN, false);
+    }
+
     return MOUNTRESULT_OK;
 }
 
@@ -5599,6 +5608,13 @@ UnitDismountResult Unit::Unmount(bool from_aura)
     InterruptSpellsWithChannelFlags(AURA_INTERRUPT_DISMOUNT_CANCELS);
     RemoveAurasWithInterruptFlags(AURA_INTERRUPT_DISMOUNT_CANCELS);
     SetUInt32Value(UNIT_FIELD_MOUNTDISPLAYID, 0);
+
+    if (IsCreature())
+    {
+        UpdateSpeed(MOVE_WALK, false);
+        UpdateSpeed(MOVE_RUN, false);
+    }
+
     return DISMOUNTRESULT_OK;
 }
 
@@ -5768,7 +5784,7 @@ void Unit::SetInCombatWithAssisted(Unit* pAssisted)
         }
     }
 
-    SetInCombatState(pAssisted->GetCombatTimer() > 0 ? UNIT_PVP_COMBAT_TIMER : 0);
+    SetInCombatState((pAssisted->GetCombatTimer() > 0 || pAssisted->HasAuraType(SPELL_AURA_INTERRUPT_REGEN)) ? UNIT_PVP_COMBAT_TIMER : 0);
 }
 
 void Unit::TogglePlayerPvPFlagOnAttackVictim(Unit const* pVictim, bool touchOnly/* = false*/)
@@ -6646,7 +6662,10 @@ bool Unit::IsMovedByPlayer() const
         if (pPossessor->GetCharmGuid() == GetObjectGuid())
             return true;
 
-    return IsPlayer() && !static_cast<Player const*>(this)->IsBot();
+    return IsPlayer() &&
+           movespline->Finalized() &&
+           static_cast<Player const*>(this)->IsControlledByOwnClient() &&
+           !static_cast<Player const*>(this)->IsBot();
 }
 
 PlayerMovementPendingChange::PlayerMovementPendingChange()
@@ -6758,17 +6777,17 @@ void Unit::UpdateSpeed(UnitMoveType mtype, bool forced, float ratio)
             switch (mtype)
             {
                 case MOVE_RUN:
-                    speed *= ((Creature*)this)->GetCreatureInfo()->speed_run;
+                    speed *= ((Creature*)this)->GetBaseRunSpeedRate();
                     break;
                 case MOVE_WALK:
-                    speed *= ((Creature*)this)->GetCreatureInfo()->speed_walk;
+                    speed *= ((Creature*)this)->GetBaseWalkSpeedRate();
                     break;
                 default:
                     break;
             }
         }
         else
-            speed *= 1.14286f;  // normalized player pet runspeed
+            speed *= DEFAULT_NPC_RUN_SPEED_RATE;  // normalized player pet runspeed
 
         // Speed reduction at low health percentages
         if (!pCreature->IsPet() && !pCreature->IsWorldBoss())
@@ -7403,8 +7422,6 @@ bool Unit::HandleStatModifier(UnitMods unitMod, UnitModifierType modifierType, f
         return false;
     }
 
-    float val = 1.0f;
-
     switch (modifierType)
     {
         case BASE_VALUE:
@@ -7413,11 +7430,7 @@ bool Unit::HandleStatModifier(UnitMods unitMod, UnitModifierType modifierType, f
             break;
         case BASE_PCT:
         case TOTAL_PCT:
-            if (amount <= -100.0f)                          //small hack-fix for -100% modifiers
-                amount = -200.0f;
-
-            val = (100.0f + amount) / 100.0f;
-            m_auraModifiersGroup[unitMod][modifierType] *= apply ? val : (1.0f / val);
+            ApplyPercentModFloatVar(m_auraModifiersGroup[unitMod][modifierType], amount, apply);
             break;
 
         default:

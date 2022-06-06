@@ -504,8 +504,6 @@ bool Creature::UpdateEntry(uint32 Entry, CreatureData const* data /*=nullptr*/, 
     UpdateAllStats();
 
     m_reputationId = -1;
-
-    // checked and error show at loading templates
     if (FactionTemplateEntry const* pFactionTemplate = sObjectMgr.GetFactionTemplateEntry(GetCreatureInfo()->faction))
         if (FactionEntry const* pFaction = sObjectMgr.GetFactionEntry(pFactionTemplate->faction))
             m_reputationId = pFaction->reputationListID;
@@ -530,18 +528,23 @@ bool Creature::UpdateEntry(uint32 Entry, CreatureData const* data /*=nullptr*/, 
         if (sWorld.getConfig(CONFIG_BOOL_VISIBILITY_FORCE_ACTIVE_OBJECTS))
             SetActiveObjectState(true);
     }
-    if (HasExtraFlag(CREATURE_FLAG_EXTRA_GIGANTIC_AOI))
+    else if (HasExtraFlag(CREATURE_FLAG_EXTRA_GIGANTIC_AOI))
     {
         SetVisibilityModifier(VISIBILITY_DISTANCE_GIGANTIC);
         if (sWorld.getConfig(CONFIG_BOOL_VISIBILITY_FORCE_ACTIVE_OBJECTS))
             SetActiveObjectState(true);
     } 
-    if (HasExtraFlag(CREATURE_FLAG_EXTRA_INFINITE_AOI))
+    else if (HasExtraFlag(CREATURE_FLAG_EXTRA_INFINITE_AOI))
     {
         SetVisibilityModifier(MAX_VISIBILITY_DISTANCE);
         if (sWorld.getConfig(CONFIG_BOOL_VISIBILITY_FORCE_ACTIVE_OBJECTS))
             SetActiveObjectState(true);
     }
+
+    // No need to set spell list if creature is not yet spawned,
+    // as it will be done in the CreatureAI constructor.
+    if (IsInWorld() && AI() && GetCreatureInfo()->spell_list_id)
+            AI()->SetSpellsList(GetCreatureInfo()->spell_list_id);
 
     // if eventData set then event active and need apply spell_start
     if (eventData)
@@ -1046,6 +1049,52 @@ float Creature::GetFleeingSpeed() const
 {
     //TODO: There are different speeds for the different mobs, isn't there?
     return GetSpeed(MOVE_RUN);
+}
+
+float Creature::GetBaseWalkSpeedRate() const
+{
+    if (GetMountID())
+    {
+        if (CreatureDisplayInfoAddon const* displayAddon = sCreatureDisplayInfoAddonStorage.LookupEntry<CreatureDisplayInfoAddon>(GetMountID()))
+            return displayAddon->speed_walk;
+    }
+
+    if (GetDisplayId() != GetNativeDisplayId())
+    {
+        if (CreatureDisplayInfoAddon const* displayAddon = sCreatureDisplayInfoAddonStorage.LookupEntry<CreatureDisplayInfoAddon>(GetDisplayId()))
+            return displayAddon->speed_walk;
+    }
+
+    if (GetCreatureInfo()->speed_walk)
+        return GetCreatureInfo()->speed_walk;
+
+    if (CreatureDisplayInfoAddon const* displayAddon = sCreatureDisplayInfoAddonStorage.LookupEntry<CreatureDisplayInfoAddon>(GetNativeDisplayId()))
+        return displayAddon->speed_walk;
+
+    return DEFAULT_NPC_WALK_SPEED_RATE;
+}
+
+float Creature::GetBaseRunSpeedRate() const
+{
+    if (GetMountID())
+    {
+        if (CreatureDisplayInfoAddon const* displayAddon = sCreatureDisplayInfoAddonStorage.LookupEntry<CreatureDisplayInfoAddon>(GetMountID()))
+            return displayAddon->speed_run;
+    }
+
+    if (GetDisplayId() != GetNativeDisplayId())
+    {
+        if (CreatureDisplayInfoAddon const* displayAddon = sCreatureDisplayInfoAddonStorage.LookupEntry<CreatureDisplayInfoAddon>(GetDisplayId()))
+            return displayAddon->speed_run;
+    }
+
+    if (GetCreatureInfo()->speed_run)
+        return GetCreatureInfo()->speed_run;
+
+    if (CreatureDisplayInfoAddon const* displayAddon = sCreatureDisplayInfoAddonStorage.LookupEntry<CreatureDisplayInfoAddon>(GetNativeDisplayId()))
+        return displayAddon->speed_run;
+
+    return DEFAULT_NPC_RUN_SPEED_RATE;
 }
 
 void Creature::MoveAwayFromTarget(Unit* pTarget, float distance)
