@@ -546,7 +546,7 @@ void TradeData::SetAccepted(bool state, bool crosssend /*= false*/)
 //== Player ====================================================
 
 Player::Player(WorldSession* session) : Unit(),
-    m_mover(this), m_camera(this), m_reputationMgr(this),
+    m_mover(this), m_camera(this), m_reputationMgr(this), m_saveDisabled(false),
     m_enableInstanceSwitch(true), m_currentTicketCounter(0), m_castingSpell(0), m_repopAtGraveyardPending(false),
     m_honorMgr(this), m_bNextRelocationsIgnored(0), m_personalXpRate(-1.0f), m_isStandUpScheduled(false), m_foodEmoteTimer(0)
 {
@@ -695,7 +695,6 @@ Player::Player(WorldSession* session) : Unit(),
     worldMask = WORLD_DEFAULT_CHAR;
     i_AI = nullptr;
     m_cheatOptions = 0x0;
-    m_DbSaveDisabled = false;
 
     m_lastFromClientCastedSpellID = 0;
 
@@ -738,9 +737,6 @@ Player::~Player()
     CleanupChannels();
 
     delete PlayerTalkClass;
-
-    for (const auto& x : m_ItemSetEff)
-         delete x;
 
     // clean up player-instance binds, may unload some instance saves
     for (const auto& itr : m_boundInstances)
@@ -800,6 +796,7 @@ bool Player::ValidateAppearance(uint8 race, uint8 class_, uint8 gender, uint8 ha
 
 bool Player::Create(uint32 guidlow, std::string const& name, uint8 race, uint8 class_, uint8 gender, uint8 skin, uint8 face, uint8 hairStyle, uint8 hairColor, uint8 facialHair)
 {
+    m_saveDisabled = true; // only temporary bots are created this way
     Object::_Create(guidlow, 0, HIGHGUID_PLAYER);
 
     m_name = name;
@@ -2460,7 +2457,6 @@ bool Player::ExecuteTeleportFar(ScheduledTeleportData* data)
                     data << m_teleport_dest.o;
                 }
                 GetSession()->SendPacket(&data);
-                SendMovementMessageToSet(std::move(data), true);
                 SendSavedInstances();
             };
             if (data->recover)
@@ -5030,8 +5026,7 @@ Corpse* Player::CreateCorpse()
     }
 
     // we not need saved corpses for BG/arenas
-    if (!GetMap()->IsBattleGround() &&
-        !IsBot())
+    if (!GetMap()->IsBattleGround() && !IsSavingDisabled())
         corpse->SaveToDB();
 
     // register for player, but not show
@@ -6438,18 +6433,15 @@ void Player::CheckAreaExploreAndOutdoor()
                     continue;
                 CastSpell(this, spellInfo, true);
             }
-            for (auto itemSet : m_ItemSetEff)
+            for (auto& setData : m_itemSetEffects)
             {
-                if (itemSet)
+                for (auto spellInfo : setData.second.spells)
                 {
-                    for (auto spellInfo : itemSet->spells)
-                    {
-                        if (!spellInfo || !spellInfo->IsNeedCastSpellAtOutdoor() || HasAura(spellInfo->Id))
-                            continue;
-                        if ((spellInfo->Stances || spellInfo->StancesNot) && !spellInfo->IsNeedCastSpellAtFormApply(GetShapeshiftForm()))
-                            continue;
-                        CastSpell(this, spellInfo, true);
-                    }
+                    if (!spellInfo || !spellInfo->IsNeedCastSpellAtOutdoor() || HasAura(spellInfo->Id))
+                        continue;
+                    if ((spellInfo->Stances || spellInfo->StancesNot) && !spellInfo->IsNeedCastSpellAtFormApply(GetShapeshiftForm()))
+                        continue;
+                    CastSpell(this, spellInfo, true);
                 }
             }
         }
@@ -7487,12 +7479,9 @@ void Player::UpdateEquipSpellsAtFormChange()
     }
 
     // item set bonuses not dependent from item broken state
-    for (const auto eff : m_ItemSetEff)
+    for (auto& setData : m_itemSetEffects)
     {
-        if (!eff)
-            continue;
-
-        for (const auto spellInfo : eff->spells)
+        for (const auto spellInfo : setData.second.spells)
         {
             if (!spellInfo)
                 continue;
@@ -7642,6 +7631,25 @@ void Player::CastItemUseSpell(Item* item, SpellCastTargets const& targets)
 
         ++count;
     }
+}
+
+ItemSetEffect* Player::GetItemSetEffect(uint32 setId)
+{
+    auto itr = m_itemSetEffects.find(setId);
+    if (itr == m_itemSetEffects.end())
+        return nullptr;
+
+    return &itr->second;
+}
+
+ItemSetEffect* Player::AddItemSetEffect(uint32 setId)
+{
+    return &m_itemSetEffects.emplace(setId, ItemSetEffect()).first->second;
+}
+
+void Player::RemoveItemSetEffect(uint32 setId)
+{
+    m_itemSetEffects.erase(setId);
 }
 
 void Player::_RemoveAllItemMods()
@@ -16525,12 +16533,10 @@ void Player::SaveToDB(bool online, bool force)
     m_nextSave = sWorld.getConfig(CONFIG_UINT32_INTERVAL_SAVE);
 
     // Do not save bots
-    if (IsBot())
-        return;
-    if (m_DbSaveDisabled)
+    if (IsSavingDisabled())
         return;
 
-    //lets allow only players in world to be saved
+    // lets allow only players in world to be saved
     if (!force && IsBeingTeleportedFar())
     {
         ScheduleDelayedOperation(DELAYED_SAVE_PLAYER);
@@ -16729,6 +16735,9 @@ void Player::SaveToDB(bool online, bool force)
 // relogging before the query completes
 void Player::SaveInventoryAndGoldToDB()
 {
+    if (IsSavingDisabled())
+        return;
+
     bool haveTransaction = CharacterDatabase.InTransaction();
     if (!haveTransaction)
         CharacterDatabase.BeginTransaction(GetGUIDLow());
@@ -16746,6 +16755,9 @@ void Player::SaveInventoryAndGoldToDB()
 // relogging before the query completes
 void Player::SaveGoldToDB()
 {
+    if (IsSavingDisabled())
+        return;
+
     static SqlStatementID updateGold ;
 
     SqlStatement stmt = CharacterDatabase.CreateStatement(updateGold, "UPDATE `characters` SET `money` = ? WHERE `guid` = ?");
@@ -20393,6 +20405,22 @@ void Player::LearnSpellHighRank(uint32 spellid)
     sSpellMgr.doForHighRanks(spellid, worker);
 }
 
+
+uint32 Player::GetSpellRank(SpellEntry const* spellInfo) const
+{
+    SkillLineAbilityMapBounds bounds = sSpellMgr.GetSkillLineAbilityMapBoundsBySpellId(spellInfo->Id);
+    if (bounds.first != bounds.second)
+    {
+        SkillLineAbilityEntry const* skillInfo = bounds.first->second;
+        uint32 spellRank = GetSkillValue(skillInfo->skillId);
+        if (spellInfo->maxLevel > 0 && spellRank >= spellInfo->maxLevel * 5)
+            spellRank = spellInfo->maxLevel * 5;
+        return spellRank;
+    }
+    else
+        return 0;
+}
+
 void Player::_LoadSkills(QueryResult* result)
 {
     //                                                           0      1      2
@@ -20941,11 +20969,11 @@ void Player::RemoveTemporaryAI()
 {
     PlayerBotEntry* pBot = GetSession()->GetBot();
 
-    if (!pBot || (pBot->ai != AI()))
+    if (!pBot || (pBot->ai.get() != AI()))
         RemoveAI();
 
-    if (pBot && (pBot->ai != AI()))
-        SetAI(pBot->ai);
+    if (pBot && (pBot->ai.get() != AI()))
+        SetAI(pBot->ai.get());
 }
 
 void Player::SetControlledBy(Unit* pWho)
@@ -20955,7 +20983,7 @@ void Player::SetControlledBy(Unit* pWho)
         PlayerBotEntry* pBot = GetSession()->GetBot();
 
         // Careful not to delete bot ai
-        if (!pBot || (pBot->ai != i_AI))
+        if (!pBot || (pBot->ai.get() != i_AI))
             delete i_AI;
 
         i_AI = nullptr;
@@ -20968,6 +20996,12 @@ void Player::SetControlledBy(Unit* pWho)
 
 bool Player::ChangeRace(uint8 newRace)
 {
+    if (IsSavingDisabled() || IsBot())
+    {
+        sLog.outError("Cannot change race of bot or temporary character!");
+        return false;
+    }
+
     PlayerInfo const* info = sObjectMgr.GetPlayerInfo(newRace, GetClass());
     if (!info)
         return false;
@@ -20975,14 +21009,14 @@ bool Player::ChangeRace(uint8 newRace)
     uint8 oldRace = GetRace();
     bool bChangeTeam = (TeamForRace(oldRace) != TeamForRace(newRace));
 
-    m_DbSaveDisabled = true;
+    m_saveDisabled = true;
     if (!ChangeSpellsForRace(oldRace, newRace))
     {
         CHANGERACE_ERR("Cannot change spells.");
         return false;
     }
 
-    // Le chanegement de race en lui meme.
+    // Change the race
     SetByteValue(UNIT_FIELD_BYTES_0, UNIT_BYTES_0_OFFSET_RACE, newRace);
     LearnDefaultSpells();
 
@@ -21003,17 +21037,18 @@ bool Player::ChangeRace(uint8 newRace)
         CHANGERACE_ERR("Cannot change items.");
         return false;
     }
-    /*
-    On sauvegarde le changement de faction, et apres faut deco-reco.
-    */
-    m_DbSaveDisabled = false;
-    // Suppression des montures mises
+
+    // Unmount in case of faction specific mount
     RemoveSpellsCausingAura(SPELL_AURA_MOUNTED);
+
+    // Save with the new race
+    m_saveDisabled = false;
     SaveToDB();
-    m_DbSaveDisabled = true;
+    m_saveDisabled = true;
+
     if (bChangeTeam)
     {
-        // Changement de HomeBind / Teleportation capitale
+        // Change home location to capital city
         if (TeamForRace(newRace) == ALLIANCE)
         {
             SavePositionInDB(GetObjectGuid(), 0, -8867.68f, 673.373f, 97.9034f, 0.0f, 1519);
