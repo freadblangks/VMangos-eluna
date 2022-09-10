@@ -1164,6 +1164,16 @@ void World::LoadConfigSettings(bool reload)
     //Dungeon Values
     //Default
     setConfig(CONFIG_UINT32_DUNGEON_LEVEL, "Solocraft.Dungeon.Level", 60);
+    //Class Balance
+    setConfig(CONFIG_UINT32_WARRIOR, "SoloCraft.WARRIOR", 100);
+    setConfig(CONFIG_UINT32_PALADIN, "SoloCraft.PALADIN", 100);
+    setConfig(CONFIG_UINT32_HUNTER, "SoloCraft.HUNTER", 100);
+    setConfig(CONFIG_UINT32_ROGUE, "SoloCraft.ROGUE", 100);
+    setConfig(CONFIG_UINT32_PRIEST, "SoloCraft.PRIEST", 100);
+    setConfig(CONFIG_UINT32_SHAMAN, "SoloCraft.SHAMAN", 100);
+    setConfig(CONFIG_UINT32_MAGE, "SoloCraft.MAGE", 100);
+    setConfig(CONFIG_UINT32_WARLOCK, "SoloCraft.WARLOCK", 100);
+    setConfig(CONFIG_UINT32_DRUID, "SoloCraft.DRUID", 100);
     //Classic Instances
     setConfig(CONFIG_UINT32_ORGRIMMARINSTANCE_LEVEL, "Solocraft.OrgrimmarInstance.Level", 15);
     setConfig(CONFIG_UINT32_SHADOWFANGKEEP_LEVEL, "Solocraft.ShadowfangKeep.Level", 15);

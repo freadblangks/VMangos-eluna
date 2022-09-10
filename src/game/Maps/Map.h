@@ -602,6 +602,7 @@ class Map : public GridRefManager<NGridType>
         std::map<uint32, float> _unitDifficulty;
         std::unordered_map<uint32, uint32> dungeons;
         std::unordered_map<uint32, float> diff_Multiplier;
+        std::unordered_map<uint8, uint32> classes;
         uint32 SolocraftDungeonLevel = 1;
         float D5 = 1.0;
         float D25 = 1.0;
@@ -610,7 +611,8 @@ class Map : public GridRefManager<NGridType>
         int CalculateDifficulty(Map* map, Player* /*player*/);
         int CalculateDungeonLevel(Map* map, Player* /*player*/);
         int GetNumInGroup(Player* player);
-        void ApplyBuffs(Player* player, Map* map, float difficulty, int dunLevel, int numInGroup);
+        uint32 GetClassBalance(Player* player);
+        void ApplyBuffs(Player* player, Map* map, float difficulty, int dunLevel, int numInGroup, int classBalance);
         float GetGroupDifficulty(Player* player);
         void ClearBuffs(Player* player, Map* map);
         //End Solocraft Functions
