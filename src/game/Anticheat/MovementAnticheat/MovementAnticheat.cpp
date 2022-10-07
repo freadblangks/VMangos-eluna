@@ -132,11 +132,8 @@ uint32 MovementAnticheat::Finalize(Player* pPlayer, std::stringstream& reason)
     // Log data
     if (sWorld.getConfig(CONFIG_BOOL_AC_MOVEMENT_LOG_DATA) && pPlayer && pPlayer->IsInWorld())
     {
-        LogsDatabase.PExecute("INSERT INTO logs_movement "
-            "(account, guid, posx, posy, posz, map, desyncMs, desyncDist, cheats) VALUES "
-            "(%u,      %u,   %f,   %f,   %f,   %u,  %i,       %f,         '%s');",
-            m_session->GetAccountId(), pPlayer->GetGUIDLow(), pPlayer->GetPositionX(), pPlayer->GetPositionY(), pPlayer->GetPositionZ(),
-            pPlayer->GetMapId(), m_clientDesync, m_overspeedDistance, reason.rdbuf()->in_avail() ? reason.str().c_str() : "");
+        sLog.Player(m_session, LOG_ANTICHEAT, "Movement", LOG_LVL_BASIC, "DesyncMs %d DesyncDist %f Cheats %s",
+            m_clientDesync, m_overspeedDistance, reason.rdbuf()->in_avail() ? reason.str().c_str() : "");
     }
 
     if ((result & (CHEAT_ACTION_KICK | CHEAT_ACTION_BAN_ACCOUNT | CHEAT_ACTION_BAN_IP_ACCOUNT)) && !m_packetLog.empty())
@@ -327,14 +324,6 @@ void MovementAnticheat::OnKnockBack(Player* pPlayer, float speedxy, float speedz
     if (me != pPlayer)
         InitNewPlayer(pPlayer);
 
-    GetLastMovementInfo().jump.startClientTime = WorldTimer::getMSTime() - GetLastMovementInfo().stime + GetLastMovementInfo().ctime;
-    GetLastMovementInfo().jump.start.x = me->GetPositionX();
-    GetLastMovementInfo().jump.start.y = me->GetPositionY();
-    GetLastMovementInfo().jump.start.z = me->GetPositionZ();
-    GetLastMovementInfo().jump.cosAngle = cos;
-    GetLastMovementInfo().jump.sinAngle = sin;
-    GetLastMovementInfo().jump.xyspeed = speedxy;
-    GetLastMovementInfo().moveFlags = MOVEFLAG_JUMPING | (GetLastMovementInfo().moveFlags & ~MOVEFLAG_MASK_MOVING_OR_TURN);
     m_knockBack = true;
 }
 
@@ -799,37 +788,30 @@ bool MovementAnticheat::HandleSplineDone(Player* pPlayer, MovementInfo const& mo
     if (splineId == m_lastSplineId)
     {
         AddMessageToPacketLog("HandleSplineDone: spline id == last spline id == " + std::to_string(splineId));
-        sLog.outInfo("HandleSplineDone: Player %s from account id %u sent spline done opcode for spline id %u twice",
-            me->GetName(), m_session->GetAccountId(), splineId);
+        sLog.Player(m_session, LOG_ANTICHEAT, "Movement", LOG_LVL_MINIMAL, "HandleSplineDone: Player sent spline done opcode for spline id %u twice",
+            splineId);
         return false;
     }
 
-    if (splineId != me->movespline->GetId())
-    {
-        AddMessageToPacketLog("HandleSplineDone: spline id " + std::to_string(splineId) + " != " + std::to_string(me->movespline->GetId()));
-        sLog.outInfo("HandleSplineDone: Player %s from account id %u sent spline done opcode for wrong spline id %u (expected %u)",
-            me->GetName(), m_session->GetAccountId(), splineId, me->movespline->GetId());
-        return false;
-    }
+    m_lastSplineId = splineId;
 
-    float distance = Geometry::GetDistance3D(movementInfo.GetPos(), me->movespline->FinalDestination());
+    float distance = Geometry::GetDistance3D(movementInfo.GetTransportGuid() ? movementInfo.GetTransportPos() : movementInfo.GetPos(), me->movespline->FinalDestination());
     if (distance > 10.0f)
     {
         AddMessageToPacketLog("HandleSplineDone: distance to spline destination is " + std::to_string(distance));
-        sLog.outInfo("HandleSplineDone: Player %s from account id %u sent spline done opcode with position that is %g yards away from destination",
-            me->GetName(), m_session->GetAccountId(), distance);
+        sLog.Player(m_session, LOG_ANTICHEAT, "Movement", LOG_LVL_MINIMAL, "HandleSplineDone: Player sent spline done opcode with position that is %g yards away from destination",
+            distance);
         return false;
     }
 
     if (!movementInfo.HasMovementFlag(MOVEFLAG_FALLINGFAR | MOVEFLAG_JUMPING))
         ResetJumpCounters();
 
-    m_lastSplineId = splineId;
     return true;
 }
 
 #define JUMP_FLAG_THRESHOLD 5
-#define FAR_FALL_FLAG_TIME 3000
+#define FAR_FALL_FLAG_TIME 3000u
 #define HEIGHT_LEEWAY 5.0f
 
 bool ShouldResetNoFallTimeCheck(MovementInfo const& movementInfo, uint16 opcode)
@@ -1018,6 +1000,7 @@ uint32 MovementAnticheat::CheckSpeedHack(MovementInfo const& movementInfo, uint1
 {
     if ((opcode == CMSG_MOVE_KNOCK_BACK_ACK) ||
         (opcode == CMSG_MOVE_SPLINE_DONE) ||
+        !GetLastMovementInfo().ctime ||
         me->IsTaxiFlying() || 
         me->IsBeingTeleported())
         return 0;
@@ -1073,7 +1056,7 @@ uint32 MovementAnticheat::CheckSpeedHack(MovementInfo const& movementInfo, uint1
     }
 
     // Client should send heartbeats every 500ms
-    if (clientTimeDiff > 1000 && GetLastMovementInfo().ctime && GetLastMovementInfo().moveFlags & MOVEFLAG_MASK_MOVING)
+    if ((clientTimeDiff > 1000) && (GetLastMovementInfo().moveFlags & MOVEFLAG_MASK_MOVING))
         APPEND_CHEAT(CHEAT_TYPE_SKIPPED_HEARTBEATS);
 
     return cheatFlags;
