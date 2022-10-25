@@ -33,6 +33,8 @@
 #include "ObjectGuid.h"
 #include "Chat/AbstractPlayer.h"
 #include "WorldPacket.h"
+#include "Multithreading/Messager.h"
+#include "LFGQueue.h"
 
 #include <map>
 #include <set>
@@ -379,6 +381,7 @@ enum eConfigUInt32Values
     CONFIG_UINT32_AHNQIRAJTEMPLE_LEVEL,
     CONFIG_UINT32_STRATHOLMERAID_LEVEL,
     //End Solocraft Defines
+    CONFIG_UINT32_LFG_MATCHMAKING_TIMER,
     CONFIG_UINT32_VALUE_COUNT
 };
 
@@ -672,6 +675,7 @@ enum eConfigBoolValues
     CONFIG_BOOL_PARTY_BOT_SKIP_CHECKS,
     CONFIG_BOOL_WORLD_AVAILABLE,
     CONFIG_BOOL_GM_CHEAT_GOD,
+    CONFIG_BOOL_LFG_MATCHMAKING,
     CONFIG_BOOL_VALUE_COUNT
 };
 
@@ -999,6 +1003,10 @@ class World
         time_t GetWorldUpdateTimer(WorldTimers timer);
         time_t GetWorldUpdateTimerInterval(WorldTimers timer);
 
+        Messager<World>& GetMessager() { return m_messager; }
+
+        LFGQueue& GetLFGQueue() { return m_lfgQueue; }
+        void StartLFGQueueThread();
     protected:
         void _UpdateGameTime();
         // callback for UpdateRealmCharacters
@@ -1060,6 +1068,10 @@ class World
         std::string m_honorPath;
         std::string m_wardenModuleDirectory;
 
+        // Housing this here but logically it is completely asynchronous - TODO: Separate this and unify with BG queue
+        LFGQueue m_lfgQueue;
+        std::thread m_lfgQueueThread;
+
         // for max speed access
         static float m_MaxVisibleDistanceOnContinents;
         static float m_MaxVisibleDistanceInInstances;
@@ -1097,6 +1109,8 @@ class World
         static uint32 m_currentMSTime;
         static TimePoint m_currentTime;
         static uint32 m_currentDiff;
+
+        Messager<World> m_messager;
 };
 
 extern uint32 realmID;
