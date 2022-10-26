@@ -232,7 +232,7 @@ struct boss_heiganAI : public ScriptedAI
         Creature* fissureCreature = m_creature->SummonCreature(NPC_PLAGUE_FISSURE, 2773.0f, -3684.0f, 292.0f, 0.0f, TEMPSUMMON_TIMED_DESPAWN, 1000);
         if (!fissureCreature)
         {
-            sLog.outError("Heigan: failed spawning fissure creature");
+            sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Heigan: failed spawning fissure creature");
             return;
         }
 
@@ -335,7 +335,7 @@ struct boss_heiganAI : public ScriptedAI
         m_events.ScheduleEvent(EVENT_MANABURN,  Seconds(10));
         m_events.ScheduleEvent(EVENT_PORT_PLAYER, Seconds(18));
         m_events.ScheduleEvent(EVENT_PORT_PLAYER, Seconds(48));
-        m_creature->CastStop();
+        m_creature->InterruptNonMeleeSpells(false);
         m_creature->SetReactState(REACT_AGGRESSIVE);
         eruptionPhase = 0;
 

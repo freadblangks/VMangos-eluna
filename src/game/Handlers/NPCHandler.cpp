@@ -57,7 +57,7 @@ void WorldSession::HandleTabardVendorActivateOpcode(WorldPacket& recv_data)
     Creature* unit = GetPlayer()->GetNPCIfCanInteractWith(guid, UNIT_NPC_FLAG_TABARDDESIGNER);
     if (!unit)
     {
-        DEBUG_LOG("WORLD: HandleTabardVendorActivateOpcode - %s not found or you can't interact with him.", guid.GetString().c_str());
+        sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: HandleTabardVendorActivateOpcode - %s not found or you can't interact with him.", guid.GetString().c_str());
         return;
     }
 
@@ -78,7 +78,7 @@ void WorldSession::HandleBankerActivateOpcode(WorldPacket& recv_data)
 {
     ObjectGuid guid;
 
-    DEBUG_LOG("WORLD: Received CMSG_BANKER_ACTIVATE");
+    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: Received CMSG_BANKER_ACTIVATE");
 
     recv_data >> guid;
 
@@ -155,12 +155,12 @@ static void SendTrainerSpellHelper(WorldPacket& data, TrainerSpell const* tSpell
 
 void WorldSession::SendTrainerList(ObjectGuid guid)
 {
-    DEBUG_LOG("WORLD: SendTrainerList");
+    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: SendTrainerList");
 
     Creature* unit = GetPlayer()->GetNPCIfCanInteractWith(guid, UNIT_NPC_FLAG_TRAINER);
     if (!unit)
     {
-        DEBUG_LOG("WORLD: SendTrainerList - %s not found or you can't interact with him.", guid.GetString().c_str());
+        sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: SendTrainerList - %s not found or you can't interact with him.", guid.GetString().c_str());
         return;
     }
 
@@ -177,7 +177,7 @@ void WorldSession::SendTrainerList(ObjectGuid guid)
 
     if (!cSpells && !tSpells)
     {
-        DEBUG_LOG("WORLD: SendTrainerList - Training spells not found for %s", guid.GetString().c_str());
+        sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: SendTrainerList - Training spells not found for %s", guid.GetString().c_str());
         return;
     }
 
@@ -282,14 +282,14 @@ void WorldSession::HandleTrainerBuySpellOpcode(WorldPacket& recv_data)
     uint32 spellId = 0;
 
     recv_data >> guid >> spellId;
-    DEBUG_LOG("WORLD: Received CMSG_TRAINER_BUY_SPELL Trainer: %s, learn spell id is: %u", guid.GetString().c_str(), spellId);
+    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: Received CMSG_TRAINER_BUY_SPELL Trainer: %s, learn spell id is: %u", guid.GetString().c_str(), spellId);
 
     Creature* unit = GetPlayer()->GetNPCIfCanInteractWith(guid, UNIT_NPC_FLAG_TRAINER);
 
     if (!unit || !unit->IsTrainerOf(_player, true) || !unit->IsWithinLOSInMap(_player))
     {
         SendTrainingFailure(guid, spellId, TRAIN_FAIL_UNAVAILABLE);
-        DEBUG_LOG("WORLD: HandleTrainerBuySpellOpcode - %s not found or you can't interact with him.", guid.GetString().c_str());
+        sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: HandleTrainerBuySpellOpcode - %s not found or you can't interact with him.", guid.GetString().c_str());
         return;
     }
 
@@ -365,7 +365,7 @@ void WorldSession::HandleTrainerBuySpellOpcode(WorldPacket& recv_data)
 
 void WorldSession::HandleGossipHelloOpcode(WorldPacket& recv_data)
 {
-    DEBUG_LOG("WORLD: Received CMSG_GOSSIP_HELLO");
+    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: Received CMSG_GOSSIP_HELLO");
 
     ObjectGuid guid;
     recv_data >> guid;
@@ -373,7 +373,7 @@ void WorldSession::HandleGossipHelloOpcode(WorldPacket& recv_data)
     Creature* pCreature = GetPlayer()->GetNPCIfCanInteractWith(guid, UNIT_NPC_FLAG_NONE);
     if (!pCreature)
     {
-        DEBUG_LOG("WORLD: HandleGossipHelloOpcode - %s not found or you can't interact with him.", guid.GetString().c_str());
+        sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: HandleGossipHelloOpcode - %s not found or you can't interact with him.", guid.GetString().c_str());
         return;
     }
 
@@ -403,7 +403,7 @@ void WorldSession::HandleGossipHelloOpcode(WorldPacket& recv_data)
 
 void WorldSession::HandleGossipSelectOptionOpcode(WorldPacket& recv_data)
 {
-    DEBUG_LOG("WORLD: CMSG_GOSSIP_SELECT_OPTION");
+    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: CMSG_GOSSIP_SELECT_OPTION");
 
     uint32 gossipListId;
     ObjectGuid guid;
@@ -414,7 +414,7 @@ void WorldSession::HandleGossipSelectOptionOpcode(WorldPacket& recv_data)
     if (_player->PlayerTalkClass->GossipOptionCoded(gossipListId))
     {
         recv_data >> code;
-        DEBUG_LOG("Gossip code: %s", code.c_str());
+        sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "Gossip code: %s", code.c_str());
     }
 
     GetPlayer()->InterruptSpellsWithChannelFlags(AURA_INTERRUPT_INTERACTING_CANCELS);
@@ -429,7 +429,7 @@ void WorldSession::HandleGossipSelectOptionOpcode(WorldPacket& recv_data)
 
         if (!pCreature)
         {
-            DEBUG_LOG("WORLD: HandleGossipSelectOptionOpcode - %s not found or you can't interact with it.", guid.GetString().c_str());
+            sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: HandleGossipSelectOptionOpcode - %s not found or you can't interact with it.", guid.GetString().c_str());
             return;
         }
 
@@ -445,7 +445,7 @@ void WorldSession::HandleGossipSelectOptionOpcode(WorldPacket& recv_data)
 
         if (!pGo)
         {
-            DEBUG_LOG("WORLD: HandleGossipSelectOptionOpcode - %s not found or you can't interact with it.", guid.GetString().c_str());
+            sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: HandleGossipSelectOptionOpcode - %s not found or you can't interact with it.", guid.GetString().c_str());
             return;
         }
 
@@ -456,7 +456,7 @@ void WorldSession::HandleGossipSelectOptionOpcode(WorldPacket& recv_data)
 
 void WorldSession::HandleSpiritHealerActivateOpcode(WorldPacket& recv_data)
 {
-    DEBUG_LOG("WORLD: CMSG_SPIRIT_HEALER_ACTIVATE");
+    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: CMSG_SPIRIT_HEALER_ACTIVATE");
 
     ObjectGuid guid;
 
@@ -465,7 +465,7 @@ void WorldSession::HandleSpiritHealerActivateOpcode(WorldPacket& recv_data)
     Creature* unit = GetPlayer()->GetNPCIfCanInteractWith(guid, UNIT_NPC_FLAG_SPIRITHEALER);
     if (!unit)
     {
-        DEBUG_LOG("WORLD: HandleSpiritHealerActivateOpcode - %s not found or you can't interact with him.", guid.GetString().c_str());
+        sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: HandleSpiritHealerActivateOpcode - %s not found or you can't interact with him.", guid.GetString().c_str());
         return;
     }
 
@@ -534,7 +534,7 @@ void WorldSession::HandleBinderActivateOpcode(WorldPacket& recv_data)
     Creature* unit = GetPlayer()->GetNPCIfCanInteractWith(npcGuid, UNIT_NPC_FLAG_INNKEEPER);
     if (!unit)
     {
-        DEBUG_LOG("WORLD: HandleBinderActivateOpcode - %s not found or you can't interact with him.", npcGuid.GetString().c_str());
+        sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: HandleBinderActivateOpcode - %s not found or you can't interact with him.", npcGuid.GetString().c_str());
         return;
     }
 
@@ -557,7 +557,7 @@ void WorldSession::SendBindPoint(Creature* npc)
 
 void WorldSession::HandleListStabledPetsOpcode(WorldPacket& recv_data)
 {
-    DEBUG_LOG("WORLD: Recv MSG_LIST_STABLED_PETS");
+    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: Recv MSG_LIST_STABLED_PETS");
     ObjectGuid npcGUID;
 
     recv_data >> npcGUID;
@@ -565,7 +565,7 @@ void WorldSession::HandleListStabledPetsOpcode(WorldPacket& recv_data)
     Creature* unit = GetPlayer()->GetNPCIfCanInteractWith(npcGUID, UNIT_NPC_FLAG_STABLEMASTER);
     if (!unit)
     {
-        DEBUG_LOG("WORLD: HandleListStabledPetsOpcode - %s not found or you can't interact with him.", npcGUID.GetString().c_str());
+        sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: HandleListStabledPetsOpcode - %s not found or you can't interact with him.", npcGUID.GetString().c_str());
         return;
     }
 
@@ -576,7 +576,7 @@ void WorldSession::HandleListStabledPetsOpcode(WorldPacket& recv_data)
 
 void WorldSession::SendStablePet(ObjectGuid guid)
 {
-    DEBUG_LOG("WORLD: Recv MSG_LIST_STABLED_PETS Send.");
+    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: Recv MSG_LIST_STABLED_PETS Send.");
 
     WorldPacket data(MSG_LIST_STABLED_PETS, 200);           // guess size
     data << guid;
@@ -646,7 +646,7 @@ bool WorldSession::CheckStableMaster(ObjectGuid guid)
         // command case will return only if player have real access to command
         if (!ChatHandler(GetPlayer()).FindCommand("stable"))
         {
-            DEBUG_LOG("%s attempt open stable in cheating way.", guid.GetString().c_str());
+            sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "%s attempt open stable in cheating way.", guid.GetString().c_str());
             return false;
         }
     }
@@ -655,7 +655,7 @@ bool WorldSession::CheckStableMaster(ObjectGuid guid)
     {
         if (!GetPlayer()->GetNPCIfCanInteractWith(guid, UNIT_NPC_FLAG_STABLEMASTER))
         {
-            DEBUG_LOG("Stablemaster %s not found or you can't interact with him.", guid.GetString().c_str());
+            sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "Stablemaster %s not found or you can't interact with him.", guid.GetString().c_str());
             return false;
         }
     }
@@ -665,7 +665,7 @@ bool WorldSession::CheckStableMaster(ObjectGuid guid)
 
 void WorldSession::HandleStablePet(WorldPacket& recv_data)
 {
-    DEBUG_LOG("WORLD: Recv CMSG_STABLE_PET");
+    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: Recv CMSG_STABLE_PET");
     ObjectGuid npcGUID;
 
     recv_data >> npcGUID;
@@ -718,7 +718,7 @@ void WorldSession::HandleStablePet(WorldPacket& recv_data)
 
 void WorldSession::HandleUnstablePet(WorldPacket& recv_data)
 {
-    DEBUG_LOG("WORLD: Recv CMSG_UNSTABLE_PET.");
+    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: Recv CMSG_UNSTABLE_PET.");
     ObjectGuid npcGUID;
     uint32 petNumber;
 
@@ -771,7 +771,7 @@ void WorldSession::HandleUnstablePet(WorldPacket& recv_data)
 
 void WorldSession::HandleBuyStableSlot(WorldPacket& recv_data)
 {
-    DEBUG_LOG("WORLD: Recv CMSG_BUY_STABLE_SLOT.");
+    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: Recv CMSG_BUY_STABLE_SLOT.");
     ObjectGuid npcGUID;
 
     recv_data >> npcGUID;
@@ -803,12 +803,12 @@ void WorldSession::HandleBuyStableSlot(WorldPacket& recv_data)
 
 void WorldSession::HandleStableRevivePet(WorldPacket& /* recv_data */)
 {
-    DEBUG_LOG("HandleStableRevivePet: Not implemented");
+    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "HandleStableRevivePet: Not implemented");
 }
 
 void WorldSession::HandleStableSwapPet(WorldPacket& recv_data)
 {
-    DEBUG_LOG("WORLD: Recv CMSG_STABLE_SWAP_PET.");
+    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: Recv CMSG_STABLE_SWAP_PET.");
     ObjectGuid npcGUID;
     uint32 pet_number;
 
@@ -870,7 +870,7 @@ void WorldSession::HandleStableSwapPet(WorldPacket& recv_data)
 
 void WorldSession::HandleRepairItemOpcode(WorldPacket& recv_data)
 {
-    DEBUG_LOG("WORLD: CMSG_REPAIR_ITEM");
+    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: CMSG_REPAIR_ITEM");
 
     ObjectGuid npcGuid;
     ObjectGuid itemGuid;
@@ -880,7 +880,7 @@ void WorldSession::HandleRepairItemOpcode(WorldPacket& recv_data)
     Creature* unit = GetPlayer()->GetNPCIfCanInteractWith(npcGuid, UNIT_NPC_FLAG_REPAIR);
     if (!unit)
     {
-        DEBUG_LOG("WORLD: HandleRepairItemOpcode - %s not found or you can't interact with him.", npcGuid.GetString().c_str());
+        sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: HandleRepairItemOpcode - %s not found or you can't interact with him.", npcGuid.GetString().c_str());
         return;
     }
 
@@ -893,7 +893,7 @@ void WorldSession::HandleRepairItemOpcode(WorldPacket& recv_data)
     uint32 TotalCost = 0;
     if (itemGuid)
     {
-        DEBUG_LOG("ITEM: %s repair of %s", npcGuid.GetString().c_str(), itemGuid.GetString().c_str());
+        sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "ITEM: %s repair of %s", npcGuid.GetString().c_str(), itemGuid.GetString().c_str());
 
         Item* item = _player->GetItemByGuid(itemGuid);
 
@@ -902,7 +902,7 @@ void WorldSession::HandleRepairItemOpcode(WorldPacket& recv_data)
     }
     else
     {
-        DEBUG_LOG("ITEM: %s repair all items", npcGuid.GetString().c_str());
+        sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "ITEM: %s repair all items", npcGuid.GetString().c_str());
 
         TotalCost = _player->DurabilityRepairAll(true, discountMod);
     }

@@ -71,8 +71,8 @@ extern ScriptMapMap sCreatureAIScripts;
 #define TEXT_SOURCE_CUSTOM_END      TEXT_SOURCE_RANGE*3 + 1
 
 //Generic scripting functions
-void DoScriptText(int32 textEntry, WorldObject* pSource, Unit* target = nullptr, int32 chatTypeOverride = -1);
-void DoOrSimulateScriptTextForMap(int32 iTextEntry, uint32 uiCreatureEntry, Map* pMap, Creature* pCreatureSource = nullptr, Unit* pTarget = nullptr);
+void DoScriptText(int32 textId, WorldObject* pSource, Unit* pTarget = nullptr, int32 chatTypeOverride = -1);
+void DoOrSimulateScriptTextForMap(int32 textId, uint32 creatureId, Map* pMap, Creature* pSource = nullptr, Unit* pTarget = nullptr);
 
 // Returns a target based on the type specified.
 WorldObject* GetTargetByType(WorldObject* pSource, WorldObject* pTarget, Map* pMap, uint8 targetType, uint32 param1 = 0u, uint32 param2 = 0u, SpellEntry const* pSpellEntry = nullptr);
@@ -247,6 +247,16 @@ class ScriptMgr
             return itr->second;
         }
 
+        bool IsCreatureGuidReferencedInScripts(uint32 dbGuid) const
+        {
+            return m_referencedCreatureGuids.find(dbGuid) != m_referencedCreatureGuids.end();
+        }
+
+        bool IsGameObjectGuidReferencedInScripts(uint32 dbGuid) const
+        {
+            return m_referencedGameObjectGuids.find(dbGuid) != m_referencedGameObjectGuids.end();
+        }
+
         uint32 IncreaseScheduledScriptsCount() { return (uint32)++m_scheduledScripts; }
         uint32 DecreaseScheduledScriptCount() { return (uint32)--m_scheduledScripts; }
         uint32 DecreaseScheduledScriptCount(size_t count) { return (uint32)(m_scheduledScripts -= count); }
@@ -297,6 +307,8 @@ class ScriptMgr
         TextDataMap     m_mTextDataMap;                     //additional data for text strings
         PointMoveMap    m_mPointMoveMap;                    //coordinates for waypoints
         EscortDataMap   m_mEscortDataMap;                   // Des donnees pour les quetes d'escorte scriptees via la DB
+        std::set<uint32> m_referencedCreatureGuids;
+        std::set<uint32> m_referencedGameObjectGuids;
 
         //atomic op counter for active scripts amount
         std::atomic<int> m_scheduledScripts;

@@ -167,10 +167,7 @@ struct boss_ragnarosAI : ScriptedAI
         HasAura = true;
 
         if (m_pInstance && m_creature->IsAlive())
-        {
             m_pInstance->SetData(TYPE_RAGNAROS, NOT_STARTED);
-            m_creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_NPC);
-        }
 
         // clean up dummy visual if raid wiped during P2
         if (Creature* pVisual = m_creature->FindNearestCreature(NPC_SUBMERGED_VISUAL, 50.0f, true))
@@ -185,10 +182,7 @@ struct boss_ragnarosAI : ScriptedAI
         if (m_pInstance)
         {
             m_pInstance->SetData(TYPE_RAGNAROS, IN_PROGRESS);
-            if (m_creature->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_NPC))
-                m_creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_NPC);
-            if (m_creature->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING))
-                m_creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING);
+            m_creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PLAYER);
         }
         m_creature->SetInCombatWithZone();
         DoCastSpellIfCan(m_creature, SPELL_MELT_WEAPON_AURA, CF_TRIGGERED | CF_AURA_NOT_PRESENT);        
@@ -307,7 +301,8 @@ struct boss_ragnarosAI : ScriptedAI
                 else
                 {
                     // 10 seconds have passed, engage the raid
-                    m_creature->SetUInt64Value(UNIT_FIELD_FLAGS, 0);
+                    m_creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
+                    m_creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PLAYER);
                     m_uiEnterCombatTimer = 0;
                 }
             }
@@ -318,10 +313,7 @@ struct boss_ragnarosAI : ScriptedAI
             }
         }
 
-        if (m_creature->GetUInt32Value(UNIT_FIELD_FLAGS) == UNIT_FLAG_SPAWNING)
-            return;
-
-        if (m_creature->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_NPC))
+        if (m_creature->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PLAYER))
             return;
 
         // For transition back to P1, return during emerge visual cast animation
@@ -350,8 +342,8 @@ struct boss_ragnarosAI : ScriptedAI
                 // remove dummy visual
                 if (Creature* pVisual = m_creature->FindNearestCreature(NPC_SUBMERGED_VISUAL, 50.0f, true))
                     pVisual->RemoveFromWorld();
+
                 // Become unbanished again
-                m_creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING);
                 m_creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
                 IsBanished = false;
                 m_uiMagmaBlastTimer = 3000;
@@ -360,7 +352,7 @@ struct boss_ragnarosAI : ScriptedAI
                 return;
             }
 
-            sLog.outError("[MoltenCore.Ragnaros] Cast %u impossible.", SPELL_EMERGE_VISUAL);
+            sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "[MoltenCore.Ragnaros] Cast %u impossible.", SPELL_EMERGE_VISUAL);
         }
         else if (IsBanished)
         {
@@ -445,7 +437,6 @@ struct boss_ragnarosAI : ScriptedAI
             //is not very well supported in the core
             //so added normaly spawning and banish workaround and attack again after 90 secs.
 
-            m_creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING);
             m_creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
 
             if (DoCastSpellIfCan(m_creature, SPELL_SUBMERGE_VISUAL, CF_INTERRUPT_PREVIOUS) == CAST_OK)
@@ -546,12 +537,12 @@ struct boss_ragnarosAI : ScriptedAI
                     if (!canCastResult)
                         m_uiMagmaBlastTimer = 2500;
                     else
-                        sLog.outError("[MoltenCore.Ragnaros] Magma Blast failed with reason <%u>.", canCastResult);
+                        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "[MoltenCore.Ragnaros] Magma Blast failed with reason <%u>.", canCastResult);
 
                     return;
                 }
 
-                sLog.outError("[MoltenCore.Ragnaros] No target to Magma Blast.");
+                sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "[MoltenCore.Ragnaros] No target to Magma Blast.");
             }
             else
                 m_uiMagmaBlastTimer -= diff;
@@ -635,11 +626,11 @@ struct boss_ragnarosAI : ScriptedAI
                 m_creature->ResetAttackTimer();
             }
 
-            //sLog.outError("[MoltenCore.Ragnaros] Target type #4 reached with name <%s> and entry <%u>.", pTarget->GetName(), pTarget->GetEntry());
+            //sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "[MoltenCore.Ragnaros] Target type #4 reached with name <%s> and entry <%u>.", pTarget->GetName(), pTarget->GetEntry());
         }
 
         // nothing in melee at all
-        //sLog.outError("[MoltenCore.Ragnaros] CheckForMelee hits the end. Nothing in melee.");
+        //sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "[MoltenCore.Ragnaros] CheckForMelee hits the end. Nothing in melee.");
     }
 };
 

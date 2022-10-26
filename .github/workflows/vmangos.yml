@@ -1,4 +1,4 @@
-#3 build types 
+#3 build types
 # - gcc under Ubuntu
 # - clang under Ubuntu
 # - visual studio under Windows
@@ -40,7 +40,7 @@ jobs:
         os: [ubuntu-latest]
         compiler: [gcc, clang]
         include:
-          - os: windows-latest
+          - os: windows-2019
 
     steps:
 
@@ -56,19 +56,19 @@ jobs:
         sudo apt-get -qq install cmake build-essential cppcheck git make libiberty-dev openssl libssl-dev
       #windows dependencies
     - name: windows dependencies
-      if: matrix.os == 'windows-latest'
+      if: matrix.os == 'windows-2019'
       #Sets versions for ACE/TBB
       env:
         ACE_VERSION: 6.5.11
         ACE_VERSION2: 6_5_11
         TBB_VERSION: 2020.3
-      
+
       run: |
         #directory variables
         export ACE_ROOT=$GITHUB_WORKSPACE/ACE_wrappers
         export TBB_ROOT_DIR=$GITHUB_WORKSPACE/tbb
         #wget
-        choco install -y wget
+        choco install -y wget --version 1.20
         #ACE package download
         wget http://github.com/DOCGroup/ACE_TAO/releases/download/ACE%2BTAO-$ACE_VERSION2/ACE-$ACE_VERSION.zip
         unzip ACE-$ACE_VERSION.zip
@@ -79,12 +79,8 @@ jobs:
         wget https://github.com/oneapi-src/oneTBB/releases/download/v$TBB_VERSION/tbb-$TBB_VERSION-win.zip
         unzip tbb-$TBB_VERSION-win.zip
         rm tbb-$TBB_VERSION-win.zip
-        #make
-        choco install -y make
-        #cmake
-        choco install -y cmake
         #openssl
-        choco install -y openssl
+        choco install -y openssl --version=1.1.1.500
       #git bash shell
       shell: bash
 
@@ -99,9 +95,9 @@ jobs:
         cmake ../ -DCMAKE_INSTALL_PREFIX=../_install -DWITH_WARNINGS=0 -DUSE_EXTRACTORS=1
         make -j2
         make install
-    #windows 
+    #windows
     - name: windows build & install
-      if: matrix.os == 'windows-latest'
+      if: matrix.os == 'windows-2019'
       run: |
         #directory variables
         export ACE_ROOT=$GITHUB_WORKSPACE/ACE_wrappers

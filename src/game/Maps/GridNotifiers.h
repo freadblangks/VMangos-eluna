@@ -1298,6 +1298,48 @@ namespace MaNGOS
             uint32 i_spellId;
     };
 
+    class NearestAlivePlayerCheck
+    {
+        public:
+            NearestAlivePlayerCheck(WorldObject const* source, float dist) : me(source), m_range(dist) {}
+            bool operator() (Player* pPlayer)
+            {
+                if (me == pPlayer)
+                    return false;
+
+                if (pPlayer->IsGameMaster())
+                    return false;
+
+                if (!pPlayer->IsAlive())
+                    return false;
+
+                if (!me->IsWithinDistInMap(pPlayer, m_range))
+                    return false;
+
+                m_range = me->GetDistance(pPlayer);   // use found unit range as new range limit for next check
+                return true;
+            }
+
+        private:
+            WorldObject const* me;
+            float m_range;
+    };
+
+    class PlayerAtMinimumRangeAway
+    {
+        public:
+            PlayerAtMinimumRangeAway(Unit const* unit, float fMinRange) : pUnit(unit), fRange(fMinRange) {}
+            bool operator() (Player* pPlayer)
+            {
+                //No threat list check, must be done explicit if expected to be in combat with creature
+                return !pPlayer->IsGameMaster() && pPlayer->IsAlive() && !pUnit->IsWithinDist(pPlayer,fRange,false);
+            }
+
+        private:
+            Unit const* pUnit;
+            float fRange;
+    };
+
     // Prepare using Builder localized packets with caching and send to player
     template<class Builder>
     class LocalizedPacketDo
@@ -1438,21 +1480,6 @@ namespace MaNGOS
         float m_fRange;
     };
 
-    class PlayerAtMinimumRangeAway
-    {
-        public:
-            PlayerAtMinimumRangeAway(Unit const* unit, float fMinRange) : pUnit(unit), fRange(fMinRange) {}
-            bool operator() (Player* pPlayer)
-            {
-                //No threat list check, must be done explicit if expected to be in combat with creature
-                return !pPlayer->IsGameMaster() && pPlayer->IsAlive() && !pUnit->IsWithinDist(pPlayer,fRange,false);
-            }
-
-        private:
-            Unit const* pUnit;
-            float fRange;
-    };
-
     class NearestUnitCheck
     {
         public:
@@ -1481,7 +1508,7 @@ namespace MaNGOS
     class NearestFriendlyUnitCheck
     {
         public:
-            explicit NearestFriendlyUnitCheck(Unit const* source, float dist = 0) : me(source)
+            explicit NearestFriendlyUnitCheck(WorldObject const* source, float dist = 0) : me(source)
             {
                 m_range = (dist == 0 ? 9999 : dist);
             }
@@ -1501,7 +1528,7 @@ namespace MaNGOS
             }
 
         private:
-            Unit const* me;
+            WorldObject const* me;
             float m_range;
             NearestFriendlyUnitCheck(NearestFriendlyUnitCheck const&);
     };
@@ -1510,7 +1537,7 @@ namespace MaNGOS
     class NearestHostileUnitCheck
     {
         public:
-            explicit NearestHostileUnitCheck(Unit const* source, float dist = 0) : me(source)
+            explicit NearestHostileUnitCheck(WorldObject const* source, float dist = 0) : me(source)
             {
                 m_range = (dist == 0 ? 9999 : dist);
             }
@@ -1522,7 +1549,10 @@ namespace MaNGOS
                 if (!me->IsWithinDistInMap(u, m_range))
                     return false;
 
-                if (!me->CanAttack(u))
+                if (!me->IsHostileTo(u))
+                    return false;
+
+                if (!me->IsValidAttackTarget(u))
                     return false;
 
                 m_range = me->GetDistance(u);   // use found unit range as new range limit for next check
@@ -1530,7 +1560,7 @@ namespace MaNGOS
             }
 
         private:
-            Unit const* me;
+            WorldObject const* me;
             float m_range;
             NearestHostileUnitCheck(NearestHostileUnitCheck const&);
     };

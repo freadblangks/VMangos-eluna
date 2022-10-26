@@ -65,7 +65,6 @@ struct PlayerMovementPendingChange
     uint32 time = 0;
     float newValue = 0.0f; // used if speed or height change
     bool apply = false; // used if movement flag change
-    bool resent = false; // sending change again because client didn't reply
     ObjectGuid controller;
 
     struct KnockbackInfo
@@ -234,7 +233,7 @@ struct CharmInfo
     void SetCommandState(CommandStates state) { m_commandState = state; }
     CommandStates GetCommandState() const { return m_commandState; }
     bool HasCommandState(CommandStates state) const { return m_commandState == state; }
-    void SetReactState(ReactStates st) { m_reactState = st; }
+    void SetReactState(ReactStates state) { m_reactState = state; }
     ReactStates GetReactState() const { return m_reactState; }
     bool HasReactState(ReactStates state) const { return m_reactState == state; }
 
@@ -368,6 +367,7 @@ class Unit : public SpellCaster
         void SetCreateResistance(SpellSchools school, int32 val) { m_createResistances[school] = val; }
         void SetStat(Stats stat, int32 val) { SetStatInt32Value(UNIT_FIELD_STAT0 + stat, val); }
         void SetResistance(SpellSchools school, int32 val) { SetInt32Value(UNIT_FIELD_RESISTANCES + school, val); }
+        float GetAttackPowerFromStrengthAndAgility(bool ranged, float strength, float agility) const;
         float GetRegenHPPerSpirit() const;
         float GetRegenMPPerSpirit() const;
     public:
@@ -411,7 +411,6 @@ class Unit : public SpellCaster
 
         Powers GetPowerType() const { return Powers(GetByteValue(UNIT_FIELD_BYTES_0, UNIT_BYTES_0_OFFSET_POWER_TYPE)); }
         void SetPowerType(Powers power);
-        void SetInitCreaturePowerType();
         uint32 GetPower(Powers power) const { return GetUInt32Value(UNIT_FIELD_POWER1   +power); }
         uint32 GetMaxPower(Powers power) const { return GetUInt32Value(UNIT_FIELD_MAXPOWER1+power); }
         float GetPowerPercent(Powers power) const { return GetMaxPower(power) ? ((GetPower(power)*100.0f) / GetMaxPower(power)) : 100.0f; }
@@ -500,6 +499,9 @@ class Unit : public SpellCaster
         bool HasUnitState(uint32 f) const { return m_stateFlags & f; }
         void ClearUnitState(uint32 f) { m_stateFlags &= ~f; }
         uint32 GetUnitState() const { return m_stateFlags; }
+        void SetReactState(ReactStates state);
+        ReactStates GetReactState() const;
+        bool HasReactState(ReactStates state) const;
         void UpdateControl();
         bool CanFreeMove() const { return !HasUnitState(UNIT_STAT_NO_FREE_MOVE) && !GetOwnerGuid(); }
         uint32 GetCreatureType() const;
@@ -546,6 +548,7 @@ class Unit : public SpellCaster
         void SetNativeScale(float scale);
         float GetCollisionHeight() const { return m_modelCollisionHeight * m_nativeScaleOverride; }
         float GetMinSwimDepth() const { return GetCollisionHeight() * 0.75f; } // client switches to swim animation at this depth
+        static float GetScaleForDisplayId(uint32 displayId);
         void UpdateModelData(); // at any changes to scale and/or displayId
         void InitPlayerDisplayIds();
         void DeMorph();
@@ -649,12 +652,6 @@ class Unit : public SpellCaster
 
     public:
         /**
-         * Stop all spells from casting except the one give by except_spellid
-         * @param except_spellid This spell id will not be stopped from casting, defaults to 0
-         * \see Unit::InterruptSpell
-         */
-        void CastStop(uint32 except_spellid = 0);
-        /**
          * Gets the current DiminishingLevels for the given group
          * @param group The group that you would like to know the current diminishing return level for
          * @return The current diminishing level, up to DIMINISHING_LEVEL_IMMUNE
@@ -695,7 +692,6 @@ class Unit : public SpellCaster
         void SendPlaySpellVisual(uint32 id) const;
         void SendPeriodicAuraLog(SpellPeriodicAuraLogInfo* pInfo, AuraType auraTypeOverride = SPELL_AURA_NONE) const;
         void SendEnvironmentalDamageLog(uint8 type, uint32 damage, uint32 absorb, int32 resist) const;
-        uint32 SpellNonMeleeDamageLog(Unit* pVictim, uint32 spellId, uint32 damage);
         void WritePetSpellsCooldown(WorldPacket& data) const;
 
         SpellAuraHolder* AddAura(uint32 spellId, uint32 addAuraFlags = 0, Unit* pCaster = nullptr);
@@ -837,6 +833,7 @@ class Unit : public SpellCaster
         void ModifyAuraState(AuraState flag, bool apply);
         bool HasAuraState(AuraState flag) const { return HasFlag(UNIT_FIELD_AURASTATE, 1 << (flag - 1)); }
 
+        virtual uint32 GetSpellRank(SpellEntry const* spellInfo) const;
         int32 SpellBaseDamageBonusTaken(SpellSchoolMask schoolMask) const;
         float SpellDamageBonusTaken(SpellCaster* pCaster, SpellEntry const* spellProto, SpellEffectIndex effectIndex, float pdamage, DamageEffectType damagetype, uint32 stack = 1, Spell* spell = nullptr) const;
         int32 SpellBaseHealingBonusTaken(SpellSchoolMask schoolMask) const;
@@ -852,7 +849,7 @@ class Unit : public SpellCaster
         void ProcSkillsAndReactives(bool isVictim, Unit* pTarget, uint32 procFlag, uint32 procExtra, WeaponAttackType attType);
         void HandleTriggers(Unit* pVictim, uint32 procExtra, uint32 amount, SpellEntry const* procSpell, ProcTriggeredList const& procTriggered);
 
-        bool IsTriggeredAtSpellProcEvent(Unit* pVictim, SpellAuraHolder* holder, SpellEntry const* procSpell, uint32 procFlag, uint32 procExtra, WeaponAttackType attType, bool isVictim, SpellProcEventEntry const*& spellProcEvent, bool dontTriggerSpecial) const;
+        bool IsTriggeredAtSpellProcEvent(Unit* pVictim, SpellAuraHolder* holder, SpellEntry const* procSpell, uint32 procFlag, uint32 procExtra, WeaponAttackType attType, bool isVictim, SpellProcEventEntry const*& spellProcEvent, bool isSpellTriggeredByAura) const;
         // only to be used in proc handlers - basepoints is expected to be a MAX_EFFECT_INDEX sized array
         SpellAuraProcResult TriggerProccedSpell(Unit* target, int32* basepoints, uint32 triggeredSpellId, Item* castItem, Aura* triggeredByAura, uint32 cooldown, ObjectGuid originalCaster = ObjectGuid(), SpellEntry const* triggeredByParent = nullptr);
         SpellAuraProcResult TriggerProccedSpell(Unit* target, int32* basepoints, SpellEntry const* spellInfo, Item* castItem, Aura* triggeredByAura, uint32 cooldown, ObjectGuid originalCaster = ObjectGuid(), SpellEntry const* triggeredByParent = nullptr);
@@ -992,9 +989,9 @@ class Unit : public SpellCaster
             }
         }
 
-        void AttackerStateUpdate(Unit* pVictim, WeaponAttackType attType = BASE_ATTACK, bool checkLoS = true, bool extra = false);
+        void AttackerStateUpdate(Unit* pVictim, WeaponAttackType attType = BASE_ATTACK, bool extra = false);
         void SendAttackStateUpdate(CalcDamageInfo* damageInfo) const;
-        void SendAttackStateUpdate(uint32 HitInfo, Unit* target, uint8 SwingType, SpellSchoolMask damageSchoolMask, uint32 Damage, uint32 AbsorbDamage, int32 Resist, VictimState TargetState, uint32 BlockedAmount) const;
+        void SendAttackStateUpdate(uint32 HitInfo, Unit* target, SpellSchoolMask damageSchoolMask, uint32 Damage, uint32 AbsorbDamage, int32 Resist, VictimState TargetState, uint32 BlockedAmount) const;
         void SendMeleeAttackStop(Unit* victim) const;
         void SendMeleeAttackStart(Unit* pVictim) const;
 
@@ -1116,8 +1113,6 @@ class Unit : public SpellCaster
         Unit* SelectNearestTarget(float dist) const;
         Unit* SelectRandomUnfriendlyTarget(Unit* except = nullptr, float radius = ATTACK_DISTANCE, bool inFront = false, bool isValidAttackTarget = false) const;
         Unit* SelectRandomFriendlyTarget(Unit* except = nullptr, float radius = ATTACK_DISTANCE, bool inCombat = false) const;
-        Player* FindNearestHostilePlayer(float range) const;
-        Player* FindNearestFriendlyPlayer(float range) const;
         Unit* FindLowestHpFriendlyUnit(float fRange, uint32 uiMinHPDiff = 1, bool bPercent = false, Unit* except = nullptr) const;
         Unit* FindFriendlyUnitMissingBuff(float range, uint32 spellid, Unit* except = nullptr) const;
         Unit* FindFriendlyUnitCC(float range) const;
@@ -1194,6 +1189,7 @@ class Unit : public SpellCaster
 
         CharmInfo* GetCharmInfo() const { return m_charmInfo; }
         CharmInfo* InitCharmInfo(Unit* charm);
+        void ClearCharmInfo();
         void HandlePetCommand(CommandStates command, Unit* pTarget);
 
         Unit* GetOwner() const;
@@ -1222,6 +1218,7 @@ class Unit : public SpellCaster
         void RemoveGuardiansWithEntry(uint32 entry);
         Pet* FindGuardianWithEntry(uint32 entry);
         uint32 GetGuardianCountWithEntry(uint32 entry);
+        uint32 GetGuardiansCount() const;
 
         ObjectGuid const& GetTotemGuid(TotemSlot slot) const { return m_TotemSlot[slot]; }
         Totem* GetTotem(TotemSlot slot) const;

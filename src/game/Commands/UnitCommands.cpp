@@ -138,7 +138,7 @@ bool ChatHandler::HandleGPSCommand(char* args)
         PSendSysMessage("Transport coords: %f %f %f %f", pos.x, pos.y, pos.z, pos.o);
     }
 
-    DEBUG_LOG("Player %s GPS call for %s '%s' (%s: %u):",
+    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "Player %s GPS call for %s '%s' (%s: %u):",
               m_session ? GetNameLink().c_str() : GetMangosString(LANG_CONSOLE_COMMAND),
               (obj->GetTypeId() == TYPEID_PLAYER ? "player" : "creature"), obj->GetName(),
               (obj->GetTypeId() == TYPEID_PLAYER ? "GUID" : "Entry"), (obj->GetTypeId() == TYPEID_PLAYER ? obj->GetGUIDLow() : obj->GetEntry()));
@@ -149,7 +149,7 @@ bool ChatHandler::HandleGPSCommand(char* args)
     if (areaEntry)
         sObjectMgr.GetAreaLocaleString(areaEntry->Id, sWorld.GetDefaultDbcLocale(), &areaName);
 
-    DEBUG_LOG(GetMangosString(LANG_MAP_POSITION),
+    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, GetMangosString(LANG_MAP_POSITION),
               obj->GetMapId(), (mapEntry ? mapEntry->name : "<unknown>"),
               zone_id, zoneName.c_str(), area_id, areaName.c_str(),
               obj->GetPositionX(), obj->GetPositionY(), obj->GetPositionZ(), obj->GetOrientation(),
@@ -679,7 +679,7 @@ bool ChatHandler::HandleListAurasCommand(char* /*args*/)
                 ss_name << "|cffffffff|Hspell:" << aura.second->GetId() << "|h[" << name << "]|h|r";
 
                 PSendSysMessage(LANG_COMMAND_TARGET_AURADETAIL, holder->GetId(), aur->GetEffIndex(),
-                    aur->GetModifier()->m_auraname, aur->GetAuraDuration(), aur->GetAuraMaxDuration(), aur->GetStackAmount(),
+                    aur->GetModifier()->m_auraname, aur->GetAuraDuration(), aur->GetAuraMaxDuration(), aur->GetAuraPeriodicTimer(), aur->GetStackAmount(),
                     ss_name.str().c_str(),
                     (holder->IsPassive() ? passiveStr : ""), (talent ? talentStr : ""),
                     holder->GetCasterGuid().GetString().c_str());
@@ -687,7 +687,7 @@ bool ChatHandler::HandleListAurasCommand(char* /*args*/)
             else
             {
                 PSendSysMessage(LANG_COMMAND_TARGET_AURADETAIL, holder->GetId(), aur->GetEffIndex(),
-                    aur->GetModifier()->m_auraname, aur->GetAuraDuration(), aur->GetAuraMaxDuration(), aur->GetStackAmount(),
+                    aur->GetModifier()->m_auraname, aur->GetAuraDuration(), aur->GetAuraMaxDuration(), aur->GetAuraPeriodicTimer(), aur->GetStackAmount(),
                     name,
                     (holder->IsPassive() ? passiveStr : ""), (talent ? talentStr : ""),
                     holder->GetCasterGuid().GetString().c_str());
@@ -1963,7 +1963,7 @@ bool ChatHandler::HandleDamageCommand(char* args)
     {
         player->DealDamage(target, damage, nullptr, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, nullptr, false);
         if (target != player)
-            player->SendAttackStateUpdate(HITINFO_AFFECTS_VICTIM, target, 1, SPELL_SCHOOL_MASK_NORMAL, damage, 0, 0, VICTIMSTATE_NORMAL, 0);
+            player->SendAttackStateUpdate(HITINFO_AFFECTS_VICTIM, target, SPELL_SCHOOL_MASK_NORMAL, damage, 0, 0, VICTIMSTATE_NORMAL, 0);
         return true;
     }
 
@@ -1980,36 +1980,23 @@ bool ChatHandler::HandleDamageCommand(char* args)
         damage = ditheru(player->CalcArmorReducedDamage(target, damage));
 
     // melee damage by specific school
-    if (!*args)
-    {
-        uint32 absorb = 0;
-        int32 resist = 0;
+    uint32 absorb = 0;
+    int32 resist = 0;
 
-        target->CalculateDamageAbsorbAndResist(player, schoolmask, SPELL_DIRECT_DAMAGE, damage, &absorb, &resist, nullptr);
+    target->CalculateDamageAbsorbAndResist(player, schoolmask, SPELL_DIRECT_DAMAGE, damage, &absorb, &resist, nullptr);
 
-        uint32 const bonus = (resist < 0 ? uint32(std::abs(resist)) : 0);
-        damage += bonus;
-        uint32 const malus = (resist > 0 ? (absorb + uint32(resist)) : absorb);
+    uint32 const bonus = (resist < 0 ? uint32(std::abs(resist)) : 0);
+    damage += bonus;
+    uint32 const malus = (resist > 0 ? (absorb + uint32(resist)) : absorb);
 
-        if (damage <= malus)
-            return true;
-
-        damage -= malus;
-
-        player->DealDamageMods(target, damage, &absorb);
-        player->DealDamage(target, damage, nullptr, DIRECT_DAMAGE, schoolmask, nullptr, false);
-        player->SendAttackStateUpdate(HITINFO_AFFECTS_VICTIM, target, 1, schoolmask, damage, absorb, resist, VICTIMSTATE_NORMAL, 0);
+    if (damage <= malus)
         return true;
-    }
 
-    // non-melee damage
+    damage -= malus;
 
-    // number or [name] Shift-click form |color|Hspell:spell_id|h[name]|h|r or Htalent form
-    uint32 spellid = ExtractSpellIdFromLink(&args);
-    if (!spellid || !sSpellMgr.GetSpellEntry(spellid))
-        return false;
-
-    player->SpellNonMeleeDamageLog(target, spellid, damage);
+    player->DealDamageMods(target, damage, &absorb);
+    player->DealDamage(target, damage, nullptr, DIRECT_DAMAGE, schoolmask, nullptr, false);
+    player->SendAttackStateUpdate(HITINFO_AFFECTS_VICTIM, target, schoolmask, damage, absorb, resist, VICTIMSTATE_NORMAL, 0);
     return true;
 }
 
@@ -2039,7 +2026,7 @@ bool ChatHandler::HandleAoEDamageCommand(char* args)
     for (Unit* pTarget : targetsList)
     {
         pPlayer->DealDamage(pTarget, damage, nullptr, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, nullptr, false);
-        pPlayer->SendAttackStateUpdate(HITINFO_AFFECTS_VICTIM, pTarget, 1, SPELL_SCHOOL_MASK_NORMAL, damage, 0, 0, VICTIMSTATE_NORMAL, 0);
+        pPlayer->SendAttackStateUpdate(HITINFO_AFFECTS_VICTIM, pTarget, SPELL_SCHOOL_MASK_NORMAL, damage, 0, 0, VICTIMSTATE_NORMAL, 0);
     }
 
     return true;

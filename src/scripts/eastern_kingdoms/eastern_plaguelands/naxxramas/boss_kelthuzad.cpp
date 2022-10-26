@@ -320,7 +320,7 @@ struct boss_kelthuzadAI : public ScriptedAI
         hasPutInCombat = false;
 
         m_creature->RemoveAurasDueToSpell(SPELL_VISUAL_CHANNEL);
-        m_creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING|UNIT_FLAG_NOT_SELECTABLE);
+        m_creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PLAYER|UNIT_FLAG_NOT_SELECTABLE);
 
         EvadeAllGuardians();
 
@@ -362,17 +362,37 @@ struct boss_kelthuzadAI : public ScriptedAI
 
     void AttackStart(Unit* who) override
     {
-        if (m_creature->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING))
+        if (m_creature->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PLAYER))
             return;
+
         ScriptedAI::AttackStart(who);
     }
 
     void Aggro(Unit* pWho) override
     {
-        if (m_creature->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING))
+        if (m_creature->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PLAYER))
             return;
 
         m_creature->SetInCombatWithZone();
+    }
+
+    bool CheckForEnemyPlayers()
+    {
+        std::list<Player*> players;
+        me->GetAlivePlayerListInRange(me, players, 75.0f);
+        auto iterator = std::remove_if(players.begin(), players.end(),
+                                       [](Player* player)
+                                      { return player->IsGameMaster(); });
+        players.erase(iterator, players.end());
+
+        for (auto const& itr : players)
+        {
+            m_creature->AddThreat(itr);
+            m_creature->SetInCombatWith(itr);
+            itr->SetInCombatWith(m_creature);
+        }
+
+        return !players.empty();
     }
 
     void JustReachedHome() override
@@ -528,7 +548,7 @@ struct boss_kelthuzadAI : public ScriptedAI
                             uint32 repeat_next = std::max(uint32(3750 - 25 * numSkeletons), uint32(2000));
                             events.Repeat(repeat_next);
                             ++numSkeletons;
-                            //sLog.outBasic("[%d] Spawn SKEL #%d, next in %dms", p1Timer, numSkeletons, repeat_next);
+                            //sLog.Out(LOG_BASIC, LOG_LVL_BASIC, "[%d] Spawn SKEL #%d, next in %dms", p1Timer, numSkeletons, repeat_next);
                         }
                         else
                             events.Repeat(100);
@@ -539,14 +559,14 @@ struct boss_kelthuzadAI : public ScriptedAI
                 {
                     SpawnAndSendP1Creature(NPC_UNSTOPPABLE_ABOM);
                     ++numAboms;
-                    //sLog.outBasic("[%d] Spawn ABOM #%d", p1Timer, numAboms);
+                    //sLog.Out(LOG_BASIC, LOG_LVL_BASIC, "[%d] Spawn ABOM #%d", p1Timer, numAboms);
                     break;
                 }
                 case EVENT_SOUL_WEAVER:
                 {
                     SpawnAndSendP1Creature(NPC_SOUL_WEAVER);
                     ++numBanshees;
-                    //sLog.outBasic("[%d] Spawn SOUL #%d", p1Timer, numBanshees);
+                    //sLog.Out(LOG_BASIC, LOG_LVL_BASIC, "[%d] Spawn SOUL #%d", p1Timer, numBanshees);
                     break;
                 }
                 case EVENT_PHASE_TWO_INTRO:
@@ -560,17 +580,17 @@ struct boss_kelthuzadAI : public ScriptedAI
                     if (numBanshees < 14)
                     {
                         SpawnAndSendP1Creature(NPC_SOUL_WEAVER);
-                        sLog.outBasic("(post)[%d] Spawn bansh #%d, next in %dms", p1Timer, ++numBanshees, nextBanshee);
+                        sLog.Out(LOG_BASIC, LOG_LVL_BASIC, "(post)[%d] Spawn bansh #%d, next in %dms", p1Timer, ++numBanshees, nextBanshee);
                     }
                     if (numAboms < 14)
                     {
                         SpawnAndSendP1Creature(NPC_UNSTOPPABLE_ABOM);
-                        sLog.outBasic("(post)[%d] Spawn abom #%d, next in %dms", p1Timer, ++numAboms, nextBanshee);
+                        sLog.Out(LOG_BASIC, LOG_LVL_BASIC, "(post)[%d] Spawn abom #%d, next in %dms", p1Timer, ++numAboms, nextBanshee);
                     }
                     if (numSkeletons < 120)
                     {
                         SpawnAndSendP1Creature(NPC_SOLDIER_FROZEN);
-                        sLog.outBasic("(post)[%d] Spawn skele #%d, next in %dms", p1Timer, ++numSkeletons, nextBanshee);
+                        sLog.Out(LOG_BASIC, LOG_LVL_BASIC, "(post)[%d] Spawn skele #%d, next in %dms", p1Timer, ++numSkeletons, nextBanshee);
                     }
 
                     DoScriptText(urand(SAY_AGGRO1, SAY_AGGRO3), m_creature);
@@ -588,8 +608,7 @@ struct boss_kelthuzadAI : public ScriptedAI
                     events.ScheduleEvent(EVENT_FROST_BLAST,      Seconds(50));
                     events.ScheduleEvent(EVENT_CHAINS,           Seconds(60));
                     m_creature->RemoveAurasDueToSpell(SPELL_VISUAL_CHANNEL);
-                    m_creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING | UNIT_FLAG_NOT_SELECTABLE);
-                    //m_creature->CastStop();
+                    m_creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PLAYER | UNIT_FLAG_NOT_SELECTABLE);
                     m_creature->InterruptNonMeleeSpells(true);
 
                     DoResetThreat();
@@ -790,8 +809,11 @@ struct boss_kelthuzadAI : public ScriptedAI
         if (hasPutInCombat)
         {
             // won't have a victim if we are in p1, even if selectHostileTarget returns true, so check that before return
-            if (!m_creature->SelectHostileTarget() || (!m_creature->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING) && !m_creature->GetVictim()))
-                return;
+            if (!m_creature->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PLAYER) || !CheckForEnemyPlayers())
+            {
+                if (!m_creature->SelectHostileTarget() || !m_creature->GetVictim())
+                    return;
+            }
         }
 
         if (m_pInstance->GetData(TYPE_KELTHUZAD) != IN_PROGRESS)
@@ -809,7 +831,7 @@ struct boss_kelthuzadAI : public ScriptedAI
 
         events.Update(diff);
 
-        if (m_creature->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING))
+        if (m_creature->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PLAYER))
             UpdateP1(diff);
         else
         {

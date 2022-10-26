@@ -707,6 +707,7 @@ enum PlayerLoginQueryIndex
     PLAYER_LOGIN_QUERY_LOADSPELLCOOLDOWNS,
     PLAYER_LOGIN_QUERY_LOADGUILD,
     PLAYER_LOGIN_QUERY_LOADBGDATA,
+    PLAYER_LOGIN_QUERY_LOADACCOUNTDATA,
     PLAYER_LOGIN_QUERY_LOADSKILLS,
     PLAYER_LOGIN_QUERY_LOADMAILS,
     PLAYER_LOGIN_QUERY_LOADMAILEDITEMS,
@@ -1088,6 +1089,7 @@ class Player final: public Unit
         void RemoveAllEnchantments(EnchantmentSlot slot);
         void AddEnchantmentDuration(Item* item, EnchantmentSlot slot, uint32 duration);
         void SendEnchantmentDurations() const;
+        void BuildEnchantmentLog(WorldPacket& data, ObjectGuid casterGuid, uint32 itemId, uint32 spellId, bool showAffiliation) const;
         void AddItemDurations(Item* item);
         void RemoveItemDurations(Item* item);
         void SendItemDurations() const;
@@ -1240,6 +1242,7 @@ class Player final: public Unit
         void SendNotifyLootMoneyRemoved() const;
         bool IsAllowedToLoot(Creature const* creature);
 
+        void SendEnchantmentLog(ObjectGuid casterGuid, uint32 itemId, uint32 spellId) const;
         void ApplyEnchantment(Item* item,EnchantmentSlot slot,bool apply, bool apply_dur = true, bool ignore_condition = false);
         void ApplyEnchantment(Item* item,bool apply);
 
@@ -1325,6 +1328,8 @@ class Player final: public Unit
         bool SatisfyQuestLevel(Quest const* qInfo, bool msg) const;
         bool SatisfyQuestLog(bool msg) const;
         bool SatisfyQuestPreviousQuest(Quest const* qInfo, bool msg) const;
+        bool SatisfyQuestBreadcrumbQuest(Quest const* qInfo, bool msg) const;
+        bool SatisfyQuestDependentBreadcrumbQuests(Quest const* qInfo, bool msg) const;
         bool SatisfyQuestClass(Quest const* qInfo, bool msg) const;
         bool SatisfyQuestRace(Quest const* qInfo, bool msg) const;
         bool SatisfyQuestReputation(Quest const* qInfo, bool msg) const;
@@ -1373,7 +1378,7 @@ class Player final: public Unit
         QuestStatusMap& getQuestStatusMap() { return mQuestStatus; };
 
         void SendQuestCompleteEvent(uint32 quest_id) const;
-        void SendQuestReward(Quest const* pQuest, uint32 XP, Object* questGiver) const;
+        void SendQuestReward(Quest const* pQuest, uint32 XP) const;
         void SendQuestFailed(uint32 quest_id) const;
         void SendQuestFailedAtTaker(uint32 quest_id, uint32 reason = INVALIDREASON_DONT_HAVE_REQ) const;
         void SendQuestTimerFailed(uint32 quest_id) const;
@@ -1444,6 +1449,7 @@ class Player final: public Unit
         void _SaveBGData();
         void _SaveStats();
         uint32 m_nextSave;
+        bool m_saveDisabled; // used for temporary bots and faction change
     public:
         // Saves a new character directly in the database, without creating a Player object in memory.
         static bool SaveNewPlayer(WorldSession* session, uint32 guidlow, std::string const& name, uint8 raceId, uint8 classId, uint8 gender, uint8 skin, uint8 face, uint8 hairStyle, uint8 hairColor, uint8 facialHair);
@@ -1458,6 +1464,7 @@ class Player final: public Unit
 
         uint32 GetSaveTimer() const { return m_nextSave; }
         void   SetSaveTimer(uint32 timer) { m_nextSave = timer; }
+        bool   IsSavingDisabled() const { return m_saveDisabled; }
 
         /*********************************************************/
         /***                    PET SYSTEM                     ***/
@@ -1506,6 +1513,7 @@ class Player final: public Unit
         float m_auraBaseMod[BASEMOD_END][MOD_END];
         SpellModList m_spellMods[MAX_SPELLMOD];
         uint32 m_lastFromClientCastedSpellID;
+        std::map<uint32, ItemSetEffect> m_itemSetEffects;
         
         bool IsNeedCastPassiveLikeSpellAtLearn(SpellEntry const* spellInfo) const;
         void SendInitialSpells() const;
@@ -1524,9 +1532,14 @@ class Player final: public Unit
         void LearnQuestRewardedSpells();
         void LearnQuestRewardedSpells(Quest const* quest);
         void LearnSpellHighRank(uint32 spellid);
+        uint32 GetSpellRank(SpellEntry const* spellInfo) const final;
 
         void CastItemCombatSpell(Unit* Target, WeaponAttackType attType);
         void CastItemUseSpell(Item* item, SpellCastTargets const& targets);
+
+        ItemSetEffect* GetItemSetEffect(uint32 setId);
+        ItemSetEffect* AddItemSetEffect(uint32 setId);
+        void RemoveItemSetEffect(uint32 setId);
 
         // needed by vanish and improved sap
         void CastHighestStealthRank();
@@ -1579,8 +1592,7 @@ class Player final: public Unit
                     ++spellCDItr;
             }
         }
-
-        std::vector<ItemSetEffect*> m_ItemSetEff;
+        
         uint32 m_castingSpell; // Last spell cast by client, or combo points if player is rogue
 
         /*********************************************************/
@@ -1918,6 +1930,7 @@ class Player final: public Unit
         void HandleFall(MovementInfo const& movementInfo);
         bool IsFalling() const { return GetPositionZ() < m_lastFallZ; }
 
+        bool IsControlledByOwnClient() const { return m_session->HasClientMovementControl(); }
         void SetClientControl(Unit* target, uint8 allowMove);
         void SetMover(Unit* target) { m_mover = target ? target : this; }
         Unit* GetMover() const { return m_mover; }
@@ -1956,7 +1969,7 @@ class Player final: public Unit
         void UpdateVisibilityOf(WorldObject const* viewPoint, WorldObject* target);
         template<class T>
         void UpdateVisibilityOf(WorldObject const* viewPoint, T* target, UpdateData& data, std::set<WorldObject*>& visibleNow);
-        void BeforeVisibilityDestroy(Creature* creature);
+        void LeaveCombatWithFarAwayCreatures();
 
         Camera& GetCamera() { return m_camera; }
 
@@ -2043,13 +2056,13 @@ class Player final: public Unit
         void FreezeMirrorTimers(bool state);
         void UpdateMirrorTimers(uint32 diff, bool send = true);
 
-        inline bool CheckMirrorTimerActivation(MirrorTimer::Type timer) const;
-        inline bool CheckMirrorTimerDeactivation(MirrorTimer::Type timer) const;
+        bool CheckMirrorTimerActivation(MirrorTimer::Type timer) const;
+        bool CheckMirrorTimerDeactivation(MirrorTimer::Type timer) const;
 
-        inline void OnMirrorTimerExpirationPulse(MirrorTimer::Type timer);
+        void OnMirrorTimerExpirationPulse(MirrorTimer::Type timer);
 
-        inline uint32 GetMirrorTimerMaxDuration(MirrorTimer::Type timer) const;
-        inline SpellAuraHolder const* GetMirrorTimerBuff(MirrorTimer::Type timer) const;
+        uint32 GetMirrorTimerMaxDuration(MirrorTimer::Type timer) const;
+        SpellAuraHolder const* GetMirrorTimerBuff(MirrorTimer::Type timer) const;
     public:
         bool IsUnderwater() const override { return (m_environmentFlags & ENVIRONMENT_FLAG_UNDERWATER); }
         bool IsInWater() const override { return (m_environmentFlags & ENVIRONMENT_FLAG_IN_WATER); }
@@ -2156,7 +2169,6 @@ class Player final: public Unit
         // Cannot be detected by creature (Should be tested in AI::MoveInLineOfSight)
         void SetCannotBeDetectedTimer(uint32 milliseconds) { m_cannotBeDetectedTimer = milliseconds; };
         bool CanBeDetected() const override { return m_cannotBeDetectedTimer <= 0; }
-        bool IsInCombatWithCreature(Creature const* pCreature);
 
         // PlayerAI management
         PlayerAI* i_AI;
@@ -2344,7 +2356,6 @@ class Player final: public Unit
     private:
         Team m_team;
         ReputationMgr  m_reputationMgr;
-        bool m_DbSaveDisabled; // used for faction change
     public:
         static Team TeamForRace(uint8 race);
         Team GetTeam() const final { return m_team; }
@@ -2602,6 +2613,7 @@ class Player final: public Unit
         Group* m_groupInvite;
         uint32 m_groupUpdateMask;
         uint64 m_auraUpdateMask;
+        uint32 m_LFGAreaId;
     public:
         Group* GetGroupInvite() { return m_groupInvite; }
         void SetGroupInvite(Group* group) { m_groupInvite = group; }
@@ -2630,6 +2642,11 @@ class Player final: public Unit
 #if SUPPORTED_CLIENT_BUILD <= CLIENT_BUILD_1_8_4
         uint32 GetWhoListPartyStatus() const;
 #endif
+
+        // LFG
+        void SetLFGAreaId(uint32 areaId) { m_LFGAreaId = areaId; }
+        uint32 GetLFGAreaId() { return m_LFGAreaId; }
+        bool IsInLFG() { return m_LFGAreaId > 0; }
 
         // BattleGround Group System
         void SetBattleGroundRaid(Group* group, int8 subgroup = -1);
