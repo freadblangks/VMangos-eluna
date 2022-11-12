@@ -135,6 +135,68 @@ Quest::Quest(Field* questRecord)
     QuestStartScript = questRecord[123].GetUInt32();
     QuestCompleteScript = questRecord[124].GetUInt32();
 
+    // lfm quest reward choice index
+    for (int i = 0; i < QUEST_REWARD_CHOICES_COUNT; ++i)
+    {
+        RewChoiceItemId[i] = 0;
+        RewChoiceItemCount[i] = 0;
+    }
+    uint32 questRewardFilledIndex = 0;
+    for (int i = 0; i < QUEST_REWARD_CHOICES_COUNT; ++i)
+    {
+        // lfm no common equip rewards
+        uint32 itemEntry = questRecord[65 + i].GetUInt32();
+        uint32 itemCount = questRecord[71 + i].GetUInt32();
+
+        if (ClassByQuestSort(-ZoneOrSort) == 0)
+        {
+            if (sObjectMgr.noRewardQuestExceptions.find(QuestId) == sObjectMgr.noRewardQuestExceptions.end())
+            {
+                if (const ItemPrototype* it = sObjectMgr.GetItemPrototype(itemEntry))
+                {
+                    bool weaponOrArmor = false;
+                    if (it->Class == ItemClass::ITEM_CLASS_WEAPON)
+                    {
+                        if (it->SubClass == ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_AXE || it->SubClass == ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_AXE2 || it->SubClass == ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_BOW || it->SubClass == ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_CROSSBOW ||
+                            it->SubClass == ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_DAGGER || it->SubClass == ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_FIST || it->SubClass == ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_GUN ||
+                            it->SubClass == ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_MACE || it->SubClass == ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_MACE2 || it->SubClass == ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_POLEARM ||
+                            it->SubClass == ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_STAFF || it->SubClass == ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_SWORD || it->SubClass == ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_SWORD2)
+                        {
+                            weaponOrArmor = true;
+                        }
+                    }
+                    else if (it->Class == ItemClass::ITEM_CLASS_ARMOR)
+                    {
+                        if (it->SubClass == ItemSubclassArmor::ITEM_SUBCLASS_ARMOR_CLOTH || it->SubClass == ItemSubclassArmor::ITEM_SUBCLASS_ARMOR_LEATHER || it->SubClass == ItemSubclassArmor::ITEM_SUBCLASS_ARMOR_MAIL || it->SubClass == ItemSubclassArmor::ITEM_SUBCLASS_ARMOR_PLATE || it->SubClass == ItemSubclassArmor::ITEM_SUBCLASS_ARMOR_SHIELD)
+                        {
+                            weaponOrArmor = true;
+                        }
+                    }
+                    if (weaponOrArmor)
+                    {
+                        if (it->Quality == ItemQualities::ITEM_QUALITY_UNCOMMON)
+                        {
+                            itemEntry = 0;
+                            itemCount = 0;
+                            // lfm reward money for none equips
+                            if (RewOrReqMoney == 0)
+                            {
+                                RewOrReqMoney = QuestLevel * 50;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (itemEntry > 0)
+        {
+            RewChoiceItemId[questRewardFilledIndex] = itemEntry;
+            RewChoiceItemCount[questRewardFilledIndex] = itemCount;
+            questRewardFilledIndex++;
+        }
+    }
+
     m_isActive = true;
 
     if (QuestMethod & QUEST_METHOD_DISABLED)

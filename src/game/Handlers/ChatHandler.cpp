@@ -377,10 +377,10 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recv_data)
                     a->addMessage(msg, type, GetPlayerPointer(), nullptr);
             }
 
-            // lfm ninger 
-            if (!GetPlayer()->GetSession()->isNingerSession)
+            // lfm nier 
+            if (!GetPlayer()->GetSession()->isNierSession)
             {
-                sNingerManager->HandlePlayerSay(GetPlayer(), msg);
+                sNierManager->HandlePlayerSay(GetPlayer(), msg);
             }
 
             break;
@@ -495,8 +495,8 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recv_data)
                             a->addMessage(msg, type, GetPlayerPointer(), PlayerPointer(new PlayerWrapper<MasterPlayer>(player)));
                 }
 
-                // lfm ninger 
-                sNingerManager->HandleChatCommand(GetPlayer(), msg, toPlayer);
+                // lfm nier 
+                sNierManager->HandleChatCommand(GetPlayer(), msg, toPlayer);
             }
         }
         break;
@@ -522,8 +522,8 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recv_data)
             if (lang != LANG_ADDON)
                 sWorld.LogChat(this, "Group", msg, nullptr, group->GetId());
 
-            // lfm ninger 
-            sNingerManager->HandleChatCommand(GetPlayer(), msg);
+            // lfm nier 
+            sNierManager->HandleChatCommand(GetPlayer(), msg);
         }
         break;
         case CHAT_MSG_GUILD: // Master side
@@ -587,8 +587,8 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recv_data)
             if (lang != LANG_ADDON)
                 sWorld.LogChat(this, "Raid", msg, nullptr, group->GetId());
 
-            // lfm ninger 
-            sNingerManager->HandleChatCommand(GetPlayer(), msg);
+            // lfm nier 
+            sNierManager->HandleChatCommand(GetPlayer(), msg);
         }
         break;
 

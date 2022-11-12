@@ -415,39 +415,39 @@ set (game_SRCS
     vmap/VMapTools.h
     vmap/WorldModel.h
 	
-	Ninger/NingerConfig.h
-	Ninger/NingerConfig.cpp
-	Ninger/NingerEntity.h
-	Ninger/NingerEntity.cpp
-	Ninger/NingerManager.h
-	Ninger/NingerManager.cpp
-	Ninger/Awareness/Awareness_Base.h
-	Ninger/Awareness/Awareness_Base.cpp
-	Ninger/Awareness/Scripts/Script_Base.h
-	Ninger/Awareness/Scripts/Script_Base.cpp
-	Ninger/Awareness/Scripts/Script_Druid.h
-	Ninger/Awareness/Scripts/Script_Druid.cpp
-	Ninger/Awareness/Scripts/Script_Hunter.h
-	Ninger/Awareness/Scripts/Script_Hunter.cpp
-	Ninger/Awareness/Scripts/Script_Mage.h
-	Ninger/Awareness/Scripts/Script_Mage.cpp
-	Ninger/Awareness/Scripts/Script_Paladin.h
-	Ninger/Awareness/Scripts/Script_Paladin.cpp
-	Ninger/Awareness/Scripts/Script_Priest.h
-	Ninger/Awareness/Scripts/Script_Priest.cpp
-	Ninger/Awareness/Scripts/Script_Rogue.h
-	Ninger/Awareness/Scripts/Script_Rogue.cpp
-	Ninger/Awareness/Scripts/Script_Shaman.h
-	Ninger/Awareness/Scripts/Script_Shaman.cpp
-	Ninger/Awareness/Scripts/Script_Warlock.h
-	Ninger/Awareness/Scripts/Script_Warlock.cpp
-	Ninger/Awareness/Scripts/Script_Warrior.h
-	Ninger/Awareness/Scripts/Script_Warrior.cpp
+	Nier/NierConfig.h
+	Nier/NierConfig.cpp
+	Nier/NierEntity.h
+	Nier/NierEntity.cpp
+	Nier/NierManager.h
+	Nier/NierManager.cpp
+	Nier/Strategy/Strategy_Base.h
+	Nier/Strategy/Strategy_Base.cpp
+	Nier/Strategy/Scripts/Script_Base.h
+	Nier/Strategy/Scripts/Script_Base.cpp
+	Nier/Strategy/Scripts/Script_Druid.h
+	Nier/Strategy/Scripts/Script_Druid.cpp
+	Nier/Strategy/Scripts/Script_Hunter.h
+	Nier/Strategy/Scripts/Script_Hunter.cpp
+	Nier/Strategy/Scripts/Script_Mage.h
+	Nier/Strategy/Scripts/Script_Mage.cpp
+	Nier/Strategy/Scripts/Script_Paladin.h
+	Nier/Strategy/Scripts/Script_Paladin.cpp
+	Nier/Strategy/Scripts/Script_Priest.h
+	Nier/Strategy/Scripts/Script_Priest.cpp
+	Nier/Strategy/Scripts/Script_Rogue.h
+	Nier/Strategy/Scripts/Script_Rogue.cpp
+	Nier/Strategy/Scripts/Script_Shaman.h
+	Nier/Strategy/Scripts/Script_Shaman.cpp
+	Nier/Strategy/Scripts/Script_Warlock.h
+	Nier/Strategy/Scripts/Script_Warlock.cpp
+	Nier/Strategy/Scripts/Script_Warrior.h
+	Nier/Strategy/Scripts/Script_Warrior.cpp
 	
-	Marketer/MarketerConfig.h
-	Marketer/MarketerConfig.cpp
-	Marketer/MarketerManager.h
-	Marketer/MarketerManager.cpp
+	Ming/MingConfig.h
+	Ming/MingConfig.cpp
+	Ming/MingManager.h
+	Ming/MingManager.cpp
 )
 
 if((${CMAKE_VERSION} VERSION_LESS "3.16") OR USE_PCH_OLD)
@@ -531,10 +531,10 @@ include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/Threat
   ${CMAKE_CURRENT_SOURCE_DIR}/Transports
   ${CMAKE_CURRENT_SOURCE_DIR}/vmap
-  ${CMAKE_CURRENT_SOURCE_DIR}/Ninger
-  ${CMAKE_CURRENT_SOURCE_DIR}/Ninger/Awareness
-  ${CMAKE_CURRENT_SOURCE_DIR}/Ninger/Awareness/Scripts
-  ${CMAKE_CURRENT_SOURCE_DIR}/Marketer
+  ${CMAKE_CURRENT_SOURCE_DIR}/Nier
+  ${CMAKE_CURRENT_SOURCE_DIR}/Nier/Strategy
+  ${CMAKE_CURRENT_SOURCE_DIR}/Nier/Strategy/Scripts
+  ${CMAKE_CURRENT_SOURCE_DIR}/Ming
   ${CMAKE_SOURCE_DIR}/src/scripts
   ${CMAKE_SOURCE_DIR}/src/scripts/PrecompiledHeaders
   ${CMAKE_SOURCE_DIR}/dep/include/g3dlite
@@ -595,20 +595,20 @@ source_group("Anticheat"
   REGULAR_EXPRESSION Anticheat
 )
 
-source_group("Ninger"
-  REGULAR_EXPRESSION Ninger
+source_group("Nier"
+  REGULAR_EXPRESSION Nier
 )
 
-source_group("Ninger/Awareness"
-  REGULAR_EXPRESSION Awareness
+source_group("Nier/Strategy"
+  REGULAR_EXPRESSION Strategy
 )
 
-source_group("Ninger/Awareness/Scripts"
+source_group("Nier/Strategy/Scripts"
   REGULAR_EXPRESSION Scripts
 )
 
-source_group("Marketer"
-  REGULAR_EXPRESSION Marketer
+source_group("Ming"
+  REGULAR_EXPRESSION Ming
 )
 
 add_library(game STATIC

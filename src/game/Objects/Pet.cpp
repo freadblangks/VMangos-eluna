@@ -754,10 +754,10 @@ void Pet::RegenerateAll(uint32 update_diff, bool skipCombatCheck)
 
     if (m_happinessTimer <= update_diff)
     {
-        // lfm ninger's pet will not lose happiness                
+        // lfm nier's pet will not lose happiness                
         if (Player* ownerPlayer = GetCharmerOrOwnerPlayerOrPlayerItself())
         {
-            if (!ownerPlayer->GetSession()->isNingerSession)
+            if (!ownerPlayer->GetSession()->isNierSession)
             {
                 LooseHappiness();
             }
@@ -1353,7 +1353,7 @@ bool Pet::CreateBaseAtCreatureInfo(const CreatureInfo* pmCI, Map* pmCreatePositi
     CreatureInfo const* cinfo = GetCreatureInfo();
     if (!cinfo)
     {
-        sLog.outError("CreateBaseAtCreature() failed, creatureInfo is missing!");
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "CreateBaseAtCreature() failed, creatureInfo is missing!");
         return false;
     }
     if (cinfo->type == CREATURE_TYPE_CRITTER)

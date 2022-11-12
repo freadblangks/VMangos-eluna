@@ -40,8 +40,8 @@
 #include <vector>
 #include <functional>
 
-// lfm ninger 
-#include "Ninger/Awareness/Awareness_Base.h"
+// lfm nier 
+#include "Nier/Strategy/Strategy_Base.h"
 
 struct Mail;
 struct ItemPrototype;
@@ -956,9 +956,9 @@ class Player final: public Unit
         explicit Player (WorldSession* session);
         ~Player() override;
 
-        // lfm ninger
-        std::unordered_map<uint32, Awareness_Base*> awarenessMap;
-        uint32 activeAwarenessIndex;
+        // lfm nier
+        std::unordered_map<uint32, Strategy_Base*> strategyMap;
+        uint32 activeStrategyIndex;
         uint32 GetMaxTalentCountTab();
         uint32 GetTalentCount(int pmTab);
         // 0 dps, 1 tank, 2 healer
@@ -1562,7 +1562,7 @@ class Player final: public Unit
         void AddGCD(SpellEntry const& spellEntry, uint32 forcedDuration = 0, bool updateClient = false) final;
         void AddCooldown(SpellEntry const& spellEntry, ItemPrototype const* itemProto = nullptr, bool permanent = false, uint32 forcedDuration = 0) final;
 
-        // lfm ninger spell cooldown 
+        // lfm nier spell cooldown 
         bool HasSpellCooldown(uint32 pmSpellID);
 
         void RemoveSpellCooldown(SpellEntry const& spellEntry, bool updateClient = true) final;
@@ -2011,7 +2011,7 @@ class Player final: public Unit
         uint32 GetHomeBindMap() const { return m_homebindMapId; }
         uint16 GetHomeBindAreaId() const { return m_homebindAreaId; }
 
-        // lfm ninger 
+        // lfm nier 
         float GetHomeBindX() const { return m_homebindX; }
         float GetHomeBindY() const { return m_homebindY; }
         float GetHomeBindZ() const { return m_homebindZ; }

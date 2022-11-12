@@ -724,10 +724,10 @@ Player::Player(WorldSession* session) : Unit(),
     m_longSightSpell = 0;
     m_longSightRange = 0.0f;
 
-    // lfm ninger
+    // lfm nier
     groupRole = 0;    
-    awarenessMap.clear();
-    activeAwarenessIndex = 0;
+    strategyMap.clear();
+    activeStrategyIndex = 0;
     // lfm auto fish
     fishingDelay = 0;
 }
@@ -1753,10 +1753,10 @@ void Player::Update(uint32 update_diff, uint32 p_time)
         }
     }
 
-    // lfm ninger updates 
-    if (awarenessMap.find(activeAwarenessIndex) != awarenessMap.end())
+    // lfm nier updates 
+    if (strategyMap.find(activeStrategyIndex) != strategyMap.end())
     {
-        awarenessMap[activeAwarenessIndex]->Update(p_time);
+        strategyMap[activeStrategyIndex]->Update(p_time);
     }
 }
 
@@ -5691,6 +5691,9 @@ bool Player::UpdateFishingSkill()
     int32 chance = SkillValue < 75 ? 100 : 2500 / (SkillValue - 50);
 
     uint32 gathering_skill_gain = sWorld.getConfig(CONFIG_UINT32_SKILL_GAIN_GATHERING);
+
+    // lfm fishing skill increase rate will always be 20%
+    chance = 20;
 
     return UpdateSkillPro(SKILL_FISHING, chance * 10, gathering_skill_gain);
 }
@@ -21932,7 +21935,7 @@ void Player::CreatePacketBroadcaster()
     sWorld.GetBroadcaster()->RegisterPlayer(m_broadcaster);
 }
 
-// lfm ninger 
+// lfm nier 
 uint32 Player::GetMaxTalentCountTab()
 {
     std::unordered_map<uint32, uint32> tabCountMap;

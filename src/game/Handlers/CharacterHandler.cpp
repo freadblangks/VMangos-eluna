@@ -741,11 +741,11 @@ void WorldSession::HandlePlayerLogin(LoginQueryHolder* holder)
         if (Group* pGroup = pCurrChar->GetGroup())
             pGroup->SendLootStartRollsForPlayer(pCurrChar);
 
-    // lfm ninger    
-    Awareness_Base* ab = new Awareness_Base(pCurrChar);
-    pCurrChar->awarenessMap[0] = ab;
-    pCurrChar->activeAwarenessIndex = 0;
-    if (isNingerSession)
+    // lfm nier    
+    Strategy_Base* ab = new Strategy_Base(pCurrChar);
+    pCurrChar->strategyMap[0] = ab;
+    pCurrChar->activeStrategyIndex = 0;
+    if (isNierSession)
     {
         std::ostringstream loginNoticeStream;
         loginNoticeStream << pCurrChar->GetName() << " logged in";
@@ -753,9 +753,9 @@ void WorldSession::HandlePlayerLogin(LoginQueryHolder* holder)
     }
     else
     {
-        for (std::unordered_map<uint32, Awareness_Base*>::iterator aiIT = pCurrChar->awarenessMap.begin(); aiIT != pCurrChar->awarenessMap.end(); aiIT++)
+        for (std::unordered_map<uint32, Strategy_Base*>::iterator aiIT = pCurrChar->strategyMap.begin(); aiIT != pCurrChar->strategyMap.end(); aiIT++)
         {
-            if (Awareness_Base* eachAI = aiIT->second)
+            if (Strategy_Base* eachAI = aiIT->second)
             {
                 eachAI->sb->Initialize();
                 eachAI->Reset();
@@ -934,7 +934,7 @@ void WorldSession::HandleChangePlayerNameOpcodeCallBack(QueryResult* result, uin
     sWorld.InvalidatePlayerDataToAllClient(guid);
 }
 
-// lfm ninger 
+// lfm nier 
 void WorldSession::HandlePlayerLogin_Simple(ObjectGuid pmCharacterGUID)
 {
     if (PlayerLoading() || GetPlayer() != nullptr)

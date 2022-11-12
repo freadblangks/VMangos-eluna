@@ -56,6 +56,9 @@
 
 #include <limits>
 
+// lfm ming 
+#include "MingManager.h"
+
 INSTANTIATE_SINGLETON_1(ObjectMgr);
 
 #include "utf8cpp/utf8.h"
@@ -134,7 +137,12 @@ ObjectMgr::ObjectMgr() :
     // Nostalrius
     DBCLocaleIndex(0),
     m_OldMailCounter(0)
-{}
+{
+
+    // lfm no reward quest exceptions
+    noRewardQuestExceptions.insert(1682);
+    noRewardQuestExceptions.insert(1667);
+}
 
 ObjectMgr::~ObjectMgr()
 {
@@ -3766,6 +3774,17 @@ void ObjectMgr::LoadItemPrototypes()
         item.WrappedGift = fields[126].GetUInt32();
         item.ExtraFlags = fields[127].GetUInt8();
         item.OtherTeamEntry = fields[128].GetUInt32();
+
+        if (item.Class == ItemClass::ITEM_CLASS_WEAPON || item.Class == ItemClass::ITEM_CLASS_ARMOR)
+        {
+            if (item.Quality > ItemQualities::ITEM_QUALITY_NORMAL && item.Quality < ItemQualities::ITEM_QUALITY_EPIC)
+            {
+                if (item.RequiredLevel > 0)
+                {
+                    sMingManager->equipsMap[item.Class][item.SubClass][item.RequiredLevel].insert(item.ItemId);
+                }
+            }
+        }
     }
     while (result->NextRow());
 

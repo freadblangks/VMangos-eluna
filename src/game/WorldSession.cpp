@@ -86,8 +86,8 @@ WorldSession::WorldSession(uint32 id, WorldSocket* sock, AccountTypes sec, time_
 	else
         m_address = "<BOT>";
 
-	// lfm ninger
-	isNingerSession = false;
+	// lfm nier
+	isNierSession = false;
 }
 
 /// WorldSession destructor
@@ -132,11 +132,11 @@ void WorldSession::SendPacket(WorldPacket const* packet)
 		return;
 	}
 
-	// lfm ninger    
-	if (isNingerSession)
+	// lfm nier    
+	if (isNierSession)
 	{
 		WorldPacket eachCopy(*packet);
-		sNingerManager->HandlePacket(this, eachCopy);
+		sNierManager->HandlePacket(this, eachCopy);
 		return;
 	}
 
@@ -287,8 +287,8 @@ bool WorldSession::ForcePlayerLogoutDelay()
 /// Update the WorldSession (triggered by World update)
 bool WorldSession::Update(PacketFilter& updater)
 {
-	// lfm ninger    
-	if (isNingerSession)
+	// lfm nier    
+	if (isNierSession)
 	{
 		if (_player)
 		{

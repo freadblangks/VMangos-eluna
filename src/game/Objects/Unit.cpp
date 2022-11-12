@@ -60,6 +60,9 @@
 #include <math.h>
 #include <stdarg.h>
 
+// lfm ming 
+#include "MingManager.h"
+
 //#define DEBUG_DEBUFF_LIMIT
 
 float baseMoveSpeed[MAX_MOVE_TYPE] =
@@ -183,6 +186,9 @@ Unit::Unit()
 
     m_isCreatureLinkingTrigger = false;
     m_isSpawningLinked = false;
+
+    // lfm vendor replacement
+    vendorReplaceCheckDelay = urand(10000, 30000);
 }
 
 Unit::~Unit()
@@ -333,6 +339,64 @@ void Unit::Update(uint32 update_diff, uint32 p_time)
     m_lastDamageTaken += p_time;
     if (m_lastDamageTaken > 60000)
         m_damageTakenHistory.clear();
+
+    // lfm vendor replacement
+    if (vendorReplaceCheckDelay > 0)
+    {
+        vendorReplaceCheckDelay -= p_time;
+    }
+    else
+    {
+        vendorReplaceCheckDelay = urand(sMingConfig.VenderReplaceDelay_Min, sMingConfig.VenderReplaceDelay_Max);
+
+        VendorItemData const* vItems = sObjectMgr.GetNpcVendorItemList(GetEntry());
+        if (!vItems || vItems->Empty())
+        {
+            return;
+        }
+        for (VendorItemList::const_iterator itr = vItems->m_items.begin(); itr != vItems->m_items.end(); ++itr)
+        {
+            if (const ItemPrototype* proto = sObjectMgr.GetItemPrototype((*itr)->item))
+            {
+                if (proto->Class == ItemClass::ITEM_CLASS_WEAPON || proto->Class == ItemClass::ITEM_CLASS_ARMOR)
+                {
+                    if (proto->Quality == ItemQualities::ITEM_QUALITY_NORMAL)
+                    {
+                        std::unordered_map<uint32, uint32> replaceMap;
+                        int equipLevel = proto->RequiredLevel;
+                        if (equipLevel > 0)
+                        {
+                            int minLevel = equipLevel - 3;
+                            int maxLevel = equipLevel + 3;
+                            if (minLevel < 1)
+                            {
+                                minLevel = 1;
+                            }
+                            if (maxLevel > 80)
+                            {
+                                maxLevel = 80;
+                            }
+                            for (int checkLevel = minLevel; checkLevel <= maxLevel; checkLevel++)
+                            {
+                                for (std::unordered_set<uint32>::iterator entryIT = sMingManager->equipsMap[proto->Class][proto->SubClass][checkLevel].begin(); entryIT != sMingManager->equipsMap[proto->Class][proto->SubClass][checkLevel].end(); entryIT++)
+                                {
+                                    replaceMap[replaceMap.size()] = *entryIT;
+                                }
+                            }
+                            if (replaceMap.size() > 0)
+                            {
+                                uint32 replaceEntry = urand(0, replaceMap.size());
+                                replaceEntry = replaceMap[replaceEntry];
+                                (*itr)->item = replaceEntry;
+                                (*itr)->maxcount = 1;
+                                (*itr)->incrtime = 7200000;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 AutoAttackCheckResult Unit::CanAutoAttackTarget(Unit const* pVictim) const
@@ -9958,6 +10022,12 @@ float Unit::GetCombatReach(Unit const* pVictim, bool ability, float flat_mod) co
     if (reach < ATTACK_DISTANCE)
         reach = ATTACK_DISTANCE;
 
+    // lfm combat reach smaller 
+    if (reach > MIN_MELEE_REACH)
+    {
+        reach = reach - MIN_MELEE_REACH;
+    }
+
     // Melee leeway mechanic.
     // When both player and target has > 70% of normal runspeed, and are moving,
     // the player gains an additional 2.66yd of melee range.
@@ -10519,14 +10589,31 @@ float Unit::GetMinChaseDistance(Unit* victim) const
 {
     if (m_casterChaseDistance > 1.0f)
         return m_casterChaseDistance;
-    return GetObjectBoundingRadius();
+    // lfm min chase distance 
+    //return GetObjectBoundingRadius();
+    return (GetObjectBoundingRadius() + victim->GetObjectBoundingRadius()) / 2.0f + CONTACT_DISTANCE;
 }
 
 float Unit::GetMaxChaseDistance(Unit* victim) const
 {
+    // lfm max chase distance 
+    //if (m_casterChaseDistance > 1.0f)
+    //    return m_casterChaseDistance + GetObjectBoundingRadius() + victim->GetObjectBoundingRadius();
+    //return GetMeleeReach() + BASE_MELEERANGE_OFFSET;
+    float result = 0.0f;
     if (m_casterChaseDistance > 1.0f)
-        return m_casterChaseDistance + GetObjectBoundingRadius() + victim->GetObjectBoundingRadius();
-    return GetMeleeReach() + BASE_MELEERANGE_OFFSET;
+    {
+        result = m_casterChaseDistance + GetObjectBoundingRadius() + victim->GetObjectBoundingRadius();
+    }
+    else
+    {
+        result = GetMeleeReach() + BASE_MELEERANGE_OFFSET;
+    }
+    if (result > MIN_MELEE_REACH)
+    {
+        result = result - MIN_MELEE_REACH;
+    }
+    return result;
 }
 
 void Unit::RestoreMovement()

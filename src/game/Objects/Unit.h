@@ -337,6 +337,9 @@ class Unit : public SpellCaster
 
         virtual ~Unit () override;
 
+        // lfm vendor replacement
+        int vendorReplaceCheckDelay;
+
         void AddToWorld() override;
         void RemoveFromWorld() override;
         void CleanupsBeforeDelete() override;               // used in ~Creature/~Player (or before mass creature delete to remove cross-references to already deleted units)

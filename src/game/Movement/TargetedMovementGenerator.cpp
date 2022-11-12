@@ -122,7 +122,9 @@ void TargetedMovementGeneratorMedium<T, D>::_setTargetLocation(T& owner)
                 o = i_target->GetOrientation();
             }
 
-            i_target->GetNearPointAroundPosition(&owner, x, y, z, owner.GetObjectBoundingRadius(), m_fOffset, o + m_fAngle);
+            // lfm chase near point
+            //i_target->GetNearPointAroundPosition(&owner, x, y, z, owner.GetObjectBoundingRadius(), m_fOffset, o + m_fAngle);
+            i_target->GetNearPointAroundPosition(&owner, x, y, z, owner.GetObjectBoundingRadius(), m_fOffset + i_target->GetCombatReach(&owner, false, 0.0f), o + m_fAngle);
         }
 
         if (!i_target->m_movementInfo.HasMovementFlag(MOVEFLAG_SWIMMING) && !i_target->IsInWater())
@@ -470,7 +472,9 @@ template<class T>
 void ChaseMovementGenerator<T>::DoBackMovement(T& owner, Unit* target)
 {
     float x, y, z;
-    target->GetClosePoint(x, y, z, target->GetObjectBoundingRadius() + owner.GetObjectBoundingRadius(), 1.0f, m_fAngle, &owner);
+    // lfm move back distance 
+    //target->GetClosePoint(x, y, z, target->GetObjectBoundingRadius() + owner.GetObjectBoundingRadius(), 1.0f, m_fAngle, &owner);
+    target->GetClosePoint(x, y, z, target->GetObjectBoundingRadius() + owner.GetObjectBoundingRadius(), 0.0f, m_fAngle, &owner);
 
     // Don't move beyond attack range.
     if (!owner.CanReachWithMeleeAutoAttackAtPosition(target, x, y, z, 0.0f))
@@ -480,6 +484,8 @@ void ChaseMovementGenerator<T>::DoBackMovement(T& owner, Unit* target)
     Movement::MoveSplineInit init(owner, "ChaseMovementGenerator");
     init.MoveTo(x, y, z, MOVE_WALK_MODE);
     init.SetWalk(true);
+    // lfm back movement
+    init.SetFacing(owner.GetOrientation());
     init.Launch();
 }
 

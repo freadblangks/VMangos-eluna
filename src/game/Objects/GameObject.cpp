@@ -1700,8 +1700,25 @@ void GameObject::Use(Unit* user)
                     if (!zone_skill)
                         sLog.Out(LOG_DBERROR, LOG_LVL_MINIMAL, "Fishable areaId %u are not properly defined in `skill_fishing_base_level`.", subzone);
 
+                    // lfm zone fishing skill will be higher 
+                    if (zone_skill < 0)
+                    {
+                        zone_skill = 0;
+                    }
+
                     int32 skill = player->GetSkillValue(SKILL_FISHING);
                     int32 chance = skill - zone_skill + 5;
+
+                    // lfm fish chance 
+                    if (chance < 10)
+                    {
+                        chance = 10;
+                    }
+                    else if (chance > 70)
+                    {
+                        chance = 70;
+                    }
+
                     int32 roll = irand(1, 100);
 
                     sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "Fishing check (skill: %i zone min skill: %i chance %i roll: %i", skill, zone_skill, chance, roll);
@@ -1751,6 +1768,11 @@ void GameObject::Use(Unit* user)
 
                         WorldPacket data(SMSG_FISH_ESCAPED, 0);
                         player->GetSession()->SendPacket(&data);
+
+                        // lfm fishing fail hint 
+                        std::ostringstream notificationStream;
+                        notificationStream << "Require fishing skill more than " << zone_skill;
+                        player->GetSession()->SendNotification(notificationStream.str().c_str());
                     }
                     break;
                 }

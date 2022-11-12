@@ -306,14 +306,14 @@ void ChargeMovementGenerator<T>::ComputePath(T& attacker, Unit& victim)
         if (victimPlayer->ExtrapolateMovement(victimPlayer->m_movementInfo, m_extrapolateDelay, victimPos.x, victimPos.y, victimPos.z, o))
         {
             victim.UpdateAllowedPositionZ(victimPos.x, victimPos.y, victimPos.z);
-            path.calculate(victimPos.x, victimPos.y, victimPos.z, false);
+            path.calculate(victimPos.x, victimPos.y, victimPos.z, false);            
             path.UpdateForMelee(&victim, attacker.GetMeleeReach());
         }
     }
     else
     {
         // TODO: PvE victim position prediction?
-        // Relocate last path point to hitbox rather than exact position of victim
+        // Relocate last path point to hitbox rather than exact position of victim        
         path.UpdateForMelee(&victim, attacker.GetMeleeReach());
     }
 }

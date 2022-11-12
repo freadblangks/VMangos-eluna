@@ -104,14 +104,14 @@ void WorldSession::HandleGroupInviteOpcode(WorldPacket& recv_data)
     {
         SendPartyResult(PARTY_OP_INVITE, membername, ERR_ALREADY_IN_GROUP_S);
 
-        // lfm ninger group recheck
-        if (player->GetSession()->isNingerSession)
+        // lfm nier group recheck
+        if (player->GetSession()->isNierSession)
         {
             if (Group* checkGroup = player->GetGroup())
             {
                 if (Player* leader = ObjectAccessor::FindPlayer(checkGroup->GetLeaderGuid()))
                 {
-                    if (leader->GetSession()->isNingerSession)
+                    if (leader->GetSession()->isNierSession)
                     {
                         player->RemoveFromGroup();
                     }
@@ -125,7 +125,7 @@ void WorldSession::HandleGroupInviteOpcode(WorldPacket& recv_data)
             {
                 if (Player* leader = ObjectAccessor::FindPlayer(groupInvite->GetLeaderGuid()))
                 {
-                    if (leader->GetSession()->isNingerSession)
+                    if (leader->GetSession()->isNierSession)
                     {
                         player->RemoveFromGroup();
                     }

@@ -84,11 +84,11 @@
 
 #include <chrono>
 
-// lfm ninger
-#include "NingerManager.h"
+// lfm nier
+#include "NierManager.h"
 
-// lfm marketer
-#include "MarketerManager.h"
+// lfm ming
+#include "MingManager.h"
 
 INSTANTIATE_SINGLETON_1(World);
 
@@ -1813,16 +1813,16 @@ void World::SetInitialWorldSettings()
     uint32 uStartInterval = WorldTimer::getMSTimeDiff(uStartTime, WorldTimer::getMSTime());
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "SERVER STARTUP TIME: %i minutes %i seconds", uStartInterval / 60000, (uStartInterval % 60000) / 1000);
 
-    // lfm ninger
-    if (sNingerConfig.StartNingerSystem())
+    // lfm nier
+    if (sNierConfig.StartNierSystem())
     {
-        sNingerManager->InitializeManager();
+        sNierManager->InitializeManager();
     }
 
-    // lfm marketer
-    if (sMarketerConfig.StartMarketerSystem())
+    // lfm ming
+    if (sMingConfig.StartMingSystem())
     {
-        sMarketerManager->InitializeManager();
+        sMingManager->InitializeManager();
     }
 }
 
@@ -2026,11 +2026,11 @@ void World::Update(uint32 diff)
     if (getConfig(CONFIG_BOOL_CLEANUP_TERRAIN))
         sTerrainMgr.Update(diff);
 
-    // lfm ninger update
-    sNingerManager->UpdateNingerManager(diff);
+    // lfm nier update
+    sNierManager->UpdateNierManager(diff);
 
-    // lfm marketer update 
-    sMarketerManager->UpdateMarketer(diff);
+    // lfm ming update 
+    sMingManager->UpdateMing(diff);
 }
 
 /// Send a packet to all players (except self if mentioned)
@@ -2506,8 +2506,8 @@ void World::ShutdownServ(uint32 time, uint32 options, uint8 exitcode)
     if (m_stopEvent)
         return;
 
-    // lfm logout ningers 
-    sNingerManager->LogoutNingers();
+    // lfm logout niers 
+    sNierManager->LogoutNiers();
 
     m_ShutdownMask = options;
     m_ExitCode = exitcode;
