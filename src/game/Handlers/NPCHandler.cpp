@@ -77,9 +77,6 @@ void WorldSession::SendTabardVendorActivate(ObjectGuid guid)
 void WorldSession::HandleBankerActivateOpcode(WorldPacket& recv_data)
 {
     ObjectGuid guid;
-
-    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: Received CMSG_BANKER_ACTIVATE");
-
     recv_data >> guid;
 
     if (!CheckBanker(guid))
@@ -103,7 +100,6 @@ void WorldSession::SendShowBank(ObjectGuid guid)
 void WorldSession::HandleTrainerListOpcode(WorldPacket& recv_data)
 {
     ObjectGuid guid;
-
     recv_data >> guid;
 
     SendTrainerList(guid);
@@ -155,8 +151,6 @@ static void SendTrainerSpellHelper(WorldPacket& data, TrainerSpell const* tSpell
 
 void WorldSession::SendTrainerList(ObjectGuid guid)
 {
-    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: SendTrainerList");
-
     Creature* unit = GetPlayer()->GetNPCIfCanInteractWith(guid, UNIT_NPC_FLAG_TRAINER);
     if (!unit)
     {
@@ -365,8 +359,6 @@ void WorldSession::HandleTrainerBuySpellOpcode(WorldPacket& recv_data)
 
 void WorldSession::HandleGossipHelloOpcode(WorldPacket& recv_data)
 {
-    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: Received CMSG_GOSSIP_HELLO");
-
     ObjectGuid guid;
     recv_data >> guid;
 
@@ -403,8 +395,6 @@ void WorldSession::HandleGossipHelloOpcode(WorldPacket& recv_data)
 
 void WorldSession::HandleGossipSelectOptionOpcode(WorldPacket& recv_data)
 {
-    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: CMSG_GOSSIP_SELECT_OPTION");
-
     uint32 gossipListId;
     ObjectGuid guid;
     std::string code;
@@ -412,10 +402,7 @@ void WorldSession::HandleGossipSelectOptionOpcode(WorldPacket& recv_data)
     recv_data >> guid >> gossipListId;
 
     if (_player->PlayerTalkClass->GossipOptionCoded(gossipListId))
-    {
         recv_data >> code;
-        sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "Gossip code: %s", code.c_str());
-    }
 
     GetPlayer()->InterruptSpellsWithChannelFlags(AURA_INTERRUPT_INTERACTING_CANCELS);
     GetPlayer()->RemoveAurasWithInterruptFlags(AURA_INTERRUPT_INTERACTING_CANCELS);
@@ -456,10 +443,7 @@ void WorldSession::HandleGossipSelectOptionOpcode(WorldPacket& recv_data)
 
 void WorldSession::HandleSpiritHealerActivateOpcode(WorldPacket& recv_data)
 {
-    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: CMSG_SPIRIT_HEALER_ACTIVATE");
-
     ObjectGuid guid;
-
     recv_data >> guid;
 
     Creature* unit = GetPlayer()->GetNPCIfCanInteractWith(guid, UNIT_NPC_FLAG_SPIRITHEALER);
@@ -557,9 +541,7 @@ void WorldSession::SendBindPoint(Creature* npc)
 
 void WorldSession::HandleListStabledPetsOpcode(WorldPacket& recv_data)
 {
-    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: Recv MSG_LIST_STABLED_PETS");
     ObjectGuid npcGUID;
-
     recv_data >> npcGUID;
 
     Creature* unit = GetPlayer()->GetNPCIfCanInteractWith(npcGUID, UNIT_NPC_FLAG_STABLEMASTER);
@@ -576,8 +558,6 @@ void WorldSession::HandleListStabledPetsOpcode(WorldPacket& recv_data)
 
 void WorldSession::SendStablePet(ObjectGuid guid)
 {
-    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: Recv MSG_LIST_STABLED_PETS Send.");
-
     WorldPacket data(MSG_LIST_STABLED_PETS, 200);           // guess size
     data << guid;
 
@@ -665,9 +645,7 @@ bool WorldSession::CheckStableMaster(ObjectGuid guid)
 
 void WorldSession::HandleStablePet(WorldPacket& recv_data)
 {
-    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: Recv CMSG_STABLE_PET");
     ObjectGuid npcGUID;
-
     recv_data >> npcGUID;
 
     if (!GetPlayer()->IsAlive())
@@ -718,7 +696,6 @@ void WorldSession::HandleStablePet(WorldPacket& recv_data)
 
 void WorldSession::HandleUnstablePet(WorldPacket& recv_data)
 {
-    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: Recv CMSG_UNSTABLE_PET.");
     ObjectGuid npcGUID;
     uint32 petNumber;
 
@@ -771,9 +748,7 @@ void WorldSession::HandleUnstablePet(WorldPacket& recv_data)
 
 void WorldSession::HandleBuyStableSlot(WorldPacket& recv_data)
 {
-    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: Recv CMSG_BUY_STABLE_SLOT.");
     ObjectGuid npcGUID;
-
     recv_data >> npcGUID;
 
     if (!CheckStableMaster(npcGUID))
@@ -803,12 +778,10 @@ void WorldSession::HandleBuyStableSlot(WorldPacket& recv_data)
 
 void WorldSession::HandleStableRevivePet(WorldPacket& /* recv_data */)
 {
-    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "HandleStableRevivePet: Not implemented");
 }
 
 void WorldSession::HandleStableSwapPet(WorldPacket& recv_data)
 {
-    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: Recv CMSG_STABLE_SWAP_PET.");
     ObjectGuid npcGUID;
     uint32 pet_number;
 
@@ -870,8 +843,6 @@ void WorldSession::HandleStableSwapPet(WorldPacket& recv_data)
 
 void WorldSession::HandleRepairItemOpcode(WorldPacket& recv_data)
 {
-    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: CMSG_REPAIR_ITEM");
-
     ObjectGuid npcGuid;
     ObjectGuid itemGuid;
 
