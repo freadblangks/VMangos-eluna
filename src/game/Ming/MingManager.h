@@ -42,9 +42,9 @@ public:
 	int32 sellerCheckDelay;
 
 	/// <summary>
-	/// class, subclass, level, entry set
+	/// class, subclass, inventory, level, entry set
 	/// </summary>
-	std::unordered_map<uint32, std::unordered_map<uint32, std::unordered_map<uint32, std::unordered_set<uint32>>>> equipsMap;
+	std::unordered_map < uint32, std::unordered_map<uint32, std::unordered_map<uint32, std::unordered_map<uint32, std::unordered_set<uint32>>>>> equipsMap;
 
 private:
 	std::unordered_set<uint32> exceptionEntrySet;

@@ -82,6 +82,10 @@ class Creature : public Unit
         explicit Creature(CreatureSubtype subtype = CREATURE_SUBTYPE_GENERIC);
         virtual ~Creature() override;
 
+        // lfm vendor items to public 
+        // vendor items
+        VendorItemCounts m_vendorItemCounts;
+
         void AddToWorld() override;
         void RemoveFromWorld() override;
 
@@ -576,9 +580,6 @@ class Creature : public Unit
         uint32 m_groupLootTimer;                            // (msecs)timer used for group loot
         uint32 m_groupLootId;                               // used to find group which is looting corpse
         void StopGroupLoot();
-
-        // vendor items
-        VendorItemCounts m_vendorItemCounts;
 
         uint32 m_lootMoney;
         ObjectGuid m_lootRecipientGuid;                     // player who will have rights for looting if m_lootGroupRecipient==0 or group disbanded

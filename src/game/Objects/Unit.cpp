@@ -348,7 +348,6 @@ void Unit::Update(uint32 update_diff, uint32 p_time)
     else
     {
         vendorReplaceCheckDelay = urand(sMingConfig.VenderReplaceDelay_Min, sMingConfig.VenderReplaceDelay_Max);
-
         VendorItemData const* vItems = sObjectMgr.GetNpcVendorItemList(GetEntry());
         if (!vItems || vItems->Empty())
         {
@@ -364,7 +363,7 @@ void Unit::Update(uint32 update_diff, uint32 p_time)
                     {
                         std::unordered_map<uint32, uint32> replaceMap;
                         int equipLevel = proto->RequiredLevel;
-                        if (equipLevel > 0)
+                        if (equipLevel >= 5)
                         {
                             int minLevel = equipLevel - 3;
                             int maxLevel = equipLevel + 3;
@@ -378,7 +377,54 @@ void Unit::Update(uint32 update_diff, uint32 p_time)
                             }
                             for (int checkLevel = minLevel; checkLevel <= maxLevel; checkLevel++)
                             {
-                                for (std::unordered_set<uint32>::iterator entryIT = sMingManager->equipsMap[proto->Class][proto->SubClass][checkLevel].begin(); entryIT != sMingManager->equipsMap[proto->Class][proto->SubClass][checkLevel].end(); entryIT++)
+                                for (std::unordered_set<uint32>::iterator entryIT = sMingManager->equipsMap[proto->Class][proto->SubClass][proto->InventoryType][checkLevel].begin(); entryIT != sMingManager->equipsMap[proto->Class][proto->SubClass][proto->InventoryType][checkLevel].end(); entryIT++)
+                                {
+                                    replaceMap[replaceMap.size()] = *entryIT;
+                                }
+                            }
+                            if (replaceMap.size() > 0)
+                            {
+                                uint32 replaceEntry = urand(0, replaceMap.size() - 1);
+                                replaceEntry = replaceMap[replaceEntry];
+                                (*itr)->item = replaceEntry;
+                                (*itr)->maxcount = 1;
+                                (*itr)->incrtime = 7200000;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        VendorItemData const* tItems = sObjectMgr.GetNpcVendorTemplateItemList(GetEntry());
+        if (!tItems || tItems->Empty())
+        {
+            return;
+        }
+        for (VendorItemList::const_iterator itr = tItems->m_items.begin(); itr != tItems->m_items.end(); ++itr)
+        {
+            if (const ItemPrototype* proto = sObjectMgr.GetItemPrototype((*itr)->item))
+            {
+                if (proto->Class == ItemClass::ITEM_CLASS_WEAPON || proto->Class == ItemClass::ITEM_CLASS_ARMOR)
+                {
+                    if (proto->Quality == ItemQualities::ITEM_QUALITY_NORMAL)
+                    {
+                        std::unordered_map<uint32, uint32> replaceMap;
+                        int equipLevel = proto->RequiredLevel;
+                        if (equipLevel >= 5)
+                        {
+                            int minLevel = equipLevel - 3;
+                            int maxLevel = equipLevel + 3;
+                            if (minLevel < 1)
+                            {
+                                minLevel = 1;
+                            }
+                            if (maxLevel > 80)
+                            {
+                                maxLevel = 80;
+                            }
+                            for (int checkLevel = minLevel; checkLevel <= maxLevel; checkLevel++)
+                            {
+                                for (std::unordered_set<uint32>::iterator entryIT = sMingManager->equipsMap[proto->Class][proto->SubClass][proto->InventoryType][checkLevel].begin(); entryIT != sMingManager->equipsMap[proto->Class][proto->SubClass][proto->InventoryType][checkLevel].end(); entryIT++)
                                 {
                                     replaceMap[replaceMap.size()] = *entryIT;
                                 }

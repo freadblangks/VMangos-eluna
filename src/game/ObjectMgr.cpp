@@ -3691,19 +3691,19 @@ void ObjectMgr::LoadItemPrototypes()
     {
         bar.step();
         Field* fields = result->Fetch();
-        uint32 entry = fields[ 0].GetUInt32();
+        uint32 entry = fields[0].GetUInt32();
 
         ItemPrototype& item = m_itemPrototypesMap[entry];
         item.ItemId = entry;
-        item.Class = fields[ 1].GetUInt8();
-        item.SubClass = fields[ 2].GetUInt8();
+        item.Class = fields[1].GetUInt8();
+        item.SubClass = fields[2].GetUInt8();
         item.Name1 = strdup(fields[3].GetString());
         item.Description = strdup(fields[4].GetString());
-        item.DisplayInfoID = fields[ 5].GetUInt32();
-        item.Quality = fields[ 6].GetUInt8();
-        item.Flags = fields[ 7].GetUInt32();
-        item.BuyCount = fields[ 8].GetUInt8();
-        item.BuyPrice = fields[ 9].GetUInt32();
+        item.DisplayInfoID = fields[5].GetUInt32();
+        item.Quality = fields[6].GetUInt8();
+        item.Flags = fields[7].GetUInt32();
+        item.BuyCount = fields[8].GetUInt8();
+        item.BuyPrice = fields[9].GetUInt32();
         item.SellPrice = fields[10].GetUInt32();
         item.InventoryType = fields[11].GetUInt8();
         item.AllowableClass = fields[12].GetInt32();
@@ -3722,17 +3722,17 @@ void ObjectMgr::LoadItemPrototypes()
         item.ContainerSlots = fields[25].GetUInt8();
         for (int i = 0; i < MAX_ITEM_PROTO_STATS; i++)
         {
-            item.ItemStat[i].ItemStatType = fields[26 + i*2].GetUInt8();
-            item.ItemStat[i].ItemStatValue = fields[27 + i*2].GetInt16();
+            item.ItemStat[i].ItemStatType = fields[26 + i * 2].GetUInt8();
+            item.ItemStat[i].ItemStatValue = fields[27 + i * 2].GetInt16();
         }
         item.Delay = fields[46].GetUInt16();
         item.RangedModRange = fields[47].GetFloat();
         item.AmmoType = fields[48].GetUInt8();
         for (int i = 0; i < MAX_ITEM_PROTO_DAMAGES; i++)
         {
-            item.Damage[i].DamageMin = fields[49 + i*3].GetFloat();
-            item.Damage[i].DamageMax = fields[50 + i*3].GetFloat();
-            item.Damage[i].DamageType = fields[51 + i*3].GetUInt8();
+            item.Damage[i].DamageMin = fields[49 + i * 3].GetFloat();
+            item.Damage[i].DamageMax = fields[50 + i * 3].GetFloat();
+            item.Damage[i].DamageType = fields[51 + i * 3].GetUInt8();
         }
         item.Block = fields[64].GetUInt32();
         item.Armor = fields[65].GetInt16();
@@ -3744,13 +3744,13 @@ void ObjectMgr::LoadItemPrototypes()
         item.ArcaneRes = fields[71].GetInt16();
         for (int i = 0; i < MAX_ITEM_PROTO_SPELLS; i++)
         {
-            item.Spells[i].SpellId = fields[72 + i*7].GetUInt32();
-            item.Spells[i].SpellTrigger = fields[73 + i*7].GetUInt8();
-            item.Spells[i].SpellCharges = fields[74 + i*7].GetInt16();
-            item.Spells[i].SpellPPMRate = fields[75 + i*7].GetFloat();
-            item.Spells[i].SpellCooldown = fields[76 + i*7].GetInt32();
-            item.Spells[i].SpellCategory = fields[77 + i*7].GetUInt16();
-            item.Spells[i].SpellCategoryCooldown = fields[78 + i*7].GetInt32();
+            item.Spells[i].SpellId = fields[72 + i * 7].GetUInt32();
+            item.Spells[i].SpellTrigger = fields[73 + i * 7].GetUInt8();
+            item.Spells[i].SpellCharges = fields[74 + i * 7].GetInt16();
+            item.Spells[i].SpellPPMRate = fields[75 + i * 7].GetFloat();
+            item.Spells[i].SpellCooldown = fields[76 + i * 7].GetInt32();
+            item.Spells[i].SpellCategory = fields[77 + i * 7].GetUInt16();
+            item.Spells[i].SpellCategoryCooldown = fields[78 + i * 7].GetInt32();
         }
         item.Bonding = fields[107].GetUInt8();
         item.PageText = fields[108].GetUInt32();
@@ -3775,13 +3775,25 @@ void ObjectMgr::LoadItemPrototypes()
         item.ExtraFlags = fields[127].GetUInt8();
         item.OtherTeamEntry = fields[128].GetUInt32();
 
-        if (item.Class == ItemClass::ITEM_CLASS_WEAPON || item.Class == ItemClass::ITEM_CLASS_ARMOR)
+        if (item.Quality == ItemQualities::ITEM_QUALITY_UNCOMMON)
         {
-            if (item.Quality > ItemQualities::ITEM_QUALITY_NORMAL && item.Quality < ItemQualities::ITEM_QUALITY_EPIC)
+            if (item.RequiredLevel > 0)
             {
-                if (item.RequiredLevel > 0)
+                bool sellable = false;
+                if (item.Class == ItemClass::ITEM_CLASS_WEAPON)
                 {
-                    sMingManager->equipsMap[item.Class][item.SubClass][item.RequiredLevel].insert(item.ItemId);
+                    if (item.SubClass != ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_MISC)
+                    {
+                        sellable = true;
+                    }
+                }
+                else if (item.Class == ItemClass::ITEM_CLASS_ARMOR)
+                {
+                    sellable = true;
+                }
+                if (sellable)
+                {
+                    sMingManager->equipsMap[item.Class][item.SubClass][item.InventoryType][item.RequiredLevel].insert(item.ItemId);
                 }
             }
         }
