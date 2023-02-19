@@ -49,6 +49,9 @@
 
 #include <openssl/md5.h>
 
+// lfm nier 
+#include "NierManager.h"
+
 // select opcodes appropriate for processing in Map::Update context for current session state
 static bool MapSessionFilterHelper(WorldSession* session, OpcodeHandler const& opHandle)
 {
@@ -87,7 +90,7 @@ WorldSession::WorldSession(uint32 id, WorldSocket* sock, AccountTypes sec, time_
         m_address = "<BOT>";
 
 	// lfm nier
-	isNierSession = false;
+	isNier = false;
 }
 
 /// WorldSession destructor
@@ -133,7 +136,7 @@ void WorldSession::SendPacket(WorldPacket const* packet)
 	}
 
 	// lfm nier    
-	if (isNierSession)
+	if (isNier)
 	{
 		WorldPacket eachCopy(*packet);
 		sNierManager->HandlePacket(this, eachCopy);
@@ -288,7 +291,7 @@ bool WorldSession::ForcePlayerLogoutDelay()
 bool WorldSession::Update(PacketFilter& updater)
 {
 	// lfm nier    
-	if (isNierSession)
+	if (isNier)
 	{
 		if (_player)
 		{
@@ -299,10 +302,18 @@ bool WorldSession::Update(PacketFilter& updater)
 				data << _player->GetLastCounterForMovementChangeType(TELEPORT);
 				data << uint32(time(nullptr));
 				HandleMoveTeleportAckOpcode(data);
+				_player->SetPvP(true);
+				_player->UpdatePvP(true);
+				_player->pvpInfo.inPvPCombat = true;
+				_player->DurabilityRepairAll(false, 0);
 			}
 			if (_player->IsBeingTeleportedFar())
 			{
 				HandleMoveWorldportAckOpcode();
+				_player->SetPvP(true);
+				_player->UpdatePvP(true);
+				_player->pvpInfo.inPvPCombat = true;
+				_player->DurabilityRepairAll(false, 0);
 			}
 		}
 

@@ -736,27 +736,8 @@ void WorldSession::HandlePlayerLogin(LoginQueryHolder* holder)
         if (Group* pGroup = pCurrChar->GetGroup())
             pGroup->SendLootStartRollsForPlayer(pCurrChar);
 
-    // lfm nier    
-    Strategy_Base* ab = new Strategy_Base(pCurrChar);
-    pCurrChar->strategyMap[0] = ab;
-    pCurrChar->activeStrategyIndex = 0;
-    if (isNierSession)
-    {
-        std::ostringstream loginNoticeStream;
-        loginNoticeStream << pCurrChar->GetName() << " logged in";
-        sWorld.SendServerMessage(ServerMessageType::SERVER_MSG_CUSTOM, loginNoticeStream.str().c_str());
-    }
-    else
-    {
-        for (std::unordered_map<uint32, Strategy_Base*>::iterator aiIT = pCurrChar->strategyMap.begin(); aiIT != pCurrChar->strategyMap.end(); aiIT++)
-        {
-            if (Strategy_Base* eachAI = aiIT->second)
-            {
-                eachAI->sb->Initialize();
-                eachAI->Reset();
-            }
-        }
-    }
+    pCurrChar->SetPvP(true);
+    pCurrChar->UpdatePvP(true, true);
 }
 
 void WorldSession::HandleSetFactionAtWarOpcode(WorldPacket& recv_data)

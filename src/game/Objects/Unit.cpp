@@ -2260,7 +2260,9 @@ MeleeHitOutcome Unit::RollMeleeOutcomeAgainst(Unit const* pVictim, WeaponAttackT
     // Dodge chance
 
     // only players can't dodge if attacker is behind
-    if (!pVictim->IsPlayer() || !from_behind)
+    // lfm anyone can not dodge if attacker is behind 
+    //if (!pVictim->IsPlayer() || !from_behind)
+    if (!from_behind)
     {
         dodge_chance -= dodgeSkillBonus;
 
@@ -9976,7 +9978,18 @@ bool Unit::GetRandomAttackPoint(Unit const* attacker, float &x, float &y, float 
 
     angle += (attacker_number ? ((float(M_PI / 2) - float(M_PI) * rand_norm_f()) * attacker_number / sizeFactor) * 0.3f : 0);
 
-    float dist = attacker->GetObjectBoundingRadius() + GetObjectBoundingRadius() + rand_norm_f() * (attacker->GetMeleeReach() - attacker->GetObjectBoundingRadius());
+    // lfm melee dist closer
+    //float dist = attacker->GetObjectBoundingRadius() + GetObjectBoundingRadius() + rand_norm_f() * (attacker->GetMeleeReach() - attacker->GetObjectBoundingRadius());
+    float dist = attacker->GetMeleeReach() + GetMeleeReach() - DEFAULT_COMBAT_REACH;
+    if (dist < CONTACT_DISTANCE)
+    {
+        dist = CONTACT_DISTANCE;
+    }
+    else if (dist > DEFAULT_OBJECT_SCALE)
+    {
+        dist = dist - CONTACT_DISTANCE;
+    }
+
     float initialPosX, initialPosY, initialPosZ, o;
     GetPosition(initialPosX, initialPosY, initialPosZ);
 
@@ -9993,11 +10006,6 @@ bool Unit::GetRandomAttackPoint(Unit const* attacker, float &x, float &y, float 
         // We're not moving, we're already within range. 
         attacker->GetPosition(x, y, z);
         return true;
-    }
-    // lfm attack dist 
-    if (dist < 1.0f)
-    {
-        dist = 1.0f;
     }
 
     float normalizedVectZ = (attacker->GetPositionZ() - initialPosZ) / attackerTargetDistance;
@@ -10052,7 +10060,9 @@ bool Unit::GetRandomAttackPoint(Unit const* attacker, float &x, float &y, float 
 
         // Try mmaps. On fail, use target position (but should not fail)
         if (GetMap()->GetWalkHitPosition(GetTransport(), initialPosX, initialPosY, initialPosZ, x, y, z, nav))
+        {
             return true;
+        }
     }
 
     GetPosition(x, y, z);

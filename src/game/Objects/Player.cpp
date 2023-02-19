@@ -726,9 +726,12 @@ Player::Player(WorldSession* session) : Unit(),
     m_longSightRange = 0.0f;
 
     // lfm nier
-    groupRole = 0;    
-    strategyMap.clear();
+    groupRole = 0;
+    isNier = false;
+    nierAction = nullptr;
+    nierStrategyMap.clear();
     activeStrategyIndex = 0;
+
     // lfm auto fish
     fishingDelay = 0;
 }
@@ -1754,10 +1757,19 @@ void Player::Update(uint32 update_diff, uint32 p_time)
         }
     }
 
-    // lfm nier updates 
-    if (strategyMap.find(activeStrategyIndex) != strategyMap.end())
+    // lfm nier
+    if (m_session->isNier)
     {
-        strategyMap[activeStrategyIndex]->Update(p_time);
+        if (nierStrategyMap.size() > 0)
+        {
+            if (nierStrategyMap[activeStrategyIndex])
+            {
+                if (nierStrategyMap[activeStrategyIndex]->initialized)
+                {
+                    nierStrategyMap[activeStrategyIndex]->Update(p_time);
+                }
+            }
+        }
     }
 }
 
@@ -8027,7 +8039,11 @@ void Player::SendLoot(ObjectGuid guid, LootType loot_type, Player* pVictim)
                 // Entry 0 in fishing loot template used for store junk fish loot at fishing fail it junk allowed by config option
                 // this is overwrite fishinghole loot for example
                 if (loot_type == LOOT_FISHING_FAIL)
-                    loot->FillLoot(0, LootTemplates_Fishing, this, true);
+                {
+                    // lfm failed fishing loot 
+                    //loot->FillLoot(0, LootTemplates_Fishing, this, true);
+                    loot->FillLoot(10000, LootTemplates_Fishing, this, true);
+                }                    
                 else if (lootid)
                 {
                     loot->clear();
@@ -22002,72 +22018,6 @@ void Player::CreatePacketBroadcaster()
     // Register player packet queue with the packet broadcaster
     m_broadcaster = std::make_shared<PlayerBroadcaster>(m_session->GetSocket(), GetObjectGuid());
     sWorld.GetBroadcaster()->RegisterPlayer(m_broadcaster);
-}
-
-// lfm nier 
-uint32 Player::GetMaxTalentCountTab()
-{
-    std::unordered_map<uint32, uint32> tabCountMap;
-
-    for (uint32 i = 0; i < sTalentStore.GetNumRows(); ++i)
-    {
-        if (TalentEntry const* te = sTalentStore.LookupEntry(i))
-        {
-            if (TalentTabEntry const* talentTabInfo = sTalentTabStore.LookupEntry(te->TalentTab))
-            {
-                if ((GetClassMask() & talentTabInfo->ClassMask) != 0)
-                {
-                    for (int8 rank = MAX_TALENT_RANK - 1; rank >= 0; --rank)
-                    {
-                        if (HasSpell(te->RankID[rank]))
-                        {
-                            tabCountMap[talentTabInfo->tabpage] = tabCountMap[talentTabInfo->tabpage] + rank + 1;
-                        }
-                    }
-                }
-            }
-        }
-    }
-    uint32 maxValue = 0;
-    uint32 result = 0;
-    for (std::unordered_map<uint32, uint32>::iterator tcIT = tabCountMap.begin(); tcIT != tabCountMap.end(); tcIT++)
-    {
-        if (tcIT->second > maxValue)
-        {
-            maxValue = tcIT->second;
-            result = tcIT->first;
-        }
-    }
-    return result;
-}
-
-uint32 Player::GetTalentCount(int pmTab)
-{
-    int count = 0;
-    std::unordered_map<uint32, uint32> tabCountMap;
-    for (uint32 i = 0; i < sTalentStore.GetNumRows(); ++i)
-    {
-        if (TalentEntry const* te = sTalentStore.LookupEntry(i))
-        {
-            if (TalentTabEntry const* talentTabInfo = sTalentTabStore.LookupEntry(te->TalentTab))
-            {
-                if ((GetClassMask() & talentTabInfo->ClassMask) != 0)
-                {
-                    if (talentTabInfo->tabpage == pmTab)
-                    {
-                        for (int8 rank = MAX_TALENT_RANK - 1; rank >= 0; --rank)
-                        {
-                            if (HasSpell(te->RankID[rank]))
-                            {
-                                count++;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    return count;
 }
 
 void Player::AddGCD(SpellEntry const& spellEntry, uint32 /*forcedDuration = 0*/, bool updateClient /*= false*/)

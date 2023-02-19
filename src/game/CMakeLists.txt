@@ -421,28 +421,28 @@ set (game_SRCS
 	Nier/NierEntity.cpp
 	Nier/NierManager.h
 	Nier/NierManager.cpp
-	Nier/Strategy/Strategy_Base.h
-	Nier/Strategy/Strategy_Base.cpp
-	Nier/Strategy/Scripts/Script_Base.h
-	Nier/Strategy/Scripts/Script_Base.cpp
-	Nier/Strategy/Scripts/Script_Druid.h
-	Nier/Strategy/Scripts/Script_Druid.cpp
-	Nier/Strategy/Scripts/Script_Hunter.h
-	Nier/Strategy/Scripts/Script_Hunter.cpp
-	Nier/Strategy/Scripts/Script_Mage.h
-	Nier/Strategy/Scripts/Script_Mage.cpp
-	Nier/Strategy/Scripts/Script_Paladin.h
-	Nier/Strategy/Scripts/Script_Paladin.cpp
-	Nier/Strategy/Scripts/Script_Priest.h
-	Nier/Strategy/Scripts/Script_Priest.cpp
-	Nier/Strategy/Scripts/Script_Rogue.h
-	Nier/Strategy/Scripts/Script_Rogue.cpp
-	Nier/Strategy/Scripts/Script_Shaman.h
-	Nier/Strategy/Scripts/Script_Shaman.cpp
-	Nier/Strategy/Scripts/Script_Warlock.h
-	Nier/Strategy/Scripts/Script_Warlock.cpp
-	Nier/Strategy/Scripts/Script_Warrior.h
-	Nier/Strategy/Scripts/Script_Warrior.cpp
+	Nier/NierStrategies/NierStrategy_Base.h
+	Nier/NierStrategies/NierStrategy_Base.cpp
+	Nier/NierActions/NierAction_Base.h
+	Nier/NierActions/NierAction_Base.cpp
+	Nier/NierActions/NierAction_Druid.h
+	Nier/NierActions/NierAction_Druid.cpp
+	Nier/NierActions/NierAction_Hunter.h
+	Nier/NierActions/NierAction_Hunter.cpp
+	Nier/NierActions/NierAction_Mage.h
+	Nier/NierActions/NierAction_Mage.cpp
+	Nier/NierActions/NierAction_Paladin.h
+	Nier/NierActions/NierAction_Paladin.cpp
+	Nier/NierActions/NierAction_Priest.h
+	Nier/NierActions/NierAction_Priest.cpp
+	Nier/NierActions/NierAction_Rogue.h
+	Nier/NierActions/NierAction_Rogue.cpp
+	Nier/NierActions/NierAction_Shaman.h
+	Nier/NierActions/NierAction_Shaman.cpp
+	Nier/NierActions/NierAction_Warlock.h
+	Nier/NierActions/NierAction_Warlock.cpp
+	Nier/NierActions/NierAction_Warrior.h
+	Nier/NierActions/NierAction_Warrior.cpp
 	
 	Ming/MingConfig.h
 	Ming/MingConfig.cpp
@@ -532,8 +532,8 @@ include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/Transports
   ${CMAKE_CURRENT_SOURCE_DIR}/vmap
   ${CMAKE_CURRENT_SOURCE_DIR}/Nier
-  ${CMAKE_CURRENT_SOURCE_DIR}/Nier/Strategy
-  ${CMAKE_CURRENT_SOURCE_DIR}/Nier/Strategy/Scripts
+  ${CMAKE_CURRENT_SOURCE_DIR}/Nier/NierStrategies
+  ${CMAKE_CURRENT_SOURCE_DIR}/Nier/NierActions
   ${CMAKE_CURRENT_SOURCE_DIR}/Ming
   ${CMAKE_SOURCE_DIR}/src/scripts
   ${CMAKE_SOURCE_DIR}/src/scripts/PrecompiledHeaders
@@ -599,12 +599,12 @@ source_group("Nier"
   REGULAR_EXPRESSION Nier
 )
 
-source_group("Nier/Strategy"
-  REGULAR_EXPRESSION Strategy
+source_group("Nier/NierStrategies"
+  REGULAR_EXPRESSION NierStrategies
 )
 
-source_group("Nier/Strategy/Scripts"
-  REGULAR_EXPRESSION Scripts
+source_group("Nier/NierActions"
+  REGULAR_EXPRESSION NierActions
 )
 
 source_group("Ming"

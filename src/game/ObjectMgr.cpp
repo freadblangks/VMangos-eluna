@@ -59,6 +59,9 @@
 // lfm ming 
 #include "MingManager.h"
 
+// lfm nier 
+#include "NierManager.h"
+
 INSTANTIATE_SINGLETON_1(ObjectMgr);
 
 #include "utf8cpp/utf8.h"
@@ -1480,6 +1483,15 @@ void ObjectMgr::CheckCreatureTemplates()
             {
                 sLog.Out(LOG_DBERROR, LOG_LVL_MINIMAL, "Creature (Entry: %u) has leash distance below detection distance (%f)", cInfo->entry, cInfo->leash_range);
                 const_cast<CreatureInfo*>(cInfo)->leash_range = 0.0f;
+            }
+        }
+
+        // lfm creature equips 
+        if (cInfo->equipment_id == 0)
+        {
+            if (const EquipmentInfo* ei = ObjectMgr::GetEquipmentInfo(cInfo->entry))
+            {
+                const_cast<CreatureInfo*>(cInfo)->equipment_id = cInfo->entry;
             }
         }
 
@@ -3776,6 +3788,18 @@ void ObjectMgr::LoadItemPrototypes()
         item.ExtraFlags = fields[127].GetUInt8();
         item.OtherTeamEntry = fields[128].GetUInt32();
 
+        // lfm nier equips
+        if (item.Quality > ItemQualities::ITEM_QUALITY_NORMAL && item.Quality < ItemQualities::ITEM_QUALITY_EPIC)
+        {
+            int requiredLevel = item.RequiredLevel;
+            if (requiredLevel == 0)
+            {
+                requiredLevel = item.ItemLevel;
+            }
+            sNierManager->equipsMap[item.InventoryType][requiredLevel][sNierManager->equipsMap[item.InventoryType][requiredLevel].size()] = item.ItemId;
+        }
+
+        // lfm ming vendor equips 
         if (item.Quality == ItemQualities::ITEM_QUALITY_UNCOMMON)
         {
             if (item.RequiredLevel > 0)

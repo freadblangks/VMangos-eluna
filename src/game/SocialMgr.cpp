@@ -181,7 +181,7 @@ SocialMgr::~SocialMgr()
 
 }
 
-void SocialMgr::GetFriendInfo(MasterPlayer* player, uint32 friend_lowguid, FriendInfo &friendInfo)
+void SocialMgr::GetFriendInfo(MasterPlayer* player, uint32 friend_lowguid, FriendInfo& friendInfo)
 {
     if (!player)
         return;
@@ -209,13 +209,12 @@ void SocialMgr::GetFriendInfo(MasterPlayer* player, uint32 friend_lowguid, Frien
 
     PlayerSocialMap::const_iterator itr = player->GetSocial()->m_playerSocialMap.find(friend_lowguid);
     if (itr != player->GetSocial()->m_playerSocialMap.end())
-    { 
+    {
         // PLAYER see his team only and PLAYER can't see MODERATOR, GAME MASTER, ADMINISTRATOR characters
         // MODERATOR, GAME MASTER, ADMINISTRATOR can see all
-        if (pFriend && pFriend->GetName() &&
-                (security > SEC_PLAYER ||
-                 ((pFriend->GetTeam() == team || allowTwoSideWhoList) && (pFriend->GetSession()->GetSecurity() <= gmLevelInWhoList))) &&
-                pFriend->IsVisibleGloballyFor(player))
+        // lfm two side users will be only above admin 
+        //if (pFriend && pFriend->GetName() && (security > SEC_PLAYER || ((pFriend->GetTeam() == team || allowTwoSideWhoList) && (pFriend->GetSession()->GetSecurity() <= gmLevelInWhoList))) && pFriend->IsVisibleGloballyFor(player))
+        if (pFriend && pFriend->GetName() && (security >= SEC_GAMEMASTER || ((pFriend->GetTeam() == team || allowTwoSideWhoList) && (pFriend->GetSession()->GetSecurity() <= gmLevelInWhoList))) && pFriend->IsVisibleGloballyFor(player))
         {
             friendInfo.Status = FRIEND_STATUS_ONLINE;
             if (pFriend->IsAFK())

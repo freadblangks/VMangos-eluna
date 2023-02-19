@@ -207,9 +207,9 @@ class Group
         Group();
         ~Group();
 
-        // lfm TargetIcon        
-        ObjectGuid GetOGByTargetIcon(int pmID);
-        int GetTargetIconByOG(ObjectGuid pmOG);
+        // lfm nier
+        uint32 GetTargetIconByGuid(ObjectGuid ogTarget);
+        ObjectGuid GetGuidByTargetIcon(uint32 icon);
 
         // lfm group target arrangement
         std::unordered_map<ObjectGuid, ObjectGuid> groupTargetArrangementMap;

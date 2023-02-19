@@ -757,7 +757,7 @@ void Pet::RegenerateAll(uint32 update_diff, bool skipCombatCheck)
         // lfm nier's pet will not lose happiness                
         if (Player* ownerPlayer = GetCharmerOrOwnerPlayerOrPlayerItself())
         {
-            if (!ownerPlayer->GetSession()->isNierSession)
+            if (!ownerPlayer->GetSession()->isNier)
             {
                 LooseHappiness();
             }

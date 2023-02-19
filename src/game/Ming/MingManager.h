@@ -27,10 +27,15 @@ public:
 	void InitializeManager();
 	void Clean();
 	bool UpdateMing(uint32 pmDiff);
+
+	bool StringEndWith(const std::string& str, const std::string& tail);
+	bool StringStartWith(const std::string& str, const std::string& head);
+	std::vector<std::string> SplitString(std::string srcStr, std::string delimStr, bool repeatedCharIgnored);
+	std::string TrimString(std::string srcStr);
+
 	static MingManager* instance();
 
 private:
-	bool EnsureOwner();
 	bool UpdateSeller();
 	bool UpdateBuyer();
 	void ResetSellableItems();
@@ -52,9 +57,6 @@ private:
 	bool selling;
 	uint32 sellingIndex;
 	std::unordered_map<uint32, uint32> sellingItemIDMap;
-	Player* pMing;
-	uint32 mingAccountId;
-	uint32 mingCharacterId;
 	std::set<uint32> auctionHouseIDSet;
 
 };

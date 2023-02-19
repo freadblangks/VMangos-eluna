@@ -840,6 +840,13 @@ bool AuctionEntry::BuildAuctionInfo(WorldPacket& data) const
         sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "auction to item, that doesn't exist !!!!");
         return false;
     }
+
+    // lfm item status query 
+    if (pItem->IsDeleted())
+    {
+        return false;
+    }
+
     data << uint32(Id);
     data << uint32(pItem->GetEntry());
 

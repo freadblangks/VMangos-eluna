@@ -34,6 +34,16 @@ bool NierConfig::GetValueHelper(char const* name, ACE_TString& result)
 NierConfig::NierConfig()
 	: mConf(nullptr)
 {
+	Enable = 0;
+	Reset = 0;
+	ReviveDelay = 0;
+	ManagerCheckDelay = 0;
+	NierCountEachLevel = 0;
+	DPSDelay = 0;
+	RandomTeleportDelay_Min = 0;
+	RandomTeleportDelay_Max = 0;
+	AssembleDelay = 0;
+	CorpseRunDelay = 0;
 }
 
 NierConfig::~NierConfig()
@@ -97,17 +107,21 @@ float NierConfig::GetFloatDefault(char const* name, float def)
 	return GetValueHelper(name, val) ? (float)atof(val.c_str()) : def;
 }
 
-bool NierConfig::StartNierSystem()
+bool NierConfig::StartNier()
 {
 	SetSource(NIER_CONFIG_FILE_NAME);
 	Reload();
 
 	Enable = GetIntDefault("Enable", 0);
-	AccountNamePrefix = GetStringDefault("AccountNamePrefix", "NIER");
-	DPSDelay = GetIntDefault("DPSDelay", 2000);	
-	OnlineCheckDelay = GetIntDefault("OnlineCheckDelay", 60000);
-	OfflineCheckDelay = GetIntDefault("OfflineCheckDelay", 3600000);
+	Reset = GetIntDefault("Reset", 0);
+	ReviveDelay = GetIntDefault("ReviveDelay", 600000);
+	DPSDelay = GetIntDefault("DPSDelay", 1000);
+	ManagerCheckDelay = GetIntDefault("ManagerCheckDelay", 60000);
 	NierCountEachLevel = GetIntDefault("NierCountEachLevel", 20);
+	RandomTeleportDelay_Min = GetIntDefault("RandomTeleportDelay_Min", 600000);
+	RandomTeleportDelay_Max = GetIntDefault("RandomTeleportDelay_Max", 1200000);
+	AssembleDelay = GetIntDefault("AssembleDelay", 60000);
+	CorpseRunDelay = GetIntDefault("CorpseRunDelay", 120000);
 
 	if (Enable == 0)
 	{

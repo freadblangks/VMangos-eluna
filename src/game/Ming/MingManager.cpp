@@ -4,8 +4,6 @@
 
 MingManager::MingManager()
 {
-	mingAccountId = 0;
-	mingCharacterId = 0;
 	sellingIndex = 0;
 	selling = false;
 	buyerCheckDelay = 0;
@@ -32,10 +30,9 @@ void MingManager::InitializeManager()
 	sellerCheckDelay = 1 * TimeConstants::MINUTE * TimeConstants::IN_MILLISECONDS;
 
 	auctionHouseIDSet.clear();
+	auctionHouseIDSet.insert(1);
 	auctionHouseIDSet.insert(2);
-	//auctionHouseIDSet.insert(1);
-	//auctionHouseIDSet.insert(6);
-	//auctionHouseIDSet.insert(7);
+	auctionHouseIDSet.insert(3);
 
 	vendorUnlimitItemSet.clear();
 	QueryResult* vendorItemQR = WorldDatabase.Query("SELECT distinct item FROM npc_vendor where maxcount = 0");
@@ -72,125 +69,16 @@ void MingManager::InitializeManager()
 			do
 			{
 				Field* fields = qrAccount->Fetch();
-				mingAccountId = fields[0].GetUInt32();
+				uint32 mingAccountId = fields[0].GetUInt32();
+				sAccountMgr.DeleteAccount(mingAccountId);
 			} while (qrAccount->NextRow());
 		}
 		delete qrAccount;
-		if (mingAccountId > 0)
-		{
-			sAccountMgr.DeleteAccount(mingAccountId);
-			mingAccountId = 0;
-		}
 	}
-}
-
-bool MingManager::EnsureOwner()
-{
-	if (mingAccountId == 0)
-	{
-		std::ostringstream sqlAccountStream;
-		sqlAccountStream << "SELECT id FROM account where username = '" << MING_OWNER_ACCOUNT_NAME << "'";
-		std::string sqlAccount = sqlAccountStream.str();
-		QueryResult* qrAccount = LoginDatabase.Query(sqlAccount.c_str());
-
-		if (qrAccount)
-		{
-			do
-			{
-				Field* fields = qrAccount->Fetch();
-				mingAccountId = fields[0].GetUInt32();
-			} while (qrAccount->NextRow());
-		}
-		delete qrAccount;
-		if (mingAccountId == 0)
-		{
-			AccountOpResult aor = sAccountMgr.CreateAccount(MING_OWNER_ACCOUNT_NAME, MING_OWNER_ACCOUNT_NAME);
-			if (aor != AccountOpResult::AOR_OK)
-			{
-				sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Ming account error");
-				sMingConfig.Enable = false;
-				return false;
-			}
-			qrAccount = LoginDatabase.Query(sqlAccount.c_str());
-			if (qrAccount)
-			{
-				do
-				{
-					Field* fields = qrAccount->Fetch();
-					mingAccountId = fields[0].GetUInt32();
-				} while (qrAccount->NextRow());
-			}
-			delete qrAccount;
-			if (mingAccountId == 0)
-			{
-				sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Ming account error");
-				sMingConfig.Enable = false;
-				return false;
-			}
-		}
-	}
-	if (mingCharacterId == 0)
-	{
-		std::ostringstream sqlCharacterStream;
-		sqlCharacterStream << "SELECT guid FROM characters where account = " << mingAccountId << " and name = '" << MING_OWNER_CHARACTER_NAME << "'";
-		std::string sqlCharacter = sqlCharacterStream.str();
-		QueryResult* qrCharacter = CharacterDatabase.Query(sqlCharacter.c_str());
-
-		if (qrCharacter)
-		{
-			do
-			{
-				Field* fields = qrCharacter->Fetch();
-				mingCharacterId = fields[0].GetUInt32();
-			} while (qrCharacter->NextRow());
-		}
-		delete qrCharacter;
-		if (mingCharacterId > 0)
-		{
-			sNierManager->LoginNier(mingAccountId, mingCharacterId);
-		}
-		else
-		{
-			WorldSession* eachSession = new WorldSession(mingAccountId, NULL, SEC_PLAYER, 0, LOCALE_enUS);
-			uint32 const guidLow = sObjectMgr.GeneratePlayerLowGuid();
-			if (!Player::SaveNewPlayer(eachSession, guidLow, MING_OWNER_CHARACTER_NAME, Races::RACE_HUMAN, Classes::CLASS_MAGE, Gender::GENDER_FEMALE, 0, 0, 0, 0, 0))
-			{
-				delete eachSession;
-				sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Character create failed, %s", MING_OWNER_CHARACTER_NAME);
-				sMingConfig.Enable = false;
-				return false;
-			}
-			qrCharacter = CharacterDatabase.Query(sqlCharacter.c_str());
-			if (qrCharacter)
-			{
-				do
-				{
-					Field* fields = qrCharacter->Fetch();
-					mingCharacterId = fields[0].GetUInt32();
-				} while (qrCharacter->NextRow());
-			}
-			delete qrCharacter;
-			if (mingCharacterId == 0)
-			{
-				sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Character create failed, %s", MING_OWNER_CHARACTER_NAME);
-				sMingConfig.Enable = false;
-				return false;
-			}
-			sNierManager->LoginNier(mingAccountId, mingCharacterId);
-		}
-	}
-
-	return true;
 }
 
 void MingManager::Clean()
 {
-	if (!EnsureOwner())
-	{
-		sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Ming account error");
-		sMingConfig.Enable = false;
-		return;
-	}
 	sLog.Out(LOG_BASIC, LOG_LVL_BASIC, "Ready to clean ming");
 
 	for (std::set<uint32>::iterator ahIDIT = auctionHouseIDSet.begin(); ahIDIT != auctionHouseIDSet.end(); ahIDIT++)
@@ -215,14 +103,10 @@ void MingManager::Clean()
 			AuctionEntry* eachAE = aho->GetAuction(*auctionIDIT);
 			if (eachAE)
 			{
-				if (eachAE->owner == mingCharacterId)
+				if (eachAE->owner == 0)
 				{
-					eachAE->DeleteFromDB();
-					sAuctionMgr.RemoveAItem(eachAE->itemGuidLow);
-					aho->RemoveAuction(eachAE);
-					sLog.Out(LOG_BASIC, LOG_LVL_BASIC, "Auction %d removed for auctionhouse %d", eachAE->itemTemplate, ahID);
-					delete eachAE;
-					eachAE = nullptr;
+					eachAE->expireTime = time(nullptr) - 1 * TimeConstants::MINUTE;
+					sLog.Out(LOG_BASIC, LOG_LVL_BASIC, "Auction %d removed for auctionhouse %d", eachAE->itemTemplate, ahID);					
 				}
 			}
 		}
@@ -235,12 +119,6 @@ bool MingManager::UpdateMing(uint32 pmDiff)
 {
 	if (!sMingConfig.Enable)
 	{
-		return false;
-	}
-	if (!EnsureOwner())
-	{
-		sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Ming account error");
-		sMingConfig.Enable = false;
 		return false;
 	}
 	sellerCheckDelay -= pmDiff;
@@ -261,6 +139,7 @@ bool MingManager::UpdateSeller()
 {
 	if (sellingItemIDMap.empty())
 	{
+		Clean();
 		int maxCount = 100;
 		if (maxCount > sellableItemIDMap.size())
 		{
@@ -273,7 +152,15 @@ bool MingManager::UpdateSeller()
 			toSellItemID = sellableItemIDMap[toSellItemID];
 			if (sellingItemIDMap.find(toSellItemID) == sellingItemIDMap.end())
 			{
-				sellingItemIDMap[sellingItemIDMap.size()] = toSellItemID;
+				const ItemPrototype* proto = sObjectMgr.GetItemPrototype(toSellItemID);
+				if (proto)
+				{
+					if (proto->SellPrice > 0 || proto->BuyPrice > 0)
+					{
+						sLog.Out(LOG_BASIC, LOG_LVL_BASIC, "%s added to to sell items", proto->Name1);
+						sellingItemIDMap[sellingItemIDMap.size()] = toSellItemID;
+					}
+				}
 			}
 		}
 	}
@@ -295,7 +182,7 @@ bool MingManager::UpdateSeller()
 				}
 				uint32 stackCount = urand(1, proto->Stackable);
 				uint32 priceMultiple = urand(10, 15);
-				Item* item = Item::CreateItem(proto->ItemId, stackCount, mingCharacterId);
+				Item* item = Item::CreateItem(proto->ItemId, stackCount, 0);
 				if (item)
 				{
 					if (uint32 randomPropertyId = Item::GenerateItemRandomPropertyId(itemEntry))
@@ -321,14 +208,15 @@ bool MingManager::UpdateSeller()
 						auctionEntry->auctionHouseEntry = ahEntry;
 						auctionEntry->itemGuidLow = item->GetGUIDLow();
 						auctionEntry->itemTemplate = item->GetEntry();
-						auctionEntry->owner = mingCharacterId;
+						//auctionEntry->owner = mingCharacterId;
+						auctionEntry->owner = 0;
 						auctionEntry->startbid = finalPrice / 2;
 						auctionEntry->buyout = finalPrice;
 						auctionEntry->bidder = 0;
 						auctionEntry->bid = 0;
 						auctionEntry->deposit = dep;
 						auctionEntry->depositTime = time(nullptr);
-						auctionEntry->expireTime = (time_t)(1 * TimeConstants::HOUR) + time(nullptr);
+						auctionEntry->expireTime = (time_t)(4 * TimeConstants::HOUR) + time(nullptr);
 						item->SaveToDB();
 						sAuctionMgr.AddAItem(item);
 						aho->AddAuction(auctionEntry);
@@ -348,6 +236,7 @@ bool MingManager::UpdateSeller()
 		sellingIndex = 0;
 		sellingItemIDMap.clear();
 		sellerCheckDelay = 1 * TimeConstants::HOUR * IN_MILLISECONDS;
+		//sellerCheckDelay = 1 * TimeConstants::MINUTE * IN_MILLISECONDS;
 	}
 
 	return false;
@@ -378,7 +267,7 @@ bool MingManager::UpdateBuyer()
 			if (!checkItem)
 			{
 				continue;
-			}
+			}			
 			if (aeIT->second->owner == 0)
 			{
 				continue;
@@ -616,4 +505,47 @@ void MingManager::ResetSellableItems()
 			sellableItemIDMap[sellableItemIDMap.size()] = proto->ItemId;
 		}
 	}
+}
+
+bool MingManager::StringEndWith(const std::string& str, const std::string& tail)
+{
+	return str.compare(str.size() - tail.size(), tail.size(), tail) == 0;
+}
+
+bool MingManager::StringStartWith(const std::string& str, const std::string& head)
+{
+	return str.compare(0, head.size(), head) == 0;
+}
+
+std::vector<std::string> MingManager::SplitString(std::string srcStr, std::string delimStr, bool repeatedCharIgnored)
+{
+	std::vector<std::string> resultStringVector;
+	std::replace_if(srcStr.begin(), srcStr.end(), [&](const char& c) {if (delimStr.find(c) != std::string::npos) { return true; } else { return false; }}, delimStr.at(0));
+	size_t pos = srcStr.find(delimStr.at(0));
+	std::string addedString = "";
+	while (pos != std::string::npos) {
+		addedString = srcStr.substr(0, pos);
+		if (!addedString.empty() || !repeatedCharIgnored) {
+			resultStringVector.push_back(addedString);
+		}
+		srcStr.erase(srcStr.begin(), srcStr.begin() + pos + 1);
+		pos = srcStr.find(delimStr.at(0));
+	}
+	addedString = srcStr;
+	if (!addedString.empty() || !repeatedCharIgnored) {
+		resultStringVector.push_back(addedString);
+	}
+	return resultStringVector;
+}
+
+std::string MingManager::TrimString(std::string srcStr)
+{
+	std::string result = srcStr;
+	if (!result.empty())
+	{
+		result.erase(0, result.find_first_not_of(" "));
+		result.erase(result.find_last_not_of(" ") + 1);
+	}
+
+	return result;
 }

@@ -287,7 +287,9 @@ void WorldSession::HandleItemQuerySingleOpcode(WorldPacket& recv_data)
     recv_data.read_skip<uint64>();                          // guid
 
     ItemPrototype const* pProto = sObjectMgr.GetItemPrototype(item);
-    if (pProto && (pProto->Discovered || (GetSecurity() > SEC_PLAYER)))
+    // lfm player can query item
+    //if (pProto && (pProto->Discovered || (GetSecurity() > SEC_PLAYER)))
+    if (pProto)
     {
         std::string Name        = pProto->Name1;
         std::string Description = pProto->Description;

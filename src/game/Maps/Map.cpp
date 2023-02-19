@@ -3114,8 +3114,11 @@ bool Map::GetWalkHitPosition(GenericTransport* transport, float srcX, float srcY
         Vector3 startPos = dstPos;
         dstPos = Vector3(pathPoints[i * VERTEX_SIZE + 2], pathPoints[i * VERTEX_SIZE], pathPoints[i * VERTEX_SIZE + 1]);
         dstPos.z += 1.0f;
-        if (!transport && GetDynamicObjectHitPos(startPos, dstPos, dstPos, -0.1f))
+
+        if (!transport && GetDynamicObjectHitPos(startPos, dstPos, dstPos, -0.1f))        
+        {
             break;
+        }
     }
     if (transport)
         transport->CalculatePassengerPosition(dstPos.x, dstPos.y, dstPos.z);

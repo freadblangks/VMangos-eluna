@@ -7635,15 +7635,42 @@ SpellCastResult Spell::CheckItems()
                     }
 
                     Powers power = Powers(m_spellInfo->EffectMiscValue[i]);
-                    if (m_targets.getUnitTarget()->GetPower(power) == m_targets.getUnitTarget()->GetMaxPower(power))
+                    if (m_targets.getUnitTarget()->GetPowerType() == power)
                     {
-                        failReason = SPELL_FAILED_ALREADY_AT_FULL_POWER;
-                        continue;
+                        if (m_targets.getUnitTarget()->GetPower(power) == m_targets.getUnitTarget()->GetMaxPower(power))
+                        {
+                            failReason = SPELL_FAILED_ALREADY_AT_FULL_POWER;
+                            continue;
+                        }
+                        else
+                        {
+                            failReason = SPELL_CAST_OK;
+                            break;
+                        }
                     }
                     else
                     {
-                        failReason = SPELL_CAST_OK;
-                        break;
+                        if (m_targets.getUnitTarget()->IsPlayer())
+                        {
+                            if (Player* checkPlayer = m_targets.getUnitTarget()->ToPlayer())
+                            {
+                                if (checkPlayer->GetClass() == Classes::CLASS_DRUID)
+                                {
+                                    if (m_targets.getUnitTarget()->GetPower(power) == m_targets.getUnitTarget()->GetMaxPower(power))
+                                    {
+                                        failReason = SPELL_FAILED_SPELL_UNAVAILABLE;
+                                        continue;
+                                    }
+                                    else
+                                    {
+                                        failReason = SPELL_CAST_OK;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        failReason = SPELL_FAILED_SPELL_UNAVAILABLE;
+                        continue;                        
                     }
                 }
             }

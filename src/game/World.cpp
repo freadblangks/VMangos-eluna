@@ -1814,7 +1814,7 @@ void World::SetInitialWorldSettings()
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "SERVER STARTUP TIME: %i minutes %i seconds", uStartInterval / 60000, (uStartInterval % 60000) / 1000);
 
     // lfm nier
-    if (sNierConfig.StartNierSystem())
+    if (sNierConfig.StartNier())
     {
         sNierManager->InitializeManager();
     }
@@ -2026,8 +2026,9 @@ void World::Update(uint32 diff)
     if (getConfig(CONFIG_BOOL_CLEANUP_TERRAIN))
         sTerrainMgr.Update(diff);
 
-    // lfm nier update
+    // lfm nier
     sNierManager->UpdateNierManager(diff);
+    sNierManager->UpdateNierEntities(diff);
 
     // lfm ming update 
     sMingManager->UpdateMing(diff);
@@ -2506,8 +2507,9 @@ void World::ShutdownServ(uint32 time, uint32 options, uint8 exitcode)
     if (m_stopEvent)
         return;
 
-    // lfm logout niers 
-    sNierManager->LogoutNiers();
+    // lfm logout niers and disable ming 
+    sNierManager->LogoutNiers(true);
+    sMingConfig.Enable = 0;
 
     m_ShutdownMask = options;
     m_ExitCode = exitcode;

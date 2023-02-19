@@ -279,7 +279,8 @@ class WorldSession
         ~WorldSession();
 
         // lfm nier
-        bool isNierSession;
+        bool isNier;
+
         void HandlePlayerLogin_Simple(ObjectGuid pmCharacterGUID);
 
         AccountTypes GetSecurity() const { return m_security; }

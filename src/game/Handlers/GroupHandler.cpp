@@ -103,40 +103,6 @@ void WorldSession::HandleGroupInviteOpcode(WorldPacket& recv_data)
     if (group2 || player->GetGroupInvite())
     {
         SendPartyResult(PARTY_OP_INVITE, membername, ERR_ALREADY_IN_GROUP_S);
-
-        // lfm nier group recheck
-        if (player->GetSession()->isNierSession)
-        {
-            if (Group* checkGroup = player->GetGroup())
-            {
-                if (Player* leader = ObjectAccessor::FindPlayer(checkGroup->GetLeaderGuid()))
-                {
-                    if (leader->GetSession()->isNierSession)
-                    {
-                        player->RemoveFromGroup();
-                    }
-                }
-                else
-                {
-                    player->RemoveFromGroup();
-                }
-            }
-            else if (Group* groupInvite = player->GetGroupInvite())
-            {
-                if (Player* leader = ObjectAccessor::FindPlayer(groupInvite->GetLeaderGuid()))
-                {
-                    if (leader->GetSession()->isNierSession)
-                    {
-                        player->RemoveFromGroup();
-                    }
-                }
-                else
-                {
-                    player->RemoveFromGroup();
-                }
-            }
-        }
-
         return;
     }
 

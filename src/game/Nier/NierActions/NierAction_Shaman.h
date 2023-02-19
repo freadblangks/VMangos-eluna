@@ -1,7 +1,7 @@
-#ifndef NIER_SCRIPT_SHAMAN_H
-#define NIER_SCRIPT_SHAMAN_H
+#ifndef NIER_ACTION_SHAMAN_H
+#define NIER_ACTION_SHAMAN_H
 
-#include "Script_Base.h"
+#include "NierAction_Base.h"
 
 enum ShamanEarthTotemType :uint32
 {
@@ -11,10 +11,11 @@ enum ShamanEarthTotemType :uint32
     ShamanEarthTotemType_StrengthOfEarthTotem
 };
 
-class Script_Shaman :public Script_Base
+class NierAction_Shaman :public NierAction_Base
 {
 public:
-    Script_Shaman(Player* pmMe);
+    NierAction_Shaman(Player* pmMe);
+    void Prepare();
 
     uint32 earthTotemType;
 };

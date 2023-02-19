@@ -1747,7 +1747,7 @@ void GameObject::Use(Unit* user)
                         player->UpdateFishingSkill();
 
                     // fish catch or fail and junk allowed (after 3.1.0)
-                    if (success || sWorld.getConfig(CONFIG_BOOL_SKILL_FAIL_LOOT_FISHING))
+                    if (success)
                     {
                         // prevent removing GO at spell cancel
                         player->RemoveGameObject(this, false);
@@ -1759,15 +1759,26 @@ void GameObject::Use(Unit* user)
                             SetLootState(GO_JUST_DEACTIVATED);
                         }
                         else
-                            player->SendLoot(GetObjectGuid(), success ? LOOT_FISHING : LOOT_FISHING_FAIL);
+                        {
+                            player->SendLoot(GetObjectGuid(), LOOT_FISHING);
+                        }
                     }
-                    else
+                    else if(sWorld.getConfig(CONFIG_BOOL_SKILL_FAIL_LOOT_FISHING))
                     {
-                        // fish escaped, can be deleted now
-                        SetLootState(GO_JUST_DEACTIVATED);
-
-                        WorldPacket data(SMSG_FISH_ESCAPED, 0);
-                        player->GetSession()->SendPacket(&data);
+                        // lfm fishing junks 
+                        if (urand(0, 100) < 50)
+                        {
+                            // fish escaped, can be deleted now
+                            SetLootState(GO_JUST_DEACTIVATED);
+                            WorldPacket data(SMSG_FISH_ESCAPED, 0);
+                            player->GetSession()->SendPacket(&data);
+                        }
+                        else
+                        {
+                            player->RemoveGameObject(this, false);
+                            SetOwnerGuid(player->GetObjectGuid());
+                            player->SendLoot(GetObjectGuid(), LOOT_FISHING_FAIL);
+                        }
 
                         // lfm fishing fail hint 
                         std::ostringstream notificationStream;

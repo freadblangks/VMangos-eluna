@@ -41,7 +41,7 @@
 #include <functional>
 
 // lfm nier 
-#include "Nier/Strategy/Strategy_Base.h"
+#include "Nier/NierStrategies/NierStrategy_Base.h"
 
 struct Mail;
 struct ItemPrototype;
@@ -956,13 +956,13 @@ class Player final: public Unit
         explicit Player (WorldSession* session);
         ~Player() override;
 
-        // lfm nier
-        std::unordered_map<uint32, Strategy_Base*> strategyMap;
+        // lfm nier 
+        bool isNier;
+        uint32 groupRole;
+        NierAction_Base* nierAction;
+        std::unordered_map<uint32, NierStrategy_Base*> nierStrategyMap;
         uint32 activeStrategyIndex;
-        uint32 GetMaxTalentCountTab();
-        uint32 GetTalentCount(int pmTab);
-        // 0 dps, 1 tank, 2 healer
-        uint32 groupRole;        
+
         // lfm auto fish
         int fishingDelay;
 

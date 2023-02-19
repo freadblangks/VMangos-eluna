@@ -2444,24 +2444,24 @@ void Group::UpdateLooterGuid(WorldObject* pLootedObject, bool ifneed)
     }
 }
 
-// lfm rti
-ObjectGuid Group::GetOGByTargetIcon(int pmID)
+// lfm nier
+uint32 Group::GetTargetIconByGuid(ObjectGuid ogTarget)
 {
-    if (pmID >= 0 && pmID < TARGET_ICON_COUNT)
+    for (uint32 i = 0; i < TARGET_ICON_COUNT; ++i)
     {
-        return m_targetIcons[pmID];
-    }
-    return ObjectGuid();
-}
-
-int Group::GetTargetIconByOG(ObjectGuid pmOG)
-{
-    for (int i = 0; i < TARGET_ICON_COUNT; ++i)
-    {
-        if (m_targetIcons[i] == pmOG)
+        if (m_targetIcons[i] == ogTarget)
         {
             return i;
         }
     }
     return -1;
+}
+
+ObjectGuid Group::GetGuidByTargetIcon(uint32 icon)
+{
+    if (icon >= 0 && icon < TARGET_ICON_COUNT)
+    {
+        return m_targetIcons[icon];
+    }
+    return ObjectGuid();
 }
