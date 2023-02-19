@@ -129,7 +129,7 @@ AssistDelayEvent::AssistDelayEvent(ObjectGuid victim, Unit& owner, std::list<Cre
 
 bool ForcedDespawnDelayEvent::Execute(uint64 /*e_time*/, uint32 /*p_time*/)
 {
-    m_owner.ForcedDespawn();
+    m_owner.ForcedDespawn(0, m_secsTimeToRespawn);
     return true;
 }
 
@@ -232,8 +232,14 @@ void Creature::AddToWorld()
         GetMap()->InsertObject<Creature>(GetObjectGuid(), this);
 
     sCreatureGroupsManager->LoadCreatureGroup(this, m_creatureGroup);
-    if (m_creatureGroup && m_creatureGroup->IsFormation())
-        SetActiveObjectState(true);
+    if (m_creatureGroup)
+    {
+        if (m_creatureGroup->IsFormation())
+            SetActiveObjectState(true);
+        if (GetDeathState() == ALIVE || GetDeathState() == JUST_ALIVED)
+            m_creatureGroup->OnRespawn(this);
+    }
+        
     Unit::AddToWorld();
 
     if (!i_AI)
@@ -509,6 +515,9 @@ bool Creature::UpdateEntry(uint32 Entry, CreatureData const* data /*=nullptr*/, 
     else
         SetPvP(false);
 
+    if (CanAssistPlayers())
+        EnableMoveInLosEvent();
+
     InitializeReactState();
 
     for (int i = 0; i < CREATURE_MAX_SPELLS; ++i)
@@ -634,6 +643,13 @@ void Creature::Update(uint32 update_diff, uint32 diff)
     update_diff *= sWorld.GetTimeRate();
     diff *= sWorld.GetTimeRate();
 
+    // AI was locked and switch was delayed to next update.
+    if (HasCreatureState(CSTATE_INIT_AI_ON_UPDATE))
+    {
+        ClearCreatureState(CSTATE_INIT_AI_ON_UPDATE);
+        AIM_Initialize();
+    }
+
     switch (m_deathState)
     {
         case JUST_ALIVED:
@@ -687,9 +703,6 @@ void Creature::Update(uint32 update_diff, uint32 diff)
                 }
                 else
                     SetDeathState(JUST_ALIVED);
-
-                if (CreatureGroup* group = GetCreatureGroup())
-                    group->OnRespawn(this);
 
                 // Call AI respawn virtual function
                 if (AI())
@@ -926,7 +939,7 @@ void Creature::RegenerateAll(uint32 update_diff, bool skipCombatCheck)
 
     RegenerateMana();
 
-    m_regenTimer = REGEN_TIME_FULL;
+    m_regenTimer = REGEN_TIME_CREATURE_FULL;
 }
 
 void Creature::RegenerateMana()
@@ -946,7 +959,7 @@ void Creature::RegenerateMana()
     if (IsInCombat() || GetCharmerOrOwnerGuid().IsPlayer())
     {
         if (!IsUnderLastManaUseEffect())
-            addvalue = m_manaRegen;
+            addvalue = round_float_chance(m_manaRegen);
 
         // lfm creature mana regen too much
         addvalue = addvalue / 4;
@@ -1112,6 +1125,7 @@ bool Creature::AIM_Initialize()
     if (m_AI_locked)
     {
         DEBUG_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS, "AIM_Initialize: failed to init, locked.");
+        AddCreatureState(CSTATE_INIT_AI_ON_UPDATE);
         return false;
     }
 
@@ -1520,6 +1534,7 @@ void Creature::SaveToDB(uint32 mapid)
        << data.creature_id[1] << ","
        << data.creature_id[2] << ","
        << data.creature_id[3] << ","
+       << data.creature_id[4] << ","
        << mapid << ","
        << data.position.x << ","
        << data.position.y << ","
@@ -1915,22 +1930,28 @@ void Creature::DeleteFromDB(uint32 lowguid, CreatureData const* data)
     WorldDatabase.CommitTransaction();
 }
 
-float Creature::GetAttackDistance(Unit const* pl) const
+float Creature::GetAttackDistance(Unit const* pTarget) const
 {
     float const aggroRate = sWorld.getConfig(CONFIG_FLOAT_RATE_CREATURE_AGGRO);
     if (aggroRate == 0)
         return 0.0f;
 
-    uint32 const playerlevel   = pl->GetLevelForTarget(this);
-    uint32 const creaturelevel = GetLevelForTarget(pl);
+    // proximity aggro does not target disabled pets (owner is mounted)
+    if (pTarget->IsPet() && !static_cast<Pet const*>(pTarget)->IsEnabled())
+        return 0.0f;
 
-    int32 leveldif       = int32(playerlevel) - int32(creaturelevel);
+    // pets and charmed mobs use owner level
+    Player* pPlayer = pTarget->GetCharmerOrOwnerPlayer();
+    uint32 const targetlevel = pPlayer ? pPlayer->GetLevelForTarget(this) : pTarget->GetLevelForTarget(this);
+    uint32 const creaturelevel = GetLevelForTarget(pPlayer ? pPlayer : pTarget);
+
+    int32 leveldif = int32(targetlevel) - int32(creaturelevel);
 
     // "The maximum Aggro Radius has a cap of 25 levels under. Example: A level 30 char has the same Aggro Radius of a level 5 char on a level 60 mob."
     if (leveldif < - 25)
         leveldif = -25;
 
-    // "The aggro radius of a mob having the same level as the player is roughly 20 yards"
+    // "The aggro radius of a mob having the same level as the player is roughly 18 yards"
     float const detectionRange = GetDetectionRange();
     float finalDistance = detectionRange;
     if (finalDistance < 1)
@@ -1941,14 +1962,14 @@ float Creature::GetAttackDistance(Unit const* pl) const
     finalDistance -= (float)leveldif;
 
     // detect range auras
-    // SPELL_AURA_MOD_DETECT_RANGE: Par exemple [2908 - Apaiser les animaux]. Affecte uniquement si niveau < 70 par exemple (rang 3).
+    // SPELL_AURA_MOD_DETECT_RANGE: For exemple [2908 - Soothe Animal]. Affects only if level < 70 (rank 3).
     AuraList const& nModDetectRange = GetAurasByType(SPELL_AURA_MOD_DETECT_RANGE);
     for (const auto i : nModDetectRange)
         if (i->GetSpellProto()->MaxTargetLevel >= GetLevel())
             finalDistance += i->GetModifier()->m_amount;
 
     // detected range auras
-    finalDistance += pl->GetTotalAuraModifier(SPELL_AURA_MOD_DETECTED_RANGE);
+    finalDistance += pTarget->GetTotalAuraModifier(SPELL_AURA_MOD_DETECTED_RANGE);
 
     // "Minimum Aggro Radius for a mob seems to be combat range (5 yards)"
     float const minDistance = std::min(detectionRange, 5.0f);
@@ -1966,7 +1987,9 @@ void Creature::SetDeathState(DeathState s)
 
         uint32 respawnDelay = m_respawnDelay;
         ApplyDynamicRespawnDelay(respawnDelay, data);
-        m_corpseDecayTimer = m_corpseDelay * IN_MILLISECONDS; // the max/default time for corpse decay (before creature is looted/AllLootRemovedFromCorpse() is called)
+
+        // the max/default time for corpse decay (before creature is looted/AllLootRemovedFromCorpse() is called)
+        m_corpseDecayTimer = HasExtraFlag(CREATURE_FLAG_EXTRA_DESPAWN_INSTANTLY) ? 1 : m_corpseDelay * IN_MILLISECONDS;
 
         if (data)
         {
@@ -2012,7 +2035,7 @@ void Creature::SetDeathState(DeathState s)
 
     if (s == JUST_ALIVED)
     {
-        ClearUnitState(UNIT_STAT_ALL_STATE);
+        ClearUnitState(UNIT_STAT_ALL_DYN_STATES);
 
         CreatureInfo const* cinfo = GetCreatureInfo();
 
@@ -2111,20 +2134,40 @@ void Creature::Respawn()
     }
 }
 
-void Creature::ForcedDespawn(uint32 timeMSToDespawn)
+void Creature::DespawnOrUnsummon(uint32 msTimeToDespawn /*= 0*/, uint32 secsTimeToRespawn /*= 0*/)
+{
+    if (IsTemporarySummon())
+        static_cast<TemporarySummon*>(this)->UnSummon(msTimeToDespawn);
+    else if (IsPet())
+        static_cast<Pet*>(this)->DelayedUnsummon(msTimeToDespawn, PET_SAVE_AS_DELETED);
+    else
+        ForcedDespawn(msTimeToDespawn, secsTimeToRespawn);
+}
+
+void Creature::ForcedDespawn(uint32 msTimeToDespawn /*= 0*/, uint32 secsTimeToRespawn /*= 0*/)
 {
     AddCreatureState(CSTATE_DESPAWNING);
 
-    if (timeMSToDespawn)
+    if (msTimeToDespawn)
     {
-        ForcedDespawnDelayEvent *pEvent = new ForcedDespawnDelayEvent(*this);
+        ForcedDespawnDelayEvent *pEvent = new ForcedDespawnDelayEvent(*this, secsTimeToRespawn);
 
-        m_Events.AddEvent(pEvent, m_Events.CalculateTime(timeMSToDespawn));
+        m_Events.AddEvent(pEvent, m_Events.CalculateTime(msTimeToDespawn));
         return;
+    }
+
+    uint32 oldRespawnDelay;
+    if (secsTimeToRespawn)
+    {
+        oldRespawnDelay = m_respawnDelay;
+        m_respawnDelay = secsTimeToRespawn;
     }
 
     if (IsAlive())
         SetDeathState(JUST_DIED);
+
+    if (secsTimeToRespawn)
+        m_respawnDelay = oldRespawnDelay;
 
     RemoveCorpse();
     SetHealth(0);                                           // just for nice GM-mode view
@@ -2626,8 +2669,13 @@ void Creature::LoadCreatureAddon(bool reload)
 {
     if (CreatureDataAddon const* cainfo = GetCreatureAddon())
     {
-        if (!reload && cainfo->mount_display_id >= 0)
-            m_mountId = cainfo->mount_display_id;
+        if (!reload)
+        {
+            if (cainfo->mount_display_id >= 0)
+                m_mountId = cainfo->mount_display_id;
+            else
+                m_mountId = m_creatureInfo->mount_display_id;
+        }
 
         if (m_mountId != 0)
             Mount(m_mountId);
@@ -2698,15 +2746,22 @@ void Creature::SetInCombatWithZone(bool initialPulse)
         return;
 
     if (!HasCreatureState(CSTATE_COMBAT_WITH_ZONE))
+    {
         UpdateCombatWithZoneState(true);
+
+        // Attack closest player first.
+        // Prevent case where boss runs to somebody who just entered raid.
+        if (initialPulse && !GetVictim() && AI())
+        {
+            if (Player* pPlayer = FindNearestHostilePlayer(MAX_VISIBILITY_DISTANCE))
+                AI()->AttackStart(pPlayer);
+        }
+    }
 
     for (const auto& i : PlList)
     {
         if (Player* pPlayer = i.getSource())
         {
-            if (pPlayer->IsGameMaster())
-                continue;
-
             if (!initialPulse && pPlayer->IsInCombat())
                 continue;
 
@@ -2856,28 +2911,6 @@ void Creature::LogLongCombat() const
     logStmt.addString(result0 + "." + GetName());
     logStmt.addInt32(GetCombatTime(true));
     logStmt.addString("");
-
-    logStmt.Execute();
-}
-
-void Creature::LogScriptInfo(std::ostringstream& data) const
-{
-    if (!LogsDatabase || !sWorld.getConfig(CONFIG_BOOL_SMARTLOG_SCRIPTINFO))
-        return;
-
-    static SqlStatementID insLogDeath;
-    SqlStatement logStmt = LogsDatabase.CreateStatement(insLogDeath, "INSERT INTO smartlog_creature SET type=?, entry=?, guid=?, specifier=?, combatTime=?, content=?");
-
-    logStmt.addString("ScriptInfo");
-    logStmt.addInt32(GetEntry());
-    logStmt.addInt32(GetGUIDLow());
-
-    MapEntry const* mapEntry = sMapStorage.LookupEntry<MapEntry>(GetMapId());
-    std::string result0 = mapEntry->name;
-
-    logStmt.addString(result0 + "." + GetName());
-    logStmt.addInt32(GetCombatTime(true));
-    logStmt.addString(data);
 
     logStmt.Execute();
 }
@@ -3429,27 +3462,20 @@ void Creature::OnEnterCombat(Unit* pWho, bool notInCombat)
         if (GetReputationId() >= 0)
         {
             if (Player* pPlayer = pWho->ToPlayer())
+            {
                 if (pPlayer->GetReputationMgr().SetAtWar(GetReputationId(), true))
+                {
+                    pPlayer->SetTemporaryAtWarWithFaction(GetFactionId());
                     pPlayer->SendFactionAtWar(GetReputationId(), true);
+                }
+            }
         }
 
         if (CanSummonGuards())
             sGuardMgr.SummonGuard(this, pWho);
 
-        if (Unit* pOwner = GetCharmerOrOwner())
-        {
-            if (pOwner->IsPlayer())
-            {
-                if (pWho->IsValidAttackTarget(pOwner))
-                {
-                    pWho->AddThreat(pOwner);
-                    pWho->SetInCombatWithVictim(pOwner);
-                    pOwner->SetInCombatWithAggressor(pWho);
-                }
-            }
-            else
-                SetLastLeashExtensionTimePtr(static_cast<Creature*>(pOwner)->GetLastLeashExtensionTimePtr());
-        }
+        if (Creature* pOwner = GetOwnerCreature())
+            SetLastLeashExtensionTimePtr(pOwner->GetLastLeashExtensionTimePtr());
     }
 }
 
@@ -4091,16 +4117,6 @@ bool Creature::HasWeapon() const
 {
     uint8 itemClass = GetByteValue(UNIT_VIRTUAL_ITEM_INFO + (0 * 2) + 0, VIRTUAL_ITEM_INFO_0_OFFSET_CLASS);
     return itemClass == ITEM_CLASS_WEAPON;
-}
-
-void Creature::DespawnOrUnsummon(uint32 msTimeToDespawn /*= 0*/)
-{
-    if (IsTemporarySummon())
-        static_cast<TemporarySummon*>(this)->UnSummon(msTimeToDespawn);
-    else if (IsPet())
-        static_cast<Pet*>(this)->DelayedUnsummon(msTimeToDespawn, PET_SAVE_AS_DELETED);
-    else
-        ForcedDespawn(msTimeToDespawn);
 }
 
 void Creature::StartCooldownForSummoner()

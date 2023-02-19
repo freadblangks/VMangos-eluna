@@ -512,11 +512,6 @@ DebuffLimit = 0
 #        Default: "Server.log"
 #                 "" - Empty name disable creating log file
 #
-#    LogFile.World
-#        Packet logging file for the worldserver
-#        Default: "world_packets.log"
-#                 "" - Empty name disable creating log file
-#
 #    LogFile.Anticheat
 #        Log file for anticheat check results
 #        Default: "Anticheat.log"
@@ -601,12 +596,24 @@ DebuffLimit = 0
 #        Log all trades where money exceeds the specified value in copper
 #        Default: 10000
 #
+#    LogsDB.GM
+#        Enable or disable database gm logs.
+#        Default: 0
+#
 #    LogsDB.Chat
 #        Enable or disable database chat logs.
 #        Default: 0
 #
 #    LogsDB.Characters
 #        Enable or disable database character logs.
+#        Default: 0
+#
+#    LogsDB.LevelUp
+#        Enable or disable database levelup logs.
+#        Default: 0
+#
+#    LogsDB.Loot
+#        Enable or disable database loot logs.
 #        Default: 0
 #
 #    LogsDB.Trades
@@ -667,11 +674,17 @@ CharLogDump = 0
 
 GmLogPerAccount = 0
 
+LogsDB.GM                   = 0
 LogsDB.Chat                 = 0
 LogsDB.Characters           = 0
+LogsDB.LevelUp              = 0
+LogsDB.Loot                 = 0
 LogsDB.Trades               = 0
 LogsDB.Transactions         = 0
 LogsDB.Battlegrounds        = 0
+Smartlog.Death              = 0
+Smartlog.LongCombat         = 0
+Smartlog.LongCombatDuration = 1800
 
 PerformanceLog.SlowWorldUpdate          = 100
 PerformanceLog.SlowMapSystemUpdate      = 100
@@ -823,7 +836,7 @@ PerformanceLog.SlowPacketBroadcast      = 0
 #
 #    MinHonorKills
 #        Min kills that players must obtain to enter in weekly honor calculation
-#        Default: 15
+#        Default: 0 (auto select based on patch)
 #
 #    MaintenanceDay
 #        The day of the week on which server maintenance is performed ( currently used for Honor distribution )
@@ -1045,7 +1058,7 @@ ShowHealthValues = 0
 MaxPlayerLevel = 60
 StartPlayerLevel = 1
 StartPlayerMoney = 0
-MinHonorKills = 15
+MinHonorKills = 0
 MaintenanceDay = 3
 InstantLogout = 1
 ForceLogoutDelay = 0
@@ -1298,12 +1311,13 @@ GuidReserveSize.GameObject = 1000
 #        Chat protection from creating fake messages using a lot spaces (other invisible symbols),
 #        not applied to addon language messages, but can prevent old addons from working
 #        if they use normal languages for sending data to other clients.
-#        Default: 0 (disable fake messages preventing)
-#                 1 (enable fake messages preventing)
+#        Default: 1 (enable fake messages preventing)
+#                 0 (disable fake messages preventing)
 #
 #    ChatStrictLinkChecking.Severity
 #        Check chat messages for ingame links to spells, items, quests, achievements etc.
-#        Default: 0 (disable link checking)
+#        Default: 2
+#                 0 (disable link checking)
 #                 1 (check if only valid pipe commands are used. This prevents posting pictures for example)
 #                 2 (verifiy that pipe commands are used in a correct order)
 #                 3 (check if color, entry and name don't contradict each other. For correct work, please assure
@@ -1387,8 +1401,8 @@ GuidReserveSize.GameObject = 1000
 #
 ###################################################################################################################
 
-ChatFakeMessagePreventing = 0
-ChatStrictLinkChecking.Severity = 0
+ChatFakeMessagePreventing = 1
+ChatStrictLinkChecking.Severity = 2
 ChatStrictLinkChecking.Kick = 0
 ChatFlood.MessageCount = 10
 ChatFlood.MessageDelay = 1
@@ -1734,6 +1748,19 @@ Warden.ModuleDir             = "warden_modules"
 #        Description: Action to take upon failing this check.
 #        Default:     11 - Log, Report to GM, Kick
 #
+#    Anticheat.BadFallReset.Enable
+#        Description: Check for wrong data in fall reset opcode.
+#        Default:     1 - (Enabled)
+#                     0 - (Disabled)
+#
+#    Anticheat.BadFallReset.Threshold
+#        Description: Detections needed to trigger a penalty.
+#        Default:     1
+#
+#    Anticheat.BadFallReset.Penalty
+#        Description: Action to take upon failing this check.
+#        Default:     11 - Log, Report to GM, Kick
+#
 #    Anticheat.Teleport.Enable
 #        Description: Check for players teleporting far away from their current position.
 #        Default:     1 - (Enabled)
@@ -2030,6 +2057,9 @@ Anticheat.NoFallTime.Enable = 1
 Anticheat.NoFallTime.Reject = 1
 Anticheat.NoFallTime.Threshold = 5
 Anticheat.NoFallTime.Penalty = 11
+Anticheat.BadFallReset.Enable = 1
+Anticheat.BadFallReset.Threshold = 1
+Anticheat.BadFallReset.Penalty = 11
 Anticheat.Teleport.Enable = 1
 Anticheat.Teleport.Reject = 1
 Anticheat.Teleport.Distance = 40.0

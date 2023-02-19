@@ -29,6 +29,7 @@
 #include "Item.h"
 #include "GossipDef.h"
 #include "Chat/AbstractPlayer.h"
+#include "SniffFile.h"
 
 struct ItemPrototype;
 struct AuctionEntry;
@@ -392,6 +393,21 @@ class WorldSession
         void ClearIncomingPacketsByType(PacketProcessing type);
         inline bool HasRecentPacket(PacketProcessing type) const { return m_receivedPacketType[type]; }
 
+        void StartSniffing()
+        {
+            if (!m_sniffFile)
+            {
+                std::string fileName = "packet_log_" + GetUsername() + "_" + std::to_string(time(nullptr)) + ".pkt";
+                m_sniffFile = std::make_unique<SniffFile>(fileName.c_str());
+                m_sniffFile->WriteHeader();
+            }
+        }
+        void StopSniffing()
+        {
+            if (m_sniffFile)
+                m_sniffFile.reset();
+        }
+
         void SendPacket(WorldPacket const* packet);
         void SendNotification(char const* format, ...) ATTR_PRINTF(2, 3);
         void SendNotification(int32 string_id, ...);
@@ -752,6 +768,7 @@ class WorldSession
         void HandlePushQuestToParty(WorldPacket& recvPacket);
         void HandleQuestPushResult(WorldPacket& recvPacket);
 
+        bool CheckChatMessageValidity(std::string&, uint32, uint32);
         bool ProcessChatMessageAfterSecurityCheck(std::string&, uint32, uint32);
         static bool IsLanguageAllowedForChatType(uint32 lang, uint32 msgType);
         void SendPlayerNotFoundNotice(std::string const& name);
@@ -864,6 +881,7 @@ class WorldSession
         ClientPlatformType m_clientPlatform;
         uint32          m_gameBuild;
         std::shared_ptr<PlayerBotEntry> m_bot;
+        std::unique_ptr<SniffFile> m_sniffFile;
 
         Warden* m_warden;
         MovementAnticheat* m_cheatData;

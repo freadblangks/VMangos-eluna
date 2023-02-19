@@ -391,7 +391,7 @@ uint32 PlayerTaxi::GetCurrentTaxiCost() const
 
     sObjectMgr.GetTaxiPath(m_TaxiDestinations[0], m_TaxiDestinations[1], path, cost);
 
-    return (uint32)ceil(cost * m_discount);
+    return uint32(cost * m_discount + 0.5f);
 }
 
 std::ostringstream& operator<< (std::ostringstream& ss, PlayerTaxi const& taxi)
@@ -549,8 +549,8 @@ void TradeData::SetAccepted(bool state, bool crosssend /*= false*/)
 
 Player::Player(WorldSession* session) : Unit(),
     m_mover(this), m_camera(this), m_reputationMgr(this), m_saveDisabled(false),
-    m_enableInstanceSwitch(true), m_currentTicketCounter(0), m_castingSpell(0), m_repopAtGraveyardPending(false),
-    m_honorMgr(this), m_bNextRelocationsIgnored(0), m_personalXpRate(-1.0f), m_isStandUpScheduled(false), m_foodEmoteTimer(0)
+    m_enableInstanceSwitch(true), m_currentTicketCounter(0), m_repopAtGraveyardPending(false),
+    m_honorMgr(this), m_personalXpRate(-1.0f), m_isStandUpScheduled(false), m_foodEmoteTimer(0)
 {
     m_objectType |= TYPEMASK_PLAYER;
     m_objectTypeId = TYPEID_PLAYER;
@@ -722,6 +722,7 @@ Player::Player(WorldSession* session) : Unit(),
 
     m_justBoarded = false;
 
+    m_cameraUpdateTimer = 0;
     m_longSightSpell = 0;
     m_longSightRange = 0.0f;
 
@@ -1557,6 +1558,18 @@ void Player::Update(uint32 update_diff, uint32 p_time)
     // Update items that have just a limited lifetime
     if (now > m_lastTick)
         UpdateItemDuration(uint32(now - m_lastTick));
+
+    if (m_cameraUpdateTimer)
+    {
+        if (m_cameraUpdateTimer <= update_diff)
+        {
+            SetGuidValue(PLAYER_FARSIGHT, m_pendingCameraUpdate);
+            m_pendingCameraUpdate.Clear();
+            m_cameraUpdateTimer = 0;
+        }
+        else
+            m_cameraUpdateTimer -= update_diff;
+    }
 
     if (!m_timedquests.empty())
     {
@@ -2705,7 +2718,7 @@ void Player::RegenerateAll()
     Regenerate(POWER_ENERGY);
     Regenerate(POWER_MANA);
 
-    m_regenTimer += REGEN_TIME_FULL;
+    m_regenTimer += REGEN_TIME_PLAYER_FULL;
 }
 
 void Player::Regenerate(Powers power)
@@ -2809,7 +2822,7 @@ void Player::RegenerateHealth()
         {
             AuraList const& lModHealthRegen = GetAurasByType(SPELL_AURA_MOD_REGEN);
             for (const auto i : lModHealthRegen)
-                addvalue += i->GetModifier()->m_amount * (float(REGEN_TIME_FULL) / float(i->GetModifier()->periodictime));
+                addvalue += i->GetModifier()->m_amount * (float(REGEN_TIME_PLAYER_FULL) / float(i->GetModifier()->periodictime));
         }
     }
 
@@ -4101,9 +4114,12 @@ bool Player::AddSpell(uint32 spellId, bool active, bool learning, bool dependent
 
 bool Player::IsNeedCastPassiveLikeSpellAtLearn(SpellEntry const* spellInfo) const
 {
+    if (spellInfo->HasAttribute(SPELL_ATTR_EX_CAST_WHEN_LEARNED))
+        return true;
+
     ShapeshiftForm form = GetShapeshiftForm();
 
-    if (spellInfo->IsNeedCastSpellAtFormApply(form))        // SPELL_ATTR_PASSIVE | SPELL_ATTR_UNK7 spells
+    if (spellInfo->IsNeedCastSpellAtFormApply(form))        // SPELL_ATTR_PASSIVE | SPELL_ATTR_DO_NOT_DISPLAY spells
         return true;                                        // all stance req. cases, not have auarastate cases
 
     if (!(spellInfo->Attributes & SPELL_ATTR_PASSIVE))
@@ -4111,7 +4127,7 @@ bool Player::IsNeedCastPassiveLikeSpellAtLearn(SpellEntry const* spellInfo) cons
 
     // note: form passives activated with shapeshift spells be implemented by HandleShapeshiftBoosts instead of spell_learn_spell
     // talent dependent passives activated at form apply have proper stance data
-    bool need_cast = (!spellInfo->Stances || (!form && (spellInfo->AttributesEx2 & SPELL_ATTR_EX2_NOT_NEED_SHAPESHIFT)));
+    bool need_cast = (!spellInfo->Stances || (!form && (spellInfo->AttributesEx2 & SPELL_ATTR_EX2_ALLOW_WHILE_NOT_SHAPESHIFTED)));
 
     // Check CasterAuraStates
     return need_cast && (!spellInfo->CasterAuraState || HasAuraState(AuraState(spellInfo->CasterAuraState)));
@@ -5286,7 +5302,7 @@ uint32 Player::DurabilityRepair(uint16 pos, bool cost, float discountMod)
             uint32 dmultiplier = dcost->multiplier[ItemSubClassToDurabilityMultiplierId(ditemProto->Class, ditemProto->SubClass)];
             uint32 costs = uint32(LostDurability * dmultiplier * dQualitymodEntry->quality_mod);
 
-            costs = uint32(costs * discountMod);
+            costs = uint32(costs * discountMod + 0.5f);
 
             if (costs == 0)                                 //fix for ITEM_QUALITY_ARTIFACT
                 costs = 1;
@@ -6403,12 +6419,7 @@ bool Player::SetPosition(float x, float y, float z, float orientation, bool tele
 
     if (positionChanged || old_r != orientation)
     {
-        if (positionChanged)
-            RemoveAurasWithInterruptFlags(AURA_INTERRUPT_MOVING_CANCELS | AURA_INTERRUPT_TURNING_CANCELS);
-        else
-            RemoveAurasWithInterruptFlags(AURA_INTERRUPT_TURNING_CANCELS);
-
-        RemoveSpellsCausingAura(SPELL_AURA_FEIGN_DEATH);
+        HandleInterruptsOnMovement(positionChanged);
 
         // move and update visible state if need
         m->PlayerRelocation(this, x, y, z, orientation);
@@ -6419,15 +6430,15 @@ bool Player::SetPosition(float x, float y, float z, float orientation, bool tele
         y = GetPositionY();
         z = GetPositionZ();
 
-        // group update
-        if (GetGroup() && (uint16(old_x) != uint16(x) || uint16(old_y) != uint16(y)))
-            SetGroupUpdateFlag(GROUP_UPDATE_FLAG_POSITION);
-
-        if (GetTrader() && !IsWithinDistInMap(GetTrader(), INTERACTION_DISTANCE))
-            GetSession()->SendCancelTrade();   // will close both side trade windows
-
         if (positionChanged)
         {
+            // group update
+            if (GetGroup() && (uint16(old_x) != uint16(x) || uint16(old_y) != uint16(y)))
+                SetGroupUpdateFlag(GROUP_UPDATE_FLAG_POSITION);
+
+            if (GetTrader() && !IsWithinDistInMap(GetTrader(), INTERACTION_DISTANCE))
+                GetSession()->SendCancelTrade();   // will close both side trade windows
+
             if (uint32 const timerMax = sWorld.getConfig(CONFIG_UINT32_RELOCATION_VMAP_CHECK_TIMER))
             {
                 if (!m_areaCheckTimer)
@@ -6586,7 +6597,7 @@ void Player::CheckAreaExploreAndOutdoor()
         }
     }
     else if (sWorld.getConfig(CONFIG_BOOL_VMAP_INDOOR_CHECK) && !IsGameMaster())
-        RemoveAurasWithAttribute(SPELL_ATTR_OUTDOORS_ONLY);
+        RemoveAurasWithAttribute(SPELL_ATTR_ONLY_OUTDOORS);
 
     if (areaFlag == 0xffff)
         return;
@@ -7763,7 +7774,7 @@ void Player::CastItemUseSpell(Item* item, SpellCastTargets const& targets)
             continue;
         }
 
-        RemoveAurasWithInterruptFlags(AURA_INTERRUPT_ITEM_USE_CANCELS, 0, false, spellInfo->HasAttribute(SPELL_ATTR_EX_NOT_BREAK_STEALTH));
+        RemoveAurasWithInterruptFlags(AURA_INTERRUPT_ITEM_USE_CANCELS, 0, false, spellInfo->HasAttribute(SPELL_ATTR_EX_ALLOW_WHILE_STEALTHED));
 
         Spell* spell = new Spell(this, spellInfo, ((count > 0) || proto->HasExtraFlag(ITEM_EXTRA_CAST_AS_TRIGGERED)));
         spell->SetCastItem(item);
@@ -8630,46 +8641,6 @@ void Player::SendPetSkillWipeConfirm() const
 /*********************************************************/
 /***                    STORAGE SYSTEM                 ***/
 /*********************************************************/
-
-void Player::SetVirtualItemSlot(uint8 i, Item* item)
-{
-    MANGOS_ASSERT(i < 3);
-    if (i < 2 && item)
-    {
-        if (!item->GetEnchantmentId(TEMP_ENCHANTMENT_SLOT))
-            return;
-    }
-}
-
-void Player::SetSheath(SheathState sheathed)
-{
-    switch (sheathed)
-    {
-        case SHEATH_STATE_UNARMED:                          // no prepared weapon
-            SetVirtualItemSlot(0, nullptr);
-            SetVirtualItemSlot(1, nullptr);
-            SetVirtualItemSlot(2, nullptr);
-            break;
-        case SHEATH_STATE_MELEE:                            // prepared melee weapon
-        {
-            SetVirtualItemSlot(0, GetWeaponForAttack(BASE_ATTACK, true, true));
-            SetVirtualItemSlot(1, GetWeaponForAttack(OFF_ATTACK, true, true));
-            SetVirtualItemSlot(2, nullptr);
-        };
-        break;
-        case SHEATH_STATE_RANGED:                           // prepared ranged weapon
-            SetVirtualItemSlot(0, nullptr);
-            SetVirtualItemSlot(1, nullptr);
-            SetVirtualItemSlot(2, GetWeaponForAttack(RANGED_ATTACK, true, true));
-            break;
-        default:
-            SetVirtualItemSlot(0, nullptr);
-            SetVirtualItemSlot(1, nullptr);
-            SetVirtualItemSlot(2, nullptr);
-            break;
-    }
-    Unit::SetSheath(sheathed);                              // this must visualize Sheath changing for other players...
-}
 
 uint8 Player::FindEquipSlot(ItemPrototype const* proto, uint32 slot, bool swap) const
 {
@@ -15562,12 +15533,6 @@ float Player::GetMaxLootDistance(Unit const* pUnit) const
 
 void Player::_LoadAuras(QueryResult* result, uint32 timediff)
 {
-    //RemoveAllAuras(); -- some spells casted before aura load, for example in LoadSkills, aura list explicitly cleaned early
-
-    // all aura related fields
-    for (int i = UNIT_FIELD_AURA; i <= UNIT_FIELD_AURASTATE; ++i)
-        SetUInt32Value(i, 0);
-
     //QueryResult* result = CharacterDatabase.PQuery("SELECT caster_guid, item_guid, spell, stacks, charges, base_points0, base_points1, base_points2, periodic_time0, periodic_time1, periodic_time2, max_duration, duration, effect_index_mask FROM character_aura WHERE guid = '%u'",GetGUIDLow());
 
     if (result)
@@ -17705,13 +17670,13 @@ void Player::RemovePetActionBar()
 }
 
 // This will create a new creature and set the current unit as the controller of that new creature
-Creature* Player::SummonPossessedMinion(uint32 creatureId, uint32 spellId, float x, float y, float z, float ang)
+Creature* Player::SummonPossessedMinion(uint32 creatureId, uint32 spellId, float x, float y, float z, float ang, uint32 duration)
 {
     // Possess is a unique advertised charm, another advertised charm already exists: we should get rid of it first
     if (!GetCharmGuid().IsEmpty())
         return nullptr;
 
-    Creature* pCreature = SummonCreature(creatureId, x, y, z, ang, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 5000, false, 0, nullptr, GetTransport());
+    Creature* pCreature = SummonCreature(creatureId, x, y, z, ang, TEMPSUMMON_TIMED_DEATH_AND_DEAD_DESPAWN, duration, false, 0, nullptr, GetTransport());
 
     if (!pCreature)
         return nullptr;
@@ -18113,7 +18078,7 @@ bool Player::ActivateTaxiPathTo(std::vector<uint32> const& nodes, Creature* npc 
     // 0 element current node
     m_taxi.AddTaxiDestination(sourcenode);
 
-    float discount = npc ? GetReputationPriceDiscount(npc) : 1.0f;
+    float discount = npc ? GetReputationPriceDiscount(npc, true) : 1.0f;
     m_taxi.SetDiscount(discount);
 
     // fill destinations path tail
@@ -18129,7 +18094,7 @@ bool Player::ActivateTaxiPathTo(std::vector<uint32> const& nodes, Creature* npc 
         return false;
     }
     lastPath = sourcepath;
-    sourceCost = (uint32)ceil(sourceCost * discount);
+    sourceCost = uint32(sourceCost * discount + 0.5f);
     totalcost += sourceCost;
 
     // multiple path
@@ -18148,7 +18113,7 @@ bool Player::ActivateTaxiPathTo(std::vector<uint32> const& nodes, Creature* npc 
                 m_taxi.ClearTaxiDestinations();
                 return false;
             }
-            totalcost += (uint32)ceil(nextCost * discount);
+            totalcost += uint32(nextCost * discount + 0.5f);
 
             // find a transition
             uint32 inNode = 0;
@@ -18558,7 +18523,7 @@ bool Player::BuyItemFromVendor(ObjectGuid vendorGuid, uint32 item, uint8 count, 
     uint32 price  = pProto->BuyPrice * count;
 
     // reputation discount
-    price = uint32(floor(price * GetReputationPriceDiscount(pCreature)));
+    price = uint32(price * GetReputationPriceDiscount(pCreature) + 0.5f);
 
     if (GetMoney() < price)
     {
@@ -19073,6 +19038,17 @@ void Player::UpdateLongSight()
                          GetPositionZ());
 }
 
+void Player::ScheduleCameraUpdate(ObjectGuid guid)
+{
+    if (guid.IsEmpty() && m_pendingCameraUpdate.IsEmpty())
+        SetGuidValue(PLAYER_FARSIGHT, guid);
+    else
+    {
+        m_cameraUpdateTimer = BATCHING_INTERVAL;
+        m_pendingCameraUpdate = guid;
+    }
+}
+
 void Player::InitPrimaryProfessions()
 {
     SetFreePrimaryProfessions(sWorld.getConfig(CONFIG_UINT32_MAX_PRIMARY_TRADE_SKILL));
@@ -19508,7 +19484,7 @@ BattleGroundBracketId Player::GetBattleGroundBracketIdFromLevel(BattleGroundType
     return BattleGroundBracketId(bracket_id);
 }
 
-float Player::GetReputationPriceDiscount(Creature const* pCreature) const
+float Player::GetReputationPriceDiscount(Creature const* pCreature, bool taxi) const
 {
     uint32 factionId = pCreature->GetFactionId();
     if (!factionId)
@@ -19535,8 +19511,15 @@ float Player::GetReputationPriceDiscount(Creature const* pCreature) const
         case 729: // Frostwolf Clan
         {
             // honor rank >= 3
-            if (m_honorMgr.GetRank().visualRank >= 3)
+            if (!taxi && m_honorMgr.GetRank().visualRank >= 3)
                 mod -= 0.1f;
+            
+            if (taxi && m_honorMgr.GetRank().visualRank >= 2)
+            {
+                mod -= 0.05f;
+                if (m_honorMgr.GetRank().visualRank >= 4)
+                    mod -= 0.05f;
+            }
             break;
         }
     }
@@ -20916,6 +20899,17 @@ void Player::ResummonPetTemporaryUnSummonedIfAny()
     m_temporaryUnsummonedPetNumber = 0;
 }
 
+bool Player::IsPetNeedBeTemporaryUnsummoned() const
+{
+    if (!IsInWorld() || !IsAlive() || IsTaxiFlying())
+        return true;
+
+    if (IsMounted() && sWorld.getConfig(CONFIG_BOOL_PET_UNSUMMON_AT_MOUNT))
+        return true;
+
+    return false;
+}
+
 void Player::_SaveBGData()
 {
     // nothing save
@@ -21726,7 +21720,7 @@ void Player::LootMoney(int32 money, Loot* loot)
 {
     WorldObject const* target = loot->GetLootTarget();
     sLog.Player(GetSession(), LOG_LOOTS, LOG_LVL_BASIC, "%s gets %ug%us%uc [loot from %s]",
-             GetShortDescription().c_str(), money / 100000, (money / 100) % 100, money % 100, target ? target->GetGuidStr().c_str() : "NULL");
+             GetShortDescription().c_str(), money / GOLD, (money % GOLD) / SILVER, (money % GOLD) % SILVER, target ? target->GetGuidStr().c_str() : "NULL");
     LogModifyMoney(money, "Loot", target ? target->GetObjectGuid() : ObjectGuid());
 }
 
@@ -21858,7 +21852,7 @@ bool Player::HasFreeBattleGroundQueueId() const
     return false;
 }
 
-void Player::TaxiStepFinished()
+void Player::TaxiStepFinished(bool lastPointReached)
 {
     if (!IsInWorld())
         return;
@@ -21923,7 +21917,8 @@ void Player::TaxiStepFinished()
     else
     {
         // When the player reaches the last flight point, teleport to destination taxi node location
-        TeleportTo(curDestNode->map_id, curDestNode->x, curDestNode->y, curDestNode->z, GetOrientation());
+        if (lastPointReached)
+            TeleportTo(curDestNode->map_id, curDestNode->x, curDestNode->y, curDestNode->z, GetOrientation());
         m_taxi.ClearTaxiDestinations();        // not destinations, clear source node
     } 
 }
@@ -22032,7 +22027,7 @@ void Player::AddGCD(SpellEntry const& spellEntry, uint32 /*forcedDuration = 0*/,
     // apply haste rating
     if (spellEntry.StartRecoveryCategory == 133 && gcdDuration == 1500 &&
         spellEntry.DmgClass != SPELL_DAMAGE_CLASS_MELEE && spellEntry.DmgClass != SPELL_DAMAGE_CLASS_RANGED &&
-        !spellEntry.HasAttribute(SPELL_ATTR_RANGED) && !spellEntry.HasAttribute(SPELL_ATTR_IS_ABILITY))
+        !spellEntry.HasAttribute(SPELL_ATTR_USES_RANGED_SLOT) && !spellEntry.HasAttribute(SPELL_ATTR_IS_ABILITY))
     {
 #if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_12_1
         gcdDuration = int32(float(gcdDuration) * GetFloatValue(UNIT_MOD_CAST_SPEED));
@@ -22117,7 +22112,7 @@ void Player::AddCooldown(SpellEntry const& spellEntry, ItemPrototype const* item
     {
         // shoot spells used equipped item cooldown values already assigned in GetAttackTime(RANGED_ATTACK)
         // prevent 0 cooldowns set by another way
-        if (spellEntry.HasAttribute(SPELL_ATTR_RANGED) && !spellEntry.HasAttribute(SPELL_ATTR_EX2_NOT_RESET_AUTO_ACTIONS))
+        if (spellEntry.HasAttribute(SPELL_ATTR_USES_RANGED_SLOT) && !spellEntry.HasAttribute(SPELL_ATTR_EX2_DO_NOT_RESET_COMBAT_TIMERS))
             recTime += GetFloatValue(UNIT_FIELD_RANGEDATTACKTIME);
     }
 
@@ -22333,74 +22328,146 @@ void Player::CastHighestStealthRank()
     CastSpell(nullptr, stealthSpellEntry, true);
 }
 
-namespace
+static char const* type_strings[] =
 {
-bool PlayerLogFormatted(uint32 accountId, WorldSession const* session, LogType logType, char const* subType, LogLevel logLevel, const std::string& text, std::string& out)
+    "Basic",
+    "Chat",
+    "BG",
+    "Character",
+    "Honor",
+    "RA",
+    "DBError",
+    "DBErrorFix",
+    "Loot",
+    "LevelUp",
+    "Performance",
+    "MoneyTrade",
+    "GM",
+    "GMCritical",
+    "Anticheat"
+};
+
+static_assert(sizeof(type_strings) / sizeof(type_strings[0]) == LOG_TYPE_MAX, "type_strings must be updated");
+
+void Log::PlayerLogHeaderToConsole(uint32 accountId, WorldSession const* session, LogType logType, char const* subType)
 {
-    if (logType >= LOG_TYPE_MAX || logType < 0)
+    printf("[%s] ", type_strings[logType]);
+    if (subType)
+        printf("(%s) ", subType);
+
+    if (session)
+    {
+        if (auto const player = session->GetPlayer())
+        {
+            printf("(acc %u, ip %s, guid %u, name %s, map %u, pos %g %g %g) ",
+                accountId,
+                session->GetRemoteAddress().c_str(),
+                player->GetGUIDLow(),
+                player->GetName(),
+                player->GetMapId(),
+                player->GetPositionX(),
+                player->GetPositionY(),
+                player->GetPositionZ());
+        }
+        else
+        {
+            printf("(acc %u, ip %s) ",
+                accountId,
+                session->GetRemoteAddress().c_str());
+        }
+    }
+    else
+    {
+        printf("(acc %u) ",
+            accountId);
+    }
+}
+
+void Log::PlayerLogHeaderToFile(uint32 accountId, WorldSession const* session, LogType logType, char const* subType)
+{
+    fprintf(logFiles[logType], "[%s] ", type_strings[logType]);
+    if (subType)
+        fprintf(logFiles[logType], "(%s) ", subType);
+
+    if (session)
+    {
+        if (auto const player = session->GetPlayer())
+        {
+            fprintf(logFiles[logType], "(acc %u, ip %s, guid %u, name %s, map %u, pos %g %g %g) ",
+                accountId,
+                session->GetRemoteAddress().c_str(),
+                player->GetGUIDLow(),
+                player->GetName(),
+                player->GetMapId(),
+                player->GetPositionX(),
+                player->GetPositionY(),
+                player->GetPositionZ());
+        }
+        else
+        {
+            fprintf(logFiles[logType], "(acc %u, ip %s) ",
+                accountId,
+                session->GetRemoteAddress().c_str());
+        }
+    }
+    else
+    {
+        fprintf(logFiles[logType], "(acc %u) ",
+            accountId);
+    }
+}
+
+static bool IsPlayerLoggingEnabledToDB(LogType logType, LogLevel logLevel)
+{
+    if (logLevel > sLog.GetDbLevel())
         return false;
 
-    std::stringstream log;
+    switch (logType)
+    {
+        case LOG_CHAT:
+            return sWorld.getConfig(CONFIG_BOOL_LOGSDB_CHAT);
+        case LOG_BG:
+            return sWorld.getConfig(CONFIG_BOOL_LOGSDB_BATTLEGROUNDS);
+        case LOG_CHAR:
+            return sWorld.getConfig(CONFIG_BOOL_LOGSDB_CHARACTERS);
+        case LOG_LOOTS:
+            return sWorld.getConfig(CONFIG_BOOL_LOGSDB_LOOT);
+        case LOG_LEVELUP:
+            return sWorld.getConfig(CONFIG_BOOL_LOGSDB_LEVELUP);
+        case LOG_MONEY_TRADES:
+            return sWorld.getConfig(CONFIG_BOOL_LOGSDB_TRADES);
+        case LOG_GM:
+        case LOG_GM_CRITICAL:
+            return sWorld.getConfig(CONFIG_BOOL_LOGSDB_GM);
+    }
 
+    return false;
+}
+
+static void PlayerLogToDB(uint32 accountId, WorldSession const* session, LogType logType, char const* subType, char const* text)
+{
     static SqlStatementID insertLog;
 
     SqlStatement stmt = LogsDatabase.CreateStatement(insertLog, "INSERT INTO `logs_player` (`type`, `subtype`, `account`, `ip`, `guid`, `name`, `map`, `pos_x`, `pos_y`, `pos_z`, `text`) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 
-    static char const* type_strings[] =
-    {
-        "Basic",
-        "WorldPacket",
-        "Chat",
-        "BG",
-        "Character",
-        "Honor",
-        "RA",
-        "DBError",
-        "DBErrorFix",
-        "Loot",
-        "LevelUp",
-        "Performance",
-        "MoneyTrade",
-        "GM",
-        "GMCritical",
-        "Anticheat"
-    };
-
-    static_assert(sizeof(type_strings) / sizeof(type_strings[0]) == LOG_TYPE_MAX, "type_strings must be updated");
-
-    log << "[" << type_strings[logType] << "]";
     stmt.addString(type_strings[logType]);
     
     if (subType)
-    {
-        log << " (" << subType << ")";
         stmt.addString(subType);
-    }
     else
         stmt.addNull();
-
-    log << " (acct " << accountId;
 
     stmt.addUInt32(accountId);
 
     if (session)
     {
-        log << ", ip " << session->GetRemoteAddress();
-
         stmt.addString(session->GetRemoteAddress());
 
         if (auto const player = session->GetPlayer())
         {
-            log << ", guid " << player->GetGUIDLow();
             stmt.addUInt32(player->GetGUIDLow());
-
-            log << ", name " << player->GetName();
             stmt.addString(player->GetName());
-
-            log << ", map " << player->GetMapId();
             stmt.addUInt32(player->GetMapId());
-
-            log << ", pos " << player->GetPositionX() << ", " << player->GetPositionY() << ", " << player->GetPositionZ();
             stmt.addFloat(player->GetPositionX());
             stmt.addFloat(player->GetPositionY());
             stmt.addFloat(player->GetPositionZ());
@@ -22426,115 +22493,130 @@ bool PlayerLogFormatted(uint32 accountId, WorldSession const* session, LogType l
         stmt.addNull();
     }
 
-    log << ")";
-
-    if (!text.empty())
-        log << ": " << text;
-
-    out = log.str();
-
-    // TODO: additional settings for database logging
-    if (logLevel > sLog.GetDbLevel() ||
-        (logType == LOG_CHAT && !sWorld.getConfig(CONFIG_BOOL_LOGSDB_CHAT)) ||
-        (logType == LOG_MONEY_TRADES && !sWorld.getConfig(CONFIG_BOOL_LOGSDB_TRADES)) ||
-        (logType == LOG_CHAR && !sWorld.getConfig(CONFIG_BOOL_LOGSDB_CHARACTERS)) ||
-        (logType == LOG_BG && !sWorld.getConfig(CONFIG_BOOL_LOGSDB_BATTLEGROUNDS)))
-    {
-    }
-    else
-    {
-        stmt.addString(text);
-        stmt.Execute();
-    }
-
-    return true;
+    stmt.addString(text);
+    stmt.Execute();
 }
-}
+
+#define LOG_TO_DB_HELPER(logLevel,logType,subType,session,accountId,format,ap) \
+if (IsPlayerLoggingEnabledToDB(logType, logLevel))                            \
+{                                                                             \
+    char* buff = new char[512];                                               \
+    va_start(ap, format);                                                     \
+    vsnprintf(buff, 512, format, ap);                                         \
+    va_end(ap);                                                               \
+    PlayerLogToDB(accountId, session, logType, subType, buff);                \
+    delete[] buff;                                                            \
+}                                                                             \
+
+#define LOG_TO_FILE_HELPER(logLevel,logType,subType,session,accountId,format,ap) \
+if (logFiles[logType] && m_fileLevel >= logLevel)                             \
+{                                                                             \
+    outTimestamp(logFiles[logType]);                                          \
+    if (logLevel == LOG_LVL_ERROR)                                            \
+        fputs("ERROR: ", logFiles[logType]);                                  \
+    PlayerLogHeaderToFile(accountId, session, logType, subType);              \
+    va_start(ap, format);                                                     \
+    vfprintf(logFiles[logType], format, ap);                                  \
+    fputs("\n", logFiles[logType]);                                           \
+    fflush(logFiles[logType]);                                                \
+    va_end(ap);                                                               \
+}                                                                             \
+
+#define LOG_TO_CONSOLE_HELPER(logLevel,logType,subType,session,accountId,format,ap) \
+if (logType != LOG_PERFORMANCE && logType != LOG_DBERRFIX && m_consoleLevel >= logLevel) \
+{                                                                             \
+    auto const where = logLevel == LOG_LVL_ERROR ? stderr : stdout;           \
+    SetColor(where, g_logColors[logLevel]);                                   \
+    if (m_includeTime)                                                        \
+        outTime(where);                                                       \
+    if (logLevel == LOG_LVL_ERROR)                                            \
+        fprintf(where, "ERROR: ");                                            \
+    PlayerLogHeaderToConsole(accountId, session, logType, subType);           \
+                                                                              \
+    va_start(ap, format);                                                     \
+    vutf8printf(where, format, &ap);                                          \
+    va_end(ap);                                                               \
+                                                                              \
+    ResetColor(where);                                                        \
+    fprintf(where, "\n");                                                     \
+    fflush(where);                                                            \
+}                                                                             \
 
 void Log::Player(WorldSession const* session, LogType logType, LogLevel logLevel, char const* format, ...)
 {
-    char buff[4096];
+    if (logType >= LOG_TYPE_MAX || logType < 0)
+        return;
+
     va_list ap;
-    va_start(ap, format);
-    vsnprintf(buff, sizeof(buff), format, ap);
-    va_end(ap);
 
-    std::string log;
-
-    if (PlayerLogFormatted(session->GetAccountId(), session, logType, nullptr, logLevel, buff, log))
-    {
-        // Player logs should never go to the console
-        OutFile(logType, logLevel, log);
-    }
+    LOG_TO_DB_HELPER(logLevel, logType, nullptr, session, session->GetAccountId(), format, ap);
+    LOG_TO_FILE_HELPER(logLevel, logType, nullptr, session, session->GetAccountId(), format, ap);
+    // Player logs should never go to the console
 }
 
 void Log::OutWardenPlayer(WorldSession const* session, LogType logType, LogLevel logLevel, char const* format, ...)
 {
-    char buff[4096];
-    va_list ap;
-    va_start(ap, format);
-    vsnprintf(buff, sizeof(buff), format, ap);
-    va_end(ap);
+    if (logType >= LOG_TYPE_MAX || logType < 0)
+        return;
 
-    std::string log;
+    va_list ap;
+
+    LOG_TO_DB_HELPER(logLevel, logType, "Warden", session, session->GetAccountId(), format, ap);
 
     if (m_wardenDebug && logLevel > LOG_LVL_MINIMAL)
         logLevel = LOG_LVL_MINIMAL;
 
-    if (PlayerLogFormatted(session->GetAccountId(), session, logType, "Warden", logLevel, buff, log))
-    {
-        OutConsole(logType, logLevel, log);
-        OutFile(logType, logLevel, log);
-    }
+    LOG_TO_FILE_HELPER(logLevel, logType, "Warden", session, session->GetAccountId(), format, ap);
+    LOG_TO_CONSOLE_HELPER(logLevel, logType, "Warden", session, session->GetAccountId(), format, ap);
 }
 
 void Log::Player(WorldSession const* session, LogType logType, char const* subType, LogLevel logLevel, char const* format, ...)
 {
-    char buff[4096];
+    if (logType >= LOG_TYPE_MAX || logType < 0)
+        return;
+
     va_list ap;
-    va_start(ap, format);
-    vsnprintf(buff, sizeof(buff), format, ap);
-    va_end(ap);
 
-    std::string log;
-
-    if (PlayerLogFormatted(session->GetAccountId(), session, logType, subType, logLevel, buff, log))
-    {
-        // Player logs should never go to the console
-        OutFile(logType, logLevel, log);
-    }
+    LOG_TO_DB_HELPER(logLevel, logType, subType, session, session->GetAccountId(), format, ap);
+    LOG_TO_FILE_HELPER(logLevel, logType, subType, session, session->GetAccountId(), format, ap);
+    // Player logs should never go to the console
 }
 
 void Log:: Player(uint32 accountId, LogType logType, LogLevel logLevel, char const* format, ...)
 {
-    char buff[4096];
+    if (logType >= LOG_TYPE_MAX || logType < 0)
+        return;
+
     va_list ap;
-    va_start(ap, format);
-    vsnprintf(buff, sizeof(buff), format, ap);
-    va_end(ap);
 
-    std::string log;
-
-    if (PlayerLogFormatted(accountId, nullptr, logType, nullptr, logLevel, buff, log))
-    {
-        // Player logs should never go to the console
-        OutFile(logType, logLevel, log);
-    }
+    LOG_TO_DB_HELPER(logLevel, logType, nullptr, nullptr, accountId, format, ap);
+    LOG_TO_FILE_HELPER(logLevel, logType, nullptr, nullptr, accountId, format, ap);
+    // Player logs should never go to the console
 }
 
 void Log::Player(uint32 accountId, LogType logType, char const* subType, LogLevel logLevel, char const* format, ...)
 {
-    char buff[4096];
+    if (logType >= LOG_TYPE_MAX || logType < 0)
+        return;
+
     va_list ap;
-    va_start(ap, format);
-    vsnprintf(buff, sizeof(buff), format, ap);
-    va_end(ap);
 
-    std::string log;
+    LOG_TO_DB_HELPER(logLevel, logType, subType, nullptr, accountId, format, ap);
+    LOG_TO_FILE_HELPER(logLevel, logType, subType, nullptr, accountId, format, ap);
+    // Player logs should never go to the console
+}
 
-    if (PlayerLogFormatted(accountId, nullptr, logType, subType, logLevel, buff, log))
+void Player::ClearTemporaryWarWithFactions()
+{
+    if (!m_temporaryAtWarFactions.empty())
     {
-        // Player logs should never go to the console
-        OutFile(logType, logLevel, log);
+        for (auto const& factionId : m_temporaryAtWarFactions)
+        {
+            if (FactionEntry const* pFactionEntry = sObjectMgr.GetFactionEntry(factionId))
+                if (GetReputationMgr().GetRank(pFactionEntry) > REP_HOSTILE)
+                    if (GetReputationMgr().SetAtWar(pFactionEntry->reputationListID, false))
+                        SendFactionAtWar(pFactionEntry->reputationListID, false);
+        }
+        m_temporaryAtWarFactions.clear();
     }
 }
