@@ -569,7 +569,7 @@ uint32 WorldSession::GetDialogStatus(Player* pPlayer, Object* questgiver, uint32
             if (pPlayer->CanSeeStartQuest(pQuest))
             {
                 if (pPlayer->SatisfyQuestLevel(pQuest, false))
-                {
+                {                    
                     int32 lowLevelDiff = sWorld.getConfig(CONFIG_INT32_QUEST_LOW_LEVEL_HIDE_DIFF);
                     if (pQuest->IsAutoComplete() || (pQuest->IsRepeatable() && !pQuest->HasQuestFlag(QUEST_FLAGS_UNK2) && pPlayer->getQuestStatusMap()[quest_id].m_rewarded))
                         dialogStatusNew = DIALOG_STATUS_REWARD_REP;

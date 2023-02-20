@@ -44,6 +44,7 @@
 // lfm nier 
 #include "NierManager.h"
 
+bool WorldSession::CheckChatMessageValidity(std::string& msg, uint32 lang, uint32 msgType)
 {
     if (!IsLanguageAllowedForChatType(lang, msgType))
         return false;
