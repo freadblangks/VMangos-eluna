@@ -512,11 +512,6 @@ DebuffLimit = 0
 #        Default: "Server.log"
 #                 "" - Empty name disable creating log file
 #
-#    LogFile.World
-#        Packet logging file for the worldserver
-#        Default: "world_packets.log"
-#                 "" - Empty name disable creating log file
-#
 #    LogFile.Anticheat
 #        Log file for anticheat check results
 #        Default: "Anticheat.log"
@@ -601,12 +596,24 @@ DebuffLimit = 0
 #        Log all trades where money exceeds the specified value in copper
 #        Default: 10000
 #
+#    LogsDB.GM
+#        Enable or disable database gm logs.
+#        Default: 0
+#
 #    LogsDB.Chat
 #        Enable or disable database chat logs.
 #        Default: 0
 #
 #    LogsDB.Characters
 #        Enable or disable database character logs.
+#        Default: 0
+#
+#    LogsDB.LevelUp
+#        Enable or disable database levelup logs.
+#        Default: 0
+#
+#    LogsDB.Loot
+#        Enable or disable database loot logs.
 #        Default: 0
 #
 #    LogsDB.Trades
@@ -667,11 +674,17 @@ CharLogDump = 0
 
 GmLogPerAccount = 0
 
+LogsDB.GM                   = 0
 LogsDB.Chat                 = 0
 LogsDB.Characters           = 0
+LogsDB.LevelUp              = 0
+LogsDB.Loot                 = 0
 LogsDB.Trades               = 0
 LogsDB.Transactions         = 0
 LogsDB.Battlegrounds        = 0
+Smartlog.Death              = 0
+Smartlog.LongCombat         = 0
+Smartlog.LongCombatDuration = 1800
 
 PerformanceLog.SlowWorldUpdate          = 100
 PerformanceLog.SlowMapSystemUpdate      = 100
@@ -823,7 +836,7 @@ PerformanceLog.SlowPacketBroadcast      = 0
 #
 #    MinHonorKills
 #        Min kills that players must obtain to enter in weekly honor calculation
-#        Default: 15
+#        Default: 0 (auto select based on patch)
 #
 #    MaintenanceDay
 #        The day of the week on which server maintenance is performed ( currently used for Honor distribution )
@@ -972,6 +985,11 @@ PerformanceLog.SlowPacketBroadcast      = 0
 #        More mails increase server load but speedup mass mail process. Normal tick length: 50 msecs, so 20 ticks in sec and 200 mails in sec by default.
 #        Default: 10
 #
+#    Mail.ReturnedMail.PerTick
+#        Max amount of mail deleted or returned each tick from mails that has expired.
+#        More mails increase server load but can prevent a bottleneck where expired mails aren't handled until server restart. Normal tick length: 30 minutes.
+#        Default: 5
+#
 #    PetUnsummonAtMount
 #        Permanent pet will be unsummoned at player mount
 #        Default: 0 - not unsummon
@@ -1045,7 +1063,7 @@ ShowHealthValues = 0
 MaxPlayerLevel = 60
 StartPlayerLevel = 1
 StartPlayerMoney = 0
-MinHonorKills = 15
+MinHonorKills = 0
 MaintenanceDay = 3
 InstantLogout = 1
 ForceLogoutDelay = 0
@@ -1077,6 +1095,7 @@ MaxGroupXPDistance = 74
 MailDeliveryDelay = 3600
 Mails.COD.ForceTag.MaxLevel = 0
 MassMailer.SendPerTick = 10
+Mail.ReturnedMail.PerTick = 5
 PetUnsummonAtMount = 0
 PetDefaultLoyalty = 1
 PlayerCommands = 1
@@ -1985,6 +2004,29 @@ Warden.ModuleDir             = "warden_modules"
 #        Description: Action to take upon failing this check.
 #        Default:     3 - Log, Report to GM
 #
+#    Anticheat.Botting.Enable
+#        Description: Check for bot-like movement.
+#        Default:     1 - (Enabled)
+#                     0 - (Disabled)
+#
+#    Anticheat.Botting.MinPeriod
+#        Description: For how long client must exibit bot-like movement to trigger penalty.
+#        Default:     300000 (5 minutes)
+#
+#    Anticheat.Botting.MinPackets
+#        Description: Minimum number of movement packets that need to have been sent.
+#        Default:     160
+#
+#    Anticheat.Botting.MinTurnsMouse
+#    Anticheat.Botting.MinTurnsKeyboard
+#    Anticheat.Botting.MinTurnsAbnormal
+#        Description: Minimum number of turns that need to happen in the given period.
+#        Default:     20, 80, 5
+#
+#    Anticheat.Botting.Penalty
+#        Description: Action to take upon failing this check.
+#        Default:     3 - Log, Report to GM
+#
 ###################################################################################################
 
 Anticheat.Enable = 1
@@ -2100,6 +2142,13 @@ Anticheat.ExploreHighLevelArea.Penalty = 11
 Anticheat.ForbiddenArea.Enable = 1
 Anticheat.ForbiddenArea.Threshold = 1
 Anticheat.ForbiddenArea.Penalty = 3
+Anticheat.Botting.Enable = 1
+Anticheat.Botting.MinPeriod = 300000
+Anticheat.Botting.MinPackets = 160
+Anticheat.Botting.MinTurnsMouse = 20
+Anticheat.Botting.MinTurnsKeyboard = 80
+Anticheat.Botting.MinTurnsAbnormal = 5
+Anticheat.Botting.Penalty = 3
 
 # Time to wait for movement change ack
 Movement.PendingAckResponseTime = 4000
@@ -2439,7 +2488,7 @@ Visibility.ForceActiveObjects      = 1
 #    PvP.PoolSizePerFaction
 #         Defines the size of the active PvP pools of players per faction that's used to calculate standing on each
 #         honor maintenance restart. It's mathematically impossible to reach Rank 14 in low population servers, hence
-#         the need to "fake" the PvP pool.
+#         the need to "fake" the PvP pool. The minimum value is 167 for R14 to be achievable.
 #         Default: 0 (the real pool size will be used)
 #                  X (the real pool size will be overriden with X)
 #

@@ -231,7 +231,7 @@ inline bool SpellCanTrigger(SpellEntry const* spellProto, SpellEntry const* proc
     return (procSpell && procSpell->SpellFamilyName == spellProto->SpellFamilyName && procSpell->SpellFamilyFlags & spellProto->EffectItemType[eff_idx]);
 }
 
-SpellProcEventTriggerCheck Unit::IsTriggeredAtSpellProcEvent(Unit* pVictim, SpellAuraHolder* holder, SpellEntry const* procSpell, uint32 procFlag, uint32 procExtra, WeaponAttackType attType, bool isVictim, SpellProcEventEntry const*& spellProcEvent, bool isSpellTriggeredByAura) const
+SpellProcEventTriggerCheck Unit::IsTriggeredAtSpellProcEvent(Unit* pVictim, SpellAuraHolder* holder, SpellEntry const* procSpell, uint32 procFlag, uint32 procExtra, WeaponAttackType attType, bool isVictim, SpellProcEventEntry const*& spellProcEvent, bool isSpellTriggeredByAuraOrItem) const
 {
     SpellEntry const* spellProto = holder->GetSpellProto();
     /*
@@ -252,7 +252,7 @@ SpellProcEventTriggerCheck Unit::IsTriggeredAtSpellProcEvent(Unit* pVictim, Spel
 
     /// [TODO]
     /// Delete all these spells, and manage it via the DB (spell_proc_event)
-    if (procSpell && !(procExtra && PROC_EX_CAST_END))
+    if (procSpell && !(procExtra & PROC_EX_CAST_END))
     {
 #if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_8_4
         // Eye for an Eye
@@ -342,15 +342,13 @@ SpellProcEventTriggerCheck Unit::IsTriggeredAtSpellProcEvent(Unit* pVictim, Spel
         // Chance of proc calculated after.
         if (spellProto->EffectApplyAuraName[0] == SPELL_AURA_ADD_TARGET_TRIGGER)
         {
-            // Tous les sorts qui proc sur la victime
-            // Puis les autres
+            // All spells that proc on the victim
+            // Then the others
             if (isVictim)
                 return SPELL_PROC_TRIGGER_FAILED;
 
             switch (spellProto->Id)
             {
-                // Wolfshead Helm (Part 1 only, from the pig system that does not count the effects :s)
-                case 17768:
                 // Frosty Zap
                 case 24392:
                     if (SpellCanTrigger(spellProto, procSpell))
@@ -464,7 +462,7 @@ SpellProcEventTriggerCheck Unit::IsTriggeredAtSpellProcEvent(Unit* pVictim, Spel
         }
     }
 
-    if (isSpellTriggeredByAura && procSpell &&
+    if (isSpellTriggeredByAuraOrItem && procSpell &&
         !procSpell->HasAttribute(SPELL_ATTR_EX3_NOT_A_PROC) &&
         !spellProto->HasAttribute(SPELL_ATTR_EX3_CAN_PROC_FROM_PROCS))
         return SPELL_PROC_TRIGGER_FAILED;
@@ -586,6 +584,9 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 damage, Aura
                 case 12292:
                 case 18765:
                 {
+                    if (!pVictim)
+                        return SPELL_AURA_PROC_FAILED;
+
                     // Prevent chain of triggered spell from same triggered spell
                     if (procSpell && (procSpell->Id == 26654 || procSpell->Id == 12723))
                         return SPELL_AURA_PROC_FAILED;
@@ -982,7 +983,10 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 damage, Aura
                 case 26169:
                 {
                     // heal amount
-                    basepoints[0] = int32(damage * 10 / 100);
+                    basepoints[0] = int32(damage * 0.1f);
+                    if (!basepoints[0])
+                        return SPELL_AURA_PROC_FAILED;
+
                     target = this;
                     triggered_spell_id = 26170;
                     break;

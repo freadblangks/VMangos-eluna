@@ -24,8 +24,6 @@
 
 #include "Common.h"
 #include "Duration.h"
-#include "Errors.h"
-#include "Log.h" // Zerix: Again, here we are asking for MANGOS_ASSERT to work. What's up?
 
 #include <string>
 #include <vector>
@@ -65,6 +63,7 @@ uint32 GetUInt32ValueFromArray(Tokens const& data, uint16 index);
 float GetFloatValueFromArray(Tokens const& data, uint16 index);
 
 void stripLineInvisibleChars(std::string &src);
+void stripLineInvisibleChars(char* str);
 
 std::string secsToTimeString(time_t timeInSecs, bool shortText = false, bool hoursOnly = false);
 uint32 TimeStringToSecs(std::string const& timestring);
