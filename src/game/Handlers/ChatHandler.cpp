@@ -44,7 +44,7 @@
 // lfm nier 
 #include "NierManager.h"
 
-bool WorldSession::CheckChatMessageValidity(std::string& msg, uint32 lang, uint32 msgType)
+bool WorldSession::CheckChatMessageValidity(char* msg, uint32 lang, uint32 msgType)
 {
     if (!IsLanguageAllowedForChatType(lang, msgType))
         return false;
@@ -55,10 +55,10 @@ bool WorldSession::CheckChatMessageValidity(std::string& msg, uint32 lang, uint3
         if (sWorld.getConfig(CONFIG_BOOL_CHAT_FAKE_MESSAGE_PREVENTING))
             stripLineInvisibleChars(msg);
 
-        if (sWorld.getConfig(CONFIG_UINT32_CHAT_STRICT_LINK_CHECKING_SEVERITY) && !ChatHandler(this).isValidChatMessage(msg.c_str()))
+        if (sWorld.getConfig(CONFIG_UINT32_CHAT_STRICT_LINK_CHECKING_SEVERITY) && !ChatHandler(this).isValidChatMessage(msg))
         {
             sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Player %s (GUID: %u) sent a chatmessage with an invalid link: %s", GetPlayer()->GetName(),
-                GetPlayer()->GetGUIDLow(), msg.c_str());
+                GetPlayer()->GetGUIDLow(), msg);
             if (sWorld.getConfig(CONFIG_UINT32_CHAT_STRICT_LINK_CHECKING_KICK))
                 KickPlayer();
             return false;
@@ -67,14 +67,14 @@ bool WorldSession::CheckChatMessageValidity(std::string& msg, uint32 lang, uint3
     return true;
 }
 
-bool WorldSession::ProcessChatMessageAfterSecurityCheck(std::string& msg, uint32 lang, uint32 msgType)
+bool WorldSession::ProcessChatMessageAfterSecurityCheck(char* msg, uint32 lang, uint32 msgType)
 {
     if (!CheckChatMessageValidity(msg, lang, msgType))
         return false;
 
     ChatHandler handler(this);
 
-    return !handler.ParseCommands(msg.c_str());
+    return !handler.ParseCommands(msg);
 }
 
 bool WorldSession::IsLanguageAllowedForChatType(uint32 lang, uint32 msgType)
@@ -94,6 +94,8 @@ bool WorldSession::IsLanguageAllowedForChatType(uint32 lang, uint32 msgType)
 #if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_6_1
                 case CHAT_MSG_RAID_LEADER:
                 case CHAT_MSG_RAID_WARNING:
+#endif
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_11_2
                 case CHAT_MSG_BATTLEGROUND:
                 case CHAT_MSG_BATTLEGROUND_LEADER:
 #endif
@@ -236,20 +238,24 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recv_data)
         }
     }
 
-    std::string msg, channel, to;
+    char* msg = nullptr;
+    size_t msgLen = 0;
+    std::string channel, to;
+    
     // Message parsing
     switch (type)
     {
         case CHAT_MSG_CHANNEL:
         {
             recv_data >> channel;
-            recv_data >> msg;
+            recv_data.ReadCString(msg, msgLen);
 
             if (!ProcessChatMessageAfterSecurityCheck(msg, lang, type))
                 return;
 
-            if (msg.empty())
+            if (!msgLen)
                 return;
+
             break;
         }
         case CHAT_MSG_WHISPER:
@@ -267,21 +273,23 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recv_data)
 #if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_6_1
         case CHAT_MSG_RAID_LEADER:
         case CHAT_MSG_RAID_WARNING:
+#endif
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_11_2
         case CHAT_MSG_BATTLEGROUND:
         case CHAT_MSG_BATTLEGROUND_LEADER:
 #endif
         {
-            recv_data >> msg;
+            recv_data.ReadCString(msg, msgLen);
             if (!ProcessChatMessageAfterSecurityCheck(msg, lang, type))
                 return;
-            if (msg.empty())
+            if (!msgLen)
                 return;
             break;
         }
         case CHAT_MSG_AFK:
         case CHAT_MSG_DND:
         {
-            recv_data >> msg;
+            recv_data.ReadCString(msg, msgLen);
             if (!CheckChatMessageValidity(msg, lang, type))
                 return;
             break;
@@ -356,7 +364,7 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recv_data)
                         }
                     }
 
-                    chn->Say(playerPointer->GetObjectGuid(), msg.c_str(), lang);
+                    chn->Say(playerPointer->GetObjectGuid(), msg, lang);
                     SetLastPubChanMsgTime(time(nullptr));
 
                     if (lang != LANG_ADDON && chn->HasFlag(Channel::ChannelFlags::CHANNEL_FLAG_GENERAL))
@@ -528,7 +536,7 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recv_data)
             if (!group)
             {
                 group = _player->GetGroup();
-#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_6_1
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_11_2
                 if (!group || group->isBGGroup())
 #else
                 if (!group)
@@ -537,7 +545,7 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recv_data)
             }
 
             WorldPacket data;
-            ChatHandler::BuildChatPacket(data, ChatMsg(type), msg.c_str(), Language(lang), _player->GetChatTag(), _player->GetObjectGuid(), _player->GetName());
+            ChatHandler::BuildChatPacket(data, ChatMsg(type), msg, Language(lang), _player->GetChatTag(), _player->GetObjectGuid(), _player->GetName());
             group->BroadcastPacket(&data, false, group->GetMemberGroup(GetPlayer()->GetObjectGuid()));
             if (lang != LANG_ADDON)
                 sWorld.LogChat(this, "Group", msg, nullptr, group->GetId());
@@ -576,7 +584,7 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recv_data)
             if (!group)
             {
                 group = GetPlayer()->GetGroup();
-#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_6_1
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_11_2
                 if (!group || group->isBGGroup() || !group->isRaidGroup())
 #else
                 if (!group || !group->isRaidGroup())
@@ -585,7 +593,7 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recv_data)
             }
 
             WorldPacket data;
-            ChatHandler::BuildChatPacket(data, CHAT_MSG_RAID, msg.c_str(), Language(lang), _player->GetChatTag(), _player->GetObjectGuid(), _player->GetName());
+            ChatHandler::BuildChatPacket(data, CHAT_MSG_RAID, msg, Language(lang), _player->GetChatTag(), _player->GetObjectGuid(), _player->GetName());
             group->BroadcastPacket(&data, false);
 
             if (lang != LANG_ADDON)
@@ -600,12 +608,16 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recv_data)
             if (!group)
             {
                 group = GetPlayer()->GetGroup();
-                if (!group || group->isBGGroup() || !group->isRaidGroup() || !group->IsLeader(_player->GetObjectGuid()))
+                if (!group ||  !group->isRaidGroup() || !group->IsLeader(_player->GetObjectGuid()))
                     return;
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_11_2
+                if (group->isBGGroup())
+                    return;
+#endif
             }
 
             WorldPacket data;
-            ChatHandler::BuildChatPacket(data, CHAT_MSG_RAID_LEADER, msg.c_str(), Language(lang), _player->GetChatTag(), _player->GetObjectGuid(), _player->GetName());
+            ChatHandler::BuildChatPacket(data, CHAT_MSG_RAID_LEADER, msg, Language(lang), _player->GetChatTag(), _player->GetObjectGuid(), _player->GetName());
             group->BroadcastPacket(&data, false);
             if (lang != LANG_ADDON)
                 sWorld.LogChat(this, "Raid", msg, nullptr, group->GetId());
@@ -627,14 +639,15 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recv_data)
 
             WorldPacket data;
             //in battleground, raid warning is sent only to players in battleground - code is ok
-            ChatHandler::BuildChatPacket(data, CHAT_MSG_RAID_WARNING, msg.c_str(), Language(lang), _player->GetChatTag(), _player->GetObjectGuid(), _player->GetName());
+            ChatHandler::BuildChatPacket(data, CHAT_MSG_RAID_WARNING, msg, Language(lang), _player->GetChatTag(), _player->GetObjectGuid(), _player->GetName());
             group->BroadcastPacket(&data, false);
 
             if (lang != LANG_ADDON)
                 sWorld.LogChat(this, "Raid", msg, nullptr, group->GetId());
         }
         break;
-
+#endif
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_11_2
         case CHAT_MSG_BATTLEGROUND: // Node side
         {
             // battleground raid is always in Player->GetGroup(), never in GetOriginalGroup()
@@ -643,7 +656,7 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recv_data)
                 return;
 
             WorldPacket data;
-            ChatHandler::BuildChatPacket(data, CHAT_MSG_BATTLEGROUND, msg.c_str(), Language(lang), _player->GetChatTag(), _player->GetObjectGuid(), _player->GetName());
+            ChatHandler::BuildChatPacket(data, CHAT_MSG_BATTLEGROUND, msg, Language(lang), _player->GetChatTag(), _player->GetObjectGuid(), _player->GetName());
             group->BroadcastPacket(&data, false);
 
             if (lang != LANG_ADDON)
@@ -659,7 +672,7 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recv_data)
                 return;
 
             WorldPacket data;
-            ChatHandler::BuildChatPacket(data, CHAT_MSG_BATTLEGROUND_LEADER, msg.c_str(), Language(lang), _player->GetChatTag(), _player->GetObjectGuid(), _player->GetName());
+            ChatHandler::BuildChatPacket(data, CHAT_MSG_BATTLEGROUND_LEADER, msg, Language(lang), _player->GetChatTag(), _player->GetObjectGuid(), _player->GetName());
             group->BroadcastPacket(&data, false);
 
             if (lang != LANG_ADDON)
@@ -678,13 +691,13 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recv_data)
             if (_player && _player->IsInCombat())
                 break;
 
-            if (!msg.empty() || !_player->IsAFK())
+            if (msgLen || !_player->IsAFK())
             {
                 if (MasterPlayer* masterPlr = GetMasterPlayer())
                     masterPlr->afkMsg = msg;
             }
 
-            if (msg.empty() || !_player->IsAFK())
+            if (!msgLen || !_player->IsAFK())
             {
                 _player->ToggleAFK();
 
@@ -697,13 +710,13 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recv_data)
 
         case CHAT_MSG_DND:
         {
-            if (!msg.empty() || !_player->IsDND())
+            if (msgLen || !_player->IsDND())
             {
                 if (MasterPlayer* masterPlr = GetMasterPlayer())
                     masterPlr->dndMsg = msg;
             }
 
-            if (msg.empty() || !_player->IsDND())
+            if (!msgLen || !_player->IsDND())
             {
                 _player->ToggleDND();
 
