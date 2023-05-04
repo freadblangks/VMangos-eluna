@@ -40,7 +40,6 @@
 
 void WorldSession::HandleAutostoreLootItemOpcode(WorldPacket& recv_data)
 {
-    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: CMSG_AUTOSTORE_LOOT_ITEM");
     Player  *player =   GetPlayer();
     ObjectGuid lguid = player->GetLootGuid();
     Loot    *loot;
@@ -98,7 +97,7 @@ void WorldSession::HandleAutostoreLootItemOpcode(WorldPacket& recv_data)
 
             bool ok_loot = pCreature && pCreature->IsAlive() == (player->GetClass() == CLASS_ROGUE && pCreature->lootForPickPocketed);
 
-            if (!ok_loot || !pCreature->IsWithinDistInMap(_player, INTERACTION_DISTANCE))
+            if (!ok_loot || !pCreature->IsWithinDistInMap(_player, _player->GetMaxLootDistance(pCreature), true, SizeFactor::None))
             {
                 player->SendLootRelease(lguid);
                 return;
@@ -194,8 +193,6 @@ void WorldSession::HandleAutostoreLootItemOpcode(WorldPacket& recv_data)
 
 void WorldSession::HandleLootMoneyOpcode(WorldPacket& /*recv_data*/)
 {
-    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: CMSG_LOOT_MONEY");
-
     Player* player = GetPlayer();
     if (!player || !player->IsInWorld())
         return;
@@ -203,7 +200,7 @@ void WorldSession::HandleLootMoneyOpcode(WorldPacket& /*recv_data*/)
     if (!guid)
         return;
 
-    Loot *pLoot = nullptr;
+    Loot* pLoot = nullptr;
     Item* pItem = nullptr;
     bool shareMoneyWithGroup = true;
 
@@ -246,7 +243,7 @@ void WorldSession::HandleLootMoneyOpcode(WorldPacket& /*recv_data*/)
                 shareMoneyWithGroup = false;
             bool ok_loot = pCreature && pCreature->IsAlive() == (player->GetClass() == CLASS_ROGUE && pCreature->lootForPickPocketed);
 
-            if (ok_loot && pCreature->IsWithinDistInMap(_player, INTERACTION_DISTANCE))
+            if (ok_loot && pCreature->IsWithinDistInMap(_player, _player->GetMaxLootDistance(pCreature), true, SizeFactor::None))
                 pLoot = &pCreature->loot ;
 
             break;
@@ -264,24 +261,25 @@ void WorldSession::HandleLootMoneyOpcode(WorldPacket& /*recv_data*/)
             Group* group = player->GetGroup();
 
             std::vector<Player*> playersNear;
+            playersNear.reserve(group->GetMembersCount());
             for (GroupReference* itr = group->GetFirstMember(); itr != nullptr; itr = itr->next())
             {
                 Player* playerGroup = itr->getSource();
                 if (!playerGroup)
                     continue;
-                //if (player->IsWithinDistInMap(playerGroup, sWorld.getConfig(CONFIG_FLOAT_GROUP_XP_DISTANCE), false))
+                
                 if (player->IsWithinLootXPDist(playerGroup))
                     playersNear.push_back(playerGroup);
             }
 
-            uint32 money_per_player = uint32((pLoot->gold) / (playersNear.size()));
+            uint32 moneyPerPlayer = uint32((pLoot->gold) / (playersNear.size()));
 
             for (const auto i : playersNear)
             {
-                i->LootMoney(money_per_player, pLoot);
-                //Offset surely incorrect, but works
+                i->LootMoney(moneyPerPlayer, pLoot);
+                
                 WorldPacket data(SMSG_LOOT_MONEY_NOTIFY, 4);
-                data << uint32(money_per_player);
+                data << uint32(moneyPerPlayer);
                 i->GetSession()->SendPacket(&data);
             }
         }
@@ -297,8 +295,6 @@ void WorldSession::HandleLootMoneyOpcode(WorldPacket& /*recv_data*/)
 
 void WorldSession::HandleLootOpcode(WorldPacket& recv_data)
 {
-    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: CMSG_LOOT");
-
     ObjectGuid guid;
     recv_data >> guid;
 
@@ -323,8 +319,6 @@ void WorldSession::HandleLootOpcode(WorldPacket& recv_data)
 
 void WorldSession::HandleLootReleaseOpcode(WorldPacket& recv_data)
 {
-    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: CMSG_LOOT_RELEASE");
-
     // cheaters can modify lguid to prevent correct apply loot release code and re-loot
     // use internal stored guid
     recv_data.read_skip<uint64>();                          // guid;
@@ -458,7 +452,7 @@ void WorldSession::DoLootRelease(ObjectGuid lguid)
                 loot->clear();
                 corpse->RemoveFlag(CORPSE_FIELD_DYNAMIC_FLAGS, CORPSE_DYNFLAG_LOOTABLE);
             }
-            corpse->ForceValuesUpdateAtIndex(CORPSE_DYNFLAG_LOOTABLE);
+            corpse->ForceValuesUpdateAtIndex(CORPSE_FIELD_DYNAMIC_FLAGS);
             corpse->ExecuteDelayedActions();
             break;
         }

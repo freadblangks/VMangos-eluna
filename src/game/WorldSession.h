@@ -29,6 +29,7 @@
 #include "Item.h"
 #include "GossipDef.h"
 #include "Chat/AbstractPlayer.h"
+#include "SniffFile.h"
 
 struct ItemPrototype;
 struct AuctionEntry;
@@ -84,6 +85,13 @@ enum ClientOSType
     CLIENT_OS_UNKNOWN,
     CLIENT_OS_WIN,
     CLIENT_OS_MAC
+};
+
+enum ClientPlatformType
+{
+    CLIENT_PLATFORM_UNKNOWN,
+    CLIENT_PLATFORM_X86,
+    CLIENT_PLATFORM_PPC
 };
 
 enum PartyOperation
@@ -168,9 +176,9 @@ enum PacketProcessing
      * PACKET_PROCESS_DB_QUERY
      * Does not write anything. Can be processed in any environment.
      * Reads static data (usually data from World DB)
+     * Currently executed directly in the network thread.
      */
     PACKET_PROCESS_DB_QUERY,
-    PACKET_PROCESS_MASTER_SAFE,
     PACKET_PROCESS_MAX_TYPE,                                // no handler for this packet (server side, or not implemented)
     /*
      * PACKET_PROCESS_SELF_ITEMS
@@ -226,7 +234,7 @@ class PacketFilter
         explicit PacketFilter(WorldSession* pSession) : m_pSession(pSession), m_processLogout(false), m_processType(PACKET_PROCESS_MAX_TYPE) {}
         virtual ~PacketFilter() {}
 
-        virtual bool Process(WorldPacket*) { return true; }
+        virtual bool Process(std::unique_ptr<WorldPacket> const&) { return true; }
         inline bool ProcessLogout() const { return m_processLogout; }
         inline PacketProcessing PacketProcessType() const { return m_processType; }
         inline void SetProcessType(PacketProcessing t) { m_processType = t; }
@@ -247,7 +255,7 @@ class MapSessionFilter : public PacketFilter
         }
         ~MapSessionFilter() override {}
 
-        bool Process(WorldPacket*  packet) override;
+        bool Process(std::unique_ptr<WorldPacket> const& packet) override;
 };
 
 //class used to filer only thread-unsafe packets from queue
@@ -271,6 +279,7 @@ class WorldSession
         WorldSession(uint32 id, WorldSocket *sock, AccountTypes sec, time_t mute_time, LocaleConstant locale);
         ~WorldSession();
 
+        uint32 GetGUID() const { return m_guid; }
         AccountTypes GetSecurity() const { return m_security; }
         uint32 GetAccountId() const { return m_accountId; }
         std::string GetUsername() const { return m_username; }
@@ -281,6 +290,8 @@ class WorldSession
         void SetGameBuild(uint32 v) { m_gameBuild = v; }
         ClientOSType GetOS() const { return m_clientOS; }
         void SetOS(ClientOSType os) { m_clientOS = os; }
+        ClientPlatformType GetPlatform() const { return m_clientPlatform; }
+        void SetPlatform(ClientPlatformType platform) { m_clientPlatform = platform; }
         uint32 GetDialogStatus(Player* pPlayer, Object* questgiver, uint32 defstatus);
         uint32 GetAccountMaxLevel() const { return m_characterMaxLevel; }
         void SetAccountFlags(uint32 f) { m_accountFlags = f; }
@@ -361,6 +372,7 @@ class WorldSession
         uint32 GetFingerprint() const { return 0; } // TODO
         void CleanupFingerprintHistory() {} // TODO
         bool HasClientMovementControl() const { return !m_clientMoverGuid.IsEmpty(); }
+        bool HasUsedClickToMove() const;
         
         void SetReceivedWhoRequest(bool v) { m_who_recvd = v; }
         bool ReceivedWhoRequest() const { return m_who_recvd; }
@@ -371,12 +383,27 @@ class WorldSession
         bool m_ah_list_recvd;
 
         bool Update(PacketFilter& updater);
-        void QueuePacket(WorldPacket* new_packet);
+        void QueuePacket(std::unique_ptr<WorldPacket> new_packet);
         bool CanProcessPackets() const; // Returns true iif we can process packets (ie logged in Player, not a bot, etc ...
         void ProcessPackets(PacketFilter& updater);
         bool AllowPacket(uint16 opcode);
         void ClearIncomingPacketsByType(PacketProcessing type);
         inline bool HasRecentPacket(PacketProcessing type) const { return m_receivedPacketType[type]; }
+
+        void StartSniffing()
+        {
+            if (!m_sniffFile)
+            {
+                std::string fileName = "packet_log_" + GetUsername() + "_" + std::to_string(time(nullptr)) + ".pkt";
+                m_sniffFile = std::make_unique<SniffFile>(fileName.c_str());
+                m_sniffFile->WriteHeader();
+            }
+        }
+        void StopSniffing()
+        {
+            if (m_sniffFile)
+                m_sniffFile.reset();
+        }
 
         void SendPacket(WorldPacket const* packet);
         void SendNotification(char const* format, ...) ATTR_PRINTF(2, 3);
@@ -738,7 +765,8 @@ class WorldSession
         void HandlePushQuestToParty(WorldPacket& recvPacket);
         void HandleQuestPushResult(WorldPacket& recvPacket);
 
-        bool ProcessChatMessageAfterSecurityCheck(std::string&, uint32, uint32);
+        bool CheckChatMessageValidity(char*, uint32, uint32);
+        bool ProcessChatMessageAfterSecurityCheck(char*, uint32, uint32);
         static bool IsLanguageAllowedForChatType(uint32 lang, uint32 msgType);
         void SendPlayerNotFoundNotice(std::string const& name);
         void SendWrongFactionNotice();
@@ -831,9 +859,10 @@ class WorldSession
         void LogUnexpectedOpcode(WorldPacket* packet, char const*  reason);
         void LogUnprocessedTail(WorldPacket* packet);
 
+        uint32 const m_guid; // unique identifier for each session
         WorldSocket* m_socket;
         std::string m_address;
-        LockedQueue<WorldPacket*, std::mutex> m_recvQueue[PACKET_PROCESS_MAX_TYPE];
+        LockedQueue<std::unique_ptr<WorldPacket>, std::mutex> m_recvQueue[PACKET_PROCESS_MAX_TYPE];
         bool m_receivedPacketType[PACKET_PROCESS_MAX_TYPE];
         uint32 m_floodPacketsCount[FLOOD_MAX_OPCODES_TYPE];
         bool m_connected;
@@ -847,8 +876,10 @@ class WorldSession
         LocaleConstant m_sessionDbcLocale;
         int m_sessionDbLocaleIndex;
         ClientOSType    m_clientOS;
+        ClientPlatformType m_clientPlatform;
         uint32          m_gameBuild;
         std::shared_ptr<PlayerBotEntry> m_bot;
+        std::unique_ptr<SniffFile> m_sniffFile;
 
         Warden* m_warden;
         MovementAnticheat* m_cheatData;

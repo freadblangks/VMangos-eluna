@@ -47,8 +47,7 @@ void WardenMac::LoadScriptedScans()
 
         MANGOS_ASSERT(macWarden->_hashString.size() <= 0xFF);
 
-        scan << static_cast<uint8>(WARDEN_SMSG_CHEAT_CHECKS_REQUEST)
-             << static_cast<uint8>(macWarden->_hashString.size());
+        scan << static_cast<uint8>(macWarden->_hashString.size());
 
         // skip null terminator this way
         scan.append(macWarden->_hashString.c_str(), macWarden->_hashString.size());
@@ -69,13 +68,13 @@ void WardenMac::LoadScriptedScans()
 }
 
 WardenMac::WardenMac(WorldSession *session, const BigNumber &K)
-    : _fingerprintSaved(false), Warden(session, sWardenModuleMgr.GetMacModule(), K)
+    : _fingerprintSaved(false), Warden(session, session->GetPlatform() == CLIENT_PLATFORM_X86 ? sWardenModuleMgr.GetMacModule() : nullptr, K)
 {
     std::stringstream hash;
 
     // the only known capability of the Mac Warden module is hashing a string and sending back the hashed value
     // so at least we can make the string that we ask it to hash change by account, I guess...
-    hash << "namreeb was here.  please be good.  your username is " << _session->GetUsername();
+    hash << "namreeb was here.  please be good.  your username is " << m_accountName;
 
     _hashString = hash.str();
 
@@ -83,7 +82,8 @@ WardenMac::WardenMac(WorldSession *session, const BigNumber &K)
 
     Sha1Hash sha1;
     sha1.UpdateData(_hashString);
-    sha1.UpdateData(reinterpret_cast<const uint8 *>(&magic), sizeof(magic));
+    if (_module) // this constant is only used if there is a module
+        sha1.UpdateData(reinterpret_cast<const uint8 *>(&magic), sizeof(magic));
     sha1.Finalize();
 
     memcpy(_hashSHA, sha1.GetDigest(), sizeof(_hashSHA));
@@ -91,14 +91,31 @@ WardenMac::WardenMac(WorldSession *session, const BigNumber &K)
     MD5_CTX md5;
     MD5_Init(&md5);
     MD5_Update(&md5, _hashString.c_str(), _hashString.size());
-    MD5_Final(_hashMD5, &md5);
+    MD5_Final(_hashMD5, &md5);    
 }
 
 void WardenMac::Update()
 {
     Warden::Update();
 
-    if (_fingerprintSaved)
+    if (!_initialized)
+    {
+        // PPC no module, begin string hashing requests directly
+        if (!_module)
+        {
+            InitializeClient();
+
+            // send any initial hack scans that the scan manager may have for us
+            RequestScans(SelectScans(ScanFlags::InitialLogin));
+
+            // begin the scan clock (note that even if the clock expires before any initial scans are answered, no new
+            // checks will be requested until the reply is received).
+            BeginScanClock();
+        }
+        return;
+    }
+
+    if (!_fingerprintSaved)
     {
         LogsDatabase.BeginTransaction();
 
@@ -107,9 +124,9 @@ void WardenMac::Update()
         auto stmt = LogsDatabase.CreateStatement(fingerprintUpdate,
             "INSERT INTO system_fingerprint_usage (fingerprint, account, ip, realm) VALUES(?, ?, ?, ?)");
 
-        stmt.addUInt32(_session->GetFingerprint());
-        stmt.addUInt32(_session->GetAccountId());
-        stmt.addString(_session->GetRemoteAddress());
+        stmt.addUInt32(0); // fingerprint not implemented
+        stmt.addUInt32(m_accountId);
+        stmt.addString(m_sessionIP);
         stmt.addUInt32(realmID);
         stmt.Execute();
 
@@ -120,7 +137,14 @@ void WardenMac::Update()
         // at this point if we have the character enum packet, it is okay to send
         if (!_charEnum.empty())
         {
-            _session->SendPacket(&_charEnum);
+            sWorld.GetMessager().AddMessage([pkt = std::move(_charEnum), accountId = m_accountId, sessionGuid = m_sessionGuid](World* world)
+            {
+                if (WorldSession* session = world->FindSession(accountId))
+                {
+                    if (session->GetGUID() == sessionGuid)
+                        session->SendPacket(&pkt);
+                }
+            });
             _charEnum.clear();
         }
     }
@@ -130,7 +154,16 @@ void WardenMac::SetCharEnumPacket(WorldPacket &&packet)
 {
     // if we have already recorded system information, send the packet immediately.  otherwise delay
     if (_initialized)
-        _session->SendPacket(&packet);
+    {
+        sWorld.GetMessager().AddMessage([pkt = std::move(packet), accountId = m_accountId, sessionGuid = m_sessionGuid](World* world)
+        {
+            if (WorldSession* session = world->FindSession(accountId))
+            {
+                if (session->GetGUID() == sessionGuid)
+                    session->SendPacket(&pkt);
+            }
+        });
+    }
     else
         _charEnum = std::move(packet);
 }

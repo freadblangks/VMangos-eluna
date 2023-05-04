@@ -69,14 +69,10 @@ void WorldSession::SendTradeStatus(TradeStatus status)
 
 void WorldSession::HandleIgnoreTradeOpcode(WorldPacket& /*recvPacket*/)
 {
-    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: Ignore Trade %u", _player->GetGUIDLow());
-    // recvPacket.print_storage();
 }
 
 void WorldSession::HandleBusyTradeOpcode(WorldPacket& /*recvPacket*/)
 {
-    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "WORLD: Busy Trade %u", _player->GetGUIDLow());
-    // recvPacket.print_storage();
 }
 
 void WorldSession::SendUpdateTrade(bool trader_state /*= true*/)
@@ -440,6 +436,10 @@ void WorldSession::HandleAcceptTradeOpcode(WorldPacket& recvPacket)
             my_trade->SetAccepted(false);
             his_trade->SetAccepted(false);
             his_trade->SetLastModificationTime(time(nullptr));
+            if (my_spell)
+                my_spell->Delete();
+            if (his_spell)
+                his_spell->Delete();
             return;
         }
         else if (!hisCanCompleteTrade)
@@ -451,6 +451,10 @@ void WorldSession::HandleAcceptTradeOpcode(WorldPacket& recvPacket)
             my_trade->SetAccepted(false);
             his_trade->SetAccepted(false);
             his_trade->SetLastModificationTime(time(nullptr));
+            if (my_spell)
+                my_spell->Delete();
+            if (his_spell)
+                his_spell->Delete();
             return;
         }
 
@@ -664,7 +668,6 @@ void WorldSession::HandleInitiateTradeOpcode(WorldPacket& recvPacket)
 void WorldSession::HandleSetTradeGoldOpcode(WorldPacket& recvPacket)
 {
     uint32 gold;
-
     recvPacket >> gold;
 
     TradeData* my_trade = _player->GetTradeData();

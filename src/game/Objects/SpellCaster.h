@@ -117,6 +117,11 @@ class CooldownData
             return true;
         }
 
+        void SetCatCDExpireTime(TimePoint expireTime)
+        {
+            m_catExpireTime = expireTime;
+        }
+
         // return false if permanent
         bool GetCatCDExpireTime(TimePoint& expireTime) const
         {
@@ -186,7 +191,10 @@ class CooldownContainer
                 else
                 {
                     if (cd->m_category && cd->IsCatCDExpired(now))
+                    {
                         m_categoryMap.erase(cd->m_category);
+                        cd->m_category = 0;
+                    }
                     ++spellCDItr;
                 }
             }
@@ -194,9 +202,27 @@ class CooldownContainer
 
         bool AddCooldown(TimePoint clockNow, uint32 spellId, uint32 duration, uint32 spellCategory = 0, uint32 categoryDuration = 0, uint32 itemId = 0, bool onHold = false)
         {
-            auto resultItr = m_spellIdMap.emplace(spellId, std::unique_ptr<CooldownData>(new CooldownData(clockNow, spellId, duration, spellCategory, categoryDuration, itemId, onHold)));
+            RemoveBySpellId(spellId);
+            auto resultItr = m_spellIdMap.emplace(spellId, std::move(std::unique_ptr<CooldownData>(new CooldownData(clockNow, spellId, duration, spellCategory, categoryDuration, itemId, onHold))));
+            // do not overwrite one permanent category cooldown with another permanent category cooldown
             if (resultItr.second && spellCategory && categoryDuration)
-                m_categoryMap.emplace(spellCategory, resultItr.first);
+            {
+                auto catItr = FindByCategory(spellCategory);
+                if (!onHold || catItr == m_spellIdMap.end() || !catItr->second->IsPermanent())
+                {
+                    // we must keep original category cd owner for sake of client sync
+                    if (catItr != m_spellIdMap.end())
+                    {
+                        catItr->second->SetCatCDExpireTime(std::chrono::milliseconds(categoryDuration) + clockNow);
+                        catItr->second->m_typePermanent = false;
+                        resultItr.first->second->m_category = 0;
+                    }
+                    else
+                        m_categoryMap.emplace(spellCategory, resultItr.first);
+                }
+                else
+                    resultItr.first->second->m_category = 0;
+            }
 
             return resultItr.second;
         }
@@ -221,7 +247,10 @@ class CooldownContainer
         {
             auto spellCDItr = m_categoryMap.find(category);
             if (spellCDItr != m_categoryMap.end())
+            {
+                spellCDItr->second->second->m_category = 0;
                 m_categoryMap.erase(spellCDItr);
+            }
         }
 
         Iterator erase(ConstIterator spellCDItr)
@@ -274,7 +303,8 @@ struct ProcSystemArguments
     WeaponAttackType attType;
 
     std::list<SpellModifier*> appliedSpellModifiers; // don't dereference pointers
-    bool isSpellTriggeredByAura;
+    bool isSpellTriggeredByAuraOrItem;
+    time_t procTime;
 
     explicit ProcSystemArguments(Unit* pVictim_, uint32 procFlagsAttacker_, uint32 procFlagsVictim_, uint32 procExtra_, uint32 amount_, WeaponAttackType attType_ = BASE_ATTACK,
         SpellEntry const* procSpell_ = nullptr, Spell const* spell = nullptr);
@@ -300,6 +330,7 @@ public:
     SpellCastResult CastSpell(float x, float y, float z, SpellEntry const* spellInfo, bool triggered, Item* castItem = nullptr, Aura* triggeredByAura = nullptr, ObjectGuid originalCaster = ObjectGuid(), SpellEntry const* triggeredBy = nullptr);
 
     void SetCurrentCastedSpell(Spell* pSpell);
+    void MoveChannelledSpellWithCastTime(Spell* pSpell);
     Spell* GetCurrentSpell(CurrentSpellTypes spellType) const { return m_currentSpells[spellType]; }
     Spell* FindCurrentSpellBySpellId(uint32 spell_id) const;
     bool CheckAndIncreaseCastCounter();
@@ -378,6 +409,7 @@ public:
     virtual void RemoveAllCooldowns(bool /*sendOnly*/ = false) { m_GCDCatMap.clear(); m_cooldownMap.clear(); m_lockoutMap.clear(); }
     bool IsSpellReady(SpellEntry const& spellEntry, ItemPrototype const* itemProto = nullptr) const;
     bool IsSpellReady(uint32 spellId, ItemPrototype const* itemProto = nullptr) const;
+    bool IsSpellOnPermanentCooldown(SpellEntry const& spellEntry) const;
     virtual void LockOutSpells(SpellSchoolMask schoolMask, uint32 duration);
     void PrintCooldownList(ChatHandler& chat) const;
     bool CheckLockout(SpellSchoolMask schoolMask) const;
