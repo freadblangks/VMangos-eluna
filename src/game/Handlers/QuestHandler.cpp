@@ -33,6 +33,9 @@
 #include "ScriptMgr.h"
 #include "Group.h"
 
+// lfm movement wait 
+#include "RandomMovementGenerator.h"
+
 void WorldSession::HandleQuestgiverStatusQueryOpcode(WorldPacket& recv_data)
 {
     ObjectGuid guid;
@@ -97,16 +100,31 @@ void WorldSession::HandleQuestgiverHelloOpcode(WorldPacket& recv_data)
 
     // Stop the npc if moving
     if (!pCreature->HasExtraFlag(CREATURE_FLAG_EXTRA_NO_MOVEMENT_PAUSE))
+    {
         pCreature->PauseOutOfCombatMovement();
 
     GetPlayer()->InterruptSpellsWithChannelFlags(AURA_INTERRUPT_INTERACTING_CANCELS);
     GetPlayer()->RemoveAurasWithInterruptFlags(AURA_INTERRUPT_INTERACTING_CANCELS);
-
+        // lfm gossip will wait for a while 
+        //if (MotionMaster* mm = pCreature->GetMotionMaster())
+        //{
+        //    if (RandomMovementGenerator* rmg = (RandomMovementGenerator*)mm->top())
+        //    {
+        //        rmg->waitDelay = 30000;
+        //    }
+        //}
+    }
     if (sScriptMgr.OnGossipHello(_player, pCreature))
         return;
 
     _player->PrepareGossipMenu(pCreature, pCreature->GetDefaultGossipMenuId());
     _player->SendPreparedGossip(pCreature);
+
+    // update reputation list if need    
+    if (FactionTemplateEntry const* factionTemplateEntry = sObjectMgr.GetFactionTemplateEntry(pCreature->GetFactionTemplateId()))
+    {
+        _player->GetReputationMgr().SetVisible(factionTemplateEntry);
+    }
 }
 
 void WorldSession::HandleQuestgiverAcceptQuestOpcode(WorldPacket& recv_data)
@@ -724,7 +742,7 @@ uint32 WorldSession::GetDialogStatus(Player* pPlayer, Object* questgiver, uint32
             if (pPlayer->CanSeeStartQuest(pQuest))
             {
                 if (pPlayer->SatisfyQuestLevel(pQuest, false))
-                {
+                {                    
                     int32 lowLevelDiff = sWorld.getConfig(CONFIG_INT32_QUEST_LOW_LEVEL_HIDE_DIFF);
                     if (pQuest->IsAutoComplete() || (pQuest->IsRepeatable() && !pQuest->HasQuestFlag(QUEST_FLAGS_UNK2) && pPlayer->getQuestStatusMap()[quest_id].m_rewarded))
                         dialogStatusNew = DIALOG_STATUS_REWARD_REP;

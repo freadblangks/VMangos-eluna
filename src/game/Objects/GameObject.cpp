@@ -402,6 +402,14 @@ void GameObject::Update(uint32 update_diff, uint32 /*p_time*/)
         // NO BREAK for switch (m_lootState)
         case GO_READY:
         {
+            // lfm auto fish
+            if (GetGoType() == GAMEOBJECT_TYPE_FISHINGNODE)
+            {
+                Unit* caster = GetOwner();
+                Use(caster);
+                break;
+            }
+
             if (m_respawnTime > 0)                          // timer on
             {
                 if (m_respawnTime <= time(nullptr))            // timer expired
@@ -1671,8 +1679,25 @@ void GameObject::Use(Unit* user)
                     if (!zone_skill)
                         sLog.Out(LOG_DBERROR, LOG_LVL_MINIMAL, "Fishable areaId %u are not properly defined in `skill_fishing_base_level`.", subzone);
 
+                    // lfm zone fishing skill will be higher 
+                    if (zone_skill < 0)
+                    {
+                        zone_skill = 0;
+                    }
+
                     int32 skill = player->GetSkillValue(SKILL_FISHING);
                     int32 chance = skill - zone_skill + 5;
+
+                    // lfm fish chance 
+                    if (chance < 10)
+                    {
+                        chance = 10;
+                    }
+                    else if (chance > 70)
+                    {
+                        chance = 70;
+                    }
+
                     int32 roll = irand(1, 100);
 
                     sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "Fishing check (skill: %i zone min skill: %i chance %i roll: %i", skill, zone_skill, chance, roll);
@@ -1701,7 +1726,7 @@ void GameObject::Use(Unit* user)
                         player->UpdateFishingSkill();
 
                     // fish catch or fail and junk allowed (after 3.1.0)
-                    if (success || sWorld.getConfig(CONFIG_BOOL_SKILL_FAIL_LOOT_FISHING))
+                    if (success)
                     {
                         // prevent removing GO at spell cancel
                         player->RemoveGameObject(this, false);
@@ -1713,15 +1738,31 @@ void GameObject::Use(Unit* user)
                             SetLootState(GO_JUST_DEACTIVATED);
                         }
                         else
-                            player->SendLoot(GetObjectGuid(), success ? LOOT_FISHING : LOOT_FISHING_FAIL);
+                        {
+                            player->SendLoot(GetObjectGuid(), LOOT_FISHING);
+                        }
                     }
-                    else
+                    else if(sWorld.getConfig(CONFIG_BOOL_SKILL_FAIL_LOOT_FISHING))
                     {
-                        // fish escaped, can be deleted now
-                        SetLootState(GO_JUST_DEACTIVATED);
+                        // lfm fishing junks 
+                        if (urand(0, 100) < 50)
+                        {
+                            // fish escaped, can be deleted now
+                            SetLootState(GO_JUST_DEACTIVATED);
+                            WorldPacket data(SMSG_FISH_ESCAPED, 0);
+                            player->GetSession()->SendPacket(&data);
+                        }
+                        else
+                        {
+                            player->RemoveGameObject(this, false);
+                            SetOwnerGuid(player->GetObjectGuid());
+                            player->SendLoot(GetObjectGuid(), LOOT_FISHING_FAIL);
+                        }
 
-                        WorldPacket data(SMSG_FISH_ESCAPED, 0);
-                        player->GetSession()->SendPacket(&data);
+                        // lfm fishing fail hint 
+                        std::ostringstream notificationStream;
+                        notificationStream << "Require fishing skill more than " << zone_skill;
+                        player->GetSession()->SendNotification(notificationStream.str().c_str());
                     }
                     break;
                 }
@@ -1737,6 +1778,10 @@ void GameObject::Use(Unit* user)
                 }
             }
 
+            // lfm auto fish
+            player->fishingDelay = urand(500, 1000);
+            player->AutoStoreLoot(loot);
+            //player->SendLootRelease(player->GetObjectGuid());
             player->FinishSpell(CURRENT_CHANNELED_SPELL);
             return;
         }

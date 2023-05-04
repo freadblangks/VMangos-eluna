@@ -59,7 +59,9 @@ void RandomMovementGenerator::_setRandomLocation(Creature &creature)
     if (i_wanderSteps) // Creature has yet to do steps before pausing
     {
         --i_wanderSteps;
-        i_nextMoveTime.Reset(50);
+        // lfm randome movement time gap set to 500 
+        //i_nextMoveTime.Reset(50);
+        i_nextMoveTime.Reset(urand(1, 3) * IN_MILLISECONDS);
     }
     else
     {
@@ -103,6 +105,17 @@ bool RandomMovementGenerator::Update(Creature &creature, uint32 const& diff)
             return false;
         else
             i_expireTime -= diff;
+    }
+
+    // lfm wait 
+    if (waitDelay > 0)
+    {
+        waitDelay -= diff;
+        if (waitDelay < 0)
+        {
+            waitDelay = 0;
+        }
+        return false;
     }
 
     creature.GetMotionMaster()->SetNeedAsyncUpdate();

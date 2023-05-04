@@ -415,7 +415,40 @@ set (game_SRCS
     vmap/VMapManager2.h
     vmap/VMapTools.h
     vmap/WorldModel.h
-
+	
+	Nier/NierConfig.h
+	Nier/NierConfig.cpp
+	Nier/NierEntity.h
+	Nier/NierEntity.cpp
+	Nier/NierManager.h
+	Nier/NierManager.cpp
+	Nier/NierStrategies/NierStrategy_Base.h
+	Nier/NierStrategies/NierStrategy_Base.cpp
+	Nier/NierActions/NierAction_Base.h
+	Nier/NierActions/NierAction_Base.cpp
+	Nier/NierActions/NierAction_Druid.h
+	Nier/NierActions/NierAction_Druid.cpp
+	Nier/NierActions/NierAction_Hunter.h
+	Nier/NierActions/NierAction_Hunter.cpp
+	Nier/NierActions/NierAction_Mage.h
+	Nier/NierActions/NierAction_Mage.cpp
+	Nier/NierActions/NierAction_Paladin.h
+	Nier/NierActions/NierAction_Paladin.cpp
+	Nier/NierActions/NierAction_Priest.h
+	Nier/NierActions/NierAction_Priest.cpp
+	Nier/NierActions/NierAction_Rogue.h
+	Nier/NierActions/NierAction_Rogue.cpp
+	Nier/NierActions/NierAction_Shaman.h
+	Nier/NierActions/NierAction_Shaman.cpp
+	Nier/NierActions/NierAction_Warlock.h
+	Nier/NierActions/NierAction_Warlock.cpp
+	Nier/NierActions/NierAction_Warrior.h
+	Nier/NierActions/NierAction_Warrior.cpp
+	
+	Ming/MingConfig.h
+	Ming/MingConfig.cpp
+	Ming/MingManager.h
+	Ming/MingManager.cpp
 )
 
 if((${CMAKE_VERSION} VERSION_LESS "3.16") OR USE_PCH_OLD)
@@ -499,6 +532,10 @@ include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/Threat
   ${CMAKE_CURRENT_SOURCE_DIR}/Transports
   ${CMAKE_CURRENT_SOURCE_DIR}/vmap
+  ${CMAKE_CURRENT_SOURCE_DIR}/Nier
+  ${CMAKE_CURRENT_SOURCE_DIR}/Nier/NierStrategies
+  ${CMAKE_CURRENT_SOURCE_DIR}/Nier/NierActions
+  ${CMAKE_CURRENT_SOURCE_DIR}/Ming
   ${CMAKE_SOURCE_DIR}/src/scripts
   ${CMAKE_SOURCE_DIR}/src/scripts/PrecompiledHeaders
   ${CMAKE_SOURCE_DIR}/dep/include/g3dlite
@@ -557,6 +594,22 @@ source_group("References"
 
 source_group("Anticheat"
   REGULAR_EXPRESSION Anticheat
+)
+
+source_group("Nier"
+  REGULAR_EXPRESSION Nier
+)
+
+source_group("Nier/NierStrategies"
+  REGULAR_EXPRESSION NierStrategies
+)
+
+source_group("Nier/NierActions"
+  REGULAR_EXPRESSION NierActions
+)
+
+source_group("Ming"
+  REGULAR_EXPRESSION Ming
 )
 
 add_library(game STATIC

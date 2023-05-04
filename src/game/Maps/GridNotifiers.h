@@ -1395,7 +1395,16 @@ namespace MaNGOS
             AllGameObjectsWithEntryInRange(WorldObject const* pObject, uint32 uiEntry, float fMaxRange) : m_pObject(pObject), m_uiEntry(uiEntry), m_fRange(fMaxRange) {}
             bool operator() (GameObject* pGo)
             {
-                return pGo->GetEntry() == m_uiEntry && m_pObject->IsWithinDist(pGo,m_fRange,false);
+                // lfm gameobject search 0 is all 
+                bool matchResult = m_pObject->IsWithinDist(pGo, m_fRange, false);
+                if (matchResult)
+                {
+                    if (m_uiEntry > 0)
+                    {
+                        matchResult = pGo->GetEntry() == m_uiEntry;
+                    }
+                }
+                return matchResult;
             }
 
         private:
@@ -1431,7 +1440,17 @@ namespace MaNGOS
         AllCreaturesOfEntryInRange(WorldObject const* pObject, uint32 uiEntry, float fMaxRange) : m_pObject(pObject), m_uiEntry(uiEntry), m_fRange(fMaxRange) {}
         bool operator() (Unit* pUnit)
         {
-            return pUnit->GetEntry() == m_uiEntry && m_pObject->IsWithinDist(pUnit, m_fRange, false);
+            // lfm creature search 0 is all
+            //return pUnit->GetEntry() == m_uiEntry && m_pObject->IsWithinDist(pUnit, m_fRange, false);
+            bool matchResult = m_pObject->IsWithinDist(pUnit, m_fRange, false);
+            if (matchResult)
+            {
+                if (m_uiEntry > 0)
+                {
+                    matchResult = pUnit->GetEntry() == m_uiEntry;
+                }
+            }
+            return matchResult;
         }
 
     private:

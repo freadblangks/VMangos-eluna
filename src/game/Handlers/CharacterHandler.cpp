@@ -428,7 +428,7 @@ void WorldSession::LoginPlayer(ObjectGuid loginPlayerGuid)
     CharacterDatabase.DelayQueryHolderUnsafe(&chrHandler, &CharacterHandler::HandlePlayerLoginCallback, holder);
 }
 
-void WorldSession::HandlePlayerLogin(LoginQueryHolder *holder)
+void WorldSession::HandlePlayerLogin(LoginQueryHolder* holder)
 {
     // The following fixes a crash. Use case:
     // Session1 created, requests login, kicked.
@@ -743,6 +743,9 @@ void WorldSession::HandlePlayerLogin(LoginQueryHolder *holder)
     if (sWorld.getConfig(CONFIG_BOOL_SEND_LOOT_ROLL_UPON_RECONNECT) && alreadyOnline)
         if (Group* pGroup = pCurrChar->GetGroup())
             pGroup->SendLootStartRollsForPlayer(pCurrChar);
+
+    pCurrChar->SetPvP(true);
+    pCurrChar->UpdatePvP(true, true);
 }
 
 void WorldSession::HandleSetFactionAtWarOpcode(WorldPacket& recv_data)
@@ -903,4 +906,23 @@ void WorldSession::HandleChangePlayerNameOpcodeCallBack(QueryResult* result, uin
 
     sObjectMgr.ChangePlayerNameInCache(guidLow, oldname, newname);
     sWorld.InvalidatePlayerDataToAllClient(guid);
+}
+
+// lfm nier 
+void WorldSession::HandlePlayerLogin_Simple(ObjectGuid pmCharacterGUID)
+{
+    if (PlayerLoading() || GetPlayer() != nullptr)
+    {        
+        KickPlayer();
+        return;
+    }
+
+    LoginQueryHolder* holder = new LoginQueryHolder(GetAccountId(), pmCharacterGUID);
+    if (!holder->Initialize())
+    {
+        delete holder;                                      // delete all unprocessed queries
+        return;
+    }
+    m_playerLoading = true;
+    CharacterDatabase.DelayQueryHolderUnsafe(&chrHandler, &CharacterHandler::HandlePlayerLoginCallback, holder);
 }

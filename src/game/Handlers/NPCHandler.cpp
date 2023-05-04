@@ -37,6 +37,9 @@
 #include "Chat.h"
 #include "CharacterDatabaseCache.h"
 
+// lfm movement wait 
+#include "RandomMovementGenerator.h"
+
 enum StableResultCode
 {
     STABLE_ERR_MONEY        = 0x01,                         // "you don't have enough money"
@@ -370,7 +373,9 @@ void WorldSession::HandleGossipHelloOpcode(WorldPacket& recv_data)
     GetPlayer()->RemoveAurasWithInterruptFlags(AURA_INTERRUPT_INTERACTING_CANCELS);
 
     if (!pCreature->HasExtraFlag(CREATURE_FLAG_EXTRA_NO_MOVEMENT_PAUSE))
-        pCreature->PauseOutOfCombatMovement();
+    {
+        pCreature->PauseOutOfCombatMovement();     
+    }
 
     if (pCreature->IsSpiritGuide())
         pCreature->SendAreaSpiritHealerQueryOpcode(_player);
@@ -379,6 +384,12 @@ void WorldSession::HandleGossipHelloOpcode(WorldPacket& recv_data)
     {
         _player->PrepareGossipMenu(pCreature, pCreature->GetDefaultGossipMenuId());
         _player->SendPreparedGossip(pCreature);
+    }
+
+    // update reputation list if need    
+    if (FactionTemplateEntry const* factionTemplateEntry = sObjectMgr.GetFactionTemplateEntry(pCreature->GetFactionTemplateId()))
+    {
+        _player->GetReputationMgr().SetVisible(factionTemplateEntry);
     }
 }
 

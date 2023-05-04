@@ -725,6 +725,16 @@ Player::Player(WorldSession* session) : Unit(),
     m_cameraUpdateTimer = 0;
     m_longSightSpell = 0;
     m_longSightRange = 0.0f;
+
+    // lfm nier
+    groupRole = 0;
+    isNier = false;
+    nierAction = nullptr;
+    nierStrategyMap.clear();
+    activeStrategyIndex = 0;
+
+    // lfm auto fish
+    fishingDelay = 0;
 }
 
 Player::~Player()
@@ -1569,7 +1579,7 @@ void Player::Update(uint32 update_diff, uint32 p_time)
             QuestStatusData& q_status = mQuestStatus[*iter];
             if (q_status.m_timer <= update_diff)
             {
-                uint32 quest_id  = *iter;
+                uint32 quest_id = *iter;
                 ++iter;                                     // current iter will be removed in FailQuest
                 FailQuest(quest_id);
             }
@@ -1682,7 +1692,7 @@ void Player::Update(uint32 update_diff, uint32 p_time)
     //   dungeons, battlegrounds, and raid instances.
 #if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_10_2
     // not auto-free ghost from body in instances
-    if (GetDeathState() == CORPSE  && !GetMap()->Instanceable())
+    if (GetDeathState() == CORPSE && !GetMap()->Instanceable())
 #else
     if (GetDeathState() == CORPSE)
 #endif
@@ -1747,6 +1757,32 @@ void Player::Update(uint32 update_diff, uint32 p_time)
         uint32 cheatAction = GetCheatData()->Update(this, p_time, reason);
         if (cheatAction)
             GetSession()->ProcessAnticheatAction("MovementAnticheat", reason.str().c_str(), cheatAction, sWorld.getConfig(CONFIG_UINT32_AC_MOVEMENT_BAN_DURATION));
+    }
+
+    // lfm auto fish
+    if (fishingDelay>0)
+    {
+        fishingDelay -= p_time;
+        if (fishingDelay <= 0)
+        {
+            CastSpell(this, 7620, true);
+            fishingDelay = 0;
+        }
+    }
+
+    // lfm nier
+    if (m_session->isNier)
+    {
+        if (nierStrategyMap.size() > 0)
+        {
+            if (nierStrategyMap[activeStrategyIndex])
+            {
+                if (nierStrategyMap[activeStrategyIndex]->initialized)
+                {
+                    nierStrategyMap[activeStrategyIndex]->Update(p_time);
+                }
+            }
+        }
     }
 }
 
@@ -5723,6 +5759,9 @@ bool Player::UpdateFishingSkill()
 
     uint32 gathering_skill_gain = sWorld.getConfig(CONFIG_UINT32_SKILL_GAIN_GATHERING);
 
+    // lfm fishing skill increase rate will always be 20%
+    chance = 20;
+
     return UpdateSkillPro(SKILL_FISHING, chance * 10, gathering_skill_gain);
 }
 
@@ -8019,7 +8058,11 @@ void Player::SendLoot(ObjectGuid guid, LootType loot_type, Player* pVictim)
                 // Entry 0 in fishing loot template used for store junk fish loot at fishing fail it junk allowed by config option
                 // this is overwrite fishinghole loot for example
                 if (loot_type == LOOT_FISHING_FAIL)
-                    loot->FillLoot(0, LootTemplates_Fishing, this, true);
+                {
+                    // lfm failed fishing loot 
+                    //loot->FillLoot(0, LootTemplates_Fishing, this, true);
+                    loot->FillLoot(10000, LootTemplates_Fishing, this, true);
+                }                    
                 else if (lootid)
                 {
                     loot->clear();
@@ -20445,6 +20488,10 @@ void Player::AutoStoreLoot(Loot& loot, bool broadcast, uint8 bag, uint8 slot)
         SendNotifyLootItemRemoved(i);
         Item* pItem = StoreNewItem(dest, lootItem->itemid, true, lootItem->randomPropertyId);
         SendNewItem(pItem, lootItem->count, false, false, broadcast);
+
+        // lfm update loot when auto store
+        loot.NotifyItemRemoved(i);
+        loot.unlootedCount--;
     }
 }
 
@@ -22004,7 +22051,6 @@ void Player::CreatePacketBroadcaster()
     sWorld.GetBroadcaster()->RegisterPlayer(m_broadcaster);
 }
 
-
 void Player::AddGCD(SpellEntry const& spellEntry, uint32 /*forcedDuration = 0*/, bool updateClient /*= false*/)
 {
     int32 gcdDuration = spellEntry.StartRecoveryTime;
@@ -22146,6 +22192,15 @@ void Player::AddCooldown(SpellEntry const& spellEntry, ItemPrototype const* item
             sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "Sending SMSG_COOLDOWN_EVENT with spell id = %u", spellEntry.Id);
         }
     }
+}
+
+bool Player::HasSpellCooldown(uint32 pmSpellID)
+{
+    if (m_cooldownMap.FindBySpellId(pmSpellID) != m_cooldownMap.end())
+    {
+        return true;
+    }
+    return false;
 }
 
 void Player::RemoveSpellCooldown(SpellEntry const& spellEntry, bool updateClient /*= true*/)

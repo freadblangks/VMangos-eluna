@@ -251,6 +251,10 @@ bool DynamicMapTree::getObjectHitPos(Vector3 const& pPos1, Vector3 const& pPos2,
         pResultHitPos = pPos2;
         result = false;
     }
+
+    // lfm try 
+    pResultHitPos = pResultHitPos + dir * DEFAULT_COMBAT_REACH;
+
     return result;
 }
 

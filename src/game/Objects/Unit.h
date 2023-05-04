@@ -344,6 +344,9 @@ class Unit : public SpellCaster
 
         virtual ~Unit () override;
 
+        // lfm vendor replacement
+        int vendorReplaceCheckDelay;
+
         void AddToWorld() override;
         void RemoveFromWorld() override;
         void CleanupsBeforeDelete() override;               // used in ~Creature/~Player (or before mass creature delete to remove cross-references to already deleted units)
@@ -806,6 +809,7 @@ class Unit : public SpellCaster
         bool HasAuraTypeByCaster(AuraType auraType, ObjectGuid casterGuid) const;
         bool HasAura(uint32 spellId, SpellEffectIndex effIndex) const;
         bool HasAura(uint32 spellId) const { return m_spellAuraHolders.find(spellId) != m_spellAuraHolders.end(); }
+
         bool virtual HasSpell(uint32 /*spellId*/) const { return false; }
         bool HasStealthAura()      const { return HasAuraType(SPELL_AURA_MOD_STEALTH); }
         bool HasInvisibilityAura() const { return HasAuraType(SPELL_AURA_MOD_INVISIBILITY); }

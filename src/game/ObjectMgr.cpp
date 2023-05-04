@@ -56,6 +56,12 @@
 
 #include <limits>
 
+// lfm ming 
+#include "MingManager.h"
+
+// lfm nier 
+#include "NierManager.h"
+
 INSTANTIATE_SINGLETON_1(ObjectMgr);
 
 #include "utf8cpp/utf8.h"
@@ -134,7 +140,12 @@ ObjectMgr::ObjectMgr() :
     // Nostalrius
     DBCLocaleIndex(0),
     m_OldMailCounter(0)
-{}
+{
+
+    // lfm no reward quest exceptions
+    noRewardQuestExceptions.insert(1682);
+    noRewardQuestExceptions.insert(1667);
+}
 
 ObjectMgr::~ObjectMgr()
 {
@@ -1475,6 +1486,15 @@ void ObjectMgr::CheckCreatureTemplates()
             }
         }
 
+        // lfm creature equips 
+        if (cInfo->equipment_id == 0)
+        {
+            if (const EquipmentInfo* ei = ObjectMgr::GetEquipmentInfo(cInfo->entry))
+            {
+                const_cast<CreatureInfo*>(cInfo)->equipment_id = cInfo->entry;
+            }
+        }
+
         if (cInfo->flags_extra & CREATURE_FLAG_EXTRA_DESPAWN_INSTANTLY)
         {
             if (cInfo->gold_min || cInfo->gold_max)
@@ -2317,11 +2337,26 @@ void ObjectMgr::LoadCreatures(bool reload)
         }
         else if (data.movement_type == RANDOM_MOTION_TYPE)
         {
-            if (data.wander_distance == 0.0f)
+            // lfm vendor will not move random 
+            if (const CreatureInfo* ci = sObjectMgr.GetCreatureTemplate(data.creature_id[0]))
             {
+                if (ci->npc_flags & NPCFlags::UNIT_NPC_FLAG_VENDOR)
+                {
+                    data.movement_type = IDLE_MOTION_TYPE;
+                }
+                else
+                {
+                    if (data.wander_distance == 0.0f)
+                    {
                 sLog.Out(LOG_DBERROR, LOG_LVL_MINIMAL, "Table `creature` have creature (GUID: %u Entry: %u) with `MovementType`=1 (random movement) but with `wander_distance`=0, replace by idle movement type (0).", guid, data.creature_id[0]);
                 sLog.Out(LOG_DBERRFIX, LOG_LVL_MINIMAL, "UPDATE `creature` SET `movement_type`=%u WHERE `guid`=%u AND `id`=%u;", IDLE_MOTION_TYPE, guid, data.creature_id[0]);
-                data.movement_type = IDLE_MOTION_TYPE;
+                        data.movement_type = IDLE_MOTION_TYPE;
+                    }
+                    else if (data.wander_distance < 2.0f)
+                    {
+                        data.wander_distance = 2.0f;
+                    }
+                }
             }
         }
         else if (data.movement_type == IDLE_MOTION_TYPE)
@@ -3682,19 +3717,19 @@ void ObjectMgr::LoadItemPrototypes()
     {
         bar.step();
         Field* fields = result->Fetch();
-        uint32 entry = fields[ 0].GetUInt32();
+        uint32 entry = fields[0].GetUInt32();
 
         ItemPrototype& item = m_itemPrototypesMap[entry];
         item.ItemId = entry;
-        item.Class = fields[ 1].GetUInt8();
-        item.SubClass = fields[ 2].GetUInt8();
+        item.Class = fields[1].GetUInt8();
+        item.SubClass = fields[2].GetUInt8();
         item.Name1 = strdup(fields[3].GetString());
         item.Description = strdup(fields[4].GetString());
-        item.DisplayInfoID = fields[ 5].GetUInt32();
-        item.Quality = fields[ 6].GetUInt8();
-        item.Flags = fields[ 7].GetUInt32();
-        item.BuyCount = fields[ 8].GetUInt8();
-        item.BuyPrice = fields[ 9].GetUInt32();
+        item.DisplayInfoID = fields[5].GetUInt32();
+        item.Quality = fields[6].GetUInt8();
+        item.Flags = fields[7].GetUInt32();
+        item.BuyCount = fields[8].GetUInt8();
+        item.BuyPrice = fields[9].GetUInt32();
         item.SellPrice = fields[10].GetUInt32();
         item.InventoryType = fields[11].GetUInt8();
         item.AllowableClass = fields[12].GetInt32();
@@ -3713,17 +3748,17 @@ void ObjectMgr::LoadItemPrototypes()
         item.ContainerSlots = fields[25].GetUInt8();
         for (int i = 0; i < MAX_ITEM_PROTO_STATS; i++)
         {
-            item.ItemStat[i].ItemStatType = fields[26 + i*2].GetUInt8();
-            item.ItemStat[i].ItemStatValue = fields[27 + i*2].GetInt16();
+            item.ItemStat[i].ItemStatType = fields[26 + i * 2].GetUInt8();
+            item.ItemStat[i].ItemStatValue = fields[27 + i * 2].GetInt16();
         }
         item.Delay = fields[46].GetUInt16();
         item.RangedModRange = fields[47].GetFloat();
         item.AmmoType = fields[48].GetUInt8();
         for (int i = 0; i < MAX_ITEM_PROTO_DAMAGES; i++)
         {
-            item.Damage[i].DamageMin = fields[49 + i*3].GetFloat();
-            item.Damage[i].DamageMax = fields[50 + i*3].GetFloat();
-            item.Damage[i].DamageType = fields[51 + i*3].GetUInt8();
+            item.Damage[i].DamageMin = fields[49 + i * 3].GetFloat();
+            item.Damage[i].DamageMax = fields[50 + i * 3].GetFloat();
+            item.Damage[i].DamageType = fields[51 + i * 3].GetUInt8();
         }
         item.Block = fields[64].GetUInt32();
         item.Armor = fields[65].GetInt16();
@@ -3735,13 +3770,13 @@ void ObjectMgr::LoadItemPrototypes()
         item.ArcaneRes = fields[71].GetInt16();
         for (int i = 0; i < MAX_ITEM_PROTO_SPELLS; i++)
         {
-            item.Spells[i].SpellId = fields[72 + i*7].GetUInt32();
-            item.Spells[i].SpellTrigger = fields[73 + i*7].GetUInt8();
-            item.Spells[i].SpellCharges = fields[74 + i*7].GetInt16();
-            item.Spells[i].SpellPPMRate = fields[75 + i*7].GetFloat();
-            item.Spells[i].SpellCooldown = fields[76 + i*7].GetInt32();
-            item.Spells[i].SpellCategory = fields[77 + i*7].GetUInt16();
-            item.Spells[i].SpellCategoryCooldown = fields[78 + i*7].GetInt32();
+            item.Spells[i].SpellId = fields[72 + i * 7].GetUInt32();
+            item.Spells[i].SpellTrigger = fields[73 + i * 7].GetUInt8();
+            item.Spells[i].SpellCharges = fields[74 + i * 7].GetInt16();
+            item.Spells[i].SpellPPMRate = fields[75 + i * 7].GetFloat();
+            item.Spells[i].SpellCooldown = fields[76 + i * 7].GetInt32();
+            item.Spells[i].SpellCategory = fields[77 + i * 7].GetUInt16();
+            item.Spells[i].SpellCategoryCooldown = fields[78 + i * 7].GetInt32();
         }
         item.Bonding = fields[107].GetUInt8();
         item.PageText = fields[108].GetUInt32();
@@ -3765,6 +3800,41 @@ void ObjectMgr::LoadItemPrototypes()
         item.WrappedGift = fields[126].GetUInt32();
         item.ExtraFlags = fields[127].GetUInt8();
         item.OtherTeamEntry = fields[128].GetUInt32();
+
+        // lfm nier equips
+        if (item.Quality > ItemQualities::ITEM_QUALITY_NORMAL && item.Quality < ItemQualities::ITEM_QUALITY_EPIC)
+        {
+            int requiredLevel = item.RequiredLevel;
+            if (requiredLevel == 0)
+            {
+                requiredLevel = item.ItemLevel;
+            }
+            sNierManager->equipsMap[item.InventoryType][requiredLevel][sNierManager->equipsMap[item.InventoryType][requiredLevel].size()] = item.ItemId;
+        }
+
+        // lfm ming vendor equips 
+        if (item.Quality == ItemQualities::ITEM_QUALITY_UNCOMMON)
+        {
+            if (item.RequiredLevel > 0)
+            {
+                bool sellable = false;
+                if (item.Class == ItemClass::ITEM_CLASS_WEAPON)
+                {
+                    if (item.SubClass != ItemSubclassWeapon::ITEM_SUBCLASS_WEAPON_MISC)
+                    {
+                        sellable = true;
+                    }
+                }
+                else if (item.Class == ItemClass::ITEM_CLASS_ARMOR)
+                {
+                    sellable = true;
+                }
+                if (sellable)
+                {
+                    sMingManager->equipsMap[item.Class][item.SubClass][item.InventoryType][item.RequiredLevel].insert(item.ItemId);
+                }
+            }
+        }
     }
     while (result->NextRow());
 

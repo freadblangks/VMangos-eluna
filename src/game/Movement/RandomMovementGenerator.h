@@ -34,6 +34,9 @@ class RandomMovementGenerator
 
             if (wander_distance > 0.0f)
                 i_wanderDistance = wander_distance;
+
+            // lfm wait delay 
+            waitDelay = 0;
         }
 
         void _setRandomLocation(Creature&);
@@ -60,6 +63,10 @@ class RandomMovementGenerator
         float i_wanderDistance;
         uint32 i_expireTime;
         uint8 i_wanderSteps;
+
+        // lfm wait 
+public:
+        int32 waitDelay;
 };
 
 #endif

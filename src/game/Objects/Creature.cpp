@@ -955,6 +955,9 @@ void Creature::RegenerateMana()
     {
         if (!IsUnderLastManaUseEffect())
             addvalue = round_float_chance(m_manaRegen);
+
+        // lfm creature mana regen too much
+        addvalue = addvalue / 4;
     }
     else
         addvalue = maxValue / 3;
@@ -1051,7 +1054,7 @@ void Creature::DoFleeToGetAssistance()
 
 
 float Creature::GetFleeingSpeed() const
-{
+{    
     //TODO: There are different speeds for the different mobs, isn't there?
     return GetSpeed(MOVE_RUN);
 }

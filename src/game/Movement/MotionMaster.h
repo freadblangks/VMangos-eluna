@@ -122,12 +122,11 @@ class MotionMaster : std::stack<MovementGenerator *>
                 DirectExpire(reset);
         }
         void ClearType(MovementGeneratorType moveType);
-
         void MoveIdle();
         void MoveRandom(bool use_current_position = false, float wander_distance = 0.0f, uint32 expire_time = 0);
         void MoveTargetedHome();
-        void MoveFollow(Unit* target, float dist, float angle);
-        void MoveChase(Unit* target, float dist = 0.0f, float angle = 0.0f);
+        void MoveFollow(Unit* target, float dist, float angle);        
+        void MoveChase(Unit* target, float dist = 0.0f, float angle = 0.0f);        
         void MoveConfused();
         void MoveFleeing(Unit* enemy, uint32 time = 0);
         void MoveFeared(Unit* enemy, uint32 time = 0);

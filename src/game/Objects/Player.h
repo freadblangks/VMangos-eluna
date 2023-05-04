@@ -40,6 +40,9 @@
 #include <vector>
 #include <functional>
 
+// lfm nier 
+#include "Nier/NierStrategies/NierStrategy_Base.h"
+
 struct Mail;
 struct ItemPrototype;
 struct AuraSaveStruct;
@@ -953,6 +956,16 @@ class Player final: public Unit
         explicit Player (WorldSession* session);
         ~Player() override;
 
+        // lfm nier 
+        bool isNier;
+        uint32 groupRole;
+        NierAction_Base* nierAction;
+        std::unordered_map<uint32, NierStrategy_Base*> nierStrategyMap;
+        uint32 activeStrategyIndex;
+
+        // lfm auto fish
+        int fishingDelay;
+
         void CleanupsBeforeDelete() override;
 
         // Initializes a new Player object that was not loaded from the database.
@@ -1547,6 +1560,10 @@ class Player final: public Unit
         // cooldown system
         void AddGCD(SpellEntry const& spellEntry, uint32 forcedDuration = 0, bool updateClient = false) final;
         void AddCooldown(SpellEntry const& spellEntry, ItemPrototype const* itemProto = nullptr, bool permanent = false, uint32 forcedDuration = 0) final;
+
+        // lfm nier spell cooldown 
+        bool HasSpellCooldown(uint32 pmSpellID);
+
         void RemoveSpellCooldown(SpellEntry const& spellEntry, bool updateClient = true) final;
         void RemoveSpellCategoryCooldown(uint32 category, bool updateClient = true) final;
         void RemoveAllCooldowns(bool sendOnly = false) final;
@@ -1987,6 +2004,11 @@ class Player final: public Unit
 
         uint32 GetHomeBindMap() const { return m_homebind.mapId; }
         uint16 GetHomeBindAreaId() const { return m_homebindAreaId; }
+
+        // lfm nier 
+        float GetHomeBindX() const { return m_homebindX; }
+        float GetHomeBindY() const { return m_homebindY; }
+        float GetHomeBindZ() const { return m_homebindZ; }
 
         void SendSummonRequest(ObjectGuid summonerGuid, uint32 mapId, uint32 zoneId, float x, float y, float z);
         void SetSummonPoint(uint32 mapid, float x, float y, float z)

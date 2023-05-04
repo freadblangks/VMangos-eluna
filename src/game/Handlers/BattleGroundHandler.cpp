@@ -37,6 +37,9 @@
 #include "World.h"
 #include "Anticheat.h"
 
+// lfm movement wait 
+#include "RandomMovementGenerator.h"
+
 void WorldSession::HandleBattlemasterHelloOpcode(WorldPacket& recv_data)
 {
     ObjectGuid guid;
@@ -52,8 +55,9 @@ void WorldSession::HandleBattlemasterHelloOpcode(WorldPacket& recv_data)
 
     // Stop the npc if moving
     if (!pCreature->HasExtraFlag(CREATURE_FLAG_EXTRA_NO_MOVEMENT_PAUSE))
-        pCreature->PauseOutOfCombatMovement();
-
+    {
+        pCreature->PauseOutOfCombatMovement();     
+    }
     BattleGroundTypeId bgTypeId = sBattleGroundMgr.GetBattleMasterBG(pCreature->GetEntry());
 
     if (bgTypeId == BATTLEGROUND_TYPE_NONE)

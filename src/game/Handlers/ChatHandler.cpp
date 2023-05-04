@@ -41,6 +41,9 @@
 #include "Anticheat.h"
 #include "AccountMgr.h"
 
+// lfm nier 
+#include "NierManager.h"
+
 bool WorldSession::CheckChatMessageValidity(char* msg, uint32 lang, uint32 msgType)
 {
     if (!IsLanguageAllowedForChatType(lang, msgType))
@@ -399,6 +402,12 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recv_data)
                     a->addMessage(msg, type, GetPlayerPointer(), nullptr);
             }
 
+            // lfm nier 
+            if (!GetPlayer()->GetSession()->isNier)
+            {
+                sNierManager->HandleChatCommand(GetPlayer(), msg);
+            }
+
             break;
         case CHAT_MSG_EMOTE:
             if (GetPlayer()->GetLevel() < sWorld.getConfig(CONFIG_UINT32_SAY_EMOTE_MIN_LEVEL)
@@ -510,6 +519,12 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recv_data)
                         if (AntispamInterface *a = sAnticheatMgr->GetAntispam())
                             a->addMessage(msg, type, GetPlayerPointer(), PlayerPointer(new PlayerWrapper<MasterPlayer>(player)));
                 }
+
+                // lfm nier 
+                if (!GetPlayer()->GetSession()->isNier)
+                {
+                    sNierManager->HandleChatCommand(GetPlayer(), msg, toPlayer);
+                }
             }
         }
         break;
@@ -534,6 +549,12 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recv_data)
             group->BroadcastPacket(&data, false, group->GetMemberGroup(GetPlayer()->GetObjectGuid()));
             if (lang != LANG_ADDON)
                 sWorld.LogChat(this, "Group", msg, nullptr, group->GetId());
+
+            // lfm nier 
+            if (!GetPlayer()->GetSession()->isNier)
+            {
+                sNierManager->HandleChatCommand(GetPlayer(), msg, nullptr, group);
+            }
         }
         break;
         case CHAT_MSG_GUILD: // Master side
@@ -600,6 +621,12 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recv_data)
             group->BroadcastPacket(&data, false);
             if (lang != LANG_ADDON)
                 sWorld.LogChat(this, "Raid", msg, nullptr, group->GetId());
+
+            // lfm nier 
+            if (!GetPlayer()->GetSession()->isNier)
+            {
+                sNierManager->HandleChatCommand(GetPlayer(), msg, nullptr, group);
+            }
         }
         break;
 
@@ -650,6 +677,12 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recv_data)
 
             if (lang != LANG_ADDON)
                 sWorld.LogChat(this, "BG", msg, nullptr, group->GetId());
+
+            // lfm nier 
+            if (!GetPlayer()->GetSession()->isNier)
+            {
+                sNierManager->HandleChatCommand(GetPlayer(), msg, nullptr, group);
+            }
         }
         break;
 #endif

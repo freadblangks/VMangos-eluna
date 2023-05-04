@@ -83,6 +83,7 @@ Group::Group() : m_Id(0), m_leaderLastOnline(0), m_groupType(GROUPTYPE_NORMAL),
                  m_bgGroup(nullptr), m_lootMethod(FREE_FOR_ALL), m_lootThreshold(ITEM_QUALITY_UNCOMMON),
                  m_subGroupsCounts(nullptr), m_groupTeam(TEAM_NONE), m_LFGAreaId(0)
 {
+
 }
 
 Group::~Group()
@@ -131,6 +132,9 @@ bool Group::Create(ObjectGuid guid, char const*  name)
     m_lootMethod = GROUP_LOOT;
     m_lootThreshold = ITEM_QUALITY_UNCOMMON;
     m_looterGuid = guid;
+
+    // lfm free loot
+    m_lootMethod = FREE_FOR_ALL;
 
     if (!isBGGroup())
     {
@@ -2460,4 +2464,26 @@ void Group::UpdateLooterGuid(WorldObject* pLootedObject, bool ifneed)
             SendTargetIconList(player->GetSession());
         }
     }
+}
+
+// lfm nier
+uint32 Group::GetTargetIconByGuid(ObjectGuid ogTarget)
+{
+    for (uint32 i = 0; i < TARGET_ICON_COUNT; ++i)
+    {
+        if (m_targetIcons[i] == ogTarget)
+        {
+            return i;
+        }
+    }
+    return -1;
+}
+
+ObjectGuid Group::GetGuidByTargetIcon(uint32 icon)
+{
+    if (icon >= 0 && icon < TARGET_ICON_COUNT)
+    {
+        return m_targetIcons[icon];
+    }
+    return ObjectGuid();
 }

@@ -37,6 +37,7 @@
 #include "Cell.h"
 #include <string>
 
+
 class WorldPacket;
 class UpdateData;
 class Corpse;

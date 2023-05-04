@@ -573,6 +573,9 @@ class ObjectMgr
         ObjectMgr();
         ~ObjectMgr();
 
+        // lfm global defines 
+        std::unordered_set<uint32> noRewardQuestExceptions;
+
         // Stores all existing ids in the database, not necessarily valid or loaded.
         void LoadAllIdentifiers();
         bool IsExistingItemId(uint32 id) const { return (m_ItemIdSet.find(id) != m_ItemIdSet.end()); }

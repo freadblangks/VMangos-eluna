@@ -43,7 +43,7 @@ void MovementBroadcaster::RegisterPlayer(std::shared_ptr<PlayerBroadcaster> cons
     if (!m_num_threads)
         return;
 
-    std::size_t index = player->GetGUID().GetRawValue() % m_num_threads;
+    std::size_t index = player->GetGUID().GetCounter() % m_num_threads;
     std::lock_guard<std::mutex> guard(m_thread_locks[index]);
     m_thread_players[index].insert(player);
 }
@@ -53,7 +53,7 @@ void MovementBroadcaster::RemovePlayer(std::shared_ptr<PlayerBroadcaster> const&
     if (!m_num_threads)
         return;
 
-    std::size_t index = player->GetGUID().GetRawValue() % m_num_threads;
+    std::size_t index = player->GetGUID().GetCounter() % m_num_threads;
     std::lock_guard<std::mutex> guard(m_thread_locks[index]);
     auto it = m_thread_players[index].find(player);
 

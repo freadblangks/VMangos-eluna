@@ -280,6 +280,11 @@ class WorldSession
         ~WorldSession();
 
         uint32 GetGUID() const { return m_guid; }
+        // lfm nier
+        bool isNier;
+
+        void HandlePlayerLogin_Simple(ObjectGuid pmCharacterGUID);
+
         AccountTypes GetSecurity() const { return m_security; }
         uint32 GetAccountId() const { return m_accountId; }
         std::string GetUsername() const { return m_username; }

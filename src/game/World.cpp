@@ -84,6 +84,12 @@
 
 #include <chrono>
 
+// lfm nier
+#include "NierManager.h"
+
+// lfm ming
+#include "MingManager.h"
+
 INSTANTIATE_SINGLETON_1(World);
 
 volatile bool World::m_stopEvent = false;
@@ -1846,6 +1852,18 @@ void World::SetInitialWorldSettings()
 
     uint32 uStartInterval = WorldTimer::getMSTimeDiff(uStartTime, WorldTimer::getMSTime());
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "SERVER STARTUP TIME: %i minutes %i seconds", uStartInterval / 60000, (uStartInterval % 60000) / 1000);
+
+    // lfm nier
+    if (sNierConfig.StartNier())
+    {
+        sNierManager->InitializeManager();
+    }
+
+    // lfm ming
+    if (sMingConfig.StartMingSystem())
+    {
+        sMingManager->InitializeManager();
+    }
 }
 
 void World::DetectDBCLang()
@@ -2047,6 +2065,13 @@ void World::Update(uint32 diff)
     //cleanup unused GridMap objects as well as VMaps
     if (getConfig(CONFIG_BOOL_CLEANUP_TERRAIN))
         sTerrainMgr.Update(diff);
+
+    // lfm nier
+    sNierManager->UpdateNierManager(diff);
+    sNierManager->UpdateNierEntities(diff);
+
+    // lfm ming update 
+    sMingManager->UpdateMing(diff);
 }
 
 /// Send a packet to all players (except self if mentioned)
@@ -2564,11 +2589,22 @@ void World::ShutdownServ(uint32 time, uint32 options, uint8 exitcode)
     if (m_stopEvent)
         return;
 
+    // lfm logout niers and disable ming 
+    sNierManager->LogoutNiers(true);
+    sMingConfig.Enable = 0;
+
     m_ShutdownMask = options;
     m_ExitCode = exitcode;
 
+    // lfm shutdown time will not be less than 5 seconds 
+    uint32 shutdownTimeSeconds = time;
+    if (shutdownTimeSeconds < 5)
+    {
+        shutdownTimeSeconds = 5;
+    }
+
     ///- If the shutdown time is 0, set m_stopEvent (except if shutdown is 'idle' with remaining sessions)
-    if (time == 0)
+    if (shutdownTimeSeconds == 0)
     {
         if (!(options & SHUTDOWN_MASK_IDLE) || GetActiveAndQueuedSessionCount() == 0)
             m_stopEvent = true;                             // exist code already set
@@ -2578,7 +2614,7 @@ void World::ShutdownServ(uint32 time, uint32 options, uint8 exitcode)
     ///- Else set the shutdown timer and warn users
     else
     {
-        m_ShutdownTimer = time;
+        m_ShutdownTimer = shutdownTimeSeconds;
         ShutdownMsg(true);
     }
 }
