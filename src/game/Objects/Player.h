@@ -1497,6 +1497,7 @@ class Player final: public Unit
     private:
         PlayerSpellMap m_spells;
         float m_auraBaseMod[BASEMOD_END][MOD_END];
+        uint16 m_baseSpellPower; //SOLOCRAFT MOD
         SpellModList m_spellMods[MAX_SPELLMOD];
         uint32 m_lastFromClientCastedSpellID;
         std::map<uint32, ItemSetEffect> m_itemSetEffects;
@@ -1661,6 +1662,10 @@ class Player final: public Unit
         void UpdateManaRegen() override;
         void UpdateAttackPowerAndDamage(bool ranged = false) override;
         void UpdateDamagePhysical(WeaponAttackType attType) override;
+
+        void ApplySpellPowerBonus(int32 amount, bool apply); //SOLOCRAFT MOD
+        uint32 GetBaseSpellPowerBonus() const { return m_baseSpellPower; } //SOLOCRAFT MOD
+
         void UpdateSpellDamageAndHealingBonus();
         void UpdateDefenseBonusesMod();
         void UpdateBlockPercentage();
