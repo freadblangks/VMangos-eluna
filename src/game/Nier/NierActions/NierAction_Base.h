@@ -9,6 +9,10 @@
 #define DEFAULT_MOVEMENT_UPDATE_DELAY 100
 #endif
 
+#ifndef DEFAULT_MOVEMENT_CHECK_DELAY
+#define DEFAULT_MOVEMENT_CHECK_DELAY 500
+#endif
+
 #include "Nier/NierConfig.h"
 #include "Nier/NierManager.h"
 #include "MotionMaster.h"
@@ -43,12 +47,11 @@ public:
 	NierMovement(Player* pmMe);
 	void ResetMovement();
 	void Update_Direct(uint32 pmDiff);
-	void Update_Chase(uint32 pmDiff);
 
 	void Run();
-	bool Tank(Unit* pmTankTarget, float pmDistanceMax, float pmDistanceMin, bool pmHolding);
-	bool Chase(Unit* pmChaseTarget, float pmDistanceMax, float pmDistanceMin, bool pmHolding, bool pmForceBack);
-	bool Follow(Unit* pmFollowTarget, float pmDistanceMax, float pmDistanceMin, bool pmHolding);
+	bool Tank(Unit* pmTankTarget);
+	bool Chase(Unit* pmChaseTarget, float pmDistanceMax, float pmDistanceMin);
+	bool Follow(Unit* pmFollowTarget, float pmDistance);
 	void Point(Position pmPosTarget, uint32 pmLimit = DEFAULT_ACTION_LIMIT_DELAY);
 	bool Direction(Unit* pmCommander, uint32 pmDirection, uint32 pmLimit = DEFAULT_ACTION_LIMIT_DELAY, float pmDistance = INTERACTION_DISTANCE);
 	bool Direction(float pmAngle, uint32 pmLimit = DEFAULT_ACTION_LIMIT_DELAY, float pmDistance = NIER_NORMAL_DISTANCE);
@@ -60,13 +63,11 @@ public:
 	ObjectGuid ogChaseTarget;
 	ObjectGuid ogFollowTarget;
 	Position positionTarget;
-	uint32 activeMovementType;
-	float distanceMax;
-	float distanceMin;
-	bool holding;
-	bool forceBack;
+	uint32 activeMovementType;	
+	float maxDistance;
+	float minDistance;
+	int updateCheckDelay;
 	int moveCheckDelay;
-    int backwardCheckDelay;    
 };
 
 class NierAction_Base
@@ -76,18 +77,19 @@ public:
 	virtual void Reset();
 	virtual void Prepare();
 	virtual void Update(uint32 pmDiff);
-	virtual bool DPS(Unit* pmTarget, bool pmRushing, float pmDistanceMax, float pmDistanceMin, bool pmHolding, bool pmInstantOnly, bool pmChasing);
-	virtual bool AOE(Unit* pmTarget, bool pmRushing, float pmDistanceMax, float pmDistanceMin, bool pmHolding, bool pmInstantOnly, bool pmChasing);
-	virtual bool Tank(Unit* pmTarget, bool pmAOE, float pmDistanceMax, float pmDistanceMin, bool pmHolding);
+	virtual bool Attack(Unit* pmTarget);
+	virtual bool Interrupt(Unit* pmTarget);
+	virtual bool DPS(Unit* pmTarget, bool pmRushing, bool pmChasing, float pmDistanceMax = DEFAULT_COMBAT_REACH, float pmDistanceMin = CONTACT_DISTANCE);
+	virtual bool Tank(Unit* pmTarget, bool aoe);
 	virtual bool Heal(Unit* pmTarget, bool pmInstantOnly);
-	virtual bool Follow(Unit* pmFollowTarget, float pmDistanceMax, float pmDistanceMin, bool pmHolding);
+	virtual bool Follow(Unit* pmFollowTarget, float pmDistance);
 	virtual bool ReadyTank(Unit* pmTarget);
 	virtual bool GroupHeal(Unit* pmTarget, bool pmInstantOnly);
 	virtual bool SimpleHeal(Unit* pmTarget, bool pmInstantOnly);
 	virtual bool Cure(Unit* pmTarget);
-	virtual bool Buff(Unit* pmTarget);	
+	virtual bool Buff(Unit* pmTarget);
 	virtual uint32 Caution();
-	virtual bool Mark(Unit* pmTarget,int pmRTI);
+	virtual bool Mark(Unit* pmTarget, int pmRTI);
 	virtual bool Assist(int pmRTI);
 	virtual bool Revive(Player* pmTarget);
 	virtual bool Petting(bool pmSummon = true, bool pmReset = false);
@@ -103,7 +105,7 @@ public:
 	void PetStop();
 	bool UseItem(Item* pmItem, Unit* pmTarget);
 	bool UseItem(Item* pmItem, Item* pmTarget);
-	bool CastSpell(Unit* pmTarget, uint32 pmSpellId, bool pmCheckAura = false, bool pmOnlyMyAura = false, bool pmClearShapeShift = false, uint32 pmMaxAuraStack = 1);	
+	bool CastSpell(Unit* pmTarget, uint32 pmSpellId, bool pmCheckAura = false, bool pmOnlyMyAura = false, bool pmClearShapeShift = false, uint32 pmMaxAuraStack = 1);
 	void CancelAura(uint32 pmSpellID);
 	bool Eat();
 	bool Drink();
@@ -120,6 +122,6 @@ public:
 	Player* me;
 	NierMovement* nm;
 
-	uint32 specialty;	
+	uint32 specialty;
 };
 #endif

@@ -16,7 +16,7 @@ public:
     void ResetTalent();
     bool InitializeEquipments(bool pmReset);
     void Prepare();
-    bool Tank(Unit* pmTarget, bool pmAOE, float pmDistanceMax, float pmDistanceMin, bool pmHolding);
+    bool Tank(Unit* pmTarget, bool aoe);
     bool Buff(Unit* pmTarget);
 
     ObjectGuid ogVigilanceTarget;

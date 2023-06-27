@@ -3809,7 +3809,7 @@ void ObjectMgr::LoadItemPrototypes()
             {
                 requiredLevel = item.ItemLevel;
             }
-            sNierManager->equipsMap[item.InventoryType][requiredLevel][sNierManager->equipsMap[item.InventoryType][requiredLevel].size()] = item.ItemId;
+            sNierManager->equipsMap[item.InventoryType][item.SubClass][requiredLevel][sNierManager->equipsMap[item.InventoryType][item.SubClass][requiredLevel].size()] = item.ItemId;
         }
 
         // lfm ming vendor equips 

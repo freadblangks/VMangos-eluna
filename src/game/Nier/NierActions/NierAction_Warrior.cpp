@@ -564,7 +564,7 @@ void NierAction_Warrior::Prepare()
 	me->Say("Prepared", Language::LANG_UNIVERSAL);
 }
 
-bool NierAction_Warrior::Tank(Unit* pmTarget, bool pmAOE, float pmDistanceMax, float pmDistanceMin, bool pmHolding)
+bool NierAction_Warrior::Tank(Unit* pmTarget, bool aoe)
 {
 	if (!me)
 	{
@@ -598,7 +598,7 @@ bool NierAction_Warrior::Tank(Unit* pmTarget, bool pmAOE, float pmDistanceMax, f
 		}
 		return false;
 	}
-	if (!nm->Tank(pmTarget, pmDistanceMax, pmDistanceMin, pmHolding))
+	if (!nm->Tank(pmTarget))
 	{
 		if (me->GetTargetGuid() == pmTarget->GetObjectGuid())
 		{
@@ -656,25 +656,22 @@ bool NierAction_Warrior::Tank(Unit* pmTarget, bool pmAOE, float pmDistanceMax, f
 				{
 					if (spell_Warbringer > 0)
 					{
-						if (!pmHolding)
+						if (CastSpell(pmTarget, spell_Charge))
 						{
-							if (CastSpell(pmTarget, spell_Charge))
+							nm->moveCheckDelay = 1000;
+							return true;
+						}
+						if (CastSpell(pmTarget, spell_intercept))
+						{
+							nm->moveCheckDelay = 1000;
+							return true;
+						}
+						if (spell_Intervene > 0)
+						{
+							if (CastSpell(pmTarget, spell_Intervene))
 							{
 								nm->moveCheckDelay = 1000;
 								return true;
-							}
-							if (CastSpell(pmTarget, spell_intercept))
-							{
-								nm->moveCheckDelay = 1000;
-								return true;
-							}
-							if (spell_Intervene > 0)
-							{
-								if (CastSpell(pmTarget, spell_Intervene))
-								{
-									nm->moveCheckDelay = 1000;
-									return true;
-								}
 							}
 						}
 					}
@@ -726,14 +723,11 @@ bool NierAction_Warrior::Tank(Unit* pmTarget, bool pmAOE, float pmDistanceMax, f
 	}
 	if (canMelee)
 	{
-		if (pmAOE)
+		if (spell_ThunderClap > 0)
 		{
-			if (spell_ThunderClap > 0)
+			if (CastSpell(pmTarget, spell_ThunderClap))
 			{
-				if (CastSpell(pmTarget, spell_ThunderClap))
-				{
-					return true;
-				}
+				return true;
 			}
 		}
 		if (pmTarget->IsNonMeleeSpellCasted(false, false, true))
@@ -785,7 +779,7 @@ bool NierAction_Warrior::Tank(Unit* pmTarget, bool pmAOE, float pmDistanceMax, f
 				return true;
 			}
 		}
-		if (pmAOE)
+		if (aoe)
 		{
 			if (spell_Shockwave > 0)
 			{

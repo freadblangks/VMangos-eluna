@@ -424,6 +424,8 @@ set (game_SRCS
 	Nier/NierManager.cpp
 	Nier/NierStrategies/NierStrategy_Base.h
 	Nier/NierStrategies/NierStrategy_Base.cpp
+	Nier/NierStrategies/GroupStrategy_Base.h
+	Nier/NierStrategies/GroupStrategy_Base.cpp
 	Nier/NierActions/NierAction_Base.h
 	Nier/NierActions/NierAction_Base.cpp
 	Nier/NierActions/NierAction_Druid.h

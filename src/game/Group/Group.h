@@ -35,6 +35,9 @@
 #include <map>
 #include <vector>
 
+ // lfm nier 
+#include "Nier/NierStrategies/GroupStrategy_Base.h"
+
 class WorldSession;
 class Map;
 class BattleGround;
@@ -210,6 +213,8 @@ class Group
         // lfm nier
         uint32 GetTargetIconByGuid(ObjectGuid ogTarget);
         ObjectGuid GetGuidByTargetIcon(uint32 icon);
+        std::unordered_map<uint32, GroupStrategy_Base*> nierGroupStrategyMap;
+        uint32 activeStrategyIndex;
 
         // lfm group target arrangement
         std::unordered_map<ObjectGuid, ObjectGuid> groupTargetArrangementMap;

@@ -76,8 +76,8 @@ public:
     std::unordered_map<uint32, std::unordered_map<uint32, std::string>> characterTalentTabNameMap;
     std::unordered_set<uint32> instanceEncounterEntrySet;
 
-    // inventorytype - required level - item index, item entry
-    std::unordered_map<uint32, std::unordered_map<uint32, std::unordered_map<uint32, uint32>>> equipsMap;
+    // inventorytype - sub class - required level - item index, item entry
+    std::unordered_map<uint32, std::unordered_map<uint32, std::unordered_map<uint32, std::unordered_map<uint32, uint32>>>> equipsMap;
 
 private:
     void CreateNier(uint32 pmLevel, bool pmAlliance, uint32 pmGroupRole);

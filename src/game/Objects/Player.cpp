@@ -1760,7 +1760,7 @@ void Player::Update(uint32 update_diff, uint32 p_time)
     }
 
     // lfm auto fish
-    if (fishingDelay>0)
+    if (fishingDelay > 0)
     {
         fishingDelay -= p_time;
         if (fishingDelay <= 0)
@@ -1770,7 +1770,20 @@ void Player::Update(uint32 update_diff, uint32 p_time)
         }
     }
 
-    // lfm nier
+    if (Group* myGroup = GetGroup())
+    {
+        // leader will update group 
+        if (myGroup->IsLeader(GetObjectGuid()))
+        {
+            if (myGroup->nierGroupStrategyMap.size() > 0)
+            {
+                if (myGroup->nierGroupStrategyMap[activeStrategyIndex])
+                {
+                    myGroup->nierGroupStrategyMap[activeStrategyIndex]->Update(p_time);
+                }
+            }
+        }
+    }
     if (m_session->isNier)
     {
         if (nierStrategyMap.size() > 0)

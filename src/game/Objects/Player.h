@@ -2006,9 +2006,9 @@ class Player final: public Unit
         uint16 GetHomeBindAreaId() const { return m_homebindAreaId; }
 
         // lfm nier 
-        float GetHomeBindX() const { return m_homebindX; }
-        float GetHomeBindY() const { return m_homebindY; }
-        float GetHomeBindZ() const { return m_homebindZ; }
+        float GetHomeBindX() const { return m_homebind.x; }
+        float GetHomeBindY() const { return m_homebind.y; }
+        float GetHomeBindZ() const { return m_homebind.z; }
 
         void SendSummonRequest(ObjectGuid summonerGuid, uint32 mapId, uint32 zoneId, float x, float y, float z);
         void SetSummonPoint(uint32 mapid, float x, float y, float z)

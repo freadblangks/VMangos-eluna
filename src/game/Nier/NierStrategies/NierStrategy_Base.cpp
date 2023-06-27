@@ -2,6 +2,7 @@
 #include "NierConfig.h"
 #include "NierManager.h"
 #include "NierAction_Base.h"
+#include "NierAction_Paladin.h"
 
 #include "Player.h"
 #include "Group.h"
@@ -31,11 +32,9 @@ NierStrategy_Base::NierStrategy_Base()
 
 	basicStrategyType = BasicStrategyType::BasicStrategyType_Normal;
 	cure = true;
-	aoe = true;
 	petting = false;
 	rushing = false;
 
-	forceBack = false;
 	instantOnly = false;
 
 	actionLimit = 0;
@@ -45,9 +44,9 @@ NierStrategy_Base::NierStrategy_Base()
 	vipEntry = 0;
 	actionType = ActionType::ActionType_None;
 
-	dpsDistance = MELEE_RANGE;
+	dpsDistance = DEFAULT_COMBAT_REACH;
 	dpsDistanceMin = 0.0f;
-	followDistance = INTERACTION_DISTANCE;
+	followDistance = NIER_MIN_DISTANCE;
 
 	cautionSpellMap.clear();
 }
@@ -63,6 +62,17 @@ void NierStrategy_Base::Report()
 				std::ostringstream reportStream;
 				reportStream << "Strategy : " << me->activeStrategyIndex << " - Role : " << me->groupRole << " - Specialty : " << sNierManager->characterTalentTabNameMap[me->GetClass()][me->nierAction->specialty] << " RTI : " << rti;
 				sNierManager->WhisperTo(leaderPlayer, reportStream.str(), Language::LANG_UNIVERSAL, me);
+
+				// paladin report 
+				std::ostringstream classStream;
+				if (me->GetClass() == Classes::CLASS_PALADIN)
+				{
+					if (NierAction_Paladin* na = (NierAction_Paladin*)me->nierAction)
+					{
+						classStream << "Seal type : " << na->sealType << " - Blessing type : " << na->blessingType << " - Aura type : " << na->auraType;
+						sNierManager->WhisperTo(leaderPlayer, classStream.str(), Language::LANG_UNIVERSAL, me);
+					}
+				}
 			}
 		}
 	}
@@ -84,12 +94,10 @@ void NierStrategy_Base::Reset()
 	basicStrategyType = BasicStrategyType::BasicStrategyType_Normal;
 
 	cure = true;
-	aoe = true;
 	petting = false;
 	rushing = false;
 	rti = -1;
 
-	forceBack = false;
 	instantOnly = false;
 
 	actionLimit = 0;
@@ -100,9 +108,9 @@ void NierStrategy_Base::Reset()
 	vipEntry = 0;
 	cautionSpellMap.clear();
 
-	dpsDistance = me->GetMeleeReach();
+	dpsDistance = DEFAULT_COMBAT_REACH;
 	dpsDistanceMin = 0.0f;
-	followDistance = INTERACTION_DISTANCE;
+	followDistance = NIER_MIN_DISTANCE;
 
 	switch (me->GetClass())
 	{
@@ -113,7 +121,6 @@ void NierStrategy_Base::Reset()
 	}
 	case Classes::CLASS_HUNTER:
 	{
-		aoe = true;
 		dpsDistance = NIER_MAX_DISTANCE;
 		dpsDistanceMin = 0;
 		break;
@@ -124,19 +131,19 @@ void NierStrategy_Base::Reset()
 	}
 	case Classes::CLASS_PALADIN:
 	{
+		me->groupRole = GroupRole::GroupRole_Tank;
 		break;
 	}
 	case Classes::CLASS_WARLOCK:
 	{
-		aoe = true;
 		dpsDistance = NIER_FAR_DISTANCE;
 		break;
 	}
 	case Classes::CLASS_PRIEST:
 	{
-		aoe = true;
 		me->groupRole = GroupRole::GroupRole_Healer;
 		dpsDistance = NIER_FAR_DISTANCE;
+		followDistance = NIER_NORMAL_DISTANCE;
 		break;
 	}
 	case Classes::CLASS_ROGUE:
@@ -145,14 +152,12 @@ void NierStrategy_Base::Reset()
 	}
 	case Classes::CLASS_MAGE:
 	{
-		aoe = true;
 		dpsDistance = NIER_FAR_DISTANCE;
 		dpsDistanceMin = 0;
 		break;
 	}
 	case Classes::CLASS_DRUID:
 	{
-		aoe = true;
 		dpsDistance = NIER_FAR_DISTANCE;
 		break;
 	}
@@ -224,6 +229,10 @@ void NierStrategy_Base::Update(uint32 pmDiff)
 	}
 	if (me->IsAlive())
 	{
+		if (me->HasUnitState(UNIT_STAT_STUNNED | UNIT_STAT_CONFUSED | UNIT_STAT_FLEEING))
+		{
+			return;
+		}
 		if (me->IsNonMeleeSpellCasted(true))
 		{
 			bool interrupt = false;
@@ -328,6 +337,17 @@ void NierStrategy_Base::Update(uint32 pmDiff)
 					}
 				}
 				return;
+			}
+			case ActionType::ActionType_Attack:
+			{
+				if (Unit* actionTarget = ObjectAccessor::GetUnit(*me, ogActionTarget))
+				{
+					if (me->nierAction->Attack(actionTarget))
+					{
+						return;
+					}
+				}
+				break;
 			}
 			default:
 				break;
@@ -457,10 +477,6 @@ void NierStrategy_Base::Update(uint32 pmDiff)
 				}
 				case GroupRole::GroupRole_Tank:
 				{
-					if (TryTank())
-					{
-						return;
-					}
 					break;
 				}
 				default:
@@ -510,8 +526,8 @@ void NierStrategy_Base::Update(uint32 pmDiff)
 				{
 					return;
 				}
+				Follow();
 			}
-			Follow();
 		}
 		else
 		{
@@ -531,7 +547,7 @@ void NierStrategy_Base::Update(uint32 pmDiff)
 				{
 					return;
 				}
-				if (TryDPS(false, false, true))
+				if (TryAttack())
 				{
 					return;
 				}
@@ -576,14 +592,14 @@ void NierStrategy_Base::Update(uint32 pmDiff)
 							{
 								if (eachUnit->GetTypeId() == TypeID::TYPEID_PLAYER)
 								{
-									if (Engage(eachUnit))
+									if (me->nierAction->Attack(eachUnit))
 									{
 										me->SetPvP(true);
 										me->UpdatePvP(true);
 										me->pvpInfo.inPvPCombat = true;
 										actionLimit = 30 * IN_MILLISECONDS;
 										ogActionTarget = eachUnit->GetObjectGuid();
-										actionType = ActionType::ActionType_Engage;
+										actionType = ActionType::ActionType_Attack;
 										return;
 									}
 								}
@@ -680,7 +696,7 @@ bool NierStrategy_Base::Engage(Unit* pmTarget)
 		{
 		case GroupRole::GroupRole_Tank:
 		{
-			if (me->nierAction->Tank(pmTarget, aoe, dpsDistance, dpsDistanceMin, basicStrategyType == BasicStrategyType::BasicStrategyType_Hold))
+			if (me->nierAction->Tank(pmTarget, false))
 			{
 				if (Group* myGroup = me->GetGroup())
 				{
@@ -706,7 +722,7 @@ bool NierStrategy_Base::Engage(Unit* pmTarget)
 	return false;
 }
 
-bool NierStrategy_Base::TryTank()
+bool NierStrategy_Base::TryAttack()
 {
 	if (!me)
 	{
@@ -717,147 +733,49 @@ bool NierStrategy_Base::TryTank()
 		return false;
 	}
 
-	if (Group* myGroup = me->GetGroup())
+	if (Unit* myTarget = me->GetSelectedUnit())
 	{
-		Unit* ogTankTarget = ObjectAccessor::GetUnit(*me, myGroup->GetGuidByTargetIcon(7));
-		if (ogTankTarget)
+		if (!sNierManager->IsPolymorphed(myTarget))
 		{
-			if (!ogTankTarget->GetTargetGuid().IsEmpty())
+			if (me->nierAction->Attack(myTarget))
 			{
-				if (ogTankTarget->GetTargetGuid() != me->GetObjectGuid())
-				{
-					if (DoTank(ogTankTarget))
-					{
-						return true;
-					}
-				}
-			}
-		}
-		Unit* myTarget = me->GetSelectedUnit();
-		if (myTarget)
-		{
-			if (!myTarget->GetTargetGuid().IsEmpty())
-			{
-				if (myTarget->GetTargetGuid() != me->GetObjectGuid())
-				{
-					if (DoTank(myTarget))
-					{
-						myGroup->SetTargetIcon(7, myTarget->GetObjectGuid());
-						return true;
-					}
-				}
-			}
-		}
-		Unit* nearestOTUnit = nullptr;
-		float nearestDistance = VISIBILITY_DISTANCE_NORMAL;
-		for (GroupReference* groupRef = myGroup->GetFirstMember(); groupRef != nullptr; groupRef = groupRef->next())
-		{
-			if (Player* member = groupRef->getSource())
-			{
-				if (member->IsAlive())
-				{
-					if (member->GetObjectGuid() != me->GetObjectGuid())
-					{
-						float memberDistance = me->GetDistance(member);
-						if (memberDistance < VISIBILITY_DISTANCE_NORMAL)
-						{
-							std::set<Unit*> memberAttackers = member->GetAttackers();
-							for (std::set<Unit*>::iterator ait = memberAttackers.begin(); ait != memberAttackers.end(); ++ait)
-							{
-								if (Unit* eachAttacker = *ait)
-								{
-									if (me->IsValidAttackTarget(eachAttacker))
-									{
-										if (!eachAttacker->GetTargetGuid().IsEmpty())
-										{
-											if (eachAttacker->GetTargetGuid() != me->GetObjectGuid())
-											{
-												float eachDistance = me->GetDistance(eachAttacker);
-												if (eachDistance < NIER_NORMAL_DISTANCE)
-												{
-													if (eachDistance < nearestDistance)
-													{
-														if (myGroup->GetTargetIconByGuid(eachAttacker->GetObjectGuid()) == -1)
-														{
-															nearestDistance = eachDistance;
-															nearestOTUnit = eachAttacker;
-														}
-													}
-												}
-											}
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-		if (nearestOTUnit)
-		{
-			if (DoTank(nearestOTUnit))
-			{
-				myGroup->SetTargetIcon(7, nearestOTUnit->GetObjectGuid());
 				return true;
 			}
 		}
-		if (DoTank(ogTankTarget))
+	}
+	Unit* nearestAttacker = nullptr;
+	float nearestDistance = VISIBILITY_DISTANCE_NORMAL;
+	std::set<Unit*> myAttackers = me->GetAttackers();
+	for (std::set<Unit*>::iterator ait = myAttackers.begin(); ait != myAttackers.end(); ++ait)
+	{
+		if (Unit* eachAttacker = *ait)
+		{
+			if (me->IsValidAttackTarget(eachAttacker))
+			{
+				if (!sNierManager->IsPolymorphed(eachAttacker))
+				{
+					float eachDistance = me->GetDistance(eachAttacker);
+					if (eachDistance < nearestDistance)
+					{
+						nearestDistance = eachDistance;
+						nearestAttacker = eachAttacker;
+					}
+				}
+			}
+		}
+	}
+	if (nearestAttacker)
+	{
+		if (me->nierAction->Attack(nearestAttacker))
 		{
 			return true;
-		}
-		if (myTarget)
-		{
-			if (!sNierManager->IsPolymorphed(myTarget))
-			{
-				if (DoTank(myTarget))
-				{
-					myGroup->SetTargetIcon(7, myTarget->GetObjectGuid());
-					return true;
-				}
-			}
-		}
-		Unit* nearestAttacker = nullptr;
-		nearestDistance = VISIBILITY_DISTANCE_NORMAL;
-		std::set<Unit*> myAttackers = me->GetAttackers();
-		for (std::set<Unit*>::iterator ait = myAttackers.begin(); ait != myAttackers.end(); ++ait)
-		{
-			if (Unit* eachAttacker = *ait)
-			{
-				if (me->IsValidAttackTarget(eachAttacker))
-				{
-					if (!sNierManager->IsPolymorphed(eachAttacker))
-					{
-						float eachDistance = me->GetDistance(eachAttacker);
-						if (eachDistance < nearestDistance)
-						{
-							if (myGroup->GetTargetIconByGuid(eachAttacker->GetObjectGuid()) == -1)
-							{
-								if (!eachAttacker->IsImmuneToDamage(SpellSchoolMask::SPELL_SCHOOL_MASK_NORMAL))
-								{
-									nearestDistance = eachDistance;
-									nearestAttacker = eachAttacker;
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-		if (nearestAttacker)
-		{
-			if (DoTank(nearestAttacker))
-			{
-				myGroup->SetTargetIcon(7, nearestAttacker->GetObjectGuid());
-				return true;
-			}
 		}
 	}
 
 	return false;
 }
 
-bool NierStrategy_Base::DoTank(Unit* pmTarget)
+bool NierStrategy_Base::DoTank(Unit* pmTarget, bool aoe)
 {
 	if (!me)
 	{
@@ -867,8 +785,17 @@ bool NierStrategy_Base::DoTank(Unit* pmTarget)
 	{
 		return false;
 	}
+	if (!pmTarget)
+	{
+		return false;
+	}
+	else if (!pmTarget->IsAlive())
+	{
+		return false;
+	}
 
-	if (me->nierAction->Tank(pmTarget, aoe, dpsDistance, dpsDistanceMin, basicStrategyType == BasicStrategyType::BasicStrategyType_Hold))
+
+	if (me->nierAction->Tank(pmTarget, aoe))
 	{
 		return true;
 	}
@@ -917,78 +844,6 @@ bool NierStrategy_Base::TryDPS(bool pmDelay, bool pmForceInstantOnly, bool pmCha
 		}
 	}
 
-	if (Group* myGroup = me->GetGroup())
-	{
-		if (ObjectGuid ogTankTarget = myGroup->GetGuidByTargetIcon(7))
-		{
-			if (Unit* tankTarget = ObjectAccessor::GetUnit(*me, ogTankTarget))
-			{
-				if (DoDPS(tankTarget, pmForceInstantOnly, pmChasing))
-				{
-					return true;
-				}
-			}
-		}
-
-		if (Player* leader = ObjectAccessor::FindPlayer(myGroup->GetLeaderGuid()))
-		{
-			if (Unit* leaderTarget = leader->GetSelectedUnit())
-			{
-				if (leaderTarget->IsInCombat())
-				{
-					if (!sNierManager->IsPolymorphed(leaderTarget))
-					{
-						if (DoDPS(leaderTarget, pmForceInstantOnly, pmChasing))
-						{
-							return true;
-						}
-					}
-				}
-			}
-		}
-	}
-	else
-	{
-		if (Unit* myTarget = me->GetSelectedUnit())
-		{
-			if (!sNierManager->IsPolymorphed(myTarget))
-			{
-				if (DoDPS(myTarget, pmForceInstantOnly, pmChasing))
-				{
-					return true;
-				}
-			}
-		}
-		Unit* nearestAttacker = nullptr;
-		float nearestDistance = VISIBILITY_DISTANCE_NORMAL;
-		std::set<Unit*> myAttackers = me->GetAttackers();
-		for (std::set<Unit*>::iterator ait = myAttackers.begin(); ait != myAttackers.end(); ++ait)
-		{
-			if (Unit* eachAttacker = *ait)
-			{
-				if (me->IsValidAttackTarget(eachAttacker))
-				{
-					if (!sNierManager->IsPolymorphed(eachAttacker))
-					{
-						float eachDistance = me->GetDistance(eachAttacker);
-						if (eachDistance < nearestDistance)
-						{
-							nearestDistance = eachDistance;
-							nearestAttacker = eachAttacker;
-						}
-					}
-				}
-			}
-		}
-		if (nearestAttacker)
-		{
-			if (DoDPS(nearestAttacker, pmForceInstantOnly, pmChasing))
-			{
-				return true;
-			}
-		}
-	}
-
 	return false;
 }
 
@@ -1006,6 +861,10 @@ bool NierStrategy_Base::DoDPS(Unit* pmTarget, bool pmForceInstantOnly, bool pmCh
 	{
 		return false;
 	}
+	else if (!pmTarget->IsAlive())
+	{
+		return false;
+	}
 
 	bool instant = pmForceInstantOnly;
 	if (!instant)
@@ -1013,37 +872,37 @@ bool NierStrategy_Base::DoDPS(Unit* pmTarget, bool pmForceInstantOnly, bool pmCh
 		instant = instantOnly;
 	}
 
-	if (aoe)
-	{
-		int attackerInRangeCount = 0;
-		std::list<Creature*> creatureList;
-		pmTarget->GetCreatureListWithEntryInGrid(creatureList, 0, INTERACTION_DISTANCE);
-		if (!creatureList.empty())
-		{
-			for (std::list<Creature*>::iterator itr = creatureList.begin(); itr != creatureList.end(); ++itr)
-			{
-				if (Creature* hostileCreature = *itr)
-				{
-					if (!hostileCreature->IsPet())
-					{
-						if (me->IsValidAttackTarget(hostileCreature))
-						{
-							attackerInRangeCount++;
-						}
-					}
-				}
-			}
-		}
-		if (attackerInRangeCount > 3)
-		{
-			if (me->nierAction->AOE(pmTarget, rushing, dpsDistance, dpsDistanceMin, basicStrategyType == BasicStrategyType::BasicStrategyType_Hold, instant, pmChasing))
-			{
-				return true;
-			}
-		}
-	}
+	//if (aoe)
+	//{
+	//	int attackerInRangeCount = 0;
+	//	std::list<Creature*> creatureList;
+	//	pmTarget->GetCreatureListWithEntryInGrid(creatureList, 0, INTERACTION_DISTANCE);
+	//	if (!creatureList.empty())
+	//	{
+	//		for (std::list<Creature*>::iterator itr = creatureList.begin(); itr != creatureList.end(); ++itr)
+	//		{
+	//			if (Creature* hostileCreature = *itr)
+	//			{
+	//				if (!hostileCreature->IsPet())
+	//				{
+	//					if (me->IsValidAttackTarget(hostileCreature))
+	//					{
+	//						attackerInRangeCount++;
+	//					}
+	//				}
+	//			}
+	//		}
+	//	}
+	//	if (attackerInRangeCount > 3)
+	//	{
+	//		if (me->nierAction->AOE(pmTarget, rushing, dpsDistance, dpsDistanceMin, basicStrategyType == BasicStrategyType::BasicStrategyType_Hold, instant, pmChasing))
+	//		{
+	//			return true;
+	//		}
+	//	}
+	//}
 
-	if (me->nierAction->DPS(pmTarget, rushing, dpsDistance, dpsDistanceMin, basicStrategyType == BasicStrategyType::BasicStrategyType_Hold, instant, pmChasing))
+	if (me->nierAction->DPS(pmTarget, rushing, pmChasing, dpsDistance, dpsDistanceMin))
 	{
 		return true;
 	}
@@ -1110,68 +969,7 @@ bool NierStrategy_Base::TryHeal(bool pmForceInstantOnly)
 
 	if (Group* myGroup = me->GetGroup())
 	{
-		if (me->GetHealthPercent() < 50.0f)
-		{
-			if (DoHeal(me, pmForceInstantOnly))
-			{
-				return true;
-			}
-		}
-		Player* tank = nullptr;
-		Player* lowMember = nullptr;
-		uint32 lowMemberCount = 0;
-		for (GroupReference* groupRef = myGroup->GetFirstMember(); groupRef != nullptr; groupRef = groupRef->next())
-		{
-			if (Player* member = groupRef->getSource())
-			{
-				if (me->IsWithinDist(member, NIER_MAX_DISTANCE))
-				{
-					if (member->GetHealthPercent() < 60.0f)
-					{
-						lowMember = member;
-						lowMemberCount++;
-					}
-					if (member->groupRole == GroupRole::GroupRole_Tank)
-					{
-						tank = member;
-					}
-				}
-			}
-		}
-		if (tank)
-		{
-			if (tank->GetHealthPercent() < 50.0f)
-			{
-				if (DoHeal(tank, pmForceInstantOnly))
-				{
-					return true;
-				}
-			}
-		}
-		if (lowMemberCount > 1)
-		{
-			if (me->nierAction->GroupHeal(lowMember, pmForceInstantOnly))
-			{
-				return true;
-			}
-		}
-		if (tank)
-		{
-			if (DoHeal(tank, pmForceInstantOnly))
-			{
-				return true;
-			}
-		}
-		for (GroupReference* groupRef = myGroup->GetFirstMember(); groupRef != nullptr; groupRef = groupRef->next())
-		{
-			if (Player* member = groupRef->getSource())
-			{
-				if (me->nierAction->SimpleHeal(member, pmForceInstantOnly))
-				{
-					return true;
-				}
-			}
-		}
+		// group actions
 	}
 	else
 	{
@@ -1208,40 +1006,6 @@ bool NierStrategy_Base::DoHeal(Unit* pmTarget, bool pmForceInstantOnly)
 	return false;
 }
 
-bool NierStrategy_Base::Revive()
-{
-	if (!me)
-	{
-		return false;
-	}
-	else if (!me->IsAlive())
-	{
-		return false;
-	}
-
-	if (Group* myGroup = me->GetGroup())
-	{
-		for (GroupReference* groupRef = myGroup->GetFirstMember(); groupRef != nullptr; groupRef = groupRef->next())
-		{
-			if (Player* member = groupRef->getSource())
-			{
-				if (!member->IsAlive())
-				{
-					if (me->nierAction->Revive(member))
-					{
-						actionLimit = DEFAULT_ACTION_LIMIT_DELAY;
-						ogActionTarget = member->GetObjectGuid();
-						actionType = ActionType::ActionType_Revive;
-						return true;
-					}
-				}
-			}
-		}
-	}
-
-	return false;
-}
-
 bool NierStrategy_Base::Revive(Unit* pmTarget)
 {
 	if (!me)
@@ -1252,10 +1016,17 @@ bool NierStrategy_Base::Revive(Unit* pmTarget)
 	{
 		return false;
 	}
+	if (me->IsNonMeleeSpellCasted(false, false, true))
+	{
+		return true;
+	}
 	if (Player* targetPlayer = (Player*)pmTarget)
 	{
 		if (me->nierAction->Revive(targetPlayer))
 		{
+			actionLimit = DEFAULT_ACTION_LIMIT_DELAY;
+			ogActionTarget = pmTarget->GetObjectGuid();
+			actionType = ActionType::ActionType_Revive;
 			return true;
 		}
 	}
@@ -1411,20 +1182,10 @@ bool NierStrategy_Base::Follow()
 	}
 	if (Group* myGroup = me->GetGroup())
 	{
-		if (me->groupRole != GroupRole::GroupRole_Tank)
+		ObjectGuid ogLeader = myGroup->GetLeaderGuid();
+		if (Player* leader = ObjectAccessor::FindPlayer(ogLeader))
 		{
-			if (Player* tank = ObjectAccessor::FindPlayer(ogTank))
-			{
-				if (me->nierAction->Follow(tank, followDistance, 0.0f, basicStrategyType == BasicStrategyType::BasicStrategyType_Hold))
-				{
-					ogActionTarget = tank->GetObjectGuid();
-					return true;
-				}
-			}
-		}
-		if (Player* leader = ObjectAccessor::FindPlayer(myGroup->GetLeaderGuid()))
-		{
-			if (me->nierAction->Follow(leader, followDistance, 0.0f, basicStrategyType == BasicStrategyType::BasicStrategyType_Hold))
+			if (me->nierAction->Follow(leader, followDistance))
 			{
 				ogActionTarget = leader->GetObjectGuid();
 				return true;
@@ -1464,14 +1225,14 @@ bool NierStrategy_Base::Wander()
 			{
 				if (eachUnit->GetTypeId() == TypeID::TYPEID_PLAYER)
 				{
-					if (Engage(eachUnit))
+					if (me->nierAction->Attack(eachUnit))
 					{
 						me->SetPvP(true);
 						me->UpdatePvP(true);
 						me->pvpInfo.inPvPCombat = true;
 						actionLimit = 30 * IN_MILLISECONDS;
 						ogActionTarget = eachUnit->GetObjectGuid();
-						actionType = ActionType::ActionType_Engage;
+						actionType = ActionType::ActionType_Attack;
 						return true;
 					}
 				}
@@ -1536,372 +1297,4 @@ void NierStrategy_Base::SetGroupRole(std::string pmRoleName)
 	{
 		me->groupRole = GroupRole::GroupRole_Healer;
 	}
-}
-
-NierStrategy_The_Underbog::NierStrategy_The_Underbog() :NierStrategy_Base()
-{
-	hungarfen = false;
-}
-
-NierStrategy_The_Black_Morass::NierStrategy_The_Black_Morass() : NierStrategy_Base()
-{
-
-}
-
-bool NierStrategy_The_Black_Morass::DoDPS(Unit* pmTarget, bool pmForceInstantOnly, bool pmChasing)
-{
-	if (!me)
-	{
-		return false;
-	}
-	else if (!me->IsAlive())
-	{
-		return false;
-	}
-	if (aoe)
-	{
-		int attackerInRangeCount = 0;
-		std::list<Creature*> creatureList;
-		pmTarget->GetCreatureListWithEntryInGrid(creatureList, 0, INTERACTION_DISTANCE);
-		if (!creatureList.empty())
-		{
-			for (std::list<Creature*>::iterator itr = creatureList.begin(); itr != creatureList.end(); ++itr)
-			{
-				if (Creature* hostileCreature = *itr)
-				{
-					if (!hostileCreature->IsPet())
-					{
-						if (me->IsValidAttackTarget(hostileCreature))
-						{
-							attackerInRangeCount++;
-						}
-					}
-				}
-			}
-		}
-		if (attackerInRangeCount > 2)
-		{
-			if (me->nierAction->AOE(pmTarget, rushing, dpsDistance, dpsDistanceMin, basicStrategyType == BasicStrategyType::BasicStrategyType_Hold, instantOnly, pmChasing))
-			{
-				return true;
-			}
-		}
-	}
-
-	if (pmTarget->GetEntry() == 20745 || pmTarget->GetEntry() == 17880)
-	{
-		if (pmTarget->HasAura(38592))
-		{
-			return false;
-		}
-	}
-	if (me->nierAction->DPS(pmTarget, rushing, dpsDistance, dpsDistanceMin, basicStrategyType == BasicStrategyType::BasicStrategyType_Hold, instantOnly, pmChasing))
-	{
-		return true;
-	}
-
-	return false;
-}
-
-NierStrategy_Magisters_Terrace::NierStrategy_Magisters_Terrace() : NierStrategy_Base()
-{
-	kael = false;
-}
-
-void NierStrategy_Magisters_Terrace::Update(uint32 pmDiff)
-{
-	if (!me)
-	{
-		kael = false;
-	}
-	else if (!me->IsAlive())
-	{
-		kael = false;
-	}
-	else if (!me->IsInCombat())
-	{
-		kael = false;
-	}
-	else if (kael)
-	{
-		me->nierAction->Update(pmDiff);
-		if (actionLimit > 0)
-		{
-			actionLimit -= pmDiff;
-			if (actionLimit < 0)
-			{
-				actionLimit = 0;
-			}
-			return;
-		}
-		if (Creature* phoenix = me->FindNearestCreature(24674, NIER_NORMAL_DISTANCE - MELEE_RANGE))
-		{
-			me->nierAction->nm->ResetMovement();
-			me->InterruptNonMeleeSpells(true);
-			Position pos;
-			me->GetNearPoint(phoenix, pos.x, pos.y, pos.z, 0.0f, NIER_NORMAL_DISTANCE, phoenix->GetAngle(me));
-			me->GetMotionMaster()->MovePoint(0, pos.x, pos.y, pos.z, MoveOptions::MOVE_PATHFINDING);
-			actionType = ActionType::ActionType_Move;
-			actionLimit = 2000;
-			return;
-		}
-		if (Creature* flame = me->FindNearestCreature(24666, NIER_NORMAL_DISTANCE - MELEE_RANGE))
-		{
-			me->nierAction->nm->ResetMovement();
-			me->InterruptNonMeleeSpells(true);
-			Position pos;
-			me->GetNearPoint(flame, pos.x, pos.y, pos.z, 0.0f, NIER_NORMAL_DISTANCE, flame->GetAngle(me));
-			me->GetMotionMaster()->MovePoint(0, pos.x, pos.y, pos.z, MoveOptions::MOVE_PATHFINDING);
-			actionType = ActionType::ActionType_Move;
-			actionLimit = 2000;
-			return;
-		}
-	}
-	if (basicStrategyType == BasicStrategyType::BasicStrategyType_Glue)
-	{
-		switch (me->groupRole)
-		{
-		case GroupRole::GroupRole_DPS:
-		{
-			TryDPS(false, true, false);
-			break;
-		}
-		case GroupRole::GroupRole_Healer:
-		{
-			TryHeal(true);
-			Cure();
-			break;
-		}
-		case GroupRole::GroupRole_Tank:
-		{
-			break;
-		}
-		default:
-		{
-			break;
-		}
-		}
-		if (Group* myGroup = me->GetGroup())
-		{
-			if (Player* leader = ObjectAccessor::FindPlayer(myGroup->GetLeaderGuid()))
-			{
-				if (leader->IsAlive())
-				{
-					if (me->GetDistance(leader) > CONTACT_DISTANCE)
-					{
-						me->nierAction->nm->ResetMovement();
-						me->InterruptNonMeleeSpells(true);
-						me->GetMotionMaster()->MovePoint(0, leader->GetPositionX(), leader->GetPositionY(), leader->GetPositionZ(), MoveOptions::MOVE_PATHFINDING);
-					}
-					return;
-				}
-				else
-				{
-					basicStrategyType = BasicStrategyType::BasicStrategyType_Normal;
-				}
-			}
-			else
-			{
-				basicStrategyType = BasicStrategyType::BasicStrategyType_Normal;
-			}
-		}
-	}
-	NierStrategy_Base::Update(pmDiff);
-}
-
-bool NierStrategy_Magisters_Terrace::TryTank()
-{
-	if (!me)
-	{
-		return false;
-	}
-	else if (!me->IsAlive())
-	{
-		return false;
-	}
-	if (kael)
-	{
-		if (Creature* egg = me->FindNearestCreature(24675, VISIBILITY_DISTANCE_NORMAL))
-		{
-			if (DoTank(egg))
-			{
-				return true;
-			}
-		}
-		Creature* boss = me->FindNearestCreature(24664, VISIBILITY_DISTANCE_NORMAL);
-		if (!boss)
-		{
-			boss = me->FindNearestCreature(24857, VISIBILITY_DISTANCE_NORMAL);
-		}
-		if (DoTank(boss))
-		{
-			return true;
-		}
-	}
-
-	return NierStrategy_Base::TryTank();
-}
-
-bool NierStrategy_Magisters_Terrace::DoTank(Unit* pmTarget)
-{
-	if (!me)
-	{
-		return false;
-	}
-	else if (!me->IsAlive())
-	{
-		return false;
-	}
-	if (pmTarget->GetEntry() == 24664 || pmTarget->GetEntry() == 24857)
-	{
-		kael = true;
-	}
-	return NierStrategy_Base::DoTank(pmTarget);
-}
-
-bool NierStrategy_Magisters_Terrace::TryDPS(bool pmDelay, bool pmForceInstantOnly, bool pmChasing)
-{
-	if (pmDelay)
-	{
-		if (combatDuration < dpsDelay)
-		{
-			return false;
-		}
-	}
-
-	if (!me)
-	{
-		return false;
-	}
-	else if (!me->IsAlive())
-	{
-		return false;
-	}
-	if (kael)
-	{
-		if (Creature* phoenix = me->FindNearestCreature(24674, VISIBILITY_DISTANCE_NORMAL))
-		{
-			if (DoDPS(phoenix, false, pmChasing))
-			{
-				rushing = true;
-				return true;
-			}
-		}
-		if (Creature* egg = me->FindNearestCreature(24675, VISIBILITY_DISTANCE_NORMAL))
-		{
-			if (DoDPS(egg, false, pmChasing))
-			{
-				rushing = true;
-				return true;
-			}
-		}
-		Creature* boss = me->FindNearestCreature(24664, VISIBILITY_DISTANCE_NORMAL);
-		if (!boss)
-		{
-			boss = me->FindNearestCreature(24857, VISIBILITY_DISTANCE_NORMAL);
-		}
-		if (DoDPS(boss, false, pmChasing))
-		{
-			rushing = true;
-			return true;
-		}
-	}
-	if (Group* myGroup = me->GetGroup())
-	{
-		if (ObjectGuid ogTankTarget = myGroup->GetGuidByTargetIcon(7))
-		{
-			if (Unit* tankTarget = ObjectAccessor::GetUnit(*me, ogTankTarget))
-			{
-				if (DoDPS(tankTarget, pmForceInstantOnly, pmChasing))
-				{
-					if (tankTarget->GetEntry() == 24664 || tankTarget->GetEntry() == 24857)
-					{
-						kael = true;
-					}
-					return true;
-				}
-			}
-		}
-
-		if (Player* leader = ObjectAccessor::FindPlayer(myGroup->GetLeaderGuid()))
-		{
-			if (Unit* leaderTarget = leader->GetSelectedUnit())
-			{
-				if (leaderTarget->IsInCombat())
-				{
-					if (!sNierManager->IsPolymorphed(leaderTarget))
-					{
-						if (DoDPS(leaderTarget, pmForceInstantOnly, pmChasing))
-						{
-							if (leaderTarget->GetEntry() == 24664 || leaderTarget->GetEntry() == 24857)
-							{
-								kael = true;
-							}
-							return true;
-						}
-					}
-				}
-			}
-		}
-	}
-
-	return false;
-}
-
-bool NierStrategy_Magisters_Terrace::DoDPS(Unit* pmTarget, bool pmForceInstantOnly, bool pmChasing)
-{
-	if (!me)
-	{
-		return false;
-	}
-	else if (!me->IsAlive())
-	{
-		return false;
-	}
-	if (!pmTarget)
-	{
-		return false;
-	}
-	else if (!pmTarget->IsAlive())
-	{
-		return false;
-	}
-	if (pmTarget->GetEntry() == 24664 || pmTarget->GetEntry() == 24857)
-	{
-		kael = true;
-	}
-
-	return NierStrategy_Base::DoDPS(pmTarget, pmForceInstantOnly, pmChasing);
-}
-
-bool NierStrategy_Magisters_Terrace::DoHeal(Unit* pmTarget, bool pmForceInstantOnly)
-{
-	if (!me)
-	{
-		return false;
-	}
-	else if (!me->IsAlive())
-	{
-		return false;
-	}
-	if (!pmTarget)
-	{
-		return false;
-	}
-	else if (!pmTarget->IsAlive())
-	{
-		return false;
-	}
-	if (Player* targetPlayer = pmTarget->ToPlayer())
-	{
-		if (Unit* targetTarget = targetPlayer->GetSelectedUnit())
-		{
-			if (targetTarget->GetEntry() == 24664 || targetTarget->GetEntry() == 24857)
-			{
-				kael = true;
-			}
-		}
-	}
-
-	return NierStrategy_Base::DoHeal(pmTarget, pmForceInstantOnly);
 }
