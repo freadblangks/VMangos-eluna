@@ -32,7 +32,7 @@ enum StrategyIndex :uint32
 {
 	StrategyIndex_Base = 0,
 	StrategyIndex_The_Underbog = 546,
-	StrategyIndex_The_Black_Morass = 269,	
+	StrategyIndex_The_Black_Morass = 269,
 };
 
 enum BasicStrategyType :uint32
@@ -50,6 +50,7 @@ enum ActionType :uint32
 	ActionType_Revive = 2,
 	ActionType_Move = 3,
 	ActionType_ReadyTank = 4,
+	ActionType_Attack = 5,
 };
 
 class NierStrategy_Base
@@ -61,8 +62,8 @@ public:
 	virtual void Reset();
 	virtual void Update(uint32 pmDiff);
 	virtual bool Engage(Unit* pmTarget);
-	virtual bool TryTank();
-	virtual bool DoTank(Unit* pmTarget);
+	virtual bool TryAttack();
+	virtual bool DoTank(Unit* pmTarget, bool aoe);
 	virtual bool TryDPS(bool pmDelay, bool pmForceInstantOnly, bool pmChasing);
 	virtual bool DoDPS(Unit* pmTarget, bool pmForceInstantOnly, bool pmChasing);
 	virtual bool Follow();
@@ -72,7 +73,6 @@ public:
 	virtual bool Buff();
 	virtual bool Assist();
 	virtual uint32 Caution();
-	virtual bool Revive();
 	virtual bool Revive(Unit* pmTarget);
 	virtual bool Rest(bool pmForce = false);
 	virtual bool Petting();
@@ -91,11 +91,11 @@ public:
 	float followDistance;
 
 	int randomTeleportDelay;
-    int assembleDelay;
-    int reviveDelay;
+	int assembleDelay;
+	int reviveDelay;
 	int corpseRunDelay;
 	int dpsDelay;
-    int wanderDelay;
+	int wanderDelay;
 	int rti;
 
 	int restLimit;
@@ -106,10 +106,8 @@ public:
 
 	uint32 basicStrategyType;
 	bool cure;
-	bool aoe;
 	bool rushing;
 	bool petting;
-	bool forceBack;
 	bool instantOnly;
 
 	uint32 actionType;
@@ -117,44 +115,11 @@ public:
 	ObjectGuid ogActionTarget;
 	ObjectGuid ogTank;
 	ObjectGuid ogHealer;
-    uint32 vipEntry;
-    ObjectGuid ogVip;
-    int vipCheckDelay;
+	uint32 vipEntry;
+	ObjectGuid ogVip;
+	int vipCheckDelay;
 
 	std::unordered_map<std::string, std::unordered_set<uint32>> cautionSpellMap;
 	std::unordered_set<Position*> cautionPosSet;
-};
-
-
-class NierStrategy_The_Underbog :public NierStrategy_Base
-{
-public:
-	NierStrategy_The_Underbog();
-
-public:
-	bool hungarfen;
-};
-
-class NierStrategy_The_Black_Morass :public NierStrategy_Base
-{
-public:
-	NierStrategy_The_Black_Morass();
-
-	bool DoDPS(Unit* pmTarget, bool pmForceInstantOnly, bool pmChasing);
-};
-
-class NierStrategy_Magisters_Terrace :public NierStrategy_Base
-{
-public:
-	NierStrategy_Magisters_Terrace();
-
-	void Update(uint32 pmDiff);
-	bool TryTank();
-	bool DoTank(Unit* pmTarget);
-	bool TryDPS(bool pmDelay, bool pmForceInstantOnly, bool pmChasing);
-	bool DoDPS(Unit* pmTarget, bool pmForceInstantOnly, bool pmChasing);
-	bool DoHeal(Unit* pmTarget, bool pmForceInstantOnly);
-
-	bool kael;
 };
 #endif

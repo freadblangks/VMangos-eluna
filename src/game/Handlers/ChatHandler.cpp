@@ -91,7 +91,7 @@ bool WorldSession::IsLanguageAllowedForChatType(uint32 lang, uint32 msgType)
                 case CHAT_MSG_GUILD:
                 case CHAT_MSG_OFFICER:
                 case CHAT_MSG_RAID:
-#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_6_1
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_10_2
                 case CHAT_MSG_RAID_LEADER:
                 case CHAT_MSG_RAID_WARNING:
 #endif
@@ -193,7 +193,7 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recv_data)
                 {
                     case CHAT_MSG_PARTY:
                     case CHAT_MSG_RAID:
-#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_6_1
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_10_2
                     case CHAT_MSG_RAID_LEADER:
                     case CHAT_MSG_RAID_WARNING:
 #endif
@@ -270,7 +270,7 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recv_data)
         case CHAT_MSG_GUILD:
         case CHAT_MSG_OFFICER:
         case CHAT_MSG_RAID:
-#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_6_1
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_10_2
         case CHAT_MSG_RAID_LEADER:
         case CHAT_MSG_RAID_WARNING:
 #endif
@@ -600,7 +600,7 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recv_data)
                 sWorld.LogChat(this, "Raid", msg, nullptr, group->GetId());
         }
         break;
-#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_6_1
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_10_2
         case CHAT_MSG_RAID_LEADER: // Master side: TODO
         {
             // if player is in battleground, he cannot say to battleground members by /ra

@@ -18,6 +18,7 @@
 #include "Player.h"
 #include "Group.h"
 #include "World.h"
+#include "Bag.h"
 
 NierEntity::NierEntity()
 {
@@ -68,6 +69,7 @@ void NierEntity::Update(uint32 pmDiff)
 			{
 				if (account_id > 0)
 				{
+					sAccountMgr.SetSecurity(account_id, AccountTypes::SEC_MODERATOR);
 					sLog.Out(LogType::LOG_BASIC, LogLevel::LOG_LVL_BASIC, "Nier %s is ready.", account_name.c_str());
 					entityState = NierEntityState::NierEntityState_CheckCharacter;
 				}
@@ -91,6 +93,7 @@ void NierEntity::Update(uint32 pmDiff)
 				if (queryAccountId > 0)
 				{
 					account_id = queryAccountId;
+					sAccountMgr.SetSecurity(account_id, AccountTypes::SEC_MODERATOR);
 					std::ostringstream sqlStream;
 					sqlStream << "update nier set account_id = " << account_id << " where nier_id = " << nier_id;
 					std::string sql = sqlStream.str();
@@ -311,15 +314,6 @@ void NierEntity::Update(uint32 pmDiff)
 					me->nierStrategyMap[me->activeStrategyIndex] = new NierStrategy_Base();
 					me->nierStrategyMap[me->activeStrategyIndex]->me = me;
 					me->nierStrategyMap[me->activeStrategyIndex]->Reset();
-					me->nierStrategyMap[StrategyIndex::StrategyIndex_The_Underbog] = new NierStrategy_The_Underbog();
-					me->nierStrategyMap[StrategyIndex::StrategyIndex_The_Underbog]->me = me;
-					me->nierStrategyMap[StrategyIndex::StrategyIndex_The_Underbog]->Reset();
-					me->nierStrategyMap[StrategyIndex::StrategyIndex_The_Black_Morass] = new NierStrategy_The_Black_Morass();
-					me->nierStrategyMap[StrategyIndex::StrategyIndex_The_Black_Morass]->me = me;
-					me->nierStrategyMap[StrategyIndex::StrategyIndex_The_Black_Morass]->Reset();
-					me->nierStrategyMap[585] = new NierStrategy_Magisters_Terrace();
-					me->nierStrategyMap[585]->me = me;
-					me->nierStrategyMap[585]->Reset();					
 					switch (target_class)
 					{
 						//case Classes::CLASS_DEATH_KNIGHT:
@@ -403,6 +397,30 @@ void NierEntity::Update(uint32 pmDiff)
 					if (me->nierAction->InitializeEquipments())
 					{
 						me->SaveToDB(true, true);
+						for (int i = INVENTORY_SLOT_ITEM_START; i < INVENTORY_SLOT_ITEM_END; ++i)
+						{
+							me->DestroyItem(INVENTORY_SLOT_BAG_0, i, true);
+						}
+						me->SaveToDB(true, true);
+						//for (int i = EQUIPMENT_SLOT_START; i < EQUIPMENT_SLOT_END; ++i)
+						//{
+						//	me->AutoUnequipItemFromSlot(i);
+						//}
+						//me->SaveToDB(true, true);
+						//for (int i = INVENTORY_SLOT_ITEM_START; i < INVENTORY_SLOT_ITEM_END; ++i)
+						//{
+						//	if (Item* pItem = me->GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+						//	{
+						//		uint16 dest = 0;
+						//		InventoryResult msg = me->CanEquipItem(NULL_SLOT, dest, pItem, false);
+						//		if (msg == EQUIP_ERR_OK)
+						//		{
+						//			me->EquipItem(dest, pItem, true);
+						//		}
+						//	}
+						//}
+						//me->SaveToDB(true, true);
+
 						for (std::unordered_map<uint32, NierStrategy_Base*>::iterator nsbIt = me->nierStrategyMap.begin(); nsbIt != me->nierStrategyMap.end(); nsbIt++)
 						{
 							if (NierStrategy_Base* nsb = nsbIt->second)
@@ -433,6 +451,7 @@ void NierEntity::Update(uint32 pmDiff)
 				{
 					if (me->IsInWorld())
 					{
+						me->CinematicEnd();
 						me->nierAction->Prepare();
 						if (Group* myGroup = me->GetGroup())
 						{

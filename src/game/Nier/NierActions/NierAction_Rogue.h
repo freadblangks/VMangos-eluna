@@ -10,8 +10,11 @@ public:
     void InitializeCharacter(uint32 pmTargetLevel, uint32 pmSpecialtyTabIndex);
     void ResetTalent();
     bool InitializeEquipments(bool pmReset);
+    void Update(uint32 pmDiff);
     void Prepare();
-    bool DPS(Unit* pmTarget, bool pmRushing, float pmDistanceMax, float pmDistanceMin, bool pmHolding, bool pmInstantOnly, bool pmChasing);
+    bool Attack(Unit* pmTarget);
+    bool Interrupt(Unit* pmTarget);
+    bool DPS(Unit* pmTarget, bool pmRushing, bool pmChasing, float pmDistanceMax = DEFAULT_COMBAT_REACH, float pmDistanceMin = CONTACT_DISTANCE);
     bool Buff(Unit* pmTarget);
     uint32 Caution();
 
@@ -37,7 +40,11 @@ public:
     uint32 spell_BladeFlurry;
     uint32 spell_AdrenalineRush;
 
+    uint32 spell_Riposte;
+
     uint32 item_InstantPoison;
     uint32 item_SlowPoison;
+
+    int riposteDelay;
 };
 #endif

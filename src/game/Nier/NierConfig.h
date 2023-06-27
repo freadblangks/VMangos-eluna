@@ -7,6 +7,18 @@
 # define NIER_MARK "NIER"
 #endif
 
+#ifndef NIER_MIN_DISTANCE
+# define NIER_MIN_DISTANCE 0.5f
+#endif
+
+#ifndef NIER_MELEE_DISTANCE
+# define NIER_MELEE_DISTANCE 3.0f
+#endif
+
+#ifndef NIER_NEAR_DISTANCE
+# define NIER_NEAR_DISTANCE 8.0f
+#endif
+
 #ifndef NIER_NORMAL_DISTANCE
 # define NIER_NORMAL_DISTANCE 12.0f
 #endif

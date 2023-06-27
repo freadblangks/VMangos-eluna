@@ -26,9 +26,12 @@ NierAction_Rogue::NierAction_Rogue(Player* pmMe) :NierAction_Base(pmMe)
 	spell_DeadlyThrow = 0;
 
 	spell_AdrenalineRush = 0;
+	spell_Riposte = 0;
 
 	item_InstantPoison = 0;
 	item_SlowPoison = 0;
+
+	riposteDelay = 0;
 }
 
 void NierAction_Rogue::InitializeCharacter(uint32 pmTargetLevel, uint32 pmSpecialtyTabIndex)
@@ -120,9 +123,12 @@ void NierAction_Rogue::InitializeCharacter(uint32 pmTargetLevel, uint32 pmSpecia
 		spell_Sap = 2070;
 		spell_Feint = 6768;
 	}
+	if (myLevel >= 29)
+	{
+		spell_Riposte = 14251;
+	}
 	if (myLevel >= 30)
 	{
-		spell_BladeFlurry = 13877;
 		spell_KidneyShot = 408;
 		spell_SinisterStrike = 1760;
 	}
@@ -151,7 +157,6 @@ void NierAction_Rogue::InitializeCharacter(uint32 pmTargetLevel, uint32 pmSpecia
 	{
 		spell_Eviscerate = 8624;
 		spell_Feint = 8637;
-		spell_AdrenalineRush = 13750;
 	}
 	if (myLevel >= 41)
 	{
@@ -167,6 +172,10 @@ void NierAction_Rogue::InitializeCharacter(uint32 pmTargetLevel, uint32 pmSpecia
 		spell_Backstab = 11279;
 		item_InstantPoison = 8926;
 	}
+	if (myLevel >= 45)
+	{
+		spell_BladeFlurry = 13877;
+	}
 	if (myLevel >= 46)
 	{
 		spell_SinisterStrike = 11293;
@@ -175,6 +184,7 @@ void NierAction_Rogue::InitializeCharacter(uint32 pmTargetLevel, uint32 pmSpecia
 	{
 		spell_Eviscerate = 11299;
 		spell_Sap = 11297;
+		spell_AdrenalineRush = 13750;
 	}
 	if (myLevel >= 50)
 	{
@@ -293,24 +303,24 @@ void NierAction_Rogue::ResetTalent()
 	me->ResetTalents(true);
 
 	// talent tab : 181 - Combat, 182 - Assassination
-	LearnTalent(261);
-	LearnTalent(1700);
-
-	LearnTalent(276);
-	LearnTalent(270);
-	LearnTalent(277);
-	LearnTalent(281);
-
+	LearnTalent(201);
 	LearnTalent(186);
-	LearnTalent(202);
+	LearnTalent(187);
 	LearnTalent(181);
 	LearnTalent(204);
+	LearnTalent(301);
+	LearnTalent(206);
 	LearnTalent(182);
 	LearnTalent(221);
 	LearnTalent(223);
 	LearnTalent(1703);
 	LearnTalent(1122);
 	LearnTalent(205);
+
+	LearnTalent(276);
+	LearnTalent(270);
+	LearnTalent(277);
+	LearnTalent(281);
 
 	// rogue trainer Osborne the Night Man
 	TrainSpells(918);
@@ -442,7 +452,7 @@ bool NierAction_Rogue::InitializeEquipments(bool pmReset)
 		else if (checkEquipSlot == EquipmentSlots::EQUIPMENT_SLOT_MAINHAND)
 		{
 			equipItemClass = 2;
-			equipItemSubClass = 15;			
+			equipItemSubClass = 15;
 			inventoryTypeSet.insert(InventoryType::INVTYPE_WEAPON);
 			inventoryTypeSet.insert(InventoryType::INVTYPE_WEAPONMAINHAND);
 			modType = -1;
@@ -486,6 +496,16 @@ bool NierAction_Rogue::InitializeEquipments(bool pmReset)
 	return true;
 }
 
+void NierAction_Rogue::Update(uint32 pmDiff)
+{
+	if (riposteDelay > 0)
+	{
+		riposteDelay -= pmDiff;
+	}
+
+	NierAction_Base::Update(pmDiff);
+}
+
 void NierAction_Rogue::Prepare()
 {
 	NierAction_Base::Prepare();
@@ -501,7 +521,199 @@ void NierAction_Rogue::Prepare()
 	me->Say("Prepared", Language::LANG_UNIVERSAL);
 }
 
-bool NierAction_Rogue::DPS(Unit* pmTarget, bool pmRushing, float pmDistanceMax, float pmDistanceMin, bool pmHolding, bool pmInstantOnly, bool pmChasing)
+bool NierAction_Rogue::Attack(Unit* pmTarget)
+{
+	if (!me)
+	{
+		return false;
+	}
+	else if (!me->IsAlive())
+	{
+		return false;
+	}
+	if (me->IsNonMeleeSpellCasted(false, false, true))
+	{
+		return true;
+	}
+	if (!pmTarget)
+	{
+		return false;
+	}
+	else if (!pmTarget->IsAlive())
+	{
+		if (me->GetTargetGuid() == pmTarget->GetObjectGuid())
+		{
+			ClearTarget();
+		}
+		return false;
+	}
+	else if (!me->IsValidAttackTarget(pmTarget))
+	{
+		if (me->GetTargetGuid() == pmTarget->GetObjectGuid())
+		{
+			ClearTarget();
+		}
+		return false;
+	}
+	else if (pmTarget->IsImmuneToDamage(SpellSchoolMask::SPELL_SCHOOL_MASK_NORMAL))
+	{
+		if (me->GetTargetGuid() == pmTarget->GetObjectGuid())
+		{
+			ClearTarget();
+		}
+		return false;
+	}
+	if (!pmTarget->CanSeeInWorld(me))
+	{
+		if (me->GetTargetGuid() == pmTarget->GetObjectGuid())
+		{
+			ClearTarget();
+		}
+		return false;
+	}
+	if (!nm->Chase(pmTarget, DEFAULT_COMBAT_REACH, 0.5f))
+	{
+		if (me->GetTargetGuid() == pmTarget->GetObjectGuid())
+		{
+			ClearTarget();
+		}
+		return false;
+	}
+	ChooseTarget(pmTarget);
+
+	me->Attack(pmTarget, true);
+	float targetDistance = me->GetDistance(pmTarget);
+	if (targetDistance > NIER_NORMAL_DISTANCE)
+	{
+		if (CastSpell(me, spell_Sprint))
+		{
+			return true;
+		}
+	}
+	uint32 myEnergy = me->GetPower(Powers::POWER_ENERGY);
+	uint32 comboPoints = me->GetComboPoints();
+	bool canMelee = me->CanReachWithMeleeAutoAttack(pmTarget);
+	if (canMelee)
+	{
+		if (me->GetHealthPercent() < 30.0f)
+		{
+			HealthPotion();
+		}
+		if (pmTarget->GetTargetGuid() == me->GetObjectGuid())
+		{
+			if (CastSpell(me, spell_Evasion))
+			{
+				return true;
+			}
+			//if (!me->HasAura(spell_Evasion))
+			//{
+			//    if (CastSpell(me, spell_Vanish))
+			//    {
+			//        return true;
+			//    }
+			//}
+		}
+		me->Attack(pmTarget, true);
+		if (pmTarget->GetTypeId() == TypeID::TYPEID_PLAYER)
+		{
+			if (spell_BladeFlurry > 0)
+			{
+				if (myEnergy >= 25)
+				{
+					if (CastSpell(me, spell_BladeFlurry))
+					{
+						return true;
+					}
+				}
+			}
+			if (spell_AdrenalineRush > 0)
+			{
+				if (CastSpell(me, spell_AdrenalineRush))
+				{
+					return true;
+				}
+			}
+		}
+		if (myEnergy >= 25)
+		{
+			if (pmTarget->IsNonMeleeSpellCasted(false, false, true))
+			{
+				if (spell_Kick > 0)
+				{
+					if (CastSpell(pmTarget, spell_Kick))
+					{
+						return true;
+					}
+				}
+				if (comboPoints > 0)
+				{
+					if (spell_KidneyShot > 0)
+					{
+						if (CastSpell(pmTarget, spell_KidneyShot))
+						{
+							return true;
+						}
+					}
+				}
+			}
+		}
+		if (myEnergy >= 25)
+		{
+			if (!me->HasAura(spell_SliceandDice))
+			{
+				if (comboPoints > 0)
+				{
+					if (spell_SliceandDice > 0)
+					{
+						if (CastSpell(pmTarget, spell_SliceandDice))
+						{
+							return true;
+						}
+					}
+				}
+			}
+			else
+			{
+				if (comboPoints > 0)
+				{
+					uint32 finishRate = urand(1, 4);
+					if (comboPoints > finishRate)
+					{
+						if (CastSpell(pmTarget, spell_Eviscerate))
+						{
+							return true;
+						}
+					}
+				}
+			}
+		}
+		if (spell_Riposte > 0)
+		{
+			if (riposteDelay <= 0)
+			{
+				if (myEnergy >= 10)
+				{
+					if (CastSpell(pmTarget, spell_Riposte))
+					{
+						riposteDelay = 10000;
+						return true;
+					}
+				}
+			}
+		}
+		if (myEnergy >= 45)
+		{
+			if (CastSpell(pmTarget, spell_SinisterStrike))
+			{
+				return true;
+			}
+		}
+	}
+
+	return true;
+}
+
+bool NierAction_Rogue::DPS(Unit* pmTarget, bool pmRushing, bool pmChasing, float pmDistanceMax, float pmDistanceMin)
 {
 	if (!me)
 	{
@@ -553,12 +765,7 @@ bool NierAction_Rogue::DPS(Unit* pmTarget, bool pmRushing, float pmDistanceMax, 
 	}
 	if (pmChasing)
 	{
-		bool forceBack = true;
-		if (pmTarget->GetTargetGuid() == me->GetObjectGuid())
-		{
-			forceBack = false;
-		}
-		if (!nm->Chase(pmTarget, pmDistanceMax, pmDistanceMin, pmHolding, forceBack))
+		if (!nm->Chase(pmTarget, pmDistanceMax, pmDistanceMin))
 		{
 			if (me->GetTargetGuid() == pmTarget->GetObjectGuid())
 			{
@@ -588,17 +795,20 @@ bool NierAction_Rogue::DPS(Unit* pmTarget, bool pmRushing, float pmDistanceMax, 
 		}
 		if (pmTarget->GetTargetGuid() == me->GetObjectGuid())
 		{
-			if (CastSpell(me, spell_Evasion))
+			if (spell_Evasion > 0)
 			{
-				return true;
+				if (CastSpell(me, spell_Evasion))
+				{
+					return true;
+				}
+				//if (!me->HasAura(spell_Evasion))
+				//{
+				//    if (CastSpell(me, spell_Vanish))
+				//    {
+				//        return true;
+				//    }
+				//}
 			}
-			//if (!me->HasAura(spell_Evasion))
-			//{
-			//    if (CastSpell(me, spell_Vanish))
-			//    {
-			//        return true;
-			//    }
-			//}
 		}
 		else
 		{
@@ -607,9 +817,12 @@ bool NierAction_Rogue::DPS(Unit* pmTarget, bool pmRushing, float pmDistanceMax, 
 			{
 				if (myEnergy >= 20)
 				{
-					if (CastSpell(pmTarget, spell_Feint))
+					if (spell_Feint > 0)
 					{
-						return true;
+						if (CastSpell(pmTarget, spell_Feint))
+						{
+							return true;
+						}
 					}
 				}
 			}
@@ -617,30 +830,19 @@ bool NierAction_Rogue::DPS(Unit* pmTarget, bool pmRushing, float pmDistanceMax, 
 			{
 				if (myEnergy >= 25)
 				{
-					if (CastSpell(me, spell_BladeFlurry))
+					if (spell_BladeFlurry > 0)
 					{
-						return true;
-					}
-				}
-				if (CastSpell(me, spell_AdrenalineRush))
-				{
-					return true;
-				}
-			}
-			if (myEnergy >= 25)
-			{
-				if (pmTarget->IsNonMeleeSpellCasted(false, false, true))
-				{
-					if (CastSpell(pmTarget, spell_Kick))
-					{
-						return true;
-					}
-					if (comboPoints > 0)
-					{
-						if (CastSpell(pmTarget, spell_KidneyShot))
+						if (CastSpell(me, spell_BladeFlurry))
 						{
 							return true;
 						}
+					}
+				}
+				if (spell_AdrenalineRush > 0)
+				{
+					if (CastSpell(me, spell_AdrenalineRush))
+					{
+						return true;
 					}
 				}
 			}
@@ -650,9 +852,12 @@ bool NierAction_Rogue::DPS(Unit* pmTarget, bool pmRushing, float pmDistanceMax, 
 				{
 					if (comboPoints > 0)
 					{
-						if (CastSpell(pmTarget, spell_SliceandDice))
+						if (spell_SliceandDice > 0)
 						{
-							return true;
+							if (CastSpell(pmTarget, spell_SliceandDice))
+							{
+								return true;
+							}
 						}
 					}
 				}
@@ -660,39 +865,53 @@ bool NierAction_Rogue::DPS(Unit* pmTarget, bool pmRushing, float pmDistanceMax, 
 				{
 					if (comboPoints > 0)
 					{
-						uint32 finishRate = urand(1, 4);
-						if (comboPoints > finishRate)
+						if (spell_Eviscerate > 0)
 						{
-							if (CastSpell(pmTarget, spell_Eviscerate))
+							uint32 finishRate = urand(1, 4);
+							if (comboPoints > finishRate)
 							{
-								return true;
+								if (CastSpell(pmTarget, spell_Eviscerate))
+								{
+									return true;
+								}
 							}
 						}
 					}
 				}
-				if (pmTarget->GetUInt32Value(UNIT_VIRTUAL_ITEM_SLOT_DISPLAY))
+			}
+			if (myEnergy >= 45)
+			{
+				if (CastSpell(pmTarget, spell_SinisterStrike))
 				{
-					if (CastSpell(pmTarget, spell_Dismantle, true))
-					{
-						return true;
-					}
+					return true;
 				}
 			}
-			if (!pmTarget->HasInArc(me, M_PI * 3 / 2))
+		}
+	}
+
+	return true;
+}
+
+bool NierAction_Rogue::Interrupt(Unit* pmTarget)
+{
+	if (me->CanReachWithMeleeAutoAttack(pmTarget))
+	{
+		uint32 myEnergy = me->GetPower(Powers::POWER_ENERGY);
+		uint32 comboPoints = me->GetComboPoints();
+		if (myEnergy >= 25)
+		{
+			if (spell_Kick > 0)
 			{
-				if (myEnergy >= 60)
+				if (CastSpell(pmTarget, spell_Kick))
 				{
-					if (CastSpell(pmTarget, spell_Backstab))
-					{
-						return true;
-					}
+					return true;
 				}
 			}
-			else
+			if (comboPoints > 0)
 			{
-				if (myEnergy >= 45)
+				if (spell_KidneyShot > 0)
 				{
-					if (CastSpell(pmTarget, spell_SinisterStrike))
+					if (CastSpell(pmTarget, spell_KidneyShot))
 					{
 						return true;
 					}
@@ -700,8 +919,7 @@ bool NierAction_Rogue::DPS(Unit* pmTarget, bool pmRushing, float pmDistanceMax, 
 			}
 		}
 	}
-
-	return true;
+	return false;
 }
 
 bool NierAction_Rogue::Buff(Unit* pmTarget)

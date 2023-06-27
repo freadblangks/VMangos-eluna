@@ -84,6 +84,7 @@ void WorldSession::HandleSwapInvItemOpcode(WorldPacket& recv_data)
 
     if ((_player->IsBankPos(INVENTORY_SLOT_BAG_0, srcslot) || _player->IsBankPos(INVENTORY_SLOT_BAG_0, dstslot)) && !_player->CanUseBank())
     {
+        _player->SendEquipError(EQUIP_ERR_TOO_FAR_AWAY_FROM_BANK, nullptr, nullptr);
         ProcessAnticheatAction("ItemsCheck", "Attempt to cheat-bank items", CHEAT_ACTION_REPORT_GMS);
         return;
     }
@@ -139,6 +140,7 @@ void WorldSession::HandleSwapItem(WorldPacket& recv_data)
 
     if ((_player->IsBankPos(srcbag, srcslot) || _player->IsBankPos(dstbag, dstslot)) && !_player->CanUseBank())
     {
+        _player->SendEquipError(EQUIP_ERR_TOO_FAR_AWAY_FROM_BANK, nullptr, nullptr);
         ProcessAnticheatAction("ItemsCheck", "Attempt to cheat-bank items", CHEAT_ACTION_REPORT_GMS);
         return;
     }
@@ -845,6 +847,9 @@ void WorldSession::SendListInventory(ObjectGuid vendorguid, uint8 menu_type)
                 data << uint32(price);
                 data << uint32(pProto->MaxDurability);
                 data << uint32(pProto->BuyCount);
+
+                if (count >= MAX_VENDOR_ITEMS)
+                    break;
             }
         }
     }
@@ -879,7 +884,10 @@ void WorldSession::HandleAutoStoreBagItemOpcode(WorldPacket& recv_data)
     if (_player->IsBankPos(srcbag, srcslot) || (dstbag >= BANK_SLOT_BAG_START && dstbag < BANK_SLOT_BAG_END))
     {
         if (!_player->CanUseBank())
+        {
+            _player->SendEquipError(EQUIP_ERR_TOO_FAR_AWAY_FROM_BANK, pItem, nullptr);
             return;
+        }
     }
 
     uint16 src = pItem->GetPos();
@@ -992,7 +1000,10 @@ void WorldSession::HandleAutoBankItemOpcode(WorldPacket& recvPacket)
         return;
 
     if (!_player->CanUseBank())
+    {
+        _player->SendEquipError(EQUIP_ERR_TOO_FAR_AWAY_FROM_BANK, pItem, nullptr);
         return;
+    }
 
     ItemPosCountVec dest;
     InventoryResult msg = _player->CanBankItem(NULL_BAG, NULL_SLOT, dest, pItem, false);
@@ -1024,7 +1035,10 @@ void WorldSession::HandleAutoStoreBankItemOpcode(WorldPacket& recvPacket)
         return;
 
     if (!_player->CanUseBank())
+    {
+        _player->SendEquipError(EQUIP_ERR_TOO_FAR_AWAY_FROM_BANK, pItem, nullptr);
         return;
+    }
 
     if (_player->IsBankPos(srcbag, srcslot))                // moving from bank to inventory
     {

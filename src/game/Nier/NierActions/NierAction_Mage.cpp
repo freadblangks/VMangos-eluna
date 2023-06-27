@@ -622,7 +622,7 @@ bool NierAction_Mage::DPS(Unit* pmTarget, bool pmRushing, float pmDistanceMax, f
 	}
 	if (pmChasing)
 	{
-		if (!nm->Chase(pmTarget, pmDistanceMax, pmDistanceMin, pmHolding, false))
+		if (!nm->Chase(pmTarget, pmDistanceMax, pmDistanceMin))
 		{
 			if (me->GetTargetGuid() == pmTarget->GetObjectGuid())
 			{
@@ -862,7 +862,7 @@ bool NierAction_Mage::AOE(Unit* pmTarget, bool pmRushing, float pmDistanceMax, f
 	}
 	if (pmChasing)
 	{
-		if (!nm->Chase(pmTarget, pmDistanceMax, pmDistanceMin, pmHolding, false))
+		if (!nm->Chase(pmTarget, pmDistanceMax, pmDistanceMin))
 		{
 			if (me->GetTargetGuid() == pmTarget->GetObjectGuid())
 			{

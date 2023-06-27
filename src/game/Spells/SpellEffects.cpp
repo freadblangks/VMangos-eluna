@@ -49,6 +49,7 @@
 #include "InstanceData.h"
 #include "ScriptMgr.h"
 #include "SocialMgr.h"
+#include "scriptPCH.h"
 
 using namespace Spells;
 
@@ -257,7 +258,7 @@ void Spell::EffectResurrectNew(SpellEffectIndex effIdx)
     uint32 health = damage;
     uint32 mana = m_spellInfo->EffectMiscValue[effIdx];
     pTarget->SetResurrectRequestData(m_caster->GetObjectGuid(), m_caster->GetMapId(), m_caster->GetPositionX(), m_caster->GetPositionY(), m_caster->GetPositionZ(), health, mana);
-    SendResurrectRequest(pTarget);
+    SendResurrectRequest(pTarget, m_casterUnit && m_casterUnit->IsSpiritHealer());
 
     AddExecuteLogInfo(effIdx, ExecuteLogInfo(unitTarget->GetObjectGuid()));
 }
@@ -599,6 +600,14 @@ void Spell::EffectDummy(SpellEffectIndex effIdx)
                 case 28345: // [Event: Scourge Invasion] (Communique Trigger) triggers (Communique, Camp-to-Relay)?
                 {
                     unitTarget->CastSpell(unitTarget, 28281, true);
+                    return;
+                }
+                case 32061: // EPL PvP A Game of Towers: (TXT) ToWoW - Tower Kill Credit (DND)
+                {
+                    if (Player* pPlayer = ToPlayer(m_casterUnit))
+                        if (Creature* pCreature = ToCreature(unitTarget))
+                            pPlayer->KilledMonsterCredit(pCreature->GetEntry(), 0);
+
                     return;
                 }
                 case 23383: // Alliance Flag Click
@@ -2136,7 +2145,7 @@ void Spell::EffectTriggerSpell(SpellEffectIndex effIdx)
     if (spellInfo->EquippedItemClass >= 0 && m_caster->GetTypeId() == TYPEID_PLAYER)
     {
         // main hand weapon required
-        if (spellInfo->AttributesEx3 & SPELL_ATTR_EX3_MAIN_HAND)
+        if (spellInfo->HasAttribute(SPELL_ATTR_EX3_REQUIRES_MAIN_HAND_WEAPON))
         {
             Item* item = ((Player*)m_caster)->GetWeaponForAttack(BASE_ATTACK, true, false);
 
@@ -2150,7 +2159,7 @@ void Spell::EffectTriggerSpell(SpellEffectIndex effIdx)
         }
 
         // offhand hand weapon required
-        if (spellInfo->AttributesEx3 & SPELL_ATTR_EX3_REQ_OFFHAND)
+        if (spellInfo->AttributesEx3 & SPELL_ATTR_EX3_REQUIRES_OFFHAND_WEAPON)
         {
             Item* item = ((Player*)m_caster)->GetWeaponForAttack(OFF_ATTACK, true, false);
 
@@ -5210,6 +5219,29 @@ void Spell::EffectScriptEffect(SpellEffectIndex effIdx)
                     }
                     return;
                 }
+                case 30882: // EPL PvP A Game of Towers: Tower Capture Test (DND)
+                {
+                    std::list<Player*> players;
+                    m_casterUnit->GetAlivePlayerListInRange(m_casterUnit, players, VISIBILITY_DISTANCE_NORMAL);
+                    for (const auto& pTarget : players)
+                    {
+                        if (!pTarget->IsFriendlyTo(m_casterUnit))
+                            continue;
+
+                        if (!pTarget->IsOutdoorPvPActive())
+                            continue;
+
+                        pTarget->CastSpell(pTarget, 31929, true);
+                    }
+                    return;
+                }
+                case 31929: // EPL PvP A Game of Towers: Tower Capture (DND)
+                {
+                    if (Player* pTarget = ToPlayer(unitTarget))
+                        pTarget->CastSpell(pTarget, 32061, true);
+
+                    return;
+                }
             }
             break;
         }
@@ -5331,7 +5363,15 @@ void Spell::EffectScriptEffect(SpellEffectIndex effIdx)
             {
                 if (!unitTarget || !unitTarget->IsAlive())
                     return;
+
                 int32 heal = dither(damage);
+                if (m_casterUnit)
+                {
+                    if (m_casterUnit->HasAura(28853))
+                        heal += 53.0f;  // Libram of Divinity
+                    if (m_casterUnit->HasAura(28851))
+                        heal += 83.0f;  // Libram of Light
+                }
 
                 int32 spellid = m_spellInfo->Id;            // send main spell id as basepoints for not used effect
                 m_caster->CastCustomSpell(unitTarget, 19993, heal, spellid, {}, true);
@@ -6097,7 +6137,7 @@ void Spell::EffectResurrect(SpellEffectIndex effIdx)
     uint32 mana   = ditheru(pTarget->GetMaxPower(POWER_MANA) * damage / 100);
 
     pTarget->SetResurrectRequestData(m_caster->GetObjectGuid(), m_caster->GetMapId(), m_caster->GetPositionX(), m_caster->GetPositionY(), m_caster->GetPositionZ(), health, mana);
-    SendResurrectRequest(pTarget);
+    SendResurrectRequest(pTarget, m_casterUnit && m_casterUnit->IsSpiritHealer());
 
     AddExecuteLogInfo(effIdx, ExecuteLogInfo(unitTarget->GetObjectGuid()));
 }
