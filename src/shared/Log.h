@@ -142,6 +142,11 @@ enum LogType
     LOG_GM,
     LOG_GM_CRITICAL,
     LOG_ANTICHEAT,
+
+#ifdef ENABLE_ELUNA
+    LOG_ELUNA,
+#endif /* ENABLE_ELUNA */
+
     LOG_TYPE_MAX
 };
 
@@ -152,6 +157,7 @@ class Log : public MaNGOS::Singleton<Log, MaNGOS::ClassLevelLockable<Log, std::m
 
     ~Log()
     {
+
         for (auto& logFile : logFiles)
         {
             if (logFile != nullptr)

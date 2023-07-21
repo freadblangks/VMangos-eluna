@@ -59,7 +59,7 @@ extern char const* g_mainLogFileName;
 
 Log::Log() :
     m_includeTime(false), m_logsTimestamp(GetTimestampStr()), m_defaultColor(GetConsoleColor())
-{
+ {
     for (int i = 0; i < LOG_TYPE_MAX; ++i)
     {
         logFiles[i] = nullptr;
@@ -118,6 +118,10 @@ Log::Log() :
     logFiles[LOG_MONEY_TRADES] = openLogFile("LogFile.Trades", "", log_file_timestamp, false);
     logFiles[LOG_GM_CRITICAL] = openLogFile("LogFile.CriticalCommands", "gm_critical.log", log_file_timestamp, false);
     logFiles[LOG_ANTICHEAT] = openLogFile("LogFile.Anticheat", "Anticheat.log", log_file_timestamp, false);
+
+#ifdef ENABLE_ELUNA
+    logFiles[LOG_ELUNA] = openLogFile("LogFile.ElunaLogFile", "ElunaLogFile.log", log_file_timestamp, false);
+#endif /* ENABLE_ELUNA */
 
     // Main log file settings
     m_wardenDebug = sConfig.GetBoolDefault("Warden.DebugLog", false);
@@ -514,3 +518,4 @@ void Log::WaitBeforeContinueIfNeed()
         }
     }
 }
+
