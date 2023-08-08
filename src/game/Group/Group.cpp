@@ -696,7 +696,7 @@ void Group::CalculateLFGRoles(LFGGroupQueueInfo& data)
         PLAYER_ROLE_DAMAGE
     };
 
-    std::list<ObjectGuid> processed;
+    std::vector<ObjectGuid> processed;
 
     for (const auto& citr : GetMemberSlots())
     {
@@ -730,7 +730,7 @@ void Group::CalculateLFGRoles(LFGGroupQueueInfo& data)
 }
 
 bool Group::FillPremadeLFG(ObjectGuid const& plrGuid, Classes playerClass, LfgRoles requiredRole, uint32& InitRoles,
-    uint32& DpsCount, std::list<ObjectGuid>& processed)
+    uint32& DpsCount, std::vector<ObjectGuid>& processed)
 {
     // We grant the role unless someone else in the group has higher priority for it
     LfgRolePriority priority = LFGMgr::GetPriority(playerClass, requiredRole);

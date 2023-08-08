@@ -307,7 +307,7 @@ void WorldSession::HandleCharCreateOpcode(WorldPacket& recv_data)
 
     if (!AllowTwoSideAccounts)
     {
-        std::list<PlayerCacheData const*> characters;
+        std::vector<PlayerCacheData const*> characters;
         sObjectMgr.GetPlayerDataForAccount(GetAccountId(), characters);
 
         if (!characters.empty())
