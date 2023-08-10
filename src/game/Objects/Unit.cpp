@@ -2676,6 +2676,11 @@ float Unit::GetUnitCriticalChance(WeaponAttackType attackType, Unit const* pVict
                 break;
         }
     }
+    else if (IsPet() && GetOwnerGuid().IsPlayer() && GetEntry() == 200010)
+    {
+        Player* pOwner = ::ToPlayer(GetOwner());
+        crit = pOwner->GetSpellCritPercent(SPELL_SCHOOL_HOLY) + float(m_baseSpellCritChance);
+    }
     else
     {
         crit = 5.0f;
@@ -5237,6 +5242,11 @@ bool Unit::IsSpellCrit(Unit const* pVictim, SpellEntry const* spellProto, SpellS
                 // For other schools
                 else if (IsPlayer())
                     crit_chance = ((Player*)this)->GetSpellCritPercent(GetFirstSchoolInMask(schoolMask));
+                else if (IsPet() && GetOwnerGuid().IsPlayer() && (spellProto->Id == 34060 || spellProto->Id == 34061))
+                {
+                    Player* pOwner = ::ToPlayer(GetOwner());
+                    crit_chance = pOwner->GetSpellCritPercent(GetFirstSchoolInMask(schoolMask)) + float(m_baseSpellCritChance);
+                }
                 else
                 {
                     crit_chance = float(m_baseSpellCritChance);
