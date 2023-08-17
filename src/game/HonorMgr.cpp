@@ -803,6 +803,7 @@ bool HonorMgr::Add(float cp, uint8 type, Unit* source)
 
 void HonorMgr::Update()
 {
+#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_4_2
     if (!m_owner)
         return;
 
@@ -867,8 +868,10 @@ void HonorMgr::Update()
     uint32 honorBar = uint32(m_rankPoints >= 0.0f ? m_rankPoints : -1 * m_rankPoints);
     honorBar = uint8(((honorBar - m_rank.minRP) / (m_rank.maxRP - m_rank.minRP)) * (m_rank.positive ? 255 : -255));
 
+#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_6_1
     // PLAYER_FIELD_HONOR_BAR
     m_owner->SetByteValue(PLAYER_FIELD_BYTES2, PLAYER_FIELD_BYTES_2_OFFSET_HONOR_RANK_BAR, honorBar);
+#endif
 
     // TODAY
     m_owner->SetUInt16Value(PLAYER_FIELD_SESSION_KILLS, 0, todayHK);
@@ -878,9 +881,11 @@ void HonorMgr::Update()
     m_owner->SetUInt32Value(PLAYER_FIELD_YESTERDAY_KILLS, yesterdayKills);
     m_owner->SetUInt32Value(PLAYER_FIELD_YESTERDAY_CONTRIBUTION, uint32(yesterdayCP > 0.0f ? yesterdayCP : 0.0f));
 
+#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_6_1
     // THIS WEEK
     m_owner->SetUInt32Value(PLAYER_FIELD_THIS_WEEK_KILLS, thisWeekKills);
     m_owner->SetUInt32Value(PLAYER_FIELD_THIS_WEEK_CONTRIBUTION, uint32(thisWeekCP > 0.0f ? thisWeekCP : 0.0f));
+#endif
 
     // LAST WEEK
     m_owner->SetUInt32Value(PLAYER_FIELD_LAST_WEEK_KILLS, m_lastWeekHK);
@@ -890,6 +895,7 @@ void HonorMgr::Update()
     // LIFE TIME
     m_owner->SetUInt32Value(PLAYER_FIELD_LIFETIME_HONORBALE_KILLS, m_totalHK);
     m_owner->SetUInt32Value(PLAYER_FIELD_LIFETIME_DISHONORBALE_KILLS, m_totalDK);
+#endif
 }
 
 void HonorMgr::InitRankInfo(HonorRankInfo &prk)

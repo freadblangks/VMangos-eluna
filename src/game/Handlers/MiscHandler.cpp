@@ -1027,6 +1027,7 @@ void WorldSession::HandleInspectOpcode(WorldPacket& recv_data)
 
 void WorldSession::HandleInspectHonorStatsOpcode(WorldPacket& recv_data)
 {
+#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_4_2
     ObjectGuid guid;
     recv_data >> guid;
 
@@ -1063,8 +1064,10 @@ void WorldSession::HandleInspectHonorStatsOpcode(WorldPacket& recv_data)
     // Unknown (deprecated, last week dishonourable?)
     data << (uint16)0;
 
+#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_6_1
     // This Week Honorable kills
     data << pTarget->GetUInt16Value(PLAYER_FIELD_THIS_WEEK_KILLS, 0);
+#endif
 
     // Unknown (deprecated, this week dishonourable?)
     data << (uint16)0;
@@ -1081,16 +1084,21 @@ void WorldSession::HandleInspectHonorStatsOpcode(WorldPacket& recv_data)
     // Last Week Honor
     data << pTarget->GetUInt32Value(PLAYER_FIELD_LAST_WEEK_CONTRIBUTION);
 
+#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_6_1
     // This Week Honor
     data << pTarget->GetUInt32Value(PLAYER_FIELD_THIS_WEEK_CONTRIBUTION);
+#endif
 
     // Last Week Standing
     data << pTarget->GetUInt32Value(PLAYER_FIELD_LAST_WEEK_RANK);
 
+#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_6_1
     // Rank progress bar
     data << (uint8)pTarget->GetByteValue(PLAYER_FIELD_BYTES2, PLAYER_FIELD_BYTES_2_OFFSET_HONOR_RANK_BAR);
+#endif
 
     SendPacket(&data);
+#endif
 }
 
 void WorldSession::HandleTeleportToUnitOpcode(WorldPacket& recv_data)

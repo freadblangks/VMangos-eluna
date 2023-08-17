@@ -3029,6 +3029,7 @@ void Map::SendMonsterTextToMap(int32 textId, Language language, ChatMsg chatMsg,
 */
 void Map::PlayDirectSoundToMap(uint32 soundId, uint32 zoneId /*=0*/) const
 {
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_3_1
     WorldPacket data(SMSG_PLAY_SOUND, 4);
     data << uint32(soundId);
 
@@ -3036,6 +3037,7 @@ void Map::PlayDirectSoundToMap(uint32 soundId, uint32 zoneId /*=0*/) const
     for (const auto& itr : pList)
         if (!zoneId || itr.getSource()->GetZoneId() == zoneId)
             itr.getSource()->SendDirectMessage(&data);
+#endif
 }
 
 bool Map::isInLineOfSight(float x1, float y1, float z1, float x2, float y2, float z2, bool checkDynLos, bool ignoreM2Model) const
@@ -3542,8 +3544,10 @@ void Map::RemoveCorpses(bool unload)
 
             if (looterGuid)
             {
+#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_5_1
                 // Now we must make bones lootable, and send player loot
                 bones->SetFlag(CORPSE_FIELD_DYNAMIC_FLAGS, CORPSE_DYNFLAG_LOOTABLE);
+#endif
 
                 if (Player* looter = GetPlayer(looterGuid))
                 {

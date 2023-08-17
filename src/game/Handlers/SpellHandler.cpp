@@ -496,6 +496,7 @@ void WorldSession::HandleCancelChanneling(WorldPacket& recv_data)
 
 void WorldSession::HandleSelfResOpcode(WorldPacket& /*recv_data*/)
 {
+#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_6_1
     if (_player->GetUInt32Value(PLAYER_SELF_RES_SPELL))
     {
         SpellEntry const* spellInfo = sSpellMgr.GetSpellEntry(_player->GetUInt32Value(PLAYER_SELF_RES_SPELL));
@@ -504,4 +505,5 @@ void WorldSession::HandleSelfResOpcode(WorldPacket& /*recv_data*/)
 
         _player->SetUInt32Value(PLAYER_SELF_RES_SPELL, 0);
     }
+#endif
 }

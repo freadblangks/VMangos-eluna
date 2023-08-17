@@ -480,9 +480,11 @@ void Player::UpdateCritPercentage(WeaponAttackType attType)
     switch (attType)
     {
         case RANGED_ATTACK:
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_3_1
             modGroup = RANGED_CRIT_PERCENTAGE;
             index = PLAYER_RANGED_CRIT_PERCENTAGE;
             break;
+#endif
         case BASE_ATTACK:
             modGroup = CRIT_PERCENTAGE;
             index = PLAYER_CRIT_PERCENTAGE;

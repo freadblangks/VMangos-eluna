@@ -165,6 +165,10 @@ void PlayerMenu::SendGossipMenu(uint32 textId, ObjectGuid objectGuid)
         sizeof(uint32) + // index
         sizeof(uint8) + // icon
         sizeof(uint8) + // coded
+#if SUPPORTED_CLIENT_BUILD < CLIENT_BUILD_1_6_1
+        sizeof(uint8) + // dunno
+        sizeof(uint8) + 
+#endif
         128; // message (average)
 
     constexpr size_t questPartSize =
@@ -177,18 +181,22 @@ void PlayerMenu::SendGossipMenu(uint32 textId, ObjectGuid objectGuid)
     data << ObjectGuid(objectGuid);
     data << uint32(textId);
     data << uint32(mGossipMenu.MenuItemCount());            // [ZERO] max count 15
-
+    
     for (uint32 iI = 0; iI < mGossipMenu.MenuItemCount(); ++iI)
     {
         GossipMenuItem const& gItem = mGossipMenu.GetItem(iI);
         data << uint32(iI);
+#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_6_1
         data << uint8(gItem.m_gIcon);
         data << uint8(gItem.m_gCoded);                      // makes pop up box password
+#else
+        data << uint32(gItem.m_gIcon);
+#endif
         data << gItem.m_gMessage;                           // text for gossip item, max 0x800
     }
-
+    
     data << uint32(mQuestMenu.MenuItemCount());             // max count 0x20
-
+    
     for (uint32 iI = 0; iI < mQuestMenu.MenuItemCount(); ++iI)
     {
         QuestMenuItem const& qItem = mQuestMenu.GetItem(iI);
@@ -196,7 +204,8 @@ void PlayerMenu::SendGossipMenu(uint32 textId, ObjectGuid objectGuid)
         Quest const* pQuest = sObjectMgr.GetQuestTemplate(questID);
 
         data << uint32(questID);
-        data << uint32(qItem.m_qIcon);
+        data << QIconToClientQuestType(qItem.m_qIcon);
+
         data << uint32(pQuest->GetQuestLevel());
         char const* title = pQuest->GetTitle().c_str();
         size_t titleLen = pQuest->GetTitle().length();
@@ -480,7 +489,7 @@ void PlayerMenu::SendQuestGiverQuestList(QEmote eEmote, std::string const& Title
             }
 
             data << uint32(questID);
-            data << uint32(qmi.m_qIcon);
+            data << QIconToClientQuestType(qmi.m_qIcon);
             data << uint32(pQuest->GetQuestLevel());
             data.append(title, titleLen + 1);
         }
@@ -846,4 +855,22 @@ void PlayerMenu::SendQuestGiverRequestItems(Quest const* pQuest, ObjectGuid npcG
     //data << uint32(0x10);                                 // [-ZERO] flags4
 
     GetMenuSession()->SendPacket(&data);
+}
+
+
+uint32 PlayerMenu::QIconToClientQuestType(uint32 qIcon)
+{
+// in client logic values 3 and 4 will add quest as quest in progress
+// value 0 will add a turn in quest (ie quest that you pick up and immediately turn in at the same questgiver)
+// other values will result in normal new quest
+
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_3_1
+    return qIcon;
+#else
+    if (qIcon == DIALOG_STATUS_REWARD2 || qIcon == DIALOG_STATUS_REWARD_OLD)
+        return 4;
+    else if (qIcon == DIALOG_STATUS_AVAILABLE)
+        return 2;
+    return qIcon;
+#endif
 }

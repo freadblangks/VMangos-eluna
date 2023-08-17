@@ -80,10 +80,15 @@ void MovementInfo::Read(ByteBuffer &data)
     if (HasMovementFlag(MOVEFLAG_SWIMMING))
         data >> s_pitch;
 
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_3_1
     data >> fallTime;
+#endif
 
     if (HasMovementFlag(MOVEFLAG_JUMPING))
     {
+#if SUPPORTED_CLIENT_BUILD <= CLIENT_BUILD_1_3_1
+        data << fallTime;
+#endif
         data >> jump.zspeed;
         data >> jump.cosAngle;
         data >> jump.sinAngle;
@@ -161,10 +166,15 @@ void MovementInfo::Write(ByteBuffer &data) const
     if (HasMovementFlag(MOVEFLAG_SWIMMING))
         data << s_pitch;
 
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_3_1
     data << fallTime;
+#endif
 
     if (HasMovementFlag(MOVEFLAG_JUMPING))
     {
+#if SUPPORTED_CLIENT_BUILD <= CLIENT_BUILD_1_3_1
+        data << fallTime;
+#endif
         data << jump.zspeed;
         data << jump.cosAngle;
         data << jump.sinAngle;
@@ -561,8 +571,10 @@ void Object::BuildMovementUpdate(ByteBuffer* data, uint8 updateFlags) const
         *data << float(unit->GetSpeed(MOVE_SWIM_BACK));
         *data << float(unit->GetSpeed(MOVE_TURN_RATE));
         // Send current movement informations
-        if (unit->m_movementInfo.moveFlags & MOVEFLAG_SPLINE_ENABLED)
+        if (unit->m_movementInfo.moveFlags & MOVEFLAG_SPLINE_ENABLED) {
+            sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "%s unit movement packet is being built %d entry %d guid", unit->GetName(), unit->GetEntry(), unit->GetObjectGuid().GetCounter());
             Movement::PacketBuilder::WriteCreate(*(unit->movespline), *data);
+        }
     }
     else
         for (int i = 0; i < MAX_MOVE_TYPE; ++i)
@@ -875,6 +887,7 @@ void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, UpdateMask* u
         {
             if (updateMask->GetBit(index))
             {
+#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_5_1
                 if (index == CORPSE_FIELD_DYNAMIC_FLAGS)
                 {
                     uint32 dynFlags = m_uint32Values[CORPSE_FIELD_DYNAMIC_FLAGS];
@@ -890,6 +903,7 @@ void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, UpdateMask* u
                     *data << dynFlags;
                 }
                 else
+#endif
                     // send in current format (float as float, uint32 as uint32)
                     *data << m_uint32Values[index];
             }
@@ -2709,12 +2723,14 @@ void WorldObject::PlayDistanceSound(uint32 sound_id, Player const* target /*= nu
 
 void WorldObject::PlayDirectSound(uint32 sound_id, Player const* target /*= nullptr*/) const
 {
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_3_1
     WorldPacket data(SMSG_PLAY_SOUND, 4);
     data << uint32(sound_id);
     if (target)
         target->SendDirectMessage(&data);
     else
         SendMessageToSet(&data, true);
+#endif
 }
 
 void WorldObject::PlayDirectMusic(uint32 music_id, Player const* target /*= nullptr*/) const

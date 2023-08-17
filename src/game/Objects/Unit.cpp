@@ -1084,8 +1084,10 @@ void Unit::Kill(Unit* pVictim, SpellEntry const* spellProto, bool durabilityLoss
         DEBUG_FILTER_LOG(LOG_FILTER_DAMAGE, "SET JUST_DIED");
         pVictim->SetDeathState(JUST_DIED);
         // Nostalrius: Instantly send values update for health
+#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_6_1
         if (pPlayerVictim && pVictim->GetUInt32Value(PLAYER_SELF_RES_SPELL))
             pVictim->DirectSendPublicValueUpdate(PLAYER_SELF_RES_SPELL);
+#endif
         pVictim->DirectSendPublicValueUpdate(UNIT_FIELD_HEALTH);
     }
     else
@@ -1110,6 +1112,7 @@ void Unit::Kill(Unit* pVictim, SpellEntry const* spellProto, bool durabilityLoss
 
     if (spiritOfRedemtionTalentImmune)
     {
+#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_6_1
         // save value before aura remove
         uint32 ressSpellId = pVictim->GetUInt32Value(PLAYER_SELF_RES_SPELL);
         if (!ressSpellId)
@@ -1124,6 +1127,7 @@ void Unit::Kill(Unit* pVictim, SpellEntry const* spellProto, bool durabilityLoss
         // FORM_SPIRITOFREDEMPTION and related auras
         pVictim->AddAura(27827, ADD_AURA_NO_OPTION, pVictim);
         pVictim->InterruptNonMeleeSpells(false);
+#endif
     }
 
     // remember victim PvP death for corpse type and corpse reclaim delay
@@ -2668,7 +2672,11 @@ float Unit::GetUnitCriticalChance(WeaponAttackType attackType, Unit const* pVict
                 crit = GetFloatValue(PLAYER_CRIT_PERCENTAGE);
                 break;
             case RANGED_ATTACK:
+#if SUPPORTED_CLIENT_BUILD < CLIENT_BUILD_1_4_2
+                crit = GetFloatValue(PLAYER_CRIT_PERCENTAGE);
+#else
                 crit = GetFloatValue(PLAYER_RANGED_CRIT_PERCENTAGE);
+#endif
                 break;
                 // Just for good manner
             default:
@@ -6782,7 +6790,7 @@ bool Unit::FindPendingMovementKnockbackChange(MovementInfo& movementInfo, uint32
     return false;
 }
 
-bool Unit::FindPendingMovementSpeedChange(float speedReceived, uint32 movementCounter, UnitMoveType moveType)
+bool Unit::FindPendingMovementSpeedChange(float speedReceived, uint32 movementCounter, UnitMoveType moveType, float& speedToApply)
 {
     for (auto pendingChange = m_pendingMovementChanges.begin(); pendingChange != m_pendingMovementChanges.end(); pendingChange++)
     {
@@ -6803,10 +6811,14 @@ bool Unit::FindPendingMovementSpeedChange(float speedReceived, uint32 movementCo
 #if SUPPORTED_CLIENT_BUILD <= CLIENT_BUILD_1_9_4
         movementCounter = pendingChange->movementCounter;
 #endif
+#if SUPPORTED_CLIENT_BUILD <= CLIENT_BUILD_1_5_1
+        speedReceived = speedSent;
+#endif
 
         if (pendingChange->movementCounter != movementCounter || std::fabs(speedSent - speedReceived) > 0.01f || moveTypeSent != moveType)
             continue;
 
+        speedToApply = speedSent;
         m_pendingMovementChanges.erase(pendingChange);
         return true;
     }

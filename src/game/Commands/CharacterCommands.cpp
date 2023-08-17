@@ -2267,6 +2267,9 @@ bool ChatHandler::HandleCharacterCityTitleCommand(char* args)
 
 bool ChatHandler::HandleHonorShow(char* /*args*/)
 {
+#if SUPPORTED_CLIENT_BUILD < CLIENT_BUILD_1_4_2
+    return true;
+#else
     Player* target = GetSelectedPlayer();
     if (!target)
         target = m_session->GetPlayer();
@@ -2278,8 +2281,10 @@ bool ChatHandler::HandleHonorShow(char* /*args*/)
     uint32 today_dishonorable_kills = target->GetUInt16Value(PLAYER_FIELD_SESSION_KILLS, 1);
     uint32 yesterday_kills          = target->GetUInt32Value(PLAYER_FIELD_YESTERDAY_KILLS);
     uint32 yesterday_honor          = target->GetUInt32Value(PLAYER_FIELD_YESTERDAY_CONTRIBUTION);
+#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_6_1
     uint32 this_week_kills          = target->GetUInt32Value(PLAYER_FIELD_THIS_WEEK_KILLS);
     uint32 this_week_honor          = target->GetUInt32Value(PLAYER_FIELD_THIS_WEEK_CONTRIBUTION);
+#endif
     uint32 last_week_kills          = target->GetUInt32Value(PLAYER_FIELD_LAST_WEEK_KILLS);
     uint32 last_week_honor          = target->GetUInt32Value(PLAYER_FIELD_LAST_WEEK_CONTRIBUTION);
     uint32 last_week_standing       = target->GetUInt32Value(PLAYER_FIELD_LAST_WEEK_RANK);
@@ -2360,11 +2365,14 @@ bool ChatHandler::HandleHonorShow(char* /*args*/)
     PSendSysMessage(LANG_RANK, target->GetName(), rank_name, honor_rank);
     PSendSysMessage(LANG_HONOR_TODAY, today_honorable_kills, today_dishonorable_kills);
     PSendSysMessage(LANG_HONOR_YESTERDAY, yesterday_kills, yesterday_honor);
+#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_6_1
     PSendSysMessage(LANG_HONOR_THIS_WEEK, this_week_kills, this_week_honor);
+#endif
     PSendSysMessage(LANG_HONOR_LAST_WEEK, last_week_kills, last_week_honor, last_week_standing);
     PSendSysMessage(LANG_HONOR_LIFE, target->GetHonorMgr().GetRankPoints(), honorable_kills, dishonorable_kills, highest_rank, hrank_name);
 
     return true;
+#endif
 }
 
 bool ChatHandler::HandleHonorAddCommand(char* args)
@@ -2408,6 +2416,7 @@ bool ChatHandler::HandleHonorAddKillCommand(char* /*args*/)
 
 bool ChatHandler::HandleModifyHonorCommand(char* args)
 {
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_3_1
     if (!*args)
         return false;
 
@@ -2433,7 +2442,9 @@ bool ChatHandler::HandleModifyHonorCommand(char* args)
         if (amount < 0 || amount > 255)
             return false;
         // rank points is sent to client with same size of uint8(255) for each rank
+#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_6_1
         target->SetByteValue(PLAYER_FIELD_BYTES2, PLAYER_FIELD_BYTES_2_OFFSET_HONOR_RANK_BAR, amount);
+#endif
     }
     else if (hasStringAbbr(field, "rank"))
     {
@@ -2447,10 +2458,12 @@ bool ChatHandler::HandleModifyHonorCommand(char* args)
         target->SetUInt32Value(PLAYER_FIELD_YESTERDAY_KILLS, (uint32)amount);
     else if (hasStringAbbr(field, "yesterdayhonor"))
         target->SetUInt32Value(PLAYER_FIELD_YESTERDAY_CONTRIBUTION, (uint32)amount);
+#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_6_1
     else if (hasStringAbbr(field, "thisweekkills"))
         target->SetUInt32Value(PLAYER_FIELD_THIS_WEEK_KILLS, (uint32)amount);
     else if (hasStringAbbr(field, "thisweekhonor"))
         target->SetUInt32Value(PLAYER_FIELD_THIS_WEEK_CONTRIBUTION, (uint32)amount);
+#endif
     else if (hasStringAbbr(field, "lastweekkills"))
         target->SetUInt32Value(PLAYER_FIELD_LAST_WEEK_KILLS, (uint32)amount);
     else if (hasStringAbbr(field, "lastweekhonor"))
@@ -2463,7 +2476,7 @@ bool ChatHandler::HandleModifyHonorCommand(char* args)
         target->SetUInt32Value(PLAYER_FIELD_LIFETIME_HONORBALE_KILLS, (uint32)amount);
 
     PSendSysMessage(LANG_COMMAND_MODIFY_HONOR, field, target->GetName(), hasStringAbbr(field, "rank") ? amount : (uint32)amount);
-
+#endif
     return true;
 }
 
@@ -4062,8 +4075,11 @@ bool ChatHandler::HandleModifyRangedCritCommand(char *args)
         SetSentErrorMessage(true);
         return false;
     }
-
+#if SUPPORTED_CLIENT_BUILD < CLIENT_BUILD_1_4_2
+    player->SetStatFloatValue(PLAYER_CRIT_PERCENTAGE, amount);
+#else
     player->SetStatFloatValue(PLAYER_RANGED_CRIT_PERCENTAGE, amount);
+#endif
 
     PSendSysMessage(LANG_YOU_CHANGE_RCRIT, player->GetName(), amount);
 

@@ -1919,7 +1919,11 @@ void Player::SetDeathState(DeathState s)
             GetSession()->DoLootRelease(lootGuid);
 
         // save value before aura remove in Unit::SetDeathState
+#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_6_1
         ressSpellId = GetUInt32Value(PLAYER_SELF_RES_SPELL);
+#else
+        ressSpellId = 0;
+#endif
 
         // passive spell
         if (!ressSpellId)
@@ -1931,14 +1935,18 @@ void Player::SetDeathState(DeathState s)
 
     Unit::SetDeathState(s);
 
+#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_6_1
     // restore resurrection spell id for player after aura remove
     if (s == JUST_DIED && cur && ressSpellId)
         SetUInt32Value(PLAYER_SELF_RES_SPELL, ressSpellId);
+#endif
 
     if (IsAlive() && !cur)
     {
+#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_6_1
         //clear aura case after resurrection by another way (spells will be applied before next death)
         SetUInt32Value(PLAYER_SELF_RES_SPELL, 0);
+#endif
 
         UpdatePvPContested(false, true);
     }
@@ -3679,7 +3687,9 @@ void Player::InitStatsForLevel(bool reapplyMods)
 
     // Base crit values (will be recalculated in UpdateAllStats() at loading and in _ApplyAllStatBonuses() at reset
     SetFloatValue(PLAYER_CRIT_PERCENTAGE, 0.0f);
+#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_4_2
     SetFloatValue(PLAYER_RANGED_CRIT_PERCENTAGE, 0.0f);
+#endif
 
     // Init spell schools (will be recalculated in UpdateAllStats() at loading and in _ApplyAllStatBonuses() at reset
     for (float & i : m_SpellCritPercentage)
@@ -3740,8 +3750,10 @@ void Player::InitStatsForLevel(bool reapplyMods)
     // one form stealth modified bytes
     RemoveByteFlag(UNIT_FIELD_BYTES_1, UNIT_BYTES_1_OFFSET_VIS_FLAG, UNIT_VIS_FLAGS_ALL);
 
+#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_6_1
     // restore if need some important flags
     SetUInt32Value(PLAYER_FIELD_BYTES2, 0);                 // flags empty by default
+#endif
 
     if (reapplyMods)                                        //reapply stats values only on .reset stats (level) command
         _ApplyAllStatBonuses();
@@ -8165,7 +8177,9 @@ void Player::SendLoot(ObjectGuid guid, LootType loot_type, Player* pVictim)
             }
 
             permission = ALL_PERMISSION; // Everyone can loot in AV.
+#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_5_1
             bones->SetFlag(CORPSE_FIELD_DYNAMIC_FLAGS, CORPSE_DYNFLAG_LOOTABLE);
+#endif
             bones->ForceValuesUpdateAtIndex(CORPSE_DYNFLAG_LOOTABLE);
             break;
         }
@@ -8400,7 +8414,9 @@ void Player::SendUpdateWorldState(uint32 field, uint32 value) const
     WorldPacket data(SMSG_UPDATE_WORLD_STATE, 8);
     data << field;
     data << value;
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_3_1
     GetSession()->SendPacket(&data);
+#endif
 }
 
 // TODO: Determine what these values mean, if anything.
@@ -8590,7 +8606,9 @@ void Player::SendInitWorldStates(uint32 zoneid) const
 
     data << uint32(0) << uint32(0);     // [-ZERO] Add terminator to prevent repeating audio bug.
     data.put<uint16>(count_pos, count); // set actual world state amount
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_3_1
     GetSession()->SendPacket(&data);
+#endif
 }
 
 uint32 Player::GetXPRestBonus(uint32 xp)
@@ -10723,9 +10741,12 @@ void Player::QuickEquipItem(uint16 pos, Item* pItem)
 
 void Player::SetVisibleItemSlot(uint8 slot, Item* pItem)
 {
+#if CLIENT_BUILD_EXTRA > 4150
     if (pItem)
     {
+#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_4_2
         SetGuidValue(PLAYER_VISIBLE_ITEM_1_CREATOR + (slot * MAX_VISIBLE_ITEM_OFFSET), pItem->GetGuidValue(ITEM_FIELD_CREATOR));
+#endif
 
         int VisibleBase = PLAYER_VISIBLE_ITEM_1_0 + (slot * MAX_VISIBLE_ITEM_OFFSET);
         SetUInt32Value(VisibleBase + 0, pItem->GetEntry());
@@ -10739,7 +10760,9 @@ void Player::SetVisibleItemSlot(uint8 slot, Item* pItem)
     }
     else
     {
+#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_4_2
         SetGuidValue(PLAYER_VISIBLE_ITEM_1_CREATOR + (slot * MAX_VISIBLE_ITEM_OFFSET), ObjectGuid());
+#endif
 
         int VisibleBase = PLAYER_VISIBLE_ITEM_1_0 + (slot * MAX_VISIBLE_ITEM_OFFSET);
         SetUInt32Value(VisibleBase + 0, 0);
@@ -10750,6 +10773,7 @@ void Player::SetVisibleItemSlot(uint8 slot, Item* pItem)
         SetUInt32Value(PLAYER_VISIBLE_ITEM_1_PROPERTIES + 0 + (slot * MAX_VISIBLE_ITEM_OFFSET), 0);
         SetUInt32Value(PLAYER_VISIBLE_ITEM_1_PROPERTIES + 1 + (slot * MAX_VISIBLE_ITEM_OFFSET), 0);
     }
+#endif
 }
 
 void Player::VisualizeItem(uint8 slot, Item* pItem)
@@ -11767,8 +11791,10 @@ void Player::AddItemToBuyBackSlot(Item* pItem, uint32 money, ObjectGuid vendorGu
     SetUInt32Value(PLAYER_FIELD_BUYBACK_RANDOM_PROPERTIES_ID, pItem->GetItemRandomPropertyId());
     SetUInt32Value(PLAYER_FIELD_BUYBACK_SEED, pItem->GetItemSuffixFactor());
     SetUInt32Value(PLAYER_FIELD_BUYBACK_PRICE, (pItem->GetProto()->BuyPrice / pItem->GetProto()->BuyCount) * pItem->GetCount());
+#if CLIENT_BUILD_EXTRA > CLIENT_BUILD_1_1_2
     SetUInt32Value(PLAYER_FIELD_BUYBACK_DURABILITY, pItem->GetUInt32Value(ITEM_FIELD_DURABILITY));
     SetUInt32Value(PLAYER_FIELD_BUYBACK_COUNT, pItem->GetCount());
+#endif
     SetUInt64Value(PLAYER_FIELD_BUYBACK_NPC, vendorGuid);
 #endif
 
@@ -11807,8 +11833,10 @@ void Player::RemoveItemFromBuyBackSlot(uint32 slot, bool del)
         SetUInt32Value(PLAYER_FIELD_BUYBACK_RANDOM_PROPERTIES_ID, 0);
         SetUInt32Value(PLAYER_FIELD_BUYBACK_SEED, 0);
         SetUInt32Value(PLAYER_FIELD_BUYBACK_PRICE, 0);
+#if CLIENT_BUILD_EXTRA > CLIENT_BUILD_1_1_2
         SetUInt32Value(PLAYER_FIELD_BUYBACK_DURABILITY, 0);
         SetUInt32Value(PLAYER_FIELD_BUYBACK_COUNT, 0);
+#endif
 #endif
 
         // if current backslot is filled set to now free slot
@@ -12147,8 +12175,10 @@ void Player::ApplyEnchantment(Item* item, EnchantmentSlot slot, bool apply, bool
     // visualize enchantment of equipped player items (mostly weapon glows)
     if (item->IsEquipped() && slot < MAX_INSPECTED_ENCHANTMENT_SLOT)
     {
+#if CLIENT_BUILD_EXTRA > 4150
         int VisibleBase = PLAYER_VISIBLE_ITEM_1_0 + (item->GetSlot() * MAX_VISIBLE_ITEM_OFFSET);
         SetUInt32Value(VisibleBase + 1 + slot, apply ? item->GetEnchantmentId(slot) : 0);
+#endif
     }
 
     if (apply_dur)
@@ -12674,7 +12704,11 @@ void Player::PrepareQuestMenu(ObjectGuid guid, uint32 exceptQuestId)
         QuestStatus status = GetQuestStatus(quest_id);
 
         if (status == QUEST_STATUS_COMPLETE && !GetQuestRewardStatus(quest_id))
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_3_1
             qm.AddMenuItem(quest_id, DIALOG_STATUS_REWARD_REP);
+#else
+            qm.AddMenuItem(quest_id, DIALOG_STATUS_REWARD2);
+#endif
         else if (status == QUEST_STATUS_INCOMPLETE)
             qm.AddMenuItem(quest_id, DIALOG_STATUS_INCOMPLETE);
         else if (status == QUEST_STATUS_AVAILABLE)
@@ -12695,9 +12729,17 @@ void Player::PrepareQuestMenu(ObjectGuid guid, uint32 exceptQuestId)
         QuestStatus status = GetQuestStatus(quest_id);
 
         if (pQuest->IsAutoComplete() && CanTakeQuest(pQuest, false))
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_3_1
             qm.AddMenuItem(quest_id, DIALOG_STATUS_REWARD_REP);
+#else
+            qm.AddMenuItem(quest_id, DIALOG_STATUS_REWARD2);
+#endif
         else if (status == QUEST_STATUS_NONE && CanTakeQuest(pQuest, false))
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_3_1
             qm.AddMenuItem(quest_id, DIALOG_STATUS_AVAILABLE);
+#else
+            qm.AddMenuItem(quest_id, DIALOG_STATUS_AVAILABLE);
+#endif
     }
 }
 
@@ -12720,6 +12762,7 @@ void Player::SendPreparedQuest(ObjectGuid guid)
 
         if (pQuest)
         {
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_3_1
             if (status == DIALOG_STATUS_REWARD_REP && !GetQuestRewardStatus(quest_id))
                 PlayerTalkClass->SendQuestGiverRequestItems(pQuest, guid, CanRewardQuest(pQuest, false), true);
             else if (status == DIALOG_STATUS_INCOMPLETE)
@@ -12729,6 +12772,17 @@ void Player::SendPreparedQuest(ObjectGuid guid)
                 PlayerTalkClass->SendQuestGiverRequestItems(pQuest, guid, true, true);
             else
                 PlayerTalkClass->SendQuestGiverQuestDetails(pQuest, guid, true);
+#else
+            if (status == DIALOG_STATUS_REWARD2 && !GetQuestRewardStatus(quest_id))
+                PlayerTalkClass->SendQuestGiverRequestItems(pQuest, guid, CanRewardQuest(pQuest, false), true);
+            else if (status == DIALOG_STATUS_INCOMPLETE)
+                PlayerTalkClass->SendQuestGiverRequestItems(pQuest, guid, false, true);
+            // Send completable on repeatable quest if player don't have quest
+            else if (pQuest->IsRepeatable() && CanCompleteRepeatableQuest(pQuest))
+                PlayerTalkClass->SendQuestGiverRequestItems(pQuest, guid, true, true);
+            else
+                PlayerTalkClass->SendQuestGiverQuestDetails(pQuest, guid, true);
+#endif
         }
     }
     // multiply entries
@@ -16734,7 +16788,7 @@ void Player::SaveToDB(bool online, bool force)
     for (uint32 i = 0; i < PLAYER_EXPLORED_ZONES_SIZE; ++i)         //string
         ss << GetUInt32Value(PLAYER_EXPLORED_ZONES_1 + i) << " ";
     uberInsert.addString(ss);
-
+#if CLIENT_BUILD_EXTRA > 4150
     for (uint32 i = 0; i < EQUIPMENT_SLOT_END; ++i)         //string: item id, ench (perm/temp)
     {
         ss << GetUInt32Value(PLAYER_VISIBLE_ITEM_1_0 + i * MAX_VISIBLE_ITEM_OFFSET) << " ";
@@ -16743,6 +16797,16 @@ void Player::SaveToDB(bool online, bool force)
         uint32 ench2 = GetUInt32Value(PLAYER_VISIBLE_ITEM_1_0 + i * MAX_VISIBLE_ITEM_OFFSET + 1 + TEMP_ENCHANTMENT_SLOT);
         ss << uint32(MAKE_PAIR32(ench1, ench2)) << " ";
     }
+#else
+    for (uint32 i = 0; i < EQUIPMENT_SLOT_END; ++i)         //string: item id, ench (perm/temp)
+    {
+        ss << uint32(0) << " ";
+
+        uint32 ench1 = 0;
+        uint32 ench2 = 0;
+        ss << uint32(MAKE_PAIR32(ench1, ench2)) << " ";
+    }
+#endif
     // 1 in vanilla/tbc - 4 in wotlk
     for (uint32 i = INVENTORY_SLOT_BAG_START; i < INVENTORY_SLOT_BAG_START + 1; ++i) // string: item id, ench (perm/temp)
     {
@@ -17220,7 +17284,11 @@ void Player::_SaveStats()
     stmt.addFloat(GetFloatValue(PLAYER_DODGE_PERCENTAGE));
     stmt.addFloat(GetFloatValue(PLAYER_PARRY_PERCENTAGE));
     stmt.addFloat(GetFloatValue(PLAYER_CRIT_PERCENTAGE));
+#if SUPPORTED_CLIENT_BUILD < CLIENT_BUILD_1_4_2
+    stmt.addFloat(GetFloatValue(PLAYER_CRIT_PERCENTAGE));
+#else
     stmt.addFloat(GetFloatValue(PLAYER_RANGED_CRIT_PERCENTAGE));
+#endif
     stmt.addFloat(GetSpellCritPercent(SPELL_SCHOOL_HOLY));
     stmt.addUInt32(GetUInt32Value(UNIT_FIELD_ATTACK_POWER));
     stmt.addUInt32(GetUInt32Value(UNIT_FIELD_RANGED_ATTACK_POWER));

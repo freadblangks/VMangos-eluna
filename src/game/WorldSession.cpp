@@ -207,7 +207,7 @@ void WorldSession::SendPacket(WorldPacket const* packet)
 
 #endif                                                  // !_DEBUG
 
-    // sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "[%s]Send packet : %u|0x%x (%s)", GetPlayerName(), packet->GetOpcode(), packet->GetOpcode(), LookupOpcodeName(packet->GetOpcode()));
+    //sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "[%s]Send packet : %u|0x%x (%s)", GetPlayerName(), packet->GetOpcode(), packet->GetOpcode(), LookupOpcodeName(packet->GetOpcode()));
     if (m_sniffFile)
         m_sniffFile->WritePacket(*packet, false, time(nullptr));
 
