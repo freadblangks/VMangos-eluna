@@ -45,7 +45,7 @@ struct ScriptedAI : BasicAI
     //*************
 
     // Called at creature reset either by death or evade
-    virtual void Reset() = 0;
+    virtual void Reset() {};
 
     // Called at creature death only
     virtual void ResetCreature() {}

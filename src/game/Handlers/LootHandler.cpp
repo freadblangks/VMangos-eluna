@@ -37,6 +37,7 @@
 #include "ScriptMgr.h"
 #include "Util.h"
 #include "Anticheat.h"
+#include "ScriptDevMgr.h"
 
 void WorldSession::HandleAutostoreLootItemOpcode(WorldPacket& recv_data)
 {
@@ -186,6 +187,7 @@ void WorldSession::HandleAutostoreLootItemOpcode(WorldPacket& recv_data)
         sLog.Player(this, LOG_LOOTS, LOG_LVL_MINIMAL, "%s loots %ux%u [loot from %s]", _player->GetShortDescription().c_str(), item->count, item->itemid, lguid.GetString().c_str());
         player->SendNewItem(newitem, uint32(item->count), false, false, true);
         player->OnReceivedItem(newitem);
+        sScriptDevMgr.OnLootItem(player, newitem, uint32(item->count), lguid);
     }
     else
         player->SendEquipError(msg, nullptr, nullptr, item->itemid);

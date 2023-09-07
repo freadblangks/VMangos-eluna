@@ -56,6 +56,7 @@
 #include "Anticheat.h"
 #include "InstanceStatistics.h"
 #include "MovementPacketSender.h"
+#include "ScriptDevMgr.h"
 
 #include <math.h>
 #include <stdarg.h>
@@ -812,6 +813,33 @@ uint32 Unit::DealDamage(Unit* pVictim, uint32 damage, CleanDamage const* cleanDa
 
             he->DuelComplete(DUEL_INTERRUPTED);
         }
+
+        // Hook for OnPvPKill Event
+        if (this->GetTypeId() == TYPEID_PLAYER)
+        {
+            if (pVictim->GetTypeId() == TYPEID_PLAYER)
+            {
+                Player* killer = this->ToPlayer();
+                Player* killed = pVictim->ToPlayer();
+                sScriptDevMgr.OnPVPKill(killer, killed);
+            }
+            else if (pVictim->GetTypeId() == TYPEID_UNIT)
+            {
+                Player* killer = this->ToPlayer();
+                Creature* killed = pVictim->ToCreature();
+                sScriptDevMgr.OnCreatureKill(killer, killed);
+            }
+        }
+        else if (this->GetTypeId() == TYPEID_UNIT)
+        {
+            if (pVictim->GetTypeId() == TYPEID_PLAYER)
+            {
+                Creature* killer = this->ToCreature();
+                Player* killed = pVictim->ToPlayer();
+                sScriptDevMgr.OnPlayerKilledByCreature(killer, killed);
+            }
+        }
+        
     }
     else                                                    // if (health <= damage)
     {

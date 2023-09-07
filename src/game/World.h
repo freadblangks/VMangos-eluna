@@ -802,6 +802,12 @@ class World
         void SetInitialWorldSettings();
         void LoadConfigSettings(bool reload = false);
 
+        /*Module Configs*/
+        void LoadModuleConfig();
+        bool GetModuleBoolConfig(std::string config, bool value);
+        std::string GetModuleStringConfig(std::string config, std::string value);
+        int32 GetModuleIntConfig(std::string conf, uint32 value);
+
         void SendWorldText(int32 string_id, ...);
         void SendBroadcastTextToWorld(uint32 textId);
 
@@ -1047,6 +1053,15 @@ class World
         static uint32 m_currentDiff;
 
         Messager<World> m_messager;
+
+        struct ModuleConfig
+        {
+            uint32 id;
+            std::string config;
+            std::string value;
+        };
+
+        std::unordered_map<std::string, ModuleConfig> _moduleConfig;
 };
 
 extern uint32 realmID;

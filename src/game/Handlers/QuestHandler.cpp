@@ -32,6 +32,7 @@
 #include "ObjectAccessor.h"
 #include "ScriptMgr.h"
 #include "Group.h"
+#include "ScriptDevMgr.h"
 
 void WorldSession::HandleQuestgiverStatusQueryOpcode(WorldPacket& recv_data)
 {
@@ -55,6 +56,7 @@ void WorldSession::HandleQuestgiverStatusQueryOpcode(WorldPacket& recv_data)
             if (!cr_questgiver->IsHostileTo(_player))       // not show quest status to enemies
             {
                 dialogStatus = sScriptMgr.GetDialogStatus(_player, cr_questgiver);
+                dialogStatus = sScriptDevMgr.GetDialogStatus(_player, cr_questgiver);
 
                 if (dialogStatus > 6)
                     dialogStatus = GetDialogStatus(_player, cr_questgiver, DIALOG_STATUS_NONE);
@@ -102,7 +104,7 @@ void WorldSession::HandleQuestgiverHelloOpcode(WorldPacket& recv_data)
     GetPlayer()->InterruptSpellsWithChannelFlags(AURA_INTERRUPT_INTERACTING_CANCELS);
     GetPlayer()->RemoveAurasWithInterruptFlags(AURA_INTERRUPT_INTERACTING_CANCELS);
 
-    if (sScriptMgr.OnGossipHello(_player, pCreature))
+    if (sScriptMgr.OnGossipHello(_player, pCreature) || sScriptDevMgr.OnGossipHello(_player, pCreature))
         return;
 
     _player->PrepareGossipMenu(pCreature, pCreature->GetDefaultGossipMenuId());

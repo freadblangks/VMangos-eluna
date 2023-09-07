@@ -242,6 +242,9 @@ void AddSC_war_effort();
 
 void AddSC_npc_j_eevee();                            // J'Eevee, the Imp in a Jar
 
+//module
+void AddModuleScripts();
+
 void AddScripts()
 {
     //Nostalrius
@@ -479,4 +482,6 @@ void AddScripts()
     AddSC_winterspring();
 
     AddSC_npc_j_eevee();
+
+    AddModuleScripts();
 }

@@ -260,8 +260,31 @@ set (SCRIPTS_SRCS
     world/dragons_of_nightmare/boss_lethon.cpp
     world/dragons_of_nightmare/boss_taerar.cpp
     world/dragons_of_nightmare/boss_ysondre.cpp
-
+    
 )
+
+CU_SET_PATH("AC_SCRIPTS_DIR" "${CMAKE_CURRENT_LIST_DIR}")
+
+CU_GET_GLOBAL("AC_ADD_SCRIPTS_LIST")
+CU_GET_GLOBAL("AC_ADD_SCRIPTS_INCLUDE")
+CU_GET_GLOBAL("AC_SCRIPTS_SOURCES")
+
+set(SCRIPTS_SRCS
+  ${SCRIPTS_SRCS}
+  GenLoader.cpp
+  ${AC_SCRIPTS_SOURCES}
+)
+
+
+
+set("AC_SCRIPTS_INCLUDES" "")
+
+FOREACH (include ${AC_ADD_SCRIPTS_INCLUDE})
+    set("AC_SCRIPTS_INCLUDES" "#include \"${include}\"\n${AC_SCRIPTS_INCLUDES}")
+ENDFOREACH()
+
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/GenLoader.cpp.cmake ${CMAKE_CURRENT_SOURCE_DIR}/GenLoader.cpp)
+
 
 if((${CMAKE_VERSION} VERSION_LESS "3.16") OR USE_PCH_OLD)
   list(APPEND SCRIPTS_SRCS

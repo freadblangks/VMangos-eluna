@@ -2958,3 +2958,7 @@ DynamicRespawn.AffectLevelBelow         = 0
 DynamicRespawn.PlayersThreshold         = 0
 DynamicRespawn.PlayersMaxLevelDiff      = 0
 
+###################################################################################################################
+#    Database Updater for modules
+###################################################################################################################
+DatabaseUpdater.ModPathToUpdates = "D:\World of Warcraft\vanilla\source\modules"

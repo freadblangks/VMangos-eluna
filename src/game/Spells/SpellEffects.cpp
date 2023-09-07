@@ -50,6 +50,7 @@
 #include "ScriptMgr.h"
 #include "SocialMgr.h"
 #include "scriptPCH.h"
+#include "ScriptDevMgr.h"
 
 using namespace Spells;
 
@@ -2648,6 +2649,8 @@ void Spell::DoCreateItem(SpellEffectIndex effIdx, uint32 itemtype)
         // we succeeded in creating at least one item, so a levelup is possible
         if (bgType == 0)
             player->UpdateCraftSkill(m_spellInfo->Id);
+
+        sScriptDevMgr.OnCreateItem(player, pItem, numToAdd);
     }
 
     // for battleground marks send by mail if not add all expected

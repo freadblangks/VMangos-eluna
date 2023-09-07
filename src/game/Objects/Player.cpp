@@ -81,6 +81,7 @@
 #include "GameEventMgr.h"
 #include "world/scourge_invasion.h"
 #include "world/world_event_wareffort.h"
+#include "ScriptDevMgr.h"
 
 #define ZONE_UPDATE_INTERVAL (1*IN_MILLISECONDS)
 
@@ -3414,6 +3415,8 @@ void Player::GiveXP(uint32 xp, Unit* victim)
 
     uint32 level = GetLevel();
 
+    sScriptDevMgr.OnGivePlayerXP(this, xp, victim);
+
     // XP to money conversion processed in Player::RewardQuest
     if (level >= sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
         return;
@@ -3604,6 +3607,8 @@ void Player::GiveLevel(uint32 level)
     // update level to hunter/summon pet
     if (Pet* pet = GetPet())
         pet->SynchronizeLevelWithOwner();
+
+    sScriptDevMgr.OnPlayerLevelChanged(this, level - 1, level);
 }
 
 void Player::UpdateFreeTalentPoints(bool resetIfNeed)
@@ -13450,6 +13455,8 @@ void Player::RewardQuest(Quest const* pQuest, uint32 reward, WorldObject* questE
             {
                 Item* item = StoreNewItem(dest, itemId, true, Item::GenerateItemRandomPropertyId(itemId));
                 SendNewItem(item, pQuest->RewChoiceItemCount[reward], true, false, false, false);
+
+                sScriptDevMgr.OnQuestRewardItem(this, item, pQuest->RewChoiceItemCount[reward]);
             }
         }
     }
@@ -13465,6 +13472,8 @@ void Player::RewardQuest(Quest const* pQuest, uint32 reward, WorldObject* questE
                 {
                     Item* item = StoreNewItem(dest, itemId, true, Item::GenerateItemRandomPropertyId(itemId));
                     SendNewItem(item, pQuest->RewItemCount[i], true, false, false, false);
+
+                    sScriptDevMgr.OnQuestRewardItem(this, item, pQuest->RewItemCount[i]);
                 }
             }
         }

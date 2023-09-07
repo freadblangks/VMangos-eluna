@@ -39,6 +39,7 @@ set (game_SRCS
     PlayerDump.cpp
     QuestDef.cpp
     ReputationMgr.cpp
+    ScriptDevMgr.cpp
     ScriptMgr.cpp
     SniffFile.cpp
     SocialMgr.cpp
@@ -245,6 +246,7 @@ set (game_SRCS
     QuestDef.h
     ReputationMgr.h
     ScriptedGossip.h
+    ScriptDevMgr.h
     ScriptMgr.h
     SharedDefines.h
     SniffFile.h

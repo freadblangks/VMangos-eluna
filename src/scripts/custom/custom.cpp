@@ -16,9 +16,12 @@
 
 #include "scriptPCH.h"
 #include "custom.h"
+#include "ScriptDevMgr.h"
+
 
 void AddSC_zero_scripts()
 {
+
     //AddSC_zero_creatures();
     AddSC_custom_creatures();
 }
