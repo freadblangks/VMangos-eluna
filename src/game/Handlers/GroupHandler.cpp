@@ -308,12 +308,19 @@ void WorldSession::HandleGroupUninviteOpcode(WorldPacket& recv_data)
 
 void WorldSession::HandleGroupSetLeaderOpcode(WorldPacket& recv_data)
 {
-    ObjectGuid guid;
-    recv_data >> guid;
-
     Group* group = GetPlayer()->GetGroup();
     if (!group)
-        return;
+        return; 
+
+    ObjectGuid guid;
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_2_4
+    recv_data >> guid;
+#else
+    std::string pname;
+    recv_data >> pname;
+
+    guid = group->GetMemberGuid(pname);
+#endif
 
     Player* player = sObjectMgr.GetPlayer(guid);
 
