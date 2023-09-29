@@ -18,7 +18,6 @@
 #define MANGOSSERVER_PROGRESSION_H
 
 // Game client builds.
-#define CLIENT_BUILD_1_1_2 4125
 #define CLIENT_BUILD_1_2_4 4222
 #define CLIENT_BUILD_1_3_1 4297
 #define CLIENT_BUILD_1_4_2 4375
@@ -35,7 +34,6 @@
 // Has an effect on things such as core gameplay mechanics,
 // loading of client data, and network packets structure.
 #define SUPPORTED_CLIENT_BUILD CLIENT_BUILD_1_2_4
-#define CLIENT_BUILD_EXTRA 4222
 
 // This defines which client builds the world server will accept.
 #if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_12_1
@@ -58,10 +56,8 @@
 #define EXPECTED_MANGOSD_CLIENT_BUILD        { 4375, 0}
 #elif SUPPORTED_CLIENT_BUILD == CLIENT_BUILD_1_3_1
 #define EXPECTED_MANGOSD_CLIENT_BUILD        { 4297, 0}
-#elif SUPPORTED_CLIENT_BUILD == CLIENT_BUILD_1_2_4
-#define EXPECTED_MANGOSD_CLIENT_BUILD        { 4222, 4149, 4150, 4125, 4062, 4044, 0}
 #else
-#define EXPECTED_MANGOSD_CLIENT_BUILD        { 4125, 4062, 4044, 0}
+#define EXPECTED_MANGOSD_CLIENT_BUILD        { 4222, 0}
 #endif
 
 // Content patches, used for loading DB data.

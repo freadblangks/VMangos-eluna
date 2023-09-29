@@ -159,14 +159,12 @@ enum EnchantmentSlot
     MAX_ENCHANTMENT_SLOT        = 7
 };
 
-#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_6_1
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_5_1
 #define MAX_VISIBLE_ITEM_OFFSET       12 // Total size of PLAYER_VISIBLE_ITEM update fields per slot
-#else
-#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_4_2
+#elif SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_3_1
 #define MAX_VISIBLE_ITEM_OFFSET       11
 #else
 #define MAX_VISIBLE_ITEM_OFFSET       9
-#endif
 #endif
 
 enum EnchantmentOffset

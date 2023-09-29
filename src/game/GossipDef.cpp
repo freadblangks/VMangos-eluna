@@ -163,11 +163,11 @@ void PlayerMenu::SendGossipMenu(uint32 textId, ObjectGuid objectGuid)
 
     constexpr size_t gossipPartSize =
         sizeof(uint32) + // index
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_5_1
         sizeof(uint8) + // icon
         sizeof(uint8) + // coded
-#if SUPPORTED_CLIENT_BUILD < CLIENT_BUILD_1_6_1
-        sizeof(uint8) + // dunno
-        sizeof(uint8) + 
+#else
+        sizeof(uint32) + // icon
 #endif
         128; // message (average)
 
@@ -181,12 +181,12 @@ void PlayerMenu::SendGossipMenu(uint32 textId, ObjectGuid objectGuid)
     data << ObjectGuid(objectGuid);
     data << uint32(textId);
     data << uint32(mGossipMenu.MenuItemCount());            // [ZERO] max count 15
-    
+
     for (uint32 iI = 0; iI < mGossipMenu.MenuItemCount(); ++iI)
     {
         GossipMenuItem const& gItem = mGossipMenu.GetItem(iI);
         data << uint32(iI);
-#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_6_1
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_5_1
         data << uint8(gItem.m_gIcon);
         data << uint8(gItem.m_gCoded);                      // makes pop up box password
 #else
@@ -194,9 +194,9 @@ void PlayerMenu::SendGossipMenu(uint32 textId, ObjectGuid objectGuid)
 #endif
         data << gItem.m_gMessage;                           // text for gossip item, max 0x800
     }
-    
+
     data << uint32(mQuestMenu.MenuItemCount());             // max count 0x20
-    
+
     for (uint32 iI = 0; iI < mQuestMenu.MenuItemCount(); ++iI)
     {
         QuestMenuItem const& qItem = mQuestMenu.GetItem(iI);
@@ -204,8 +204,7 @@ void PlayerMenu::SendGossipMenu(uint32 textId, ObjectGuid objectGuid)
         Quest const* pQuest = sObjectMgr.GetQuestTemplate(questID);
 
         data << uint32(questID);
-        data << QIconToClientQuestType(qItem.m_qIcon);
-
+        data << uint32(qItem.m_qIcon);
         data << uint32(pQuest->GetQuestLevel());
         char const* title = pQuest->GetTitle().c_str();
         size_t titleLen = pQuest->GetTitle().length();
