@@ -313,7 +313,7 @@ void WorldSession::HandleGroupSetLeaderOpcode(WorldPacket& recv_data)
         return; 
 
     ObjectGuid guid;
-#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_2_4
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_11_2
     recv_data >> guid;
 #else
     std::string pname;
