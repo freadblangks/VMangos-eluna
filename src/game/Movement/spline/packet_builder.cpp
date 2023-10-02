@@ -190,27 +190,6 @@ void PacketBuilder::WriteCreate(MoveSpline const& move_spline, ByteBuffer& data)
         data << nodes;
         data.append<Vector3>(&move_spline.getPath()[0], nodes);
 
-        // CMath::fnotequal_((pts[i+1] - pts[i]).SquaredMag(), 0.0f)
-
-        if (move_spline.GetMovementOrigin()) {
-            sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "%s movement origin: ", move_spline.GetMovementOrigin());
-        }
-
-        auto path = move_spline.getPath();
-        if (path.size() > 2) {
-            for (int i = 0; i < path.size() - 1; i++) {
-                
-                auto v1 = path[i + 1];
-                auto v2 = path[i];
-                auto d = v1 - v2;
-                float sqrmag = (path[i + 1] - path[i]).squaredMagnitude();
-                if (sqrmag < 0.00005) {
-                    sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "will likely cause issues: %s", move_spline.GetMovementOrigin());
-                }
-                sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "SqrMgn: %.3f (%.3f, %.3f, %.3f) (%.3f, %.3f, %.3f) diff (%.3f, %.3f, %.3f)", sqrmag, v2.x, v2.y, v2.z, v1.x, v1.y, v1.z, d.x, d.y, d.z);
-            }
-        }
-
 #if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_3_1
         data << (move_spline.isCyclic() ? Vector3::zero() : move_spline.FinalDestination());
 #endif
