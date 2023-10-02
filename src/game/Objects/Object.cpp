@@ -572,7 +572,6 @@ void Object::BuildMovementUpdate(ByteBuffer* data, uint8 updateFlags) const
         *data << float(unit->GetSpeed(MOVE_TURN_RATE));
         // Send current movement informations
         if (unit->m_movementInfo.moveFlags & MOVEFLAG_SPLINE_ENABLED) {
-            sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "%s unit movement packet is being built %d entry %d guid", unit->GetName(), unit->GetEntry(), unit->GetObjectGuid().GetCounter());
             Movement::PacketBuilder::WriteCreate(*(unit->movespline), *data);
         }
     }
