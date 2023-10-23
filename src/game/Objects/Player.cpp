@@ -548,8 +548,8 @@ void TradeData::SetAccepted(bool state, bool crosssend /*= false*/)
 //== Player ====================================================
 
 Player::Player(WorldSession* session) : Unit(),
-    m_mover(this), m_camera(this), m_reputationMgr(this), m_saveDisabled(false),
-    m_enableInstanceSwitch(true), m_currentTicketCounter(0), m_repopAtGraveyardPending(false),
+    m_mover(this), m_camera(this), m_reputationMgr(this), m_saveDisabled(false), m_enableInstanceSwitch(true),
+    m_currentTicketCounter(0), m_repopAtGraveyardPending(false), m_knownLanguagesMask(0),
     m_honorMgr(this), m_personalXpRate(-1.0f), m_isStandUpScheduled(false), m_foodEmoteTimer(0)
 {
     m_objectType |= TYPEMASK_PLAYER;
@@ -12311,8 +12311,9 @@ void Player::SendNewItem(Item* item, uint32 count, bool received, bool created, 
     data << uint32(item->GetEntry());                       // item id
     data << uint32(item->GetItemSuffixFactor());            // SuffixFactor
     data << uint32(item->GetItemRandomPropertyId());        // random item property id
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_10_2
     data << uint32(count);                                  // count of items
-    //data << uint32(GetItemCount(item->GetEntry()));       // [-ZERO] count of items in inventory
+#endif
 
     if (broadcast && GetGroup())
         GetGroup()->BroadcastPacket(&data, true);
@@ -17541,7 +17542,7 @@ void Player::SendResetInstanceFailed(uint32 reason, uint32 MapId) const
 /** Implementation of hourly maximum instances per account */
 bool Player::CheckInstanceCount(uint32 instanceId) const
 {
-    return IsGameMaster() || sAccountMgr.CheckInstanceCount(GetSession()->GetAccountId(), instanceId, MAX_INSTANCE_PER_ACCOUNT_PER_HOUR);
+    return IsGameMaster() || sAccountMgr.CheckInstanceCount(GetSession()->GetAccountId(), instanceId, sWorld.getConfig(CONFIG_UINT32_INSTANCE_PER_HOUR_LIMIT));
 }
 
 void Player::AddInstanceEnterTime(uint32 instanceId, time_t enterTime) const
@@ -20316,20 +20317,11 @@ void Player::SetClientControl(Unit* target, uint8 allowMove)
 #endif
 }
 
-bool Player::HasSelfMovementControl() const
+Unit* Player::GetConfirmedMover() const
 {
-    // Using Mind Vision
-    if (GetUInt64Value(PLAYER_FARSIGHT))
-        return false;
-
-    // Using Far Sight
-    if (m_longSightSpell)
-        return false;
-
-    if (HasUnitState(UNIT_STAT_LOST_CONTROL | UNIT_STAT_CONFUSED | UNIT_STAT_TAXI_FLIGHT))
-        return false;
-
-    return true;
+    if (m_mover->GetObjectGuid() == m_session->GetClientMoverGuid())
+        return m_mover;
+    return nullptr;
 }
 
 void Player::UpdateZoneDependentAuras()

@@ -1914,12 +1914,12 @@ class Player final: public Unit
         void HandleFall(MovementInfo const& movementInfo);
         bool IsFalling() const { return GetPositionZ() < m_lastFallZ; }
 
-        bool IsControlledByOwnClient() const { return m_session->HasClientMovementControl(); }
+        bool IsControlledByOwnClient() const { return m_session->GetClientMoverGuid() == GetObjectGuid(); }
         void SetClientControl(Unit* target, uint8 allowMove);
         void SetMover(Unit* target) { m_mover = target ? target : this; }
-        Unit* GetMover() const { return m_mover; }
+        Unit* GetMover() const { return m_mover; } // can never be null
+        Unit* GetConfirmedMover() const; // only returns mover confirmed by client, can be null
         bool IsSelfMover() const { return m_mover == this; } // normal case for player not controlling other unit
-        bool HasSelfMovementControl() const;
         bool IsOutdoorOnTransport() const;
 
         ObjectGuid const& GetFarSightGuid() const { return GetGuidValue(PLAYER_FARSIGHT); }
@@ -2307,6 +2307,7 @@ class Player final: public Unit
         JoinedChannelsList m_channels;
         void UpdateLocalChannels(uint32 newZone);
         std::string m_name;
+        uint64 m_knownLanguagesMask;
     public:
         void JoinedChannel(Channel* c);
         void LeftChannel(Channel* c);
@@ -2334,6 +2335,10 @@ class Player final: public Unit
         void Say(char const* text, uint32 const language) const;
         void Yell(char const* text, uint32 const language) const;
         void TextEmote(char const* text) const;
+
+        void LearnLanguage(uint64 languageId) { m_knownLanguagesMask |= (1llu << languageId); }
+        void RemoveLanguage(uint64 languageId) { m_knownLanguagesMask &= ~(1llu << languageId);}
+        bool KnowsLanguage(uint64 languageId) const { return (m_knownLanguagesMask & (1llu << languageId)) != 0; }
 
         /*********************************************************/
         /***                   FACTION SYSTEM                  ***/
