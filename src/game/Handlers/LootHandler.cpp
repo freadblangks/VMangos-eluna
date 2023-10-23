@@ -479,7 +479,7 @@ void WorldSession::DoLootRelease(ObjectGuid lguid)
                 corpse->RemoveFlag(CORPSE_FIELD_DYNAMIC_FLAGS, CORPSE_DYNFLAG_LOOTABLE);
 #endif
             }
-#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_6_1
+#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_5_1
             corpse->ForceValuesUpdateAtIndex(CORPSE_FIELD_DYNAMIC_FLAGS);
 #endif
             corpse->ExecuteDelayedActions();

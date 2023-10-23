@@ -3925,10 +3925,8 @@ void Aura::HandleInvisibility(bool apply, bool Real)
 #if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_6_1
         if (Real && target->GetTypeId() == TYPEID_PLAYER)
         {
-#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_6_1
             // apply glow vision
             target->SetByteFlag(PLAYER_FIELD_BYTES2, PLAYER_FIELD_BYTES_2_OFFSET_FLAGS, PLAYER_FIELD_BYTE2_INVISIBILITY_GLOW);
-#endif
         }
 #endif
 
