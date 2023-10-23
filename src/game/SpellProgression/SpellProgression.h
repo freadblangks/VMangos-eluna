@@ -1,0 +1,6 @@
+
+#ifndef MANGOS_SPELLPROGRESSION_H
+#define MANGOS_SPELLPROGRESSION_H
+
+
+#endif
