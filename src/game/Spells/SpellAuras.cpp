@@ -5209,9 +5209,32 @@ void Aura::HandleModHitChance(bool apply, bool /*Real*/)
 {
     Unit* target = GetTarget();
 
-    if (GetId() != 22780) // [Ranged Hit Bonus +3] as stated in name ...
+    bool allowMelee = true;
+    bool allowRanged = true;
+
+    const SpellEntry* spellProto = GetSpellProto();
+
+    // Only Rogue/Paladin talent Precision + Biznik's enchant have EquippedItemSubClassMask set
+    // and its always either all melee or all ranged so full weapon based hit chance implementation
+    // is an overkill for vanilla
+
+    if (spellProto->EquippedItemSubClassMask > 0)
+    {
+        // Precision [Increases your chance to hit with melee weapons]
+        if (spellProto->EquippedItemSubClassMask & (int32(1) << ITEM_SUBCLASS_WEAPON_AXE))
+            allowRanged = false;
+        // Biznik Scope [Ranged Hit Bonus +3]
+        if (spellProto->EquippedItemSubClassMask & (int32(1) << ITEM_SUBCLASS_WEAPON_BOW))
+            allowMelee = false;
+
+        if (!allowRanged && !allowMelee)
+            sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Aura::HandleModHitChance hack is in shambles [%d, %d] for spell %d = %s", allowRanged, allowMelee, spellProto->Id, spellProto->SpellName[0].c_str());
+    }
+
+    if (allowMelee) // [Ranged Hit Bonus +3] as stated in name ...
         target->m_modMeleeHitChance += apply ? m_modifier.m_amount : (-m_modifier.m_amount);
-    target->m_modRangedHitChance += apply ? m_modifier.m_amount : (-m_modifier.m_amount);
+    if (allowRanged)
+        target->m_modRangedHitChance += apply ? m_modifier.m_amount : (-m_modifier.m_amount);
 }
 
 void Aura::HandleModSpellHitChance(bool apply, bool /*Real*/)
