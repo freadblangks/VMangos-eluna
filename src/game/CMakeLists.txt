@@ -421,8 +421,8 @@ set (game_SRCS
     vmap/VMapTools.h
     vmap/WorldModel.h
 	
-	SpellProgression/SpellProgression.cpp
-	SpellProgression/SpellProgression.h
+	ProgressionExtras/SpellProgression.cpp
+	ProgressionExtras/SpellProgression.h
 
 )
 
@@ -567,8 +567,8 @@ source_group("Anticheat"
   REGULAR_EXPRESSION Anticheat
 )
 
-source_group("SpellProgression"
-  REGULAR_EXPRESSION SpellProgression
+source_group("ProgressionExtras"
+  REGULAR_EXPRESSION ProgressionExtras
 )
 
 add_library(game STATIC
