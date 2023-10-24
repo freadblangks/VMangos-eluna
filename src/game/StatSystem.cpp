@@ -484,6 +484,8 @@ void Player::UpdateCritPercentage(WeaponAttackType attType)
             modGroup = RANGED_CRIT_PERCENTAGE;
             index = PLAYER_RANGED_CRIT_PERCENTAGE;
             break;
+#else
+            return;
 #endif
         case BASE_ATTACK:
             modGroup = CRIT_PERCENTAGE;
