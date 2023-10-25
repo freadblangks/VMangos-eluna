@@ -1154,6 +1154,17 @@ ChatCommand * ChatHandler::getCommandTable()
         { nullptr,              0,                  false, nullptr,                                       "", nullptr }
     };
 
+    static ChatCommand luabCommandTable[] =
+    {
+        { "add",            SEC_PLAYER,         false, &ChatHandler::HandleLuabAddCommand,             "", nullptr },
+        { "reset",          SEC_PLAYER,         false, &ChatHandler::HandleLuabResetCommand,           "", nullptr },
+        { "remove",         SEC_PLAYER,         false, &ChatHandler::HandleLuabRemoveCommand,          "", nullptr },
+        { "removeall",      SEC_PLAYER,         false, &ChatHandler::HandleLuabRemoveAllCommand,       "", nullptr },
+        { "groupall",       SEC_PLAYER,         false, &ChatHandler::HandleLuabGroupAllCommand,        "", nullptr },
+        { "reviveall",      SEC_PLAYER,         false, &ChatHandler::HandleLuabReviveAllCommand,       "", nullptr },
+        { nullptr,          0,                  false, nullptr,                                        "", nullptr }
+    };
+
     static ChatCommand commandTable[] =
     {
         { "account",        SEC_PLAYER,         true, nullptr,                                         "", accountCommandTable  },
@@ -1285,6 +1296,7 @@ ChatCommand * ChatHandler::getCommandTable()
         { "spamer",         SEC_MODERATOR,      true, nullptr,                                         "", spamerCommandTable },
         { "antispam",       SEC_TICKETMASTER,   true, nullptr,                                         "", AntiSpamCommandTable },
         { "gold",           SEC_BASIC_ADMIN,    true, nullptr,                                         "", goldCommandTable },
+        { "luab",           SEC_PLAYER,         true,  nullptr,                                        "", luabCommandTable },
         { nullptr,          0,                  false, nullptr,                                        "", nullptr }
     };
 

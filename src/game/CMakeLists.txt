@@ -420,9 +420,14 @@ set (game_SRCS
     vmap/VMapManager2.h
     vmap/VMapTools.h
     vmap/WorldModel.h
-	
-	ProgressionExtras/SpellProgression.cpp
-	ProgressionExtras/SpellProgression.h
+
+    ProgressionExtras/SpellProgression.cpp
+    ProgressionExtras/SpellProgression.h
+    LuaAI/LuaAgentMgr.cpp
+    LuaAI/LuaAgentMgr.h
+    LuaAI/LuaAgent.cpp
+    LuaAI/LuaAgent.h
+    LuaAI/LuaAgentCommands.cpp
 
 )
 
@@ -569,6 +574,10 @@ source_group("Anticheat"
 
 source_group("ProgressionExtras"
   REGULAR_EXPRESSION ProgressionExtras
+)
+
+source_group("LuaAI"
+  REGULAR_EXPRESSION LuaAgent
 )
 
 add_library(game STATIC

@@ -23,6 +23,8 @@
     \ingroup world
 */
 
+#include "LuaAI/LuaAgentMgr.h"
+
 #include "World.h"
 #include "Database/DatabaseEnv.h"
 #include "Config/Config.h"
@@ -2102,6 +2104,7 @@ void World::Update(uint32 diff)
     sAutoBroadCastMgr.Update(diff);
     // Update ban list if necessary
     sAccountMgr.Update(diff);
+    sLuaAgentMgr.Update(diff);
 
     m_canProcessAsyncPackets = false;
 

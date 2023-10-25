@@ -280,6 +280,15 @@ class ChatHandler
         bool HandleBattleBotShowPathCommand(char* args);
         bool HandleBattleBotShowAllPathsCommand(char* args);
 
+        // Lua Bot commands
+
+        bool HandleLuabAddCommand(char* args);
+        bool HandleLuabRemoveCommand(char* args);
+        bool HandleLuabRemoveAllCommand(char* args);
+        bool HandleLuabResetCommand(char* args);
+        bool HandleLuabGroupAllCommand(char* args);
+        bool HandleLuabReviveAllCommand(char* args);
+
         // spell_disabled
         bool HandleReloadSpellDisabledCommand(char *args);
         // AutoBroadCast

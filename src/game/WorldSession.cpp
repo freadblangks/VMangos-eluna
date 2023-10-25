@@ -425,10 +425,12 @@ bool WorldSession::Update(PacketFilter& updater)
         ///- If necessary, log the player out
         bool const forceConnection = !sWorld.IsStopped() && sPlayerBotMgr.ForceAccountConnection(this);
 
-        if ((!m_socket || (ShouldLogOut(currTime) && !m_playerLoading)) && !forceConnection && m_bot == nullptr)
+        bool _isNotLuaAgent = _player == nullptr || !_player->IsLuaAgent();
+
+        if ((!m_socket || (ShouldLogOut(currTime) && !m_playerLoading)) && !forceConnection && m_bot == nullptr && _isNotLuaAgent)
             LogoutPlayer(true);
 
-        if (!m_socket && !forceConnection && this->m_bot == nullptr)
+        if (!m_socket && !forceConnection && this->m_bot == nullptr && _isNotLuaAgent)
             return false;                                       //Will remove this session from the world session map
     }
     else // Async map based update
@@ -447,7 +449,7 @@ bool WorldSession::Update(PacketFilter& updater)
 
 bool WorldSession::CanProcessPackets() const
 {
-    return ((m_socket && !m_socket->IsClosed()) || (_player && (m_bot || sPlayerBotMgr.IsChatBot(_player->GetGUIDLow()))));
+    return ((m_socket && !m_socket->IsClosed()) || (_player && (m_bot || sPlayerBotMgr.IsChatBot(_player->GetGUIDLow()) || _player->IsLuaAgent())));
 }
 
 void WorldSession::ProcessPackets(PacketFilter& updater)

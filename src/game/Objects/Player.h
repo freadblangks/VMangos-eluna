@@ -22,6 +22,8 @@
 #ifndef _PLAYER_H
 #define _PLAYER_H
 
+#include "LuaAI/LuaAgent.h"
+
 #include "Common.h"
 #include "Unit.h"
 #include "Database/DatabaseEnv.h"
@@ -952,9 +954,19 @@ class Player final: public Unit
     friend class WorldSession;
     friend void Item::AddToUpdateQueueOf(Player* player);
     friend void Item::RemoveFromUpdateQueueOf(Player* player);
+
+    std::unique_ptr<LuaAgent> m_luaAI;
+
     public:
         explicit Player (WorldSession* session);
         ~Player() override;
+
+        LuaAgent* GetLuaAI() { return m_luaAI.get(); }
+        void CreateLuaAI(Player* me, ObjectGuid masterGuid, int logicID) {
+            if (!m_luaAI)
+                m_luaAI = std::make_unique<LuaAgent>(me, masterGuid, logicID);
+        }
+        bool IsLuaAgent() { return m_luaAI != nullptr; }
 
         void CleanupsBeforeDelete() override;
 
