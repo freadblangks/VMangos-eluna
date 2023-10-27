@@ -34,6 +34,7 @@
 #include "WaypointMovementGenerator.h"
 #include "CyclicMovementGenerator.h"
 #include "RandomMovementGenerator.h"
+#include "LuaAgentMovementGenerator.h"
 
 #include "MoveSpline.h"
 #include "MoveSplineInit.h"
@@ -951,4 +952,43 @@ void Creature::PauseOutOfCombatMovement(uint32 pauseTime)
             break;
         }
     }
+}
+
+void MotionMaster::LuaAIMoveChase(Unit* target, float dist, float angle)
+{
+    // ignore movement request if target not exist
+    if (!target)
+        return;
+
+    DEBUG_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS, "%s chase to %s", m_owner->GetGuidStr().c_str(), target->GetGuidStr().c_str());
+
+    if (m_owner->IsPlayer())
+        Mutate(new LuaAIChaseMovementGenerator<Player>(*target, dist, angle));
+    else
+    {
+        // interrupt current movespline
+        if (!m_owner->IsStopped())
+            m_owner->StopMoving();
+
+        Mutate(new LuaAIChaseMovementGenerator<Creature>(*target, dist, angle));
+    }
+}
+
+void MotionMaster::LuaAIMoveFollow(Unit* target, float dist, float angle)
+{
+    if (m_owner->HasUnitState(UNIT_STAT_LOST_CONTROL))
+        return;
+
+    Clear();
+
+    // ignore movement request if target not exist
+    if (!target)
+        return;
+
+    DEBUG_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS, "%s follow to %s", m_owner->GetGuidStr().c_str(), target->GetGuidStr().c_str());
+
+    if (m_owner->IsPlayer())
+        Mutate(new LuaAIFollowMovementGenerator<Player>(*target, dist, angle));
+    else
+        Mutate(new LuaAIFollowMovementGenerator<Creature>(*target, dist, angle));
 }

@@ -40,7 +40,7 @@ void LuaAgent::Update(uint32 diff)
 	if (me->GetMotionMaster()->GetCurrentMovementGeneratorType() != FOLLOW_MOTION_TYPE)
 	{
 		me->GetMotionMaster()->Clear();
-		me->GetMotionMaster()->MoveFollow(master, 3.f, 3.14f);
+		me->GetMotionMaster()->LuaAIMoveFollow(master, 3.f, frand(0.f, M_PI_F));
 	}
 
 }

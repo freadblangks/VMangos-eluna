@@ -428,7 +428,8 @@ set (game_SRCS
     LuaAI/LuaAgent.cpp
     LuaAI/LuaAgent.h
     LuaAI/LuaAgentCommands.cpp
-
+    Movement/LuaAgentMovementGenerator.cpp
+    Movement/LuaAgentMovementGenerator.h
 )
 
 if((${CMAKE_VERSION} VERSION_LESS "3.16") OR USE_PCH_OLD)
@@ -577,7 +578,7 @@ source_group("ProgressionExtras"
 )
 
 source_group("LuaAI"
-  REGULAR_EXPRESSION LuaAgent
+  REGULAR_EXPRESSION LuaAI
 )
 
 add_library(game STATIC
