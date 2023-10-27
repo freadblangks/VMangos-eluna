@@ -22,8 +22,13 @@ public:
 	void Update(uint32 diff);
 	void UpdateSession(uint32 diff);
 
+	void OnPacketReceived(const WorldPacket& pck);
+
 	std::string GetSpec() { return m_spec; }
 	void SetSpec(std::string spec) { m_spec = spec; }
+
+	const ObjectGuid& GetMasterGuid() { return m_masterGuid; }
+
 
 };
 

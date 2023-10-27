@@ -81,11 +81,21 @@ bool ChatHandler::HandleLuabResetCommand(char* args)
 
 bool ChatHandler::HandleLuabGroupAllCommand(char* args)
 {
+	sLuaAgentMgr.GroupAll(GetSession()->GetPlayer());
 	return true;
 }
 
 
 bool ChatHandler::HandleLuabReviveAllCommand(char* args)
 {
+	float health = .0f;
+	int32 sickness = 0;
+	if (!ExtractFloat(&args, health))
+		health = 1.0f;
+	else if (!ExtractInt32(&args, sickness))
+		sickness = 1;
+	else if (sickness > 0)
+		sickness = 1;
+	sLuaAgentMgr.ReviveAll(GetSession()->GetPlayer(), health, sickness == 1);
 	return true;
 }

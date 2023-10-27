@@ -1,5 +1,6 @@
 
 #include "LuaAgent.h"
+#include "LuaAgentMgr.h"
 
 LuaAgent::LuaAgent(Player* me, ObjectGuid masterGuid, int logicID) :
 	me(me),
@@ -53,6 +54,34 @@ void LuaAgent::UpdateSession(uint32 diff)
 		WorldSessionFilter filter(session);
 		filter.SetProcessType(PacketProcessing(i));
 		session->Update(filter);
+	}
+}
+
+
+void LuaAgent::OnPacketReceived(const WorldPacket& pck)
+{
+	if (!me || pck.empty())
+		return;
+
+	switch (pck.GetOpcode())
+	{
+	case SMSG_GROUP_INVITE:
+
+		WorldPacket pck(pck);
+		std::string name;
+		pck >> name;
+
+		Player* leader = sObjectAccessor.FindPlayerByNameNotInWorld(name.c_str());
+		if (!leader)
+			return;
+
+		if (!leader->GetGroup() && sLuaAgentMgr.IsGroupAllInProgress())
+			// must assign group in the same frame
+			me->GetSession()->HandleGroupAcceptOpcode(WorldPacket(CMSG_GROUP_ACCEPT));
+		else
+			me->GetSession()->QueuePacket(std::move(std::make_unique<WorldPacket>(CMSG_GROUP_ACCEPT)));
+
+		break;
 	}
 }
 

@@ -30,6 +30,8 @@ class LuaAgentMgr
 
 	lua_State* L;
 
+	bool m_bGroupAllInProgress;
+
 	bool m_bLuaCeaseUpdates;
 	bool m_bLuaReload;
 
@@ -74,6 +76,10 @@ public:
 	void LogoutAllAgents();
 
 	void Update(uint32 diff);
+
+	void GroupAll(Player* owner);
+	void ReviveAll(Player* owner, float hp = 1.0, bool sickness = false);
+	bool IsGroupAllInProgress() { return m_bGroupAllInProgress; }
 
 	static LuaAgentMgr& getInstance()
 	{

@@ -54,7 +54,7 @@ public:
 } luaChrHandler;
 
 
-LuaAgentMgr::LuaAgentMgr() : m_bLuaCeaseUpdates(false), m_bLuaReload(false), L(nullptr)
+LuaAgentMgr::LuaAgentMgr() : m_bLuaCeaseUpdates(false), m_bLuaReload(false), L(nullptr), m_bGroupAllInProgress(false)
 {
 
 }
@@ -255,5 +255,62 @@ void LuaAgentMgr::LogoutAllAgents()
 {
 	for (auto& itr : m_agents)
 		m_toRemove.insert(itr.first);
+}
+
+
+void LuaAgentMgr::ReviveAll(Player* owner, float hp, bool sickness)
+{
+	for (auto& itr : m_agents)
+	{
+		Player* player = itr.second;
+		if (!player || player->IsAlive() || !player->IsInWorld() || player->IsBeingTeleported()) continue;
+
+		LuaAgent* agent = player->GetLuaAI();
+		Player* master = nullptr;
+		if (agent)
+			master = ObjectAccessor::FindPlayer(agent->GetMasterGuid());
+
+		// owned bots only
+		if (master && owner->GetObjectGuid() == agent->GetMasterGuid())
+			player->ResurrectPlayer(hp, sickness);
+	}
+}
+
+
+void LuaAgentMgr::GroupAll(Player* owner)
+{
+	m_bGroupAllInProgress = true;
+	for (auto& itr : m_agents)
+	{
+		Player* player = itr.second;
+		if (!player || !player->IsInWorld() || player->IsBeingTeleported() || player->GetGroupInvite()) continue;
+
+		if (LuaAgent* agent = player->GetLuaAI())
+		{
+			Player* master = ObjectAccessor::FindPlayer(agent->GetMasterGuid());
+
+			if (master && owner->GetObjectGuid() == agent->GetMasterGuid())
+				// already in my group?
+				if (Group* group = master->GetGroup())
+				{
+					if (group->IsMember(player->GetObjectGuid()))
+						continue;
+
+					std::unique_ptr<WorldPacket> packet = std::make_unique<WorldPacket>(CMSG_GROUP_INVITE);
+					*packet << std::string(player->GetName());
+					master->GetSession()->QueuePacket(std::move(packet));
+				}
+				else
+				{
+					// Adds agent and master to group in the same logic frame
+					// Necessary as group isn't truly created until at least 2 players join
+					// failing to invite more members in the same frame
+					WorldPacket packet(CMSG_GROUP_INVITE);
+					packet << std::string(player->GetName());
+					master->GetSession()->HandleGroupInviteOpcode(packet);
+				}
+		}
+	}
+	m_bGroupAllInProgress = false;
 }
 

@@ -137,6 +137,10 @@ void WorldSession::SendPacket(WorldPacket const* packet)
         if (GetBot() && GetBot()->ai)
             GetBot()->ai->OnPacketReceived(packet);
 
+        if (_player)
+            if (LuaAgent* agent = _player->GetLuaAI())
+                agent->OnPacketReceived(*packet);
+
         if (packet->GetOpcode() == SMSG_MESSAGECHAT)
         {
             WorldPacket packet2(*packet);
