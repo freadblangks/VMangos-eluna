@@ -44,11 +44,19 @@ public:
 			return;
 		}
 
-		// Deleted in LuaAgentMgr::LogoutAgent
+		// Deleted in LuaAgentMgr::__RemoveAgents
 		WorldSession* session = new WorldSession(lqh->GetAccountId(), nullptr, sAccountMgr.GetSecurity(lqh->GetAccountId()), 0, LOCALE_enUS);
 		session->SetToLoading();
 		session->HandlePlayerLogin(lqh); // will delete lqh
-		sLuaAgentMgr.OnAgentLogin(session, myGuid, masterGuid, logicID, spec);
+		// added?
+		if (Player* pPlayer = sObjectAccessor.FindPlayerNotInWorld(myGuid))
+			sLuaAgentMgr.OnAgentLogin(session, myGuid, masterGuid, logicID, spec);
+		else
+		{
+			sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Failed to add bot %s", myGuid.GetString());
+			delete session;
+			sLuaAgentMgr.EraseLoginInfo(myGuid);
+		}
 
 	}
 } luaChrHandler;
@@ -102,8 +110,8 @@ void LuaAgentMgr::Update(uint32 diff)
 		agent->UpdateSession(diff);
 	}
 
-	__AddAgents(); // process login queue
 	__RemoveAgents(); // process logout queue
+	__AddAgents(); // process login queue
 
 }
 
@@ -119,6 +127,16 @@ const LuaAgentInfoHolder* LuaAgentMgr::GetLoginInfo(ObjectGuid guid)
 {
 	auto it = m_toAdd.find(guid);
 	return (it == m_toAdd.end()) ? nullptr : &(it->second);
+}
+
+
+void LuaAgentMgr::EraseLoginInfo(ObjectGuid guid)
+{
+	static std::mutex m;
+	const std::lock_guard<std::mutex> lock(m);
+	auto it = m_toAdd.find(guid);
+	if (it != m_toAdd.end())
+		it->second.status = LuaAgentInfoHolder::TODELETE;
 }
 
 
@@ -165,13 +183,17 @@ void LuaAgentMgr::__AddAgents()
 	for (std::map<ObjectGuid, LuaAgentInfoHolder>::iterator it = m_toAdd.begin(); it != m_toAdd.end();)
 	{
 		LuaAgentInfoHolder& info = it->second;
-		if (info.status != LuaAgentInfoHolder::OFFLINE)
+		if (info.status == LuaAgentInfoHolder::TODELETE)
 		{
-			it++;
+			it = m_toAdd.erase(it);
 			continue;
 		}
 
-		printf("__AddAgents processing %s\n", info.name.c_str());
+		if (info.status != LuaAgentInfoHolder::OFFLINE)
+		{
+			++it;
+			continue;
+		}
 
 		if (WorldSession* masterSession = sWorld.FindSession(info.masterAccountId))
 		{
@@ -199,13 +221,15 @@ void LuaAgentMgr::__AddAgents()
 			it = m_toAdd.erase(it);
 			continue;
 		}
-		it++;
+		++it;
 	}
 }
 
 
 void LuaAgentMgr::OnAgentLogin(WorldSession* session, ObjectGuid guid, ObjectGuid masterGuid, int logicID, std::string spec)
 {
+	static std::mutex m;
+	const std::lock_guard<std::mutex> lock(m);
 	EraseLoginInfo(guid);
 	Player* player = session->GetPlayer();
 	if (!player)
@@ -226,6 +250,7 @@ void LuaAgentMgr::OnAgentLogin(WorldSession* session, ObjectGuid guid, ObjectGui
 		return;
 	}
 	ai->SetSpec(spec);
+
 }
 
 
@@ -282,7 +307,7 @@ void LuaAgentMgr::ReviveAll(Player* owner, float hp, bool sickness)
 
 void LuaAgentMgr::GroupAll(Player* owner)
 {
-	m_bGroupAllInProgress = true;
+	SetGroupAllInProgress(true);
 	for (auto& itr : m_agents)
 	{
 		Player* player = itr.second;
@@ -314,6 +339,6 @@ void LuaAgentMgr::GroupAll(Player* owner)
 				}
 		}
 	}
-	m_bGroupAllInProgress = false;
+	SetGroupAllInProgress(false);
 }
 

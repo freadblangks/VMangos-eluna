@@ -12,7 +12,8 @@ struct LuaAgentInfoHolder
 	enum LBIHStatus
 	{
 		OFFLINE,
-		LOADING
+		LOADING,
+		TODELETE
 	};
 public:
 	std::string name;
@@ -27,6 +28,7 @@ public:
 
 class LuaAgentMgr
 {
+	friend class LuaAgentCharacterHandler;
 
 	lua_State* L;
 
@@ -45,7 +47,11 @@ class LuaAgentMgr
 	void __RemoveAgents();
 
 	const LuaAgentInfoHolder* GetLoginInfo(ObjectGuid guid);
-	void EraseLoginInfo(ObjectGuid guid) { m_toAdd.erase(guid); }
+
+	void SetGroupAllInProgress(bool value) { m_bGroupAllInProgress = value; }
+
+protected:
+	void EraseLoginInfo(ObjectGuid guid);
 
 public:
 	enum CheckResult
