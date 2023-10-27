@@ -236,6 +236,9 @@ void LuaAgentMgr::__RemoveAgents()
 		{
 			if (WorldSession* session = player->GetSession())
 			{
+				// remove myself from group as LogoutPlayer won't do it without socket
+				if (Group* group = player->GetGroup())
+					session->HandleGroupDisbandOpcode(WorldPacket(CMSG_GROUP_DISBAND));
 				session->LogoutPlayer(true);
 				delete session;
 			}
