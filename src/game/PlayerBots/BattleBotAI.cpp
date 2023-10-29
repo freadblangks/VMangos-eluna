@@ -1021,6 +1021,25 @@ void BattleBotAI::UpdateOutOfCombatAI_Paladin()
         m_isBuffing = false;
     }
 
+    if (Unit* pVictim = me->GetVictim())
+    {
+        if (Pet* pPet = me->GetPet())
+        {
+            pPet->ToggleAutocast(34096, true);
+            pPet->ToggleAutocast(34097, true);
+            pPet->ToggleAutocast(34098, true);
+            if (!pPet->GetVictim())
+            {
+                pPet->GetCharmInfo()->SetIsCommandAttack(true);
+                pPet->AI()->AttackStart(pVictim);
+            }
+        }
+
+        UpdateInCombatAI_Paladin();
+    }
+    else
+        SummonPetIfNeeded();
+
     FindAndHealInjuredAlly();
 }
 
@@ -1108,8 +1127,37 @@ void BattleBotAI::UpdateInCombatAI_Paladin()
         }
     }
 
+    if (Unit* pFriend_pet = me->FindLowestHpFriendlyUnit(40.0f, 1, false, me))
+    {
+        if (Unit* pVictim_pet = pFriend_pet->GetVictim())
+        {
+            if (Pet* pPet = me->GetPet())
+            {
+                if (pPet->IsAlive())
+                {
+                    pPet->ToggleAutocast(34096, true);
+                    pPet->ToggleAutocast(34097, true);
+                    pPet->ToggleAutocast(34098, true);
+                    if (!pPet->GetVictim())
+                    {
+                        pPet->GetCharmInfo()->SetIsCommandAttack(true);
+                        pPet->AI()->AttackStart(pVictim_pet);
+                    }
+                }
+            }
+        }
+    }
+    
     if (Unit* pFriend = me->FindLowestHpFriendlyUnit(30.0f, 70, true, me))
     {
+        if (m_spells.paladin.pQuZhu &&
+            !pFriend->HasAura(AURA_WARSONG_FLAG) &&
+            !pFriend->HasAura(34047) &&
+            CanTryToCastSpell(pFriend, m_spells.paladin.pQuZhu))
+        {
+            if (DoCastSpell(pFriend, m_spells.paladin.pQuZhu) == SPELL_CAST_OK)
+                return;
+        }
         if (m_spells.paladin.pBlessingOfProtection &&
            !IsPhysicalDamageClass(pFriend->GetClass()) &&
            !pFriend->HasAura(AURA_WARSONG_FLAG) &&
@@ -1132,6 +1180,16 @@ void BattleBotAI::UpdateInCombatAI_Paladin()
             if (DoCastSpell(pFriend, m_spells.paladin.pLayOnHands) == SPELL_CAST_OK)
                 return;
         }
+    }
+
+    if (m_spells.paladin.pQuZhu &&
+        (me->HasUnitState(UNIT_STAT_CAN_NOT_REACT_OR_LOST_CONTROL) || me->HasAuraType(SPELL_AURA_MOD_SILENCE)) &&
+        !me->HasAura(AURA_WARSONG_FLAG) &&
+        !me->HasAura(34047) &&
+        CanTryToCastSpell(me, m_spells.paladin.pQuZhu))
+    {
+        if (DoCastSpell(me, m_spells.paladin.pQuZhu) == SPELL_CAST_OK)
+            return;
     }
 
     if (m_spells.paladin.pBlessingOfFreedom &&
@@ -1173,8 +1231,21 @@ void BattleBotAI::UpdateOutOfCombatAI_Shaman()
             return;
     }
 
-    if (me->GetVictim())
+    if (Unit* pVictim = me->GetVictim())
     {
+        if (Pet* pPet = me->GetPet())
+        {
+            pPet->ToggleAutocast(34085, true);
+            pPet->ToggleAutocast(34086, true);
+            pPet->ToggleAutocast(34089, true);
+            pPet->ToggleAutocast(34091, true);
+            if (!pPet->GetVictim())
+            {
+                pPet->GetCharmInfo()->SetIsCommandAttack(true);
+                pPet->AI()->AttackStart(pVictim);
+            }
+        }
+
         if (SummonShamanTotems())
             return;
 
@@ -1182,6 +1253,8 @@ void BattleBotAI::UpdateOutOfCombatAI_Shaman()
     }
     else
     {
+        SummonPetIfNeeded();
+
         if (m_spells.shaman.pGhostWolf &&
            !me->IsMoving() && !me->IsMounted() &&
            (!GetMountSpellId() || me->HasAura(AURA_WARSONG_FLAG) || me->HasAura(AURA_SILVERWING_FLAG)) &&
@@ -1198,6 +1271,28 @@ void BattleBotAI::UpdateInCombatAI_Shaman()
     if (m_spells.shaman.pGhostWolf &&
         me->GetShapeshiftForm() == FORM_GHOSTWOLF)
         me->RemoveAurasDueToSpellByCancel(m_spells.shaman.pGhostWolf->Id);
+
+    if (Unit* pFriend_pet = me->FindLowestHpFriendlyUnit(40.0f, 1, false, me))
+    {
+        if (Unit* pVictim_pet = pFriend_pet->GetVictim())
+        {
+            if (Pet* pPet = me->GetPet())
+            {
+                if (pPet->IsAlive())
+                {
+                    pPet->ToggleAutocast(34085, true);
+                    pPet->ToggleAutocast(34086, true);
+                    pPet->ToggleAutocast(34089, true);
+                    pPet->ToggleAutocast(34091, true);
+                    if (!pPet->GetVictim())
+                    {
+                        pPet->GetCharmInfo()->SetIsCommandAttack(true);
+                        pPet->AI()->AttackStart(pVictim_pet);
+                    }
+                }
+            }
+        }
+    }
 
     if (Unit* pVictim = me->GetVictim())
     {
@@ -1329,6 +1424,15 @@ void BattleBotAI::UpdateInCombatAI_Hunter()
 {
     if (Unit* pVictim = me->GetVictim())
     {
+        if (Pet* pPet = me->GetPet())
+        {
+            if (!pPet->GetVictim() && pPet->IsAlive())
+            {
+                pPet->GetCharmInfo()->SetIsCommandAttack(true);
+                pPet->AI()->AttackStart(pVictim);
+            }
+        }
+
         if (me->GetMotionMaster()->GetCurrentMovementGeneratorType() == IDLE_MOTION_TYPE
             && me->GetDistance(pVictim) > 30.0f)
         {
@@ -1483,15 +1587,61 @@ void BattleBotAI::UpdateOutOfCombatAI_Mage()
         if (DoCastSpell(me, m_spells.mage.pIceBarrier) == SPELL_CAST_OK)
             return;
     }
+   
+    if (Unit* pVictim = me->GetVictim())
+    {
+        if (Pet* pPet = me->GetPet())
+        {
+            pPet->ToggleAutocast(34060, true);
+            pPet->ToggleAutocast(34061, true);
+            if (!pPet->GetVictim())
+            {
+                pPet->GetCharmInfo()->SetIsCommandAttack(true);
+                pPet->AI()->AttackStart(pVictim);
+            }
+        }
 
-    if (me->GetVictim())
         UpdateInCombatAI_Mage();
+    }
+    else
+        SummonPetIfNeeded();
 }
 
 void BattleBotAI::UpdateInCombatAI_Mage()
 {
     if (Unit* pVictim = me->GetVictim())
     {
+        if (Pet* pPet = me->GetPet())
+        {
+            if (pPet->IsAlive())
+            {
+                pPet->ToggleAutocast(34060, true);
+                pPet->ToggleAutocast(34061, true);
+                if (!pPet->GetVictim())
+                {
+                    pPet->GetCharmInfo()->SetIsCommandAttack(true);
+                    pPet->AI()->AttackStart(pVictim);
+                }
+            }
+        }
+
+        if (m_spells.mage.pATuoSiZhiGun &&
+            CanTryToCastSpell(pVictim, m_spells.mage.pATuoSiZhiGun) &&
+            (me->GetDistance(pVictim) < 40.0f) &&
+            !pVictim->HasAura(34003))
+        {
+            if (DoCastSpell(pVictim, m_spells.mage.pATuoSiZhiGun) == SPELL_CAST_OK)
+                return;
+        }
+
+        if (m_spells.mage.pBlinkDagger &&
+            CanTryToCastSpell(me, m_spells.mage.pBlinkDagger) &&
+            ((me->GetHealthPercent() < 75.0f) || (me->GetPowerPercent(POWER_MANA) < 75.0f)))
+        {
+            if (DoCastSpell(me, m_spells.mage.pBlinkDagger) == SPELL_CAST_OK)
+                return;
+        }
+
         if (m_spells.mage.pCombustion &&
             CanTryToCastSpell(me, m_spells.mage.pCombustion))
         {
@@ -1771,12 +1921,52 @@ void BattleBotAI::UpdateOutOfCombatAI_Priest()
         m_isBuffing = false;
     }
 
-    if (me->GetVictim())
+    if (Unit* pVictim = me->GetVictim())
+    {
+        if (Pet* pPet = me->GetPet())
+        {
+            pPet->ToggleAutocast(34067, true);
+            pPet->ToggleAutocast(34068, true);
+            pPet->ToggleAutocast(34069, true);
+            if (!pPet->GetVictim())
+            {
+                pPet->GetCharmInfo()->SetIsCommandAttack(true);
+                pPet->AI()->AttackStart(pVictim);
+            }
+        }
+
         UpdateInCombatAI_Priest();
+    }
+    else
+        SummonPetIfNeeded();
 }
 
 void BattleBotAI::UpdateInCombatAI_Priest()
 {
+    if (me->GetHealthPercent() < 50.0f){
+        if (m_spells.priest.pXuLingZhiRen &&
+            !me->HasAura(AURA_WARSONG_FLAG) &&
+            !me->HasAura(34019) &&
+            CanTryToCastSpell(me, m_spells.priest.pXuLingZhiRen))
+        {
+            if (DoCastSpell(me, m_spells.priest.pXuLingZhiRen) == SPELL_CAST_OK)
+                return;
+        }
+    }
+
+    if (Unit* pFriend = me->FindLowestHpFriendlyUnit(30.0f, 70, true, me))
+    {
+        if (m_spells.priest.pXuLingZhiRen &&
+           !IsPhysicalDamageClass(pFriend->GetClass()) &&
+           !pFriend->HasAura(AURA_WARSONG_FLAG) &&
+           !pFriend->HasAura(34019) &&
+            CanTryToCastSpell(pFriend, m_spells.priest.pXuLingZhiRen))
+        {
+            if (DoCastSpell(pFriend, m_spells.priest.pXuLingZhiRen) == SPELL_CAST_OK)
+                return;
+        }
+    }
+
     if (m_spells.priest.pPowerWordShield &&
         CanTryToCastSpell(me, m_spells.priest.pPowerWordShield))
     {
@@ -1841,6 +2031,32 @@ void BattleBotAI::UpdateInCombatAI_Priest()
     // Attack
     if (Unit* pVictim = me->GetVictim())
     {
+        if (Pet* pPet = me->GetPet())
+        {
+            if (pPet->IsAlive())
+            {
+                pPet->ToggleAutocast(34067, true);
+                pPet->ToggleAutocast(34068, true);
+                pPet->ToggleAutocast(34069, true);
+                if (!pPet->GetVictim())
+                {
+                    pPet->GetCharmInfo()->SetIsCommandAttack(true);
+                    pPet->AI()->AttackStart(pVictim);
+                }
+            }
+        }
+
+        if (m_spells.priest.pXuLingZhiRen &&
+            CanTryToCastSpell(pVictim, m_spells.priest.pXuLingZhiRen) &&
+            (me->GetDistance(pVictim) < 30.0f) &&
+            (pVictim->GetVictim() == me) &&
+            !pVictim->HasAura(34019) &&
+            IsPhysicalDamageClass(pVictim->GetClass()))
+        {
+            if (DoCastSpell(pVictim, m_spells.priest.pXuLingZhiRen) == SPELL_CAST_OK)
+                return;
+        }
+        
         if (m_spells.priest.pShadowform &&
             CanTryToCastSpell(me, m_spells.priest.pShadowform))
         {
@@ -1983,6 +2199,178 @@ void BattleBotAI::UpdateOutOfCombatAI_Warlock()
     {
         if (Pet* pPet = me->GetPet())
         {
+            if(pPet->GetEntry() == 416)
+            {
+                //Firebolt
+                if(pPet->GetLevel() >= 1 && pPet->GetLevel() < 8)
+                {
+                    pPet->ToggleAutocast(3110, true);
+                }
+                else if(pPet->GetLevel() >= 8 && pPet->GetLevel() < 18)
+                {
+                    pPet->ToggleAutocast(7799, true);
+                }
+                else if(pPet->GetLevel() >= 18 && pPet->GetLevel() < 28)
+                {
+                    pPet->ToggleAutocast(7800, true);
+                }
+                else if(pPet->GetLevel() >= 28 && pPet->GetLevel() < 38)
+                {
+                    pPet->ToggleAutocast(7801, true);
+                }
+                else if(pPet->GetLevel() >= 38 && pPet->GetLevel() < 48)
+                {
+                    pPet->ToggleAutocast(7802, true);
+                }
+                else if(pPet->GetLevel() >= 48 && pPet->GetLevel() < 58)
+                {
+                    pPet->ToggleAutocast(11762, true);
+                }
+                else if(pPet->GetLevel() >= 58 && pPet->GetLevel() <= 60)
+                {
+                    pPet->ToggleAutocast(11763, true);
+                }
+                //Blood Pact
+                if(pPet->GetLevel() >= 4 && pPet->GetLevel() < 14)
+                {
+                    pPet->ToggleAutocast(6307, true);
+                }
+                else if(pPet->GetLevel() >= 14 && pPet->GetLevel() < 26)
+                {
+                    pPet->ToggleAutocast(7804, true);
+                }
+                else if(pPet->GetLevel() >= 26 && pPet->GetLevel() < 38)
+                {
+                    pPet->ToggleAutocast(7805, true);
+                }
+                else if(pPet->GetLevel() >= 38 && pPet->GetLevel() < 50)
+                {
+                    pPet->ToggleAutocast(11766, true);
+                }
+                else if(pPet->GetLevel() >= 50 && pPet->GetLevel() <= 60)
+                {
+                    pPet->ToggleAutocast(11767, true);
+                }
+            }
+            else if(pPet->GetEntry() == 1860)
+            {
+                //Torment
+                if(pPet->GetLevel() >= 10 && pPet->GetLevel() < 20)
+                {
+                    pPet->ToggleAutocast(3716, true);
+                }
+                else if(pPet->GetLevel() >= 20 && pPet->GetLevel() < 30)
+                {
+                    pPet->ToggleAutocast(7809, true);
+                }
+                else if(pPet->GetLevel() >= 30 && pPet->GetLevel() < 40)
+                {
+                    pPet->ToggleAutocast(7810, true);
+                }
+                else if(pPet->GetLevel() >= 40 && pPet->GetLevel() < 50)
+                {
+                    pPet->ToggleAutocast(7811, true);
+                }
+                else if(pPet->GetLevel() >= 50 && pPet->GetLevel() < 60)
+                {
+                    pPet->ToggleAutocast(11774, true);
+                }
+                else if(pPet->GetLevel() == 60)
+                {
+                    pPet->ToggleAutocast(11775, true);
+                }
+                //Suffering
+                if(pPet->GetLevel() >= 24 && pPet->GetLevel() < 36)
+                {
+                    pPet->ToggleAutocast(17735, true);
+                }
+                else if(pPet->GetLevel() >= 36 && pPet->GetLevel() < 48)
+                {
+                    pPet->ToggleAutocast(17750, true);
+                }
+                else if(pPet->GetLevel() >= 48 && pPet->GetLevel() < 60)
+                {
+                    pPet->ToggleAutocast(17751, true);
+                }
+                else if(pPet->GetLevel() == 60)
+                {
+                    pPet->ToggleAutocast(17752, true);
+                }
+            }
+            else if(pPet->GetEntry() == 1863)
+            {
+                //Lash of Pain
+                if(pPet->GetLevel() >= 20 && pPet->GetLevel() < 28)
+                {
+                    pPet->ToggleAutocast(7814, true);
+                }
+                else if(pPet->GetLevel() >= 28 && pPet->GetLevel() < 36)
+                {
+                    pPet->ToggleAutocast(7815, true);
+                }
+                else if(pPet->GetLevel() >= 36 && pPet->GetLevel() < 44)
+                {
+                    pPet->ToggleAutocast(7816, true);
+                }
+                else if(pPet->GetLevel() >= 44 && pPet->GetLevel() < 52)
+                {
+                    pPet->ToggleAutocast(11778, true);
+                }
+                else if(pPet->GetLevel() >= 52 && pPet->GetLevel() < 60)
+                {
+                    pPet->ToggleAutocast(11779, true);
+                }
+                else if(pPet->GetLevel() == 60)
+                {
+                    pPet->ToggleAutocast(11780, true);
+                }
+                //Soothing Kiss
+                if(pPet->GetLevel() >= 22 && pPet->GetLevel() < 34)
+                {
+                    pPet->ToggleAutocast(6360, true);
+                }
+                else if(pPet->GetLevel() >= 34 && pPet->GetLevel() < 46)
+                {
+                    pPet->ToggleAutocast(7813, true);
+                }
+                else if(pPet->GetLevel() >= 46 && pPet->GetLevel() < 58)
+                {
+                    pPet->ToggleAutocast(11784, true);
+                }
+                else if(pPet->GetLevel() >= 58 && pPet->GetLevel() <= 60)
+                {
+                    pPet->ToggleAutocast(11785, true);
+                }
+            }
+            else if(pPet->GetEntry() == 417)
+            {
+                //Devour Magic
+                if(pPet->GetLevel() >= 30 && pPet->GetLevel() < 38)
+                {
+                    pPet->ToggleAutocast(19505, true);
+                }
+                else if(pPet->GetLevel() >= 38 && pPet->GetLevel() < 46)
+                {
+                    pPet->ToggleAutocast(19731, true);
+                }
+                else if(pPet->GetLevel() >= 46 && pPet->GetLevel() < 54)
+                {
+                    pPet->ToggleAutocast(19734, true);
+                }
+                else if(pPet->GetLevel() >= 54 && pPet->GetLevel() <= 60)
+                {
+                    pPet->ToggleAutocast(19736, true);
+                }
+                //Spell Lock
+                if(pPet->GetLevel() >= 36 && pPet->GetLevel() < 52)
+                {
+                    pPet->ToggleAutocast(19244, true);
+                }
+                else if(pPet->GetLevel() >= 52 && pPet->GetLevel() <= 60)
+                {
+                    pPet->ToggleAutocast(19647, true);
+                }
+            }
             if (!pPet->GetVictim())
             {
                 pPet->GetCharmInfo()->SetIsCommandAttack(true);
@@ -2000,6 +2388,207 @@ void BattleBotAI::UpdateInCombatAI_Warlock()
 {
     if (Unit* pVictim = me->GetVictim())
     {
+        if (Pet* pPet = me->GetPet())
+        {
+            if (pPet->IsAlive())
+            {
+                if(pPet->GetEntry() == 416)
+                {
+                    //Firebolt
+                    if(pPet->GetLevel() >= 1 && pPet->GetLevel() < 8)
+                    {
+                        pPet->ToggleAutocast(3110, true);
+                    }
+                    else if(pPet->GetLevel() >= 8 && pPet->GetLevel() < 18)
+                    {
+                        pPet->ToggleAutocast(7799, true);
+                    }
+                    else if(pPet->GetLevel() >= 18 && pPet->GetLevel() < 28)
+                    {
+                        pPet->ToggleAutocast(7800, true);
+                    }
+                    else if(pPet->GetLevel() >= 28 && pPet->GetLevel() < 38)
+                    {
+                        pPet->ToggleAutocast(7801, true);
+                    }
+                    else if(pPet->GetLevel() >= 38 && pPet->GetLevel() < 48)
+                    {
+                        pPet->ToggleAutocast(7802, true);
+                    }
+                    else if(pPet->GetLevel() >= 48 && pPet->GetLevel() < 58)
+                    {
+                        pPet->ToggleAutocast(11762, true);
+                    }
+                    else if(pPet->GetLevel() >= 58 && pPet->GetLevel() <= 60)
+                    {
+                        pPet->ToggleAutocast(11763, true);
+                    }
+                    //Blood Pact
+                    if(pPet->GetLevel() >= 4 && pPet->GetLevel() < 14)
+                    {
+                        pPet->ToggleAutocast(6307, true);
+                    }
+                    else if(pPet->GetLevel() >= 14 && pPet->GetLevel() < 26)
+                    {
+                        pPet->ToggleAutocast(7804, true);
+                    }
+                    else if(pPet->GetLevel() >= 26 && pPet->GetLevel() < 38)
+                    {
+                        pPet->ToggleAutocast(7805, true);
+                    }
+                    else if(pPet->GetLevel() >= 38 && pPet->GetLevel() < 50)
+                    {
+                        pPet->ToggleAutocast(11766, true);
+                    }
+                    else if(pPet->GetLevel() >= 50 && pPet->GetLevel() <= 60)
+                    {
+                        pPet->ToggleAutocast(11767, true);
+                    }
+                }
+                else if(pPet->GetEntry() == 1860)
+                {
+                    //Torment
+                    if(pPet->GetLevel() >= 10 && pPet->GetLevel() < 20)
+                    {
+                        pPet->ToggleAutocast(3716, true);
+                    }
+                    else if(pPet->GetLevel() >= 20 && pPet->GetLevel() < 30)
+                    {
+                        pPet->ToggleAutocast(7809, true);
+                    }
+                    else if(pPet->GetLevel() >= 30 && pPet->GetLevel() < 40)
+                    {
+                        pPet->ToggleAutocast(7810, true);
+                    }
+                    else if(pPet->GetLevel() >= 40 && pPet->GetLevel() < 50)
+                    {
+                        pPet->ToggleAutocast(7811, true);
+                    }
+                    else if(pPet->GetLevel() >= 50 && pPet->GetLevel() < 60)
+                    {
+                        pPet->ToggleAutocast(11774, true);
+                    }
+                    else if(pPet->GetLevel() == 60)
+                    {
+                        pPet->ToggleAutocast(11775, true);
+                    }
+                    //Suffering
+                    if(pPet->GetLevel() >= 24 && pPet->GetLevel() < 36)
+                    {
+                        pPet->ToggleAutocast(17735, true);
+                    }
+                    else if(pPet->GetLevel() >= 36 && pPet->GetLevel() < 48)
+                    {
+                        pPet->ToggleAutocast(17750, true);
+                    }
+                    else if(pPet->GetLevel() >= 48 && pPet->GetLevel() < 60)
+                    {
+                        pPet->ToggleAutocast(17751, true);
+                    }
+                    else if(pPet->GetLevel() == 60)
+                    {
+                        pPet->ToggleAutocast(17752, true);
+                    }
+                }
+                else if(pPet->GetEntry() == 1863)
+                {
+                    //Lash of Pain
+                    if(pPet->GetLevel() >= 20 && pPet->GetLevel() < 28)
+                    {
+                        pPet->ToggleAutocast(7814, true);
+                    }
+                    else if(pPet->GetLevel() >= 28 && pPet->GetLevel() < 36)
+                    {
+                        pPet->ToggleAutocast(7815, true);
+                    }
+                    else if(pPet->GetLevel() >= 36 && pPet->GetLevel() < 44)
+                    {
+                        pPet->ToggleAutocast(7816, true);
+                    }
+                    else if(pPet->GetLevel() >= 44 && pPet->GetLevel() < 52)
+                    {
+                        pPet->ToggleAutocast(11778, true);
+                    }
+                    else if(pPet->GetLevel() >= 52 && pPet->GetLevel() < 60)
+                    {
+                        pPet->ToggleAutocast(11779, true);
+                    }
+                    else if(pPet->GetLevel() == 60)
+                    {
+                        pPet->ToggleAutocast(11780, true);
+                    }
+                    //Soothing Kiss
+                    if(pPet->GetLevel() >= 22 && pPet->GetLevel() < 34)
+                    {
+                        pPet->ToggleAutocast(6360, true);
+                    }
+                    else if(pPet->GetLevel() >= 34 && pPet->GetLevel() < 46)
+                    {
+                        pPet->ToggleAutocast(7813, true);
+                    }
+                    else if(pPet->GetLevel() >= 46 && pPet->GetLevel() < 58)
+                    {
+                        pPet->ToggleAutocast(11784, true);
+                    }
+                    else if(pPet->GetLevel() >= 58 && pPet->GetLevel() <= 60)
+                    {
+                        pPet->ToggleAutocast(11785, true);
+                    }
+                }
+                else if(pPet->GetEntry() == 417)
+                {
+                    //Devour Magic
+                    if(pPet->GetLevel() >= 30 && pPet->GetLevel() < 38)
+                    {
+                        pPet->ToggleAutocast(19505, true);
+                    }
+                    else if(pPet->GetLevel() >= 38 && pPet->GetLevel() < 46)
+                    {
+                        pPet->ToggleAutocast(19731, true);
+                    }
+                    else if(pPet->GetLevel() >= 46 && pPet->GetLevel() < 54)
+                    {
+                        pPet->ToggleAutocast(19734, true);
+                    }
+                    else if(pPet->GetLevel() >= 54 && pPet->GetLevel() <= 60)
+                    {
+                        pPet->ToggleAutocast(19736, true);
+                    }
+                    //Spell Lock
+                    if(pPet->GetLevel() >= 36 && pPet->GetLevel() < 52)
+                    {
+                        pPet->ToggleAutocast(19244, true);
+                    }
+                    else if(pPet->GetLevel() >= 52 && pPet->GetLevel() <= 60)
+                    {
+                        pPet->ToggleAutocast(19647, true);
+                    }
+                }
+                if (!pPet->GetVictim())
+                {
+                    pPet->GetCharmInfo()->SetIsCommandAttack(true);
+                    pPet->AI()->AttackStart(pVictim);
+                }
+            }
+        }
+
+        if (m_spells.warlock.pEMoFuTi &&
+            ((me->GetHealthPercent() <= 50.0f) || ((me->GetDistance(pVictim) < 10.0f) && (pVictim->GetVictim() == me) && IsPhysicalDamageClass(pVictim->GetClass()))) &&
+            !me->HasAura(34020) &&
+            CanTryToCastSpell(me, m_spells.warlock.pEMoFuTi))
+        {
+            if (DoCastSpell(me, m_spells.warlock.pEMoFuTi) == SPELL_CAST_OK)
+                return;
+        }
+
+        if (m_spells.warlock.pLifeTap &&
+            (((me->GetPowerPercent(POWER_MANA) <= 50.0f) && (me->GetHealthPercent() > 50.0f) && !me->HasAura(34020)) || ((me->GetPowerPercent(POWER_MANA) <= 80.0f) && (me->GetHealthPercent() > 40.0f) && (me->HasAura(34020)))) &&
+            CanTryToCastSpell(me, m_spells.warlock.pLifeTap))
+        {
+            if (DoCastSpell(me, m_spells.warlock.pLifeTap) == SPELL_CAST_OK)
+                return;
+        }
+
         if (m_spells.warlock.pDeathCoil &&
            (pVictim->CanReachWithMeleeAutoAttack(me) || pVictim->IsNonMeleeSpellCasted()) &&
             CanTryToCastSpell(pVictim, m_spells.warlock.pDeathCoil))
@@ -2037,6 +2626,7 @@ void BattleBotAI::UpdateInCombatAI_Warlock()
             if (Pet* pPet = me->GetPet())
             {
                 if (pPet->IsAlive() &&
+                    (pPet->GetHealthPercent() <= 30.0f) &&
                     CanTryToCastSpell(pPet, m_spells.warlock.pDemonicSacrifice))
                 {
                     if (DoCastSpell(pPet, m_spells.warlock.pDemonicSacrifice) == SPELL_CAST_OK)
@@ -2128,16 +2718,7 @@ void BattleBotAI::UpdateInCombatAI_Warlock()
             if (DoCastSpell(pVictim, m_spells.warlock.pShadowBolt) == SPELL_CAST_OK)
                 return;
         }
-
-        if (m_spells.warlock.pLifeTap &&
-           (me->GetPowerPercent(POWER_MANA) < 10.0f) &&
-           (me->GetHealthPercent() > 70.0f) &&
-            CanTryToCastSpell(me, m_spells.warlock.pLifeTap))
-        {
-            if (DoCastSpell(me, m_spells.warlock.pLifeTap) == SPELL_CAST_OK)
-                return;
-        }
-
+        
         if (me->HasSpell(BB_SPELL_SHOOT_WAND) &&
            !me->IsMoving() &&
            (me->GetPowerPercent(POWER_MANA) < 5.0f) &&
@@ -2170,19 +2751,52 @@ void BattleBotAI::UpdateOutOfCombatAI_Warrior()
 
     if (Unit* pVictim = me->GetVictim())
     {
+        if (Pet* pPet = me->GetPet())
+        {
+            pPet->ToggleAutocast(34115, true);
+            pPet->ToggleAutocast(34118, true);
+            pPet->ToggleAutocast(34119, true);
+            pPet->ToggleAutocast(34120, true);
+            if (!pPet->GetVictim())
+            {
+                pPet->GetCharmInfo()->SetIsCommandAttack(true);
+                pPet->AI()->AttackStart(pVictim);
+            }
+        }
+
         if (m_spells.warrior.pCharge &&
             CanTryToCastSpell(pVictim, m_spells.warrior.pCharge))
         {
             if (DoCastSpell(pVictim, m_spells.warrior.pCharge) == SPELL_CAST_OK)
                 return;
         }
+
+        UpdateInCombatAI_Warrior();
     }
+    else
+        SummonPetIfNeeded();
 }
 
 void BattleBotAI::UpdateInCombatAI_Warrior()
 {
     if (Unit* pVictim = me->GetVictim())
     {
+        if (Pet* pPet = me->GetPet())
+        {
+            if (pPet->IsAlive())
+            {
+                pPet->ToggleAutocast(34115, true);
+                pPet->ToggleAutocast(34118, true);
+                pPet->ToggleAutocast(34119, true);
+                pPet->ToggleAutocast(34120, true);
+                if (!pPet->GetVictim())
+                {
+                    pPet->GetCharmInfo()->SetIsCommandAttack(true);
+                    pPet->AI()->AttackStart(pVictim);
+                }
+            }
+        }
+
         if (pVictim->IsNonMeleeSpellCasted(false, false, true))
         {
             if (m_spells.warrior.pPummel &&
@@ -2439,14 +3053,47 @@ void BattleBotAI::UpdateOutOfCombatAI_Rogue()
             return;
     }
 
-    if (me->GetVictim())
+    if (Unit* pVictim = me->GetVictim())
+    {
+        if (Pet* pPet = me->GetPet())
+        {
+            pPet->ToggleAutocast(34105, true);
+            pPet->ToggleAutocast(34113, true);
+            pPet->ToggleAutocast(34108, true);
+            pPet->ToggleAutocast(34109, true);
+            if (!pPet->GetVictim())
+            {
+                pPet->GetCharmInfo()->SetIsCommandAttack(true);
+                pPet->AI()->AttackStart(pVictim);
+            }
+        }
+
         UpdateInCombatAI_Rogue();
+    }
+    else
+        SummonPetIfNeeded();
 }
 
 void BattleBotAI::UpdateInCombatAI_Rogue()
 {
     if (Unit* pVictim = me->GetVictim())
     {
+        if (Pet* pPet = me->GetPet())
+        {
+            if (pPet->IsAlive())
+            {
+                pPet->ToggleAutocast(34105, true);
+                pPet->ToggleAutocast(34113, true);
+                pPet->ToggleAutocast(34108, true);
+                pPet->ToggleAutocast(34109, true);
+                if (!pPet->GetVictim())
+                {
+                    pPet->GetCharmInfo()->SetIsCommandAttack(true);
+                    pPet->AI()->AttackStart(pVictim);
+                }
+            }
+        }
+
         if (me->HasAuraType(SPELL_AURA_MOD_STEALTH))
         {
             if (m_spells.rogue.pPremeditation &&
@@ -2741,19 +3388,33 @@ void BattleBotAI::UpdateOutOfCombatAI_Druid()
         }
     }
 
-    if (me->GetVictim())
+    if (Unit* pVictim = me->GetVictim())
     {
+        if (Pet* pPet = me->GetPet())
+        {
+            pPet->ToggleAutocast(34078, true);
+            pPet->ToggleAutocast(34080, true);
+            pPet->ToggleAutocast(34082, true);
+            if (!pPet->GetVictim())
+            {
+                pPet->GetCharmInfo()->SetIsCommandAttack(true);
+                pPet->AI()->AttackStart(pVictim);
+            }
+        }
+
         if (m_spells.druid.pMoonkinForm &&
             CanTryToCastSpell(me, m_spells.druid.pMoonkinForm))
         {
             if (DoCastSpell(me, m_spells.druid.pMoonkinForm) == SPELL_CAST_OK)
                 return;
         }
-
+        
         UpdateInCombatAI_Druid();
     }
     else
     {
+        SummonPetIfNeeded();
+
         if (m_spells.druid.pMoonkinForm &&
             me->GetShapeshiftForm() == FORM_MOONKIN)
             me->RemoveAurasDueToSpellByCancel(m_spells.druid.pMoonkinForm->Id);
@@ -2877,6 +3538,21 @@ void BattleBotAI::UpdateInCombatAI_Druid()
     
     if (Unit* pVictim = me->GetVictim())
     {
+        if (Pet* pPet = me->GetPet())
+        {
+            if (pPet->IsAlive())
+            {
+                pPet->ToggleAutocast(34078, true);
+                pPet->ToggleAutocast(34080, true);
+                pPet->ToggleAutocast(34082, true);
+                if (!pPet->GetVictim())
+                {
+                    pPet->GetCharmInfo()->SetIsCommandAttack(true);
+                    pPet->AI()->AttackStart(pVictim);
+                }
+            }
+        }
+
         ShapeshiftForm const form = me->GetShapeshiftForm();
         if (m_spells.druid.pBarkskin &&
            (form == FORM_NONE || form == FORM_MOONKIN) &&

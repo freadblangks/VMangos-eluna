@@ -2666,7 +2666,14 @@ void Aura::HandleAuraModShapeshift(bool apply, bool Real)
                         }
                     }
                     if (target->GetPower(POWER_RAGE) > Rage_val)
+                    {
+                        if (target->HasAura(12296))
+                        {
+                            uint32 Life_val = (uint32)((target->GetPower(POWER_RAGE) - Rage_val) * target->GetMaxHealth() / target->GetMaxPower(POWER_RAGE) / 5);
+                            target->ModifyHealth(Life_val);
+                        }
                         target->SetPower(POWER_RAGE, Rage_val);
+                    }
                     break;
                 }
                 default:
@@ -5929,8 +5936,9 @@ void Aura::HandleSchoolAbsorb(bool apply, bool Real)
                     // Power Word: Shield
                     if (spellProto->IsFitToFamilyMask<CF_PRIEST_POWER_WORD_SHIELD>())
                     {
-                        //+10% from +healing bonus
-                        DoneActualBenefit = caster->SpellBaseHealingBonusDone(spellProto->GetSpellSchoolMask()) * 0.1f;
+                        // 10% coeff from healing bonus in vanilla
+                        // 100% coeff mod by jianggn
+                        DoneActualBenefit = caster->SpellBaseHealingBonusDone(spellProto->GetSpellSchoolMask()) * 1.0f + caster->SpellBaseDamageBonusDone(spellProto->GetSpellSchoolMask()) * 1.0f;
                         break;
                     }
                     break;
@@ -6745,22 +6753,37 @@ void Aura::HandleManaShield(bool apply, bool Real)
     if (!Real)
         return;
 
+    Unit* caster = GetCaster();
+    if (!caster)
+        return;
+
+    Unit* target = GetTarget();
+    SpellEntry const* spellProto = GetSpellProto();
     // prevent double apply bonuses
-    if (apply && (GetTarget()->GetTypeId() != TYPEID_PLAYER || !((Player*)GetTarget())->GetSession()->PlayerLoading()))
+    if (apply && (target->GetTypeId() != TYPEID_PLAYER || !((Player*)target)->GetSession()->PlayerLoading()))
     {
-        if (Unit* caster = GetCaster())
+        float DoneActualBenefit = 0.0f;
+        switch (spellProto->SpellFamilyName)
         {
-            float DoneActualBenefit = 0.0f;
-
-            // Mana Shield
-            // 0% coeff in vanilla (changed patch 2.4.0)
-            // if (GetSpellProto()->IsFitToFamily<SPELLFAMILY_MAGE, CF_MAGE_MANA_SHIELD>())
-            //    DoneActualBenefit = caster->SpellBaseDamageBonusDone(GetSpellSchoolMask(GetSpellProto())) * 0.5f;
-
-            // DoneActualBenefit *= caster->CalculateLevelPenalty(GetSpellProto());
-
-            m_modifier.m_amount += DoneActualBenefit;
+            case SPELLFAMILY_MAGE:
+                // Mana Shield
+                if (spellProto->IsFitToFamilyMask<CF_MAGE_MANA_SHIELD>())
+                {
+                    // 0% coeff in vanilla (changed patch 2.4.0)
+                    // 200% coeff mod by jianggn
+                    DoneActualBenefit = caster->SpellBaseDamageBonusDone(spellProto->GetSpellSchoolMask()) * 2.0f;
+                    break;
+                }
+                break;
+            default:
+                break;
         }
+
+        DoneActualBenefit *= caster->CalculateLevelPenalty(GetSpellProto());
+
+        m_modifier.m_amount += DoneActualBenefit;
+
+        m_modifier.m_amount = dither(m_modifier.m_amount);
     }
 }
 
@@ -8321,8 +8344,8 @@ bool _IsExclusiveSpellAura(SpellEntry const* spellproto, SpellEffectIndex eff, A
         case 6114:
         case 5020:
         case 5021:
-        case 23179: //le proc de l'�p�e de Razorgore (+300 force) devrait se cumuler avec TOUT : ID 23179
-        case 20007: //le proc Crois� devrait se cumuler avec TOUT : ID 20007
+        case 23179: //le proc de l'pe de Razorgore (+300 force) devrait se cumuler avec TOUT : ID 23179
+        case 20007: //le proc Crois devrait se cumuler avec TOUT : ID 20007
         case 20572: //Le racial Orc (ID 20572)
         case 17038: //l'Eau des Tombe-Hiver (ID 17038)
         case 16329: //le Juju's Might (ID 16329)
@@ -8334,9 +8357,9 @@ bool _IsExclusiveSpellAura(SpellEntry const* spellproto, SpellEffectIndex eff, A
         case 19506:
         case 20905:
         case 20906:
-        case 18262: // Pierre � Aiguiser El�mentaire (+2% crit)
+        case 18262: // Pierre  Aiguiser Elmentaire (+2% crit)
         case 24932: // chef de la Meute
-        case 24907: // aura S�l�nien
+        case 24907: // aura Slnien
         case 22888: // Buff Onyxia
         case 15366: // Buff Felwood
         case 22820: // HT +3% crit sorts
