@@ -206,14 +206,18 @@ struct boss_vaelAI : public ScriptedAI
         if (!m_bEngaged)
         {
             m_bEngaged = true;
-            m_creature->SetRespawnDelay(43200); // 12h 43200
-            m_creature->ForcedDespawn(3600000); // 1h 3600000
+            // From 1.8: There is no longer a one-hour time restriction on the Vaelastraz the Corrupt encounter in Blackwing Lair.
+            if (sWorld.GetWowPatch() < WOW_PATCH_108)
+            {
+                m_creature->SetRespawnDelay(12 * HOUR);
+                m_creature->ForcedDespawn(3600000); // 1h 3600000
+            }
         }
     }
 
     void JustDied(Unit* /*pKiller*/) override
     {
-        m_creature->SetRespawnDelay(604800); // 7 j. 604800
+        m_creature->SetRespawnDelay(7 * DAY);
         if (m_pInstance)
             m_pInstance->SetData(TYPE_VAELASTRASZ, DONE);
     }
@@ -561,7 +565,7 @@ struct npc_death_talon_CaptainAI : public ScriptedAI
             return;
 
         if (pUnit->IsPlayer() && m_creature->GetDistance2d(pUnit) < 29.0f && m_creature->IsWithinLOSInMap(pUnit)
-          && pUnit->IsTargetableForAttack() && pUnit->IsInAccessablePlaceFor(m_creature))
+          && pUnit->IsTargetableBy(m_creature) && pUnit->IsInAccessablePlaceFor(m_creature))
             AttackStart(pUnit);
     }
 
@@ -709,7 +713,7 @@ struct npc_death_talon_SeetherAI : public ScriptedAI
 
         if (!m_bEngaged)
         {
-            if (m_creature->IsWithinMeleeRange(m_creature->GetVictim()))
+            if (m_creature->CanReachWithMeleeAutoAttack(m_creature->GetVictim()))
                 m_bEngaged = true;
         }
         else

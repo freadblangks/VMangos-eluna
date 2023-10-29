@@ -143,7 +143,7 @@ struct boss_ossirianAI : public ScriptedAI
         }
     }
 
-    void SpellHit(Unit* pUnit, SpellEntry const* pSpell) override
+    void SpellHit(SpellCaster*, SpellEntry const* pSpell) override
     {
         for (uint32 i : SpellWeakness)
         {
@@ -355,7 +355,7 @@ struct ossirian_crystalAI : public GameObjectAI
 
         if (!pInstance)
         {
-            sLog.outInfo("[OSSIRIAN/Crystal][Inst %03u] ERROR: No instance", user->GetInstanceId());
+            sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "[OSSIRIAN/Crystal][Inst %03u] ERROR: No instance", user->GetInstanceId());
             return false;
         }
 
@@ -370,7 +370,7 @@ struct ossirian_crystalAI : public GameObjectAI
 
         if (!ossirian)
         {
-            sLog.outInfo("[OSSIRIAN/Crystal][Inst %03u] ERROR: No Ossirian found (guid %u)", user->GetInstanceId(), pInstance->GetData64(DATA_OSSIRIAN));
+            sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "[OSSIRIAN/Crystal][Inst %03u] ERROR: No Ossirian found (guid %u)", user->GetInstanceId(), pInstance->GetData64(DATA_OSSIRIAN));
             return false;
         }
 

@@ -87,7 +87,7 @@ struct npc_daphne_stilwellAI : public npc_escortAI
         switch (uiPoint)
         {
             case 4:
-                SetEquipmentSlots(false, 20728, EQUIP_NO_CHANGE, 20728);
+                m_creature->SetVirtualItem(VIRTUAL_ITEM_SLOT_0, 6946);
                 m_creature->SetSheath(SHEATH_STATE_RANGED);
                 m_creature->HandleEmoteCommand(EMOTE_STATE_USESTANDING_NOSHEATHE);
                 break;
@@ -158,7 +158,7 @@ struct npc_daphne_stilwellAI : public npc_escortAI
         {
             m_uiShootTimer = 1000;
 
-            if (!m_creature->IsWithinMeleeRange(m_creature->GetVictim()))
+            if (!m_creature->CanReachWithMeleeAutoAttack(m_creature->GetVictim()))
                 DoCastSpellIfCan(m_creature->GetVictim(), SPELL_SHOOT);
 
         }

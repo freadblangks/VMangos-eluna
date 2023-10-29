@@ -2,28 +2,28 @@
 #define MANGOSSOCKETMGR_H
 
 #include <ace/Basic_Types.h>
-#include <ace/Singleton.h>
-#include <ace/Thread_Mutex.h>
 
 #include <string>
 
 template <typename T>
+class MangosSocketAcceptor;
+template <typename T>
 class ReactorRunnable;
 class ACE_Event_Handler;
 
-/// Manages all sockets connected to peers and network threads
+// Manages all sockets connected to peers and network threads
 template <typename SocketType>
 class MangosSocketMgr
 {
     public:
 
-        /// Start network, listen at address:port .
+        // Start network, listen at address:port .
         int StartNetwork(ACE_UINT16 port, std::string& address);
 
-        /// Stops all network threads, It will wait for all running threads .
+        // Stops all network threads, It will wait for all running threads .
         void StopNetwork();
 
-        /// Wait untill all network threads have "joined" .
+        // Wait untill all network threads have "joined" .
         void Wait();
 
         void SetOutKBuff(int v) { m_SockOutKBuff = v; }
@@ -52,7 +52,7 @@ class MangosSocketMgr
         std::string m_addr;
         ACE_UINT16 m_port;
 
-        ACE_Event_Handler* m_Acceptor;
+        MangosSocketAcceptor<SocketType>* m_Acceptor;
 };
 
 #endif // MANGOSSOCKETMGR_H

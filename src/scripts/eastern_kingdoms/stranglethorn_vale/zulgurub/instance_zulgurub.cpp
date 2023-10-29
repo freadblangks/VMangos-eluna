@@ -24,9 +24,6 @@ EndScriptData */
 #include "scriptPCH.h"
 #include "zulgurub.h"
 
-#define ZG_LOG sLog.outDebug
-//#define ZG_LOG sLog.outError(
-
 #define BOSS_GRILEK                     15082
 #define BOSS_HAZZARAH                   15083
 #define BOSS_RENATAKI                   15084
@@ -327,7 +324,7 @@ void instance_zulgurub::Create()
 
 void instance_zulgurub::OnCreatureDeath(Creature * pCreature)
 {
-    ZG_LOG("OnCreatureDeath %u", pCreature->GetEntry());
+    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "OnCreatureDeath %u", pCreature->GetEntry());
     if (pCreature->GetEntry() >= 15082 && pCreature->GetEntry() <= 15085)
         SetData(TYPE_RANDOM_BOSS, DONE);
 
@@ -345,7 +342,7 @@ uint32 instance_zulgurub::GenerateRandomBoss()
     uint32 weekmod = ((dayCount - (dayCount % 14)) / 14) % 3;
     uint32 bossId = 15082 + weekmod;
     randomBossEntry = bossId;
-    ZG_LOG("GenerateRandomBoss %u -> %u", weekmod, bossId);
+    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "GenerateRandomBoss %u -> %u", weekmod, bossId);
     return bossId;
 }
 
@@ -383,78 +380,19 @@ InstanceData* GetInstanceData_instance_zulgurub(Map* pMap)
     return new instance_zulgurub(pMap);
 }
 
-struct npc_brazierAI: public ScriptedAI
+enum
 {
-    npc_brazierAI(Creature* pCreature) : ScriptedAI(pCreature)
-    {
-        Reset();
-    }
-
-    uint32 Timer;
-    uint32 Var;
-
-    void Reset() override
-    {
-        Timer = 0;
-        Var = 0;
-    }
-
-    void UseGo(int Nombre)
-    {
-        int var = 0;
-        while (var < Nombre)
-        {
-            std::list<GameObject*> GOListe;
-            GetGameObjectListWithEntryInGrid(GOListe, m_creature, 180252, 100.0f);
-            std::list<GameObject*>::iterator itr = GOListe.begin();
-            if (itr == GOListe.end())
-                return;
-
-            std::advance(itr, rand() % GOListe.size());
-            if (GameObject* GO = *itr)
-            {
-                GO->Use(m_creature);
-                GOListe.erase(itr);
-                var++;
-            }
-        }
-    }
-
-    void UpdateAI(uint32 const uiDiff) override
-    {
-        if (Var > 24)
-            m_creature->ForcedDespawn();
-
-        if (Timer < uiDiff)
-        {
-            if (Var > 3)
-                UseGo(4);
-            else if (Var < 10)
-                UseGo(12);
-            else
-                UseGo(6);
-            Timer = 1000;
-            Var++;
-            return;
-        }
-        else Timer -= uiDiff;
-    }
+    TABLET_GRILEK1 = 180358,
+    TABLET_HAZZARAH1 = 180364,
+    TABLET_RENATAKI1 = 180365,
+    TABLET_WUSHOOLAY1 = 180393,
+    TABLET_GRILEK2 = 987654,
+    TABLET_HAZZARAH2 = 987655,
+    TABLET_RENATAKI2 = 987656,
+    TABLET_WUSHOOLAY2 = 987657,
+    TABLET_ALCHEMIST_SPELL = 24266,
 };
 
-CreatureAI* GetAI_npc_brazier(Creature* pCreature)
-{
-    return new npc_brazierAI(pCreature);
-}
-
-#define TABLET_GRILEK1			180358
-#define TABLET_HAZZARAH1		180364
-#define TABLET_RENATAKI1		180365
-#define TABLET_WUSHOOLAY1		180393
-#define TABLET_GRILEK2			987654
-#define TABLET_HAZZARAH2		987655
-#define TABLET_RENATAKI2		987656
-#define TABLET_WUSHOOLAY2		987657
-#define TABLET_ALCHEMIST_SPELL	24266
 
 bool OnGossipHello_go_table_madness(Player* pPlayer, GameObject* pGo)
 {
@@ -485,7 +423,6 @@ bool OnGossipHello_go_table_madness(Player* pPlayer, GameObject* pGo)
     //char sMessage[200];
     //sprintf(sMessage, "boss ID=%d",randomBoss);
     //pPlayer->Say(sMessage,0);
-		
     switch(pGo->GetEntry())
     {
         case TABLET_GRILEK1:
@@ -493,28 +430,28 @@ bool OnGossipHello_go_table_madness(Player* pPlayer, GameObject* pGo)
             if (randomBoss == BOSS_GRILEK)
                 pPlayer->SEND_GOSSIP_MENU(7669, pGo->GetGUID());
             else
-                pPlayer->SEND_GOSSIP_MENU(7643, pGo->GetGUID());			
+                pPlayer->SEND_GOSSIP_MENU(7643, pGo->GetGUID());
             break;
-	case TABLET_HAZZARAH1:
-	case TABLET_HAZZARAH2:
+    case TABLET_HAZZARAH1:
+    case TABLET_HAZZARAH2:
             if (randomBoss == BOSS_HAZZARAH)
-                pPlayer->SEND_GOSSIP_MENU(7675, pGo->GetGUID());
+                pPlayer->SEND_GOSSIP_MENU(7671, pGo->GetGUID());
             else
-                pPlayer->SEND_GOSSIP_MENU(7670, pGo->GetGUID());			
+                pPlayer->SEND_GOSSIP_MENU(7670, pGo->GetGUID());
             break;
-	case TABLET_RENATAKI1:
-	case TABLET_RENATAKI2:
+    case TABLET_RENATAKI1:
+    case TABLET_RENATAKI2:
             if (randomBoss == BOSS_RENATAKI)
                 pPlayer->SEND_GOSSIP_MENU(7673, pGo->GetGUID());
             else
-                pPlayer->SEND_GOSSIP_MENU(7672, pGo->GetGUID());			
+                pPlayer->SEND_GOSSIP_MENU(7672, pGo->GetGUID());
             break;
-	case TABLET_WUSHOOLAY1:
-	case TABLET_WUSHOOLAY2:
+    case TABLET_WUSHOOLAY1:
+    case TABLET_WUSHOOLAY2:
             if (randomBoss == BOSS_WUSHOOLAY)
-                pPlayer->SEND_GOSSIP_MENU(7682, pGo->GetGUID());
+                pPlayer->SEND_GOSSIP_MENU(7675, pGo->GetGUID());
             else
-                pPlayer->SEND_GOSSIP_MENU(7674, pGo->GetGUID());			
+                pPlayer->SEND_GOSSIP_MENU(7674, pGo->GetGUID());
             break;
     }
     return true;
@@ -559,11 +496,6 @@ void AddSC_instance_zulgurub()
     newscript = new Script;
     newscript->Name = "go_table_madness";
     newscript->pGOHello = &OnGossipHello_go_table_madness;
-    newscript->RegisterSelf();
-
-    newscript = new Script;
-    newscript->Name = "npc_brazier";
-    newscript->GetAI = &GetAI_npc_brazier;
     newscript->RegisterSelf();
 
     newscript = new Script;

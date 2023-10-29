@@ -91,6 +91,7 @@ namespace MMAP
         {
             fclose(mapFile);
             printf("%s is the wrong version, please extract new .map files\n", mapFileName);
+            printf("Expected version %u, got %u instead.\n", fheader.versionMagic, *((uint32 const*)(MAP_VERSION_MAGIC)));
             return false;
         }
 
@@ -350,7 +351,7 @@ namespace MMAP
                     else
                         liquidType = MAP_LIQUID_TYPE_WATER;
 
-                    if (liquidType & MAP_LIQUID_TYPE_DARK_WATER)
+                    if (liquidType & MAP_LIQUID_TYPE_DEEP_WATER)
                     {
                         // players should not be here, so logically neither should creatures
                         useTerrain = false;
@@ -603,7 +604,7 @@ namespace MMAP
             ModelInstance& instance = models[i];
 
             // model instances exist in tree even though there are instances of that model in this tile
-            WorldModel* worldModel = instance.getWorldModel();
+            std::shared_ptr<WorldModel> worldModel = instance.getWorldModel();
             if (!worldModel)
                 continue;
 
@@ -730,7 +731,7 @@ namespace MMAP
             ModelInstance instance = models[i];
 
             // model instances exist in tree even though there are instances of that model in this tile
-            WorldModel* worldModel = instance.getWorldModel();
+            std::shared_ptr<WorldModel> worldModel = instance.getWorldModel();
             if (!worldModel)
                 continue;
 
@@ -750,9 +751,7 @@ namespace MMAP
             /// Check every map vertice
             // x, y * -1
             Vector3 up(0, 0, 1);
-            up.x *= -1.0f;
-            up.y *= -1.0f;
-            up = up * rotation.inverse() / scale;
+
             for (vector<GroupModel>::iterator it = groupModels.begin(); it != groupModels.end(); ++it)
                 for (int t = 0; t < mapVertsCount / 3; ++t)
                 {
@@ -766,7 +765,14 @@ namespace MMAP
                     float outDist = -1.0f;
                     float inDist  = -1.0f;
                     if (it->IsUnderObject(v, up, isM2, &outDist, &inDist)) // inDist < outDist
-                        terrainInsideModelsVerts[t] = inDist;
+                    {
+                        // If terrain is under wmo, mark terrain as unwalkable
+                        // If there are less than 1.5y between terrain and m2 then mark the terrain as unwalkable
+                        if (!isM2 || inDist < 1.5f)
+                        {
+                            terrainInsideModelsVerts[t] = inDist;
+                        }
+                    }
                 }
         }
         /// Correct triangles partially under models
@@ -1017,7 +1023,7 @@ namespace MMAP
                              &p0[0], &p0[1], &p0[2], &p1[0], &p1[1], &p1[2], &size))
                 continue;
 
-            if (mapID == mid, tileX == tx, tileY == ty)
+            if (mapID == mid && tileX == tx && tileY == ty)
             {
                 meshData.offMeshConnections.append(p0[1]);
                 meshData.offMeshConnections.append(p0[2]);

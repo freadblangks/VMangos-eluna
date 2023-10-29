@@ -1,12 +1,28 @@
+/*
+* This program is free software; you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation; either version 2 of the License, or
+* (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program; if not, write to the Free Software
+* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+*/
+
+#include "PlayerBotMgr.h"
 #include "PlayerBotAI.h"
 #include "Player.h"
-#include "DBCStores.h"
 #include "Log.h"
 #include "SocialMgr.h"
 #include "MotionMaster.h"
 #include "ObjectMgr.h"
 #include "MoveSpline.h"
-#include "PlayerBotMgr.h"
+#include "Opcodes.h"
 #include "WorldPacket.h"
 
 bool PlayerBotAI::OnSessionLoaded(PlayerBotEntry* entry, WorldSession* sess)
@@ -34,8 +50,12 @@ void PlayerBotAI::UpdateAI(uint32 const diff)
 
 void PlayerBotAI::Remove()
 {
-    me->SetAI(nullptr);
-    me = nullptr;
+    if (me)
+    {
+        if (me->AI() == this)
+            me->SetAI(nullptr);
+        me = nullptr;
+    }
 }
 
 void PlayerBotFleeingAI::OnPlayerLogin()
@@ -44,7 +64,7 @@ void PlayerBotFleeingAI::OnPlayerLogin()
     me->SetCheatGod(true);
 }
 
-/// MageOrgrimmarAttackerAI event
+// MageOrgrimmarAttackerAI event
 enum
 {
     SPELL_FROST_NOVA = 122,
@@ -59,16 +79,16 @@ bool PlayerBotAI::SpawnNewPlayer(WorldSession* sess, uint8 class_, uint32 race_,
     std::string name = sObjectMgr.GeneratePetName(1863); // Succubus name
     normalizePlayerName(name);
     uint8 gender = pClone ? pClone->GetByteValue(UNIT_FIELD_BYTES_0, UNIT_BYTES_0_OFFSET_GENDER) : urand(0, 1);
-    uint8 skin = pClone ? pClone->GetByteValue(PLAYER_BYTES, 0) : urand(0, 5);
-    uint8 face = pClone ? pClone->GetByteValue(PLAYER_BYTES, 1) : urand(0, 5);
-    uint8 hairStyle = pClone ? pClone->GetByteValue(PLAYER_BYTES, 2) : urand(0, 5);
-    uint8 hairColor = pClone ? pClone->GetByteValue(PLAYER_BYTES, 3) : urand(0, 5);
-    uint8 facialHair = pClone ? pClone->GetByteValue(PLAYER_BYTES_2, 0) : urand(0, 5);
+    uint8 skin = pClone ? pClone->GetByteValue(PLAYER_BYTES, PLAYER_BYTES_OFFSET_SKIN_ID) : urand(0, 5);
+    uint8 face = pClone ? pClone->GetByteValue(PLAYER_BYTES, PLAYER_BYTES_OFFSET_FACE_ID) : urand(0, 5);
+    uint8 hairStyle = pClone ? pClone->GetByteValue(PLAYER_BYTES, PLAYER_BYTES_OFFSET_HAIR_STYLE_ID) : urand(0, 5);
+    uint8 hairColor = pClone ? pClone->GetByteValue(PLAYER_BYTES, PLAYER_BYTES_OFFSET_HAIR_COLOR_ID) : urand(0, 5);
+    uint8 facialHair = pClone ? pClone->GetByteValue(PLAYER_BYTES_2, PLAYER_BYTES_2_OFFSET_FACIAL_STYLE) : urand(0, 5);
     Player* newChar = new Player(sess);
     uint32 guid = botEntry->playerGUID;
     if (!newChar->Create(guid, name, race_, class_, gender, skin, face, hairStyle, hairColor, facialHair))
     {
-        sLog.outError("PlayerBotAI::SpawnNewPlayer: Unable to create a player!");
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "PlayerBotAI::SpawnNewPlayer: Unable to create a player!");
         delete newChar;
         return false;
     }
@@ -76,7 +96,6 @@ bool PlayerBotAI::SpawnNewPlayer(WorldSession* sess, uint8 class_, uint32 race_,
     newChar->SetLocationInstanceId(instanceId);
     newChar->SetAutoInstanceSwitch(false);
     newChar->GetMotionMaster()->Initialize();
-    newChar->SetCinematic(1);
     // Set instance
     if (instanceId && mapId > 1) // Not a continent
     {
@@ -88,7 +107,7 @@ bool PlayerBotAI::SpawnNewPlayer(WorldSession* sess, uint8 class_, uint32 race_,
     Map* map = sMapMgr.FindMap(mapId, instanceId);
     if (!map)
     {
-        sLog.outError("PlayerBotAI::SpawnNewPlayer: Map (%u, %u) not found!", mapId, instanceId);
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "PlayerBotAI::SpawnNewPlayer: Map (%u, %u) not found!", mapId, instanceId);
         delete newChar;
         return false;
     }
@@ -102,7 +121,7 @@ bool PlayerBotAI::SpawnNewPlayer(WorldSession* sess, uint8 class_, uint32 race_,
     mPlayer->SetSocial(sSocialMgr.LoadFromDB(nullptr, newChar->GetObjectGuid()));
     if (!newChar->GetMap()->Add(newChar))
     {
-        sLog.outError("PlayerBotAI::SpawnNewPlayer: Unable to add player to map!");
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "PlayerBotAI::SpawnNewPlayer: Unable to add player to map!");
         delete newChar;
         return false;
     }
@@ -123,7 +142,7 @@ void MageOrgrimmarAttackerAI::UpdateAI(uint32 const diff)
     PlayerBotAI::UpdateAI(diff);
     if (me->GetLevel() != 60)
         me->GiveLevel(60);
-    /// DEATH
+    // DEATH
     if (!me->IsAlive())
     {
         sPlayerBotMgr.DeleteBot(me->GetGUIDLow());
@@ -143,7 +162,7 @@ void MageOrgrimmarAttackerAI::UpdateAI(uint32 const diff)
         */
         return;
     }
-    /// COMBAT AI
+    // COMBAT AI
     if (me->IsNonMeleeSpellCasted(false) || (me->HasAura(AURA_REGEN_MANA) && me->GetPower(POWER_MANA) != me->GetMaxPower(POWER_MANA)))
         return;
     float range = me->IsInCombat() ? 30.0f : frand(15, 30);
@@ -160,7 +179,7 @@ void MageOrgrimmarAttackerAI::UpdateAI(uint32 const diff)
     // Stop chase if has mana
     if (me->GetMotionMaster()->GetCurrentMovementGeneratorType() == CHASE_MOTION_TYPE)
         me->GetMotionMaster()->MovementExpired();
-    bool nearTarget = target && target->IsWithinMeleeRange(me);
+    bool nearTarget = target && target->CanReachWithMeleeAutoAttack(me);
     if (me->IsSpellReady(SPELL_FROST_NOVA) && me->GetPower(POWER_MANA) > 50)
         if (nearTarget)
             me->CastSpell(me, SPELL_FROST_NOVA, false);
@@ -198,7 +217,7 @@ void MageOrgrimmarAttackerAI::UpdateAI(uint32 const diff)
         me->CastSpell(target, spellId, false);
         return;
     }
-    /// OUT OF COMBAT REGEN
+    // OUT OF COMBAT REGEN
     if (!me->IsInCombat() && me->GetPower(POWER_MANA) < 150)
     {
         if (!me->movespline->Finalized())
@@ -206,7 +225,7 @@ void MageOrgrimmarAttackerAI::UpdateAI(uint32 const diff)
         me->CastSpell(target, AURA_REGEN_MANA, false);
         return;
     }
-    /// MOVEMENT AI
+    // MOVEMENT AI
     float x, y, z = 0; // Where to go
     float r = 10;
     if (me->movespline->Finalized())

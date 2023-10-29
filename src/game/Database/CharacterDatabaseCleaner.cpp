@@ -24,7 +24,6 @@
 #include "World.h"
 #include "Database/DatabaseEnv.h"
 #include "DBCStores.h"
-#include "ProgressBar.h"
 #include "SpellMgr.h"
 
 void CharacterDatabaseCleaner::CleanDatabase()
@@ -33,7 +32,7 @@ void CharacterDatabaseCleaner::CleanDatabase()
     if (!sWorld.getConfig(CONFIG_BOOL_CLEAN_CHARACTER_DB))
         return;
 
-    sLog.outString("Cleaning character database...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Cleaning character database...");
 
     // check flags which clean ups are necessary
     QueryResult* result = CharacterDatabase.PQuery("SELECT cleaning_flags FROM saved_variables");
@@ -55,7 +54,7 @@ void CharacterDatabaseCleaner::CheckUnique(char const* column, char const* table
     QueryResult* result = CharacterDatabase.PQuery("SELECT DISTINCT %s FROM %s", column, table);
     if (!result)
     {
-        sLog.outString("Table %s is empty.", table);
+        sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Table %s is empty.", table);
         return;
     }
 

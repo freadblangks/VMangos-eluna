@@ -81,7 +81,7 @@ struct boss_faerlinaAI : public ScriptedAI
     {
         m_pInstance = (instance_naxxramas*)pCreature->GetInstanceData();
         if (!m_pInstance)
-            sLog.outError("boss_faerlinaAI::ctor failed to cast instanceData to instance_naxxramas");
+            sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "boss_faerlinaAI::ctor failed to cast instanceData to instance_naxxramas");
         CheckRespawnAdds();
         Reset();
     }
@@ -102,7 +102,7 @@ struct boss_faerlinaAI : public ScriptedAI
         m_uiEnrageTimer             = 60000;
     }
 
-    void SpellHit(Unit* pWho, SpellEntry const* pSpell) override 
+    void SpellHit(SpellCaster* pCaster, SpellEntry const* pSpell) override 
     {
         /*
         note from wowhead:
@@ -117,7 +117,6 @@ struct boss_faerlinaAI : public ScriptedAI
         {
             m_uiEnrageTimer = std::max(m_uiEnrageTimer, (uint32)30000);
             m_creature->RemoveAurasDueToSpell(SPELL_ENRAGE);
-            pWho->Kill(pWho, nullptr);
         }
     }
 
@@ -137,7 +136,7 @@ struct boss_faerlinaAI : public ScriptedAI
                 }
                 else
                 {
-                    sLog.outError("boss_faerlinaAI::CheckRespawnAdds failed to spawn naxxramas follower");
+                    sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "boss_faerlinaAI::CheckRespawnAdds failed to spawn naxxramas follower");
                 }
             }
         }
@@ -154,7 +153,7 @@ struct boss_faerlinaAI : public ScriptedAI
                 }
                 else
                 {
-                    sLog.outError("boss_faerlinaAI::CheckRespawnAdds failed to spawn naxxramas worshipper");
+                    sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "boss_faerlinaAI::CheckRespawnAdds failed to spawn naxxramas worshipper");
                 }
             }
         }
@@ -263,7 +262,7 @@ struct boss_faerlinaAI : public ScriptedAI
             }
             else 
             {
-                if (DoCastSpellIfCan(m_creature->GetVictim(), SPELL_POSIONBOLT_VOLLEY) == CanCastResult::CAST_OK)
+                if (DoCastSpellIfCan(m_creature->GetVictim(), SPELL_POSIONBOLT_VOLLEY) == SpellCastResult::SPELL_CAST_OK)
                 {
                     m_uiPoisonBoltVolleyTimer = POSIONBOLT_VOLLEY_CD();
                 }
@@ -277,7 +276,7 @@ struct boss_faerlinaAI : public ScriptedAI
         {
             if (Unit* pTarget = m_creature->SelectAttackingTarget(ATTACKING_TARGET_RANDOM, 0))
             {
-                if (DoCastSpellIfCan(pTarget, SPELL_RAINOFFIRE) == CanCastResult::CAST_OK)
+                if (DoCastSpellIfCan(pTarget, SPELL_RAINOFFIRE) == SpellCastResult::SPELL_CAST_OK)
                 {
                     m_uiRainOfFireTimer = RAINOFFIRE_CD();
                 }
@@ -293,7 +292,7 @@ struct boss_faerlinaAI : public ScriptedAI
             // but then it only prevents the enrage for the duration of the debuff.
             if (!m_creature->HasAura(SPELL_WIDOWS_EMBRACE))
             {
-                if (DoCastSpellIfCan(m_creature, SPELL_ENRAGE) == CanCastResult::CAST_OK)
+                if (DoCastSpellIfCan(m_creature, SPELL_ENRAGE) == SpellCastResult::SPELL_CAST_OK)
                 {
                     m_uiEnrageTimer = 60000;
                     DoScriptText(urand(SAY_ENRAGE1, SAY_ENRAGE3), m_creature);
@@ -307,97 +306,12 @@ struct boss_faerlinaAI : public ScriptedAI
     }
 };
 
-struct mob_faerlina_rp : public ScriptedAI
-{
-    enum eEvents
-    {
-        EVENT_KNEEL = 1,
-        EVENT_CAST,
-        EVENT_STAND,
-        EVENT_UNAURA
-    };
-
-    EventMap events;
-
-    mob_faerlina_rp(Creature* pCreature) : ScriptedAI(pCreature)
-    {
-        Reset();
-    }
-
-    void Reset() override
-    {
-        events.Reset();
-        events.ScheduleEvent(EVENT_KNEEL, Seconds(urand(5, 10)));
-    }
-
-    std::list<Creature*> getGroup()
-    {
-        std::list<Creature*> creatures;
-        GetCreatureListWithEntryInGrid(creatures, m_creature, { NPC_NaxxramasAcolyte, NPC_NaxxramasCultist }, 11.0f);
-        return creatures;
-    }
-
-    void UpdateAI(uint32 const diff) override
-    {
-        events.Update(diff);
-        while (uint32 eventId = events.ExecuteEvent())
-        {
-            std::list<Creature*> creatures = getGroup();
-            if (creatures.empty())
-            {
-                Reset();
-                break;
-            }
-            if ((*creatures.begin())->IsInCombat())
-            {
-                Reset();
-                break;
-            }
-
-            for (auto it = creatures.begin(); it != creatures.end();)
-            {
-                if ((*it)->IsDead())
-                    it = creatures.erase(it);
-                else
-                    ++it;
-            }
-
-            switch (eventId)
-            {
-            case EVENT_KNEEL:
-                for (Creature* pC : creatures)
-                    pC->SetStandState(UNIT_STAND_STATE_KNEEL);
-                events.ScheduleEvent(EVENT_CAST, Seconds(urand(10, 90)));
-                break;
-            case EVENT_CAST:
-                for (Creature* pC : creatures)
-                    pC->CastSpell(pC, 21157, true);
-                events.ScheduleEvent(EVENT_STAND, Seconds(1));
-                break;
-            case EVENT_STAND:
-                for (Creature* pC : creatures)
-                    pC->SetStandState(UNIT_STAND_STATE_STAND);
-                events.ScheduleEvent(EVENT_UNAURA, Seconds(urand(10, 30)));
-                break;
-            case EVENT_UNAURA:
-                for (Creature* pC : creatures)
-                    pC->RemoveAurasDueToSpell(21157);
-                events.ScheduleEvent(EVENT_KNEEL, Seconds(urand(2, 10)));
-                break;
-            }
-        }
-    }
-};
 
 CreatureAI* GetAI_boss_faerlina(Creature* pCreature)
 {
     return new boss_faerlinaAI(pCreature);
 }
 
-CreatureAI* GetAI_mob_faerlina_rp(Creature* pCreature)
-{
-    return new mob_faerlina_rp(pCreature);
-}
 
 void AddSC_boss_faerlina()
 {
@@ -405,10 +319,5 @@ void AddSC_boss_faerlina()
     NewScript = new Script;
     NewScript->Name = "boss_faerlina";
     NewScript->GetAI = &GetAI_boss_faerlina;
-    NewScript->RegisterSelf();
-
-    NewScript = new Script;
-    NewScript->Name = "mob_faerlina_rp";
-    NewScript->GetAI = &GetAI_mob_faerlina_rp;
     NewScript->RegisterSelf();
 }

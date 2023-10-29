@@ -16,14 +16,12 @@
 
 #include "Common.h"
 #include "Database/DatabaseEnv.h"
-#include "World.h"
 #include "Player.h"
 #include "Chat.h"
 #include "ObjectAccessor.h"
 #include "Language.h"
 #include "ObjectMgr.h"
-#include "SystemConfig.h"
-#include "revision.h"
+#include "ScriptMgr.h"
 #include "Util.h"
 #include "GameEventMgr.h"
 #include "GridNotifiers.h"
@@ -152,6 +150,47 @@ bool ChatHandler::HandleGameObjectTargetCommand(char* args)
 
 bool ChatHandler::HandleGameObjectInfoCommand(char* args)
 {
+    GameObject* pGameObject = getSelectedGameObject();
+
+    // number or [name] Shift-click form |color|Hgameobject:go_id|h[name]|h|r
+    uint32 lowguid;
+    if (ExtractUint32KeyFromLink(&args, "Hgameobject", lowguid))
+    {
+        if (lowguid)
+        {
+            // by DB guid
+            if (GameObjectData const* go_data = sObjectMgr.GetGOData(lowguid))
+                pGameObject = GetGameObjectWithGuid(lowguid, go_data->id);
+        }
+    }  
+
+    if (!pGameObject)
+    {
+        PSendSysMessage(LANG_COMMAND_OBJNOTFOUND, lowguid);
+        SetSentErrorMessage(true);
+        return false;
+    }
+    
+    PSendSysMessage("Entry: %u, GUID: %u\nName: %s\nType: %u, Display Id: %u\nGO State: %u, Loot State: %u, Flags: %u", pGameObject->GetEntry(), pGameObject->GetGUIDLow(), pGameObject->GetGOInfo()->name, pGameObject->GetGoType(), pGameObject->GetDisplayId(), pGameObject->GetGoState(), pGameObject->getLootState());
+    if (pGameObject->GetVisibilityModifier())
+        PSendSysMessage("Visibility Modifier: %g", pGameObject->GetVisibilityModifier());
+    if (pGameObject->isActiveObject())
+        SendSysMessage("Active Object.");
+    if (pGameObject->isSpawned())
+        SendSysMessage("Object is spawned.");
+    else
+    {
+        time_t respawnTime = pGameObject->GetRespawnTime();
+        std::tm* pTime = std::localtime(&respawnTime);
+        PSendSysMessage("Not spawned. Respawns in %u seconds (%u:%u:%u).", pGameObject->GetRespawnDelay(), pTime->tm_hour, pTime->tm_min, pTime->tm_sec);
+    }
+    
+
+    return true;
+}
+
+bool ChatHandler::HandleGameObjectUpdateFieldsInfoCommand(char* args)
+{
     // number or [name] Shift-click form |color|Hgameobject:go_id|h[name]|h|r
     uint32 lowguid;
     if (!ExtractUint32KeyFromLink(&args, "Hgameobject", lowguid))
@@ -172,17 +211,8 @@ bool ChatHandler::HandleGameObjectInfoCommand(char* args)
         SetSentErrorMessage(true);
         return false;
     }
-    
-    PSendSysMessage("Entry: %u, GUID: %u\nName: %s\nType: %u, Display Id: %u\nGO State: %u, Loot State: %u", pGameObject->GetEntry(), pGameObject->GetGUIDLow(), pGameObject->GetGOInfo()->name, pGameObject->GetGoType(), pGameObject->GetDisplayId(), pGameObject->GetGoState(), pGameObject->getLootState());
-    if (pGameObject->isSpawned())
-        SendSysMessage("Object is spawned.");
-    else
-    {
-        time_t respawnTime = pGameObject->GetRespawnTime();
-        std::tm* pTime = std::localtime(&respawnTime);
-        PSendSysMessage("Not spawned. Respawns in %u seconds (%u:%u:%u).", pGameObject->GetRespawnDelay(), pTime->tm_hour, pTime->tm_min, pTime->tm_sec);
-    }
-    
+
+    ShowAllUpdateFieldsHelper(pGameObject);
 
     return true;
 }
@@ -330,6 +360,13 @@ bool ChatHandler::HandleGameObjectDeleteCommand(char* args)
         return false;
     }
 
+    if (sScriptMgr.IsGameObjectGuidReferencedInScripts(obj->GetDBTableGUIDLow()))
+    {
+        SendSysMessage("You cannot delete this spawn because its guid is referenced in a script.");
+        SetSentErrorMessage(true);
+        return false;
+    }
+
     if (ObjectGuid ownerGuid = obj->GetOwnerGuid())
     {
         Unit* owner = ObjectAccessor::GetUnit(*m_session->GetPlayer(), ownerGuid);
@@ -378,7 +415,7 @@ bool ChatHandler::HandleGameObjectAddCommand(char* args)
     if (gInfo->displayId && !sGameObjectDisplayInfoStore.LookupEntry(gInfo->displayId))
     {
         // report to DB errors log as in loading case
-        sLog.outErrorDb("Gameobject (Entry %u GoType: %u) have invalid displayId (%u), not spawned.", id, gInfo->type, gInfo->displayId);
+        sLog.Out(LOG_DBERROR, LOG_LVL_MINIMAL, "Gameobject (Entry %u GoType: %u) have invalid displayId (%u), not spawned.", id, gInfo->type, gInfo->displayId);
         PSendSysMessage(LANG_GAMEOBJECT_HAVE_INVALID_DATA, id);
         SetSentErrorMessage(true);
         return false;
@@ -391,7 +428,7 @@ bool ChatHandler::HandleGameObjectAddCommand(char* args)
     float o = float(chr->GetOrientation());
     Map* map = chr->GetMap();
 
-    GameObject* pGameObj = new GameObject;
+    GameObject* pGameObj = GameObject::CreateGameObject(gInfo->id);
 
     // used guids from specially reserved range (can be 0 if no free values)
     uint32 db_lowGUID = sObjectMgr.GenerateStaticGameObjectLowGuid();
@@ -399,6 +436,7 @@ bool ChatHandler::HandleGameObjectAddCommand(char* args)
     {
         SendSysMessage(LANG_NO_FREE_STATIC_GUID_FOR_SPAWN);
         SetSentErrorMessage(true);
+        delete pGameObj;
         return false;
     }
 
@@ -421,7 +459,7 @@ bool ChatHandler::HandleGameObjectAddCommand(char* args)
         return false;
     }
 
-    DEBUG_LOG(GetMangosString(LANG_GAMEOBJECT_CURRENT), gInfo->name, db_lowGUID, x, y, z, o);
+    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, GetMangosString(LANG_GAMEOBJECT_CURRENT), gInfo->name, db_lowGUID, x, y, z, o);
 
     map->Add(pGameObj);
 
@@ -631,6 +669,20 @@ bool ChatHandler::HandleGameObjectResetCommand(char*)
     return true;
 }
 
+bool ChatHandler::HandleGameObjectUseCommand(char*)
+{
+    GameObject* go = getSelectedGameObject();
+    if (!go)
+    {
+        SendSysMessage(LANG_COMMAND_NOGAMEOBJECTFOUND);
+        return false;
+    }
+
+    go->Use(m_session->GetPlayer());
+    PSendSysMessage("You have used %s.", go->GetGuidStr().c_str());
+    return true;
+}
+
 bool ChatHandler::HandleGameObjectSetGoStateCommand(char* args)
 {
     // number or [name] Shift-click form |color|Hgameobject:go_id|h[name]|h|r
@@ -731,6 +783,64 @@ bool ChatHandler::HandleGameObjectSendCustomAnimCommand(char* args)
 
     pGameObject->SendGameObjectCustomAnim(uiAnim);
     PSendSysMessage("Playing custom anim %u for %s (GUID %u).", uiAnim, pGameObject->GetName(), pGameObject->GetGUIDLow());
+
+    return true;
+}
+
+bool ChatHandler::HandleGameObjectSendSpawnAnimCommand(char* args)
+{
+    // number or [name] Shift-click form |color|Hgameobject:go_id|h[name]|h|r
+    uint32 lowguid;
+    if (!ExtractUint32KeyFromLink(&args, "Hgameobject", lowguid))
+        return false;
+
+    if (!lowguid)
+        return false;
+
+    GameObject* pGameObject = nullptr;
+
+    // by DB guid
+    if (GameObjectData const* go_data = sObjectMgr.GetGOData(lowguid))
+        pGameObject = GetGameObjectWithGuid(lowguid, go_data->id);
+
+    if (!pGameObject)
+    {
+        PSendSysMessage(LANG_COMMAND_OBJNOTFOUND, lowguid);
+        SetSentErrorMessage(true);
+        return false;
+    }
+
+    pGameObject->SendObjectSpawnAnim();
+    PSendSysMessage("Playing spawn anim for %s (GUID %u).", pGameObject->GetName(), pGameObject->GetGUIDLow());
+
+    return true;
+}
+
+bool ChatHandler::HandleGameObjectSendDespawnAnimCommand(char* args)
+{
+    // number or [name] Shift-click form |color|Hgameobject:go_id|h[name]|h|r
+    uint32 lowguid;
+    if (!ExtractUint32KeyFromLink(&args, "Hgameobject", lowguid))
+        return false;
+
+    if (!lowguid)
+        return false;
+
+    GameObject* pGameObject = nullptr;
+
+    // by DB guid
+    if (GameObjectData const* go_data = sObjectMgr.GetGOData(lowguid))
+        pGameObject = GetGameObjectWithGuid(lowguid, go_data->id);
+
+    if (!pGameObject)
+    {
+        PSendSysMessage(LANG_COMMAND_OBJNOTFOUND, lowguid);
+        SetSentErrorMessage(true);
+        return false;
+    }
+
+    pGameObject->SendObjectDeSpawnAnim();
+    PSendSysMessage("Playing despawn anim for %s (GUID %u).", pGameObject->GetName(), pGameObject->GetGUIDLow());
 
     return true;
 }

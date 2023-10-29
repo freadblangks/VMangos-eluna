@@ -25,7 +25,6 @@
 #include "Common.h"
 #include "DBCEnums.h"
 #include "Path.h"
-#include "Platform/Define.h"
 #include "SpellClassMask.h"
 
 #include <map>
@@ -167,8 +166,8 @@ struct ChrRacesEntry
                                                             // 7        unused
     uint32      TeamID;                                     // 8        m_BaseLanguage (7-Alliance 1-Horde)
     uint32      creatureType;                               // 9        m_creatureType (blizzlike always 7-humanoid)
-                                                            // 10       unused, all 836
-                                                            // 11       unused, all 1604
+    uint32      loginSpellId;                               // 10       all 836
+    uint32      dazeSpellId;                                // 11       all 1604
     uint32      resSicknessSpellId;                         // 12       m_ResSicknessSpellId (blizzlike always 15007)
                                                             // 13       m_SplashSoundID
     uint32      startingTaxiMask;                           // 14
@@ -306,7 +305,7 @@ struct DurabilityQualityEntry
 struct EmotesEntry
 {
     uint32  Id;                                             // 0        m_ID
-    //char*   Name;                                         // 1        m_EmoteSlashCommand
+    char*   Name;                                           // 1        m_EmoteSlashCommand
     //uint32  AnimationId;                                  // 2        m_AnimID
     uint32  Flags;                                          // 3        m_EmoteFlags
     uint32  EmoteType;                                      // 4        m_EmoteSpecProc (determine how emote are shown)
@@ -370,6 +369,9 @@ struct FactionTemplateEntry
     uint32      friendFaction[4];                           // 10-13
     //-------------------------------------------------------  end structure
 
+    // assigned by core
+    bool isEnemyOfAnother = false;
+
     // helpers
     bool IsFriendlyTo(FactionTemplateEntry const& entry) const
     {
@@ -405,7 +407,8 @@ struct FactionTemplateEntry
                 return false;
         return hostileMask == 0 && friendlyMask == 0;
     }
-    bool IsContestedGuardFaction() const { return (factionFlags & FACTION_TEMPLATE_FLAG_CONTESTED_GUARD)!=0; }
+    bool IsContestedGuardFaction() const { return (factionFlags & FACTION_TEMPLATE_FLAG_ATTACK_PVP_ACTIVE_PLAYERS)!=0; }
+    bool HasFactionFlag(uint32 flag) const { return factionFlags & flag; }
 };
 
 struct GameObjectDisplayInfoEntry
@@ -518,15 +521,18 @@ struct SkillRaceClassInfoEntry
     uint32    classMask;                                    // 3        m_classMask
     uint32    flags;                                        // 4        m_flags
     uint32    reqLevel;                                     // 5        m_minLevel
-    //uint32    skillTierId;                                // 6        m_skillTierID
+    uint32    skillTierId;                                // 6        m_skillTierID
     //uint32    skillCostID;                                // 7        m_skillCostIndex
 };
 
-/*struct SkillTiersEntry{
+#define MAX_SKILL_STEP 16
+
+struct SkillTiersEntry
+{
     uint32    id;                                           // 0        m_ID
-    uint32    skillValue[16];                               // 1-17     m_cost
-    uint32    maxSkillValue[16];                            // 18-3     m_valueMax
-};*/
+    uint32    skillValue[MAX_SKILL_STEP];                   // 1-17     m_cost
+    uint32    maxSkillValue[MAX_SKILL_STEP];                // 18-33    m_valueMax
+};
 
 struct SkillLineEntry
 {
@@ -565,8 +571,8 @@ struct SpellCastTimesEntry
 {
     uint32    ID;                                           // 0        m_ID
     int32     CastTime;                                     // 1        m_base
-    //float     CastTimePerLevel;                           // 2        m_perLevel
-    //int32     MinCastTime;                                // 3        m_minimum
+    int32     CastTimePerLevel;                             // 2        m_perLevel
+    int32     MinCastTime;                                  // 3        m_minimum
 };
 
 struct SpellFocusObjectEntry
@@ -606,11 +612,31 @@ struct SpellShapeshiftFormEntry
 {
     uint32 ID;                                              // 0        m_ID
     //uint32 buttonPosition;                                // 1        m_bonusActionBar
-    //char*  Name[8];                                       // 2-9      m_name_lang
+    char*  Name[8];                                         // 2-9      m_name_lang
     //uint32 NameFlags;                                     // 10 string flags
     uint32 flags1;                                          // 11       m_flags
     int32  creatureType;                                    // 12       m_creatureType <=0 humanoid, other normal creature types
     //uint32 unk1;                                          // 13       m_attackIconID
+};
+
+struct SpellVisualEntry
+{
+    uint32 id;
+    uint32 precastKit;
+    uint32 castKit;
+    uint32 impactKit;
+    uint32 stateKit;
+    uint32 channelKit;
+    uint32 hasMissile;
+    uint32 missileModel;
+    uint32 missilePathType;
+    uint32 missileDestinationAttachment;
+    uint32 missileSound;
+    uint32 hasAreaEffect;
+    uint32 areaModel;
+    uint32 areaKit;
+    uint32 animEventSoundID;
+    uint32 flags;
 };
 
 struct SpellDurationEntry
@@ -699,6 +725,17 @@ struct TaxiPathNodeEntry
     float     z;                                            // 6        m_LocZ
     uint32    actionFlag;                                   // 7        m_flags
     uint32    delay;                                        // 8        m_delay
+};
+
+struct TransportAnimationEntry
+{
+    //uint32  Id;
+    uint32  TransportEntry;
+    uint32  TimeSeg;
+    float   X;
+    float   Y;
+    float   Z;
+    //uint32  MovementId;
 };
 
 struct WMOAreaTableEntry

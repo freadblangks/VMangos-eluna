@@ -79,7 +79,7 @@ struct instance_wailing_caverns : public ScriptedInstance
                     m_uiVerdanGUID = pCreature->GetGUID();
                     pCreature->SetVisibility(VISIBILITY_OFF);
                     pCreature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
-                    pCreature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+                    pCreature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING);
                     pCreature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_NPC);
                     break;*/
         }
@@ -174,12 +174,12 @@ struct instance_wailing_caverns : public ScriptedInstance
                 m_auiEncounter[uiType] = uiData;
                 break;
             default:
-                sLog.outError("Instance Wiling Caverns: ERROR SetData = %u for type %u does not exist/not implemented.", uiType, uiData);
+                sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Instance Wiling Caverns: ERROR SetData = %u for type %u does not exist/not implemented.", uiType, uiData);
                 break;
         }
         if (m_auiEncounter[0] == DONE && m_auiEncounter[1] == DONE && m_auiEncounter[2] == DONE && m_auiEncounter[3] == DONE && m_auiEncounter[4] == NOT_STARTED)
         {
-            sLog.outDebug("Debug:Wailing Caverns encounters done");
+            sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "Debug:Wailing Caverns encounters done");
             SetData(TYPE_DISCIPLE, SPECIAL);
             if (Creature* pDisciple = instance->GetCreature(m_uiDiscipleGUID))
             {

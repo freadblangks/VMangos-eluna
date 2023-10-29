@@ -20,6 +20,7 @@
  */
 
 #include "Util.h"
+#include "Log.h"
 #include "DatabaseEnv.h"
 #include "Config/Config.h"
 #include "Database/SqlOperations.h"
@@ -72,7 +73,7 @@ SqlPreparedStatement* SqlConnection::GetStmt(int nIndex)
         if(!pStmt->prepare())
         {
             //MANGOS_ASSERT(false && "Unable to prepare SQL statement");
-            sLog.outError("Can't prepare %s, statement not executed!", fmt.c_str());
+            sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Can't prepare %s, statement not executed!", fmt.c_str());
             return nullptr;
         }
 
@@ -184,11 +185,9 @@ bool Database::Initialize(char const* infoString, int nConns /*= 1*/, int nWorke
         return false;
 
     m_numAsyncWorkers = nWorkers;
-    m_threadsBodies   = new SqlDelayThread*[m_numAsyncWorkers];
-    m_delayThreads    = new ACE_Based::Thread*[m_numAsyncWorkers];
-    m_serialDelayQueue = new SqlQueue*[m_numAsyncWorkers];
+
     for (int i = 0; i < nWorkers; ++i)
-        if (!InitDelayThread(i, infoString))
+        if (!InitDelayThread(infoString))
             return false;
 
     return true;
@@ -220,40 +219,37 @@ void Database::StopServer()
 
 }
 
-bool Database::InitDelayThread(int i, std::string const& infoString)
+bool Database::InitDelayThread(std::string const& infoString)
 {
     //New delay thread for delay execute
 
     SqlConnection* threadConnection = CreateConnection();
     if(!threadConnection->Initialize(infoString.c_str()))
         return false;
-    m_threadsBodies[i] = new SqlDelayThread(this, threadConnection, i);
-    m_threadsBodies[i]->incReference();
-    m_delayThreads[i] = new ACE_Based::Thread(m_threadsBodies[i]);
 
-    m_serialDelayQueue[i] = new SqlQueue();
+    std::shared_ptr<SqlDelayThread> tbody = std::make_shared<SqlDelayThread>(this, threadConnection);
+    m_threadsBodies.emplace_back(tbody);
+    m_delayThreads.emplace_back([tbody](){
+        tbody->run();
+    });
 
     return true;
 }
 
 void Database::HaltDelayThread()
 {
-    if (!m_delayThreads || !m_threadsBodies)
+    if (m_delayThreads.empty() || m_threadsBodies.empty())
         return;
 
     for (uint32 i = 0; i < m_numAsyncWorkers; ++i)
-    {
         m_threadsBodies[i]->Stop();
-        m_delayThreads[i]->wait();
-        delete m_delayThreads[i];
-        m_threadsBodies[i]->decReference();
-    }
-    delete[] m_threadsBodies;
-    delete[] m_delayThreads;
-    delete[] m_serialDelayQueue;
-    m_delayThreads = nullptr;
-    m_threadsBodies = nullptr;
-    m_serialDelayQueue = nullptr;
+
+    for (uint32 i = 0; i < m_numAsyncWorkers; ++i)
+        m_delayThreads[i].join();
+
+    m_threadsBodies.clear();
+    m_delayThreads.clear();
+
     m_numAsyncWorkers = 0;
 }
 
@@ -326,7 +322,7 @@ bool Database::PExecuteLog(char const* format,...)
 
     if(res==-1)
     {
-        sLog.outError("SQL Query truncated (and not execute) for format: %s",format);
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "SQL Query truncated (and not execute) for format: %s",format);
         return false;
     }
 
@@ -350,7 +346,7 @@ bool Database::PExecuteLog(char const* format,...)
         else
         {
             // The file could not be opened
-            sLog.outError("SQL-Logging is disabled - Log file for the SQL commands could not be openend: %s",fName);
+            sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "SQL-Logging is disabled - Log file for the SQL commands could not be openend: %s",fName);
         }
     }
 
@@ -369,7 +365,7 @@ QueryResult* Database::PQuery(char const* format,...)
 
     if(res==-1)
     {
-        sLog.outError("SQL Query truncated (and not execute) for format: %s",format);
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "SQL Query truncated (and not execute) for format: %s",format);
         return nullptr;
     }
 
@@ -388,7 +384,7 @@ QueryNamedResult* Database::PQueryNamed(char const* format,...)
 
     if(res==-1)
     {
-        sLog.outError("SQL Query truncated (and not execute) for format: %s",format);
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "SQL Query truncated (and not execute) for format: %s",format);
         return nullptr;
     }
 
@@ -432,7 +428,7 @@ bool Database::PExecute(char const* format,...)
 
     if(res==-1)
     {
-        sLog.outError("SQL Query truncated (and not execute) for format: %s",format);
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "SQL Query truncated (and not execute) for format: %s",format);
         return false;
     }
 
@@ -452,7 +448,7 @@ bool Database::DirectPExecute(char const* format,...)
 
     if(res==-1)
     {
-        sLog.outError("SQL Query truncated (and not execute) for format: %s",format);
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "SQL Query truncated (and not execute) for format: %s",format);
         return false;
     }
 
@@ -551,23 +547,15 @@ void Database::AddToSerialDelayQueue(SqlOperation* op)
     // TODO: Load balance, must maintain mapping of serial ID so queries are
     // executed sequentially, however
     int worker = op->GetSerialId() % m_numAsyncWorkers;
-    m_serialDelayQueue[worker]->add(op);
-}
-
-bool Database::NextSerialDelayedOperation(int workerId, SqlOperation*& op)
-{
-    if (workerId >= m_numAsyncWorkers)
-        return false;
-
-    return m_serialDelayQueue[workerId]->next(op);
+    m_threadsBodies[worker]->addSerialOperation(op);
 }
 
 bool Database::HasAsyncQuery()
 {
     bool hasQuery = !m_delayQueue->empty_unsafe();
 
-    for (int i = 0; i < m_numAsyncWorkers && m_serialDelayQueue && !hasQuery; ++i)
-        hasQuery = !m_serialDelayQueue[i]->empty_unsafe();
+    for (uint32 i = 0; i < m_numAsyncWorkers && !hasQuery; ++i)
+        hasQuery = m_threadsBodies[i]->HasAsyncQuery();
 
     return hasQuery;
 }
@@ -611,20 +599,20 @@ bool Database::CheckRequiredMigrations(char const** migrations)
 
     if (!missingMigrations.empty())
     {
-        sLog.outErrorDb("Database `%s` is missing the following migrations:", dbName.c_str());
+        sLog.Out(LOG_DBERROR, LOG_LVL_MINIMAL, "Database `%s` is missing the following migrations:", dbName.c_str());
 
         for (std::set<std::string>::const_iterator it = missingMigrations.begin(); it != missingMigrations.end(); it++)
-            sLog.outErrorDb("\t%s", (*it).c_str());
+            sLog.Out(LOG_DBERROR, LOG_LVL_MINIMAL, "\t%s", (*it).c_str());
 
         return false;
     }
 
     if (!appliedMigrations.empty())
     {
-        sLog.outErrorDb("WARNING! Database `%s` has the following extra migrations:", dbName.c_str());
+        sLog.Out(LOG_DBERROR, LOG_LVL_MINIMAL, "WARNING! Database `%s` has the following extra migrations:", dbName.c_str());
 
         for (std::set<std::string>::const_iterator it = appliedMigrations.begin(); it != appliedMigrations.end(); it++)
-            sLog.outErrorDb("\t%s", (*it).c_str());
+            sLog.Out(LOG_DBERROR, LOG_LVL_MINIMAL, "\t%s", (*it).c_str());
     }
 
     return true;

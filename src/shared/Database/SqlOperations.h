@@ -24,12 +24,12 @@
 
 #include "Common.h"
 
-#include "ace/Thread_Mutex.h"
 #include "LockedQueue.h"
 #include <queue>
 #include "Utilities/Callback.h"
+#include <memory>
 
-/// ---- BASE ---
+// ---- BASE ---
 
 class Database;
 class SqlConnection;
@@ -50,7 +50,7 @@ class SqlOperation
         uint32 serialId;
 };
 
-/// ---- ASYNC STATEMENTS / TRANSACTIONS ----
+// ---- ASYNC STATEMENTS / TRANSACTIONS ----
 
 class SqlPlainRequest : public SqlOperation
 {
@@ -89,23 +89,27 @@ class SqlPreparedRequest : public SqlOperation
         SqlStmtParameters* m_param;
 };
 
-/// ---- ASYNC QUERIES ----
+// ---- ASYNC QUERIES ----
 
-class SqlQuery;                                             /// contains a single async query
-class QueryResult;                                          /// the result of one
-class SqlResultQueue;                                       /// queue for thread sync
-class SqlQueryHolder;                                       /// groups several async quries
-class SqlQueryHolderEx;                                     /// points to a holder, added to the delay thread
+class SqlQuery;                                             // contains a single async query
+class QueryResult;                                          // the result of one
+class SqlResultQueue;                                       // queue for thread sync
+class SqlQueryHolder;                                       // groups several async quries
+class SqlQueryHolderEx;                                     // points to a holder, added to the delay thread
 
-class SqlResultQueue : public ACE_Based::LockedQueue<MaNGOS::IQueryCallback* , ACE_Thread_Mutex>
+class ThreadPool;
+
+class SqlResultQueue : public LockedQueue<MaNGOS::IQueryCallback* , std::mutex>
 {
     public:
-        SqlResultQueue() : numUnsafeQueries(0) {}
+        SqlResultQueue();
+        ~SqlResultQueue();
         void CancelAll();
         void Update(uint32 maxTime);
-        typedef ACE_Based::LockedQueue<MaNGOS::IQueryCallback*, ACE_Thread_Mutex> CallbackQueue;
+        typedef LockedQueue<MaNGOS::IQueryCallback*, std::mutex> CallbackQueue;
         CallbackQueue _threadUnsafeWaitingQueries;
         uint32 numUnsafeQueries;
+        std::unique_ptr<ThreadPool> m_callbackThreads;
 };
 
 class SqlQuery : public SqlOperation

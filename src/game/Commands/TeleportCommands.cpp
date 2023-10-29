@@ -16,14 +16,12 @@
 
 #include "Common.h"
 #include "Database/DatabaseEnv.h"
-#include "World.h"
 #include "Player.h"
+#include "Group.h"
 #include "Chat.h"
 #include "ObjectAccessor.h"
 #include "Language.h"
 #include "ObjectMgr.h"
-#include "SystemConfig.h"
-#include "revision.h"
 #include "Util.h"
 
 bool ChatHandler::HandleTeleCommand(char* args)
@@ -1096,7 +1094,7 @@ bool ChatHandler::HandleUnstuckCommand(char* /*args*/)
         SendSysMessage(LANG_UNSTUCK_DEAD);
     }
 
-    sLog.outInfo("Player %s (guid %u) used unstuck command at map %u (%f, %f, %f).", pPlayer->GetName(), pPlayer->GetGUIDLow(), pPlayer->GetMapId(), pPlayer->GetPositionX(), pPlayer->GetPositionY(), pPlayer->GetPositionZ());
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Player %s (guid %u) used unstuck command at map %u (%f, %f, %f).", pPlayer->GetName(), pPlayer->GetGUIDLow(), pPlayer->GetMapId(), pPlayer->GetPositionX(), pPlayer->GetPositionY(), pPlayer->GetPositionZ());
     return true;
 }
 

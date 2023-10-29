@@ -44,9 +44,9 @@ enum blyAndCrewFactions
 
 enum blySays
 {
-    SAY_1       = -1209002, // What? How dare you say that to me?!?
-    SAY_2       = -1209003, // After all we've been through? Well, I didn't like you anyway!!
-    SAY_WEEGLI  = -1209004, // I'm out of here!
+    SAY_1       = 3882,
+    SAY_2       = 3884,
+    SAY_WEEGLI  = 3811
 };
 
 enum blySpells
@@ -111,7 +111,7 @@ struct npc_sergeant_blyAI : public ScriptedAI
                         //weegli doesn't fight - he goes & blows up the door
                         if (Creature* weegli = pInstance->instance->GetCreature(pInstance->GetData64(ENTRY_WEEGLI)))
                         {
-                            weegli->AI()->DoAction();
+                            weegli->AI()->OnScriptEventHappened();
                             DoScriptText(SAY_WEEGLI, weegli);
                         }
 
@@ -147,7 +147,7 @@ struct npc_sergeant_blyAI : public ScriptedAI
         DoMeleeAttackIfReady();
     }
 
-    void DoAction(uint32 const param) override
+    void OnScriptEventHappened(uint32 /*uiEvent*/ = 0, uint32 /*uiData*/ = 0, WorldObject* /*pInvoker*/ = 0) override
     {
         postGossipStep = 1;
         Text_Timer = 0;
@@ -169,7 +169,7 @@ bool OnGossipSelect_npc_sergeant_bly(Player* pPlayer, Creature* pCreature, uint3
         if (npc_sergeant_blyAI* ai = dynamic_cast<npc_sergeant_blyAI*>(pCreature->AI()))
         {
             ai->PlayerGUID = pPlayer->GetGUID();
-            ai->DoAction(0);
+            ai->OnScriptEventHappened();
         }
     }
     return true;
@@ -266,9 +266,9 @@ enum weegliSpells
 
 enum weegliSays
 {
-    SAY_WEEGLI_OHNO      = -1209000,
-    SAY_WEEGLI_OK_I_GO   = -1209001,
-    SAY_CHIEF_UKORZ_DOOR = -1209004
+    SAY_WEEGLI_OHNO      = 3744,
+    SAY_WEEGLI_OK_I_GO   = 3785,
+    SAY_CHIEF_UKORZ_DOOR = 6067
 };
 
 #define GOSSIP_WEEGLI               "Will you blow up that door now?"
@@ -369,7 +369,7 @@ struct npc_weegli_blastfuseAI : public ScriptedAI
         else
             Bomb_Timer -= diff;
 
-        if (m_creature->IsAttackReady() && !m_creature->IsWithinMeleeRange(m_creature->GetVictim()))
+        if (m_creature->IsAttackReady() && !m_creature->CanReachWithMeleeAutoAttack(m_creature->GetVictim()))
         {
             DoCastSpellIfCan(m_creature->GetVictim(), SPELL_SHOOT);
             m_creature->SetSheath(SHEATH_STATE_RANGED);
@@ -433,9 +433,8 @@ struct npc_weegli_blastfuseAI : public ScriptedAI
         }
     }
 
-    void DoAction(uint32 const param) override
+    void OnScriptEventHappened(uint32 /*uiEvent*/ = 0, uint32 /*uiData*/ = 0, WorldObject* /*pInvoker*/ = 0) override
     {
-        sLog.outString("DoAction de npc_weegli_blastfuse : Destruction porte");
         DestroyDoor();
     }
 
@@ -482,7 +481,7 @@ bool OnGossipSelect_npc_weegli_blastfuse(Player* pPlayer, Creature* pCreature, u
     {
         pPlayer->CLOSE_GOSSIP_MENU();
         //here we make him run to door, set the charge and run away off to nowhere
-        pCreature->AI()->DoAction();
+        pCreature->AI()->OnScriptEventHappened();
     }
     return true;
 }
@@ -577,11 +576,15 @@ bool OnTrigger_at_zumrah(Player* pPlayer, AreaTriggerEntry const *at)
 {
     Creature* pZumrah = pPlayer->FindNearestCreature(NPC_WITCH_DOCTOR_ZUMRAH, 30.0f);
 
-    if (!pZumrah)
+    if (!pZumrah || !pZumrah->IsAlive())
         return false;
 
     if (pZumrah->GetFactionTemplateId() != ZUMRAH_HOSTILE_FACTION)
     {
+        if (InstanceData* pInstance = pZumrah->GetInstanceData())
+            pInstance->SetData(EVENT_ZUMRAH, IN_PROGRESS);
+
+        pZumrah->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PLAYER);
         pZumrah->SetFactionTemplateId(ZUMRAH_HOSTILE_FACTION);
         DoScriptText(SAY_ZUMRAH_TRIGGER, pZumrah);
     }

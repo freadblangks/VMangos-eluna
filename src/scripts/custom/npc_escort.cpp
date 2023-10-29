@@ -12,7 +12,7 @@ struct npc_escort_genericAI : public npc_escortAI
         Reset();
         m_pEscortData = data;
         if (!m_pEscortData)
-            sLog.outError("npc_escort : La creature %u n'a pas de donnees dans la table `script_escort_data` ! Le PNJ sera inactif.");
+            sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "npc_escort : La creature %u n'a pas de donnees dans la table `script_escort_data` ! Le PNJ sera inactif.");
     }
 
     // ATTENTION : Peut etre nullptr
@@ -24,14 +24,14 @@ struct npc_escort_genericAI : public npc_escortAI
         {
             if (pPlayer->GetQuestStatus(m_pEscortData->uiQuestEntry) == QUEST_STATUS_INCOMPLETE)
             {
-                m_creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+                m_creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING);
                 m_creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PLAYER);
                 m_creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PVP);
             }
             else if (pPlayer->GetQuestStatus(m_pEscortData->uiQuestEntry) == QUEST_STATUS_FAILED)
             {
                 m_creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PVP);
-                m_creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+                m_creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING);
                 m_creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PLAYER);
             }
         }
@@ -46,7 +46,7 @@ struct npc_escort_genericAI : public npc_escortAI
 
         if (HasEscortState(STATE_ESCORT_ESCORTING))
         {
-            sLog.outDebug("EscortAI has left combat and is now returning to CombatStartPosition.");
+            sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "EscortAI has left combat and is now returning to CombatStartPosition.");
 
             if (HasEscortState(STATE_ESCORT_PAUSED))
             {
@@ -58,7 +58,7 @@ struct npc_escort_genericAI : public npc_escortAI
         else
         {
             m_creature->GetMotionMaster()->MoveTargetedHome();
-            sLog.outDebug("EscortAI has left combat and MoveTargetedHome()");
+            sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "EscortAI has left combat and MoveTargetedHome()");
         }
 
         Reset();
@@ -92,7 +92,7 @@ struct npc_escort_genericAI : public npc_escortAI
         if (!m_pEscortData)
             return;
 
-        m_creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+        m_creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING);
         m_creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PLAYER);
         m_creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PVP);
 

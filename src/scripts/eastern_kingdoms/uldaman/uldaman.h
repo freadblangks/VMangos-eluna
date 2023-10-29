@@ -33,9 +33,6 @@ enum
     DATA_ANCIENT_DOOR    = 11,
     DATA_ARCHAEDAS_ALTAR = 12,
     
-    FACTION_AWAKE      = 14,   // aggressive
-    FACTION_STONED     = 35,   // friendly
-    
     // Game Objects
     GO_ALTAR_ARCHAEDAS                 = 133234,
     GO_ALTAR_KEEPERS                   = 130511,
@@ -44,6 +41,7 @@ enum
     GO_ALTAR_OF_THE_KEEPER_TEMPLE_DOOR = 124367,
     GO_ANCIENT_VAULT_DOOR              = 124369,
     GO_KEYSTONE                        = 124371,
+    GO_ANCIENT_TREASURE                = 141979,
     
     // Npcs
     NPC_ARCHAEDAS          = 2748,

@@ -23,8 +23,6 @@
 #include "ObjectMgr.h"
 #include "Policies/SingletonImp.h"
 #include "Player.h"
-#include "WorldPacket.h"
-#include "Item.h"
 #include "Corpse.h"
 #include "GridNotifiers.h"
 #include "MapManager.h"
@@ -32,13 +30,12 @@
 #include "CellImpl.h"
 #include "GridNotifiersImpl.h"
 #include "ObjectGuid.h"
-#include "World.h"
 
 #include <cmath>
 
-typedef MaNGOS::ClassLevelLockable<ObjectAccessor, ACE_Thread_Mutex> ObjectAccessorLock;
+typedef MaNGOS::ClassLevelLockable<ObjectAccessor, std::mutex> ObjectAccessorLock;
 INSTANTIATE_SINGLETON_2(ObjectAccessor, ObjectAccessorLock);
-INSTANTIATE_CLASS_MUTEX(ObjectAccessor, ACE_Thread_Mutex);
+INSTANTIATE_CLASS_MUTEX(ObjectAccessor, std::mutex);
 
 ObjectAccessor::ObjectAccessor() {}
 ObjectAccessor::~ObjectAccessor()
@@ -133,7 +130,7 @@ MasterPlayer* ObjectAccessor::FindMasterPlayer(ObjectGuid guid)
     if (!guid)
         return nullptr;
 
-    return HashMapHolder<MasterPlayer>::Find(guid);;
+    return HashMapHolder<MasterPlayer>::Find(guid);
 }
 
 
@@ -326,12 +323,12 @@ void ObjectAccessor::RemoveObject(MasterPlayer* player)
     HashMapHolder<MasterPlayer>::Remove(player);
     playerNameToMasterPlayerPointer.erase(player->GetName());
 }
-/// Define the static member of HashMapHolder
+// Define the static member of HashMapHolder
 
 template <class T> typename HashMapHolder<T>::MapType HashMapHolder<T>::m_objectMap;
-template <class T> ACE_RW_Thread_Mutex HashMapHolder<T>::i_lock;
+template <class T> std::shared_timed_mutex HashMapHolder<T>::i_lock;
 
-/// Global definitions for the hashmap storage
+// Global definitions for the hashmap storage
 
 template class HashMapHolder<Player>;
 template class HashMapHolder<Corpse>;

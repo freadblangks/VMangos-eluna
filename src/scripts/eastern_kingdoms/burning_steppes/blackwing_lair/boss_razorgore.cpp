@@ -79,7 +79,7 @@ enum
 #define SPAWN_Y4_BIS -1012.5256f
 #define SPAWN_Z4_BIS 407.206f
 
-#define DEBUG_RAZOR(...) //sLog.outString("[MC/Razor] "__VA_ARGS__)
+#define DEBUG_RAZOR(...) //sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "[MC/Razor] "__VA_ARGS__)
 #define DEBUG_EMOTE(s)  //m_creature->MonsterTextEmote(s, nullptr);
 
 struct boss_razorgoreAI : public ScriptedAI
@@ -397,7 +397,7 @@ struct trigger_orb_of_commandAI : public ScriptedAI
             if (it->IsAlive())
             {
                 it->SetHomePosition(-7555.55f, -1025.16f, 408.4914f, 0.65f);
-                it->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_NPC | UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_PACIFIED | UNIT_FLAG_SILENCED);
+                it->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_NPC | UNIT_FLAG_SPAWNING | UNIT_FLAG_PACIFIED | UNIT_FLAG_SILENCED);
                 it->AI()->EnterEvadeMode();
             }
         }
@@ -587,7 +587,7 @@ struct trigger_orb_of_commandAI : public ScriptedAI
                 }
             }
             else
-                sLog.outError("[MC/Razor] Razorgore not found (GUID %lu)", m_pInstance->GetData64(DATA_RAZORGORE_GUID));
+                sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "[MC/Razor] Razorgore not found (GUID %lu)", m_pInstance->GetData64(DATA_RAZORGORE_GUID));
         }
 
         if (m_uiRazorgorePhase && m_uiCombatStarted)
@@ -664,11 +664,11 @@ struct trigger_orb_of_commandAI : public ScriptedAI
                         m_uiPossesseurGuid.Clear();
                     }
                     else
-                        sLog.outError("[MC/Razor] Unable to find the controller (%s)", m_uiPossesseurGuid.GetString().c_str());
+                        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "[MC/Razor] Unable to find the controller (%s)", m_uiPossesseurGuid.GetString().c_str());
                 }
             }
             else
-                sLog.outError("[MC/Razor] Razorgore not found (GUID %lu)", m_pInstance->GetData64(DATA_RAZORGORE_GUID));
+                sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "[MC/Razor] Razorgore not found (GUID %lu)", m_pInstance->GetData64(DATA_RAZORGORE_GUID));
             if (m_uiPopTimer < uiDiff)
             {
                 for (uint8 i = 0; i < 4; ++i)

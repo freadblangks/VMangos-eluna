@@ -16,7 +16,6 @@ enum
     SPELL_KILL_UROK_ADD     = 16452,
     SPELL_DESTROY_SPEAR     = 16557,
     SPELL_DESTROY_SPEAR2    = 16558,
-    SPELL_STRIKE            = 14516,
     SPELL_BLOODLUST         = 6742,
     SPELL_SLOW              = 13747,
     SPELL_ARCANE_BOLT       = 15979
@@ -24,7 +23,7 @@ enum
 
 void DefineGoChallenge(Creature * crea, uint64 gobjGUID);
 
-/// Script du GameObject de challenge (GO_CHALLENGE_UROK)
+// Challenge GameObject Script (GO_CHALLENGE_UROK)
 struct go_urok_challengeAI: public GameObjectAI
 {
     go_urok_challengeAI(GameObject* go) : GameObjectAI(go), _actived(true), _step(0), _timer(0), _spellTimer(0)
@@ -82,7 +81,7 @@ struct go_urok_challengeAI: public GameObjectAI
         {
             if (Creature* invoc = me->SummonCreature(entry, go->GetPositionX(), go->GetPositionY(), go->GetPositionZ(), 0, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 400000, false))
             {
-                invoc->SetRespawnDelay(600000);
+                invoc->SetRespawnDelay(7 * DAY);
                 // Visuel d'apparition
                 if (entry == NPC_UROK_DOOMHOWL)
                     invoc->SendSpellGo(invoc, SPELL_UROK_SUMMONED);
@@ -206,9 +205,7 @@ struct urokUnderlingAI : public ScriptedAI
     void Reset() override
     {
         timer=0;
-        abilityReset();
     }
-    virtual void abilityReset(){}
     uint32 timer;
     uint64 guidMound;
     void JustDied(Unit* pKiller) override
@@ -290,22 +287,13 @@ struct urokEnforcerAI : public urokUnderlingAI
 {
     urokEnforcerAI(Creature* pCreature) : urokUnderlingAI(pCreature)
     {
-        abilityReset();
     }
-    void abilityReset() override
-    {
-        m_uiStrike_Timer = 1000;
-    }
-    uint32 m_uiStrike_Timer;
+
     void abilityCombatUpdate(uint32 uiDiff) override
     {
-        if (m_uiStrike_Timer < uiDiff)
-        {
-            if (DoCastSpellIfCan(m_creature->GetVictim(), SPELL_STRIKE ) == CAST_OK)
-                m_uiStrike_Timer = urand(10000, 18000);
-        }
-        else
-            m_uiStrike_Timer -= uiDiff;
+        if (!m_CreatureSpells.empty())
+            UpdateSpellsList(uiDiff);
+
         DoMeleeAttackIfReady();
     }
 };

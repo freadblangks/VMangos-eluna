@@ -27,8 +27,8 @@
  EndContentData */
 
 #include "scriptPCH.h"
-#include "Database/DatabaseEnv.h"
 #include "HardcodedEvents.h"
+#include "CreatureGroups.h"
 
 enum
 {
@@ -150,7 +150,7 @@ struct go_pierre_ventsAI: public GameObjectAI
 
         bool playerHasAura = true;
 
-        ///- Check if allowed to use the stone ?
+        // Check if allowed to use the stone ?
         switch (GetStoneType())
         {
             // Pierre SUP
@@ -211,7 +211,7 @@ struct go_pierre_ventsAI: public GameObjectAI
         uint32 summonEntry = 0;
         uint32 textId = 0;
 
-        ///- Let's find out which mob we have to summon.
+        // Let's find out which mob we have to summon.
         switch (stoneType)
         {
             case GO_TYPE_PIERRE_SUP:
@@ -249,7 +249,7 @@ struct go_pierre_ventsAI: public GameObjectAI
         if (!summonEntry)
             return true;
 
-        ///- Destroy required items.
+        // Destroy required items.
         if (!player->ToPlayer()->IsGameMaster())
         {
             switch (stoneType)
@@ -268,7 +268,7 @@ struct go_pierre_ventsAI: public GameObjectAI
             }
         }
 
-        ///- Summon the creature
+        // Summon the creature
         if (Creature* pInvoc = me->SummonCreature(summonEntry, player->GetPositionX(), player->GetPositionY(), player->GetPositionZ(), me->GetAngle(player), TEMPSUMMON_TIMED_OR_DEAD_DESPAWN, 3600000, false, 5000))
         {
             player->CastSpell(player, SPELL_RED_LIGHTNING, true);
@@ -278,7 +278,7 @@ struct go_pierre_ventsAI: public GameObjectAI
                 pInvoc->MonsterSay(textId, 0, player);
         }
 
-        ///- Mark stone as used.
+        // Mark stone as used.
         me->UseDoorOrButton();
         if (stoneType == GO_TYPE_PIERRE_SUP)
             me->SetRespawnTime(3600);
@@ -476,9 +476,8 @@ struct npc_solenorAI : public ScriptedAI
         m_creature->ForcedDespawn();
     }
 
-    void SpellHit(Unit* pCaster, SpellEntry const* pSpell) override
+    void SpellHit(SpellCaster* pCaster, SpellEntry const* pSpell) override
     {
-
         if (pSpell && pSpell->Id == 14268)   // Wing Clip (Rank 3)
         {
             if (DoCastSpellIfCan(m_creature, SPELL_CRIPPLING_CLIP, CF_TRIGGERED) == CAST_OK)
@@ -1146,22 +1145,9 @@ struct npc_Emissary_RomankhanAI : public ScriptedAI
 {
     npc_Emissary_RomankhanAI(Creature* pCreature) : ScriptedAI(pCreature)
     {
-        pCreature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
-        pCreature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
-        pCreature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_NPC);
-        pCreature->SetVisibility(VISIBILITY_OFF);
-
-        OverlordCount = 0;
-        if (Creature* add = pCreature->SummonCreature(15288, -7233.39f, 906.415f, -1.76649f, 1.81259f, TEMPSUMMON_DEAD_DESPAWN, 0))   // Aluntir
-            add->JoinCreatureGroup(pCreature, 0, 0, OPTION_RESPAWN_TOGETHER);
-        if (Creature* add = pCreature->SummonCreature(15286, -7212.16f, 911.711f, -1.76649f, 2.58543f, TEMPSUMMON_DEAD_DESPAWN, 0))   // Xil'xix
-            add->JoinCreatureGroup(pCreature, 0, 0, OPTION_RESPAWN_TOGETHER);
-        if (Creature* add = pCreature->SummonCreature(15290, -7210.3f, 895.014f, -1.76649f, 0.544185f, TEMPSUMMON_DEAD_DESPAWN, 0))   // Arakis
-            add->JoinCreatureGroup(pCreature, 0, 0, OPTION_RESPAWN_TOGETHER);
         Reset();
     }
 
-    int OverlordCount;
     uint32 m_uiWiltTimer;
     uint32 m_uiSchockTimer;
     uint32 m_uiSanityTimer;
@@ -1182,18 +1168,6 @@ struct npc_Emissary_RomankhanAI : public ScriptedAI
 
         for (uint64 & guid : PlayerGuids)
             guid = 0;
-    }
-
-    void SummonedCreatureJustDied(Creature* unit) override
-    {
-        ++OverlordCount;
-        if (OverlordCount >= 3)
-        {
-            m_creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
-            m_creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
-            m_creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_NPC);
-            m_creature->SetVisibility(VISIBILITY_ON);
-        }
     }
 
     void Aggro(Unit* pWho) override
@@ -1375,6 +1349,8 @@ enum
     EMOTE_ANACHRONOS_PICKUP = -1000782,
     SAY_ANACHRONOS_EPILOGUE_8 = -1000783,
 
+    ITEM_SCEPTER_OF_THE_SHIFTING_SANDS = 20738,
+
     // The transform spell for Anachronos was removed from DBC
     //DISPLAY_ID_BRONZE_DRAGON = 15500,
 
@@ -1508,7 +1484,7 @@ struct npc_anachronos_the_ancientAI : public ScriptedAI
         AQopen = true;
 
         m_creature->SetRespawnDelay(DAY);
-        m_creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+        m_creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING);
     }
 
     void BeginScene()
@@ -1762,7 +1738,7 @@ struct npc_anachronos_the_ancientAI : public ScriptedAI
                 // Stop movement/attacks and freeze whole combat
                 pTemp->RemoveAllAttackers();
                 pTemp->AttackStop();
-                pTemp->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+                pTemp->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING);
                 pTemp->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
                 pTemp->AI()->EnterEvadeMode();
                 pTemp->StopMoving();
@@ -1927,7 +1903,7 @@ struct npc_anachronos_the_ancientAI : public ScriptedAI
                                 pMerithra->SetWalk(false);
                                 pMerithra->GetMotionMaster()->MovePoint(POINT_ID_DRAGON_ATTACK, pTrigger->GetPositionX(), pTrigger->GetPositionY(), pTrigger->GetPositionZ());
                                 pMerithra->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
-                                pMerithra->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+                                pMerithra->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING);
                                 pMerithra->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_NPC);
                             }
                         }
@@ -1980,7 +1956,7 @@ struct npc_anachronos_the_ancientAI : public ScriptedAI
                                 pArygos->SetWalk(false);
                                 pArygos->GetMotionMaster()->MovePoint(POINT_ID_DRAGON_ATTACK, pTrigger->GetPositionX(), pTrigger->GetPositionY(), pTrigger->GetPositionZ());
                                 pArygos->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
-                                pArygos->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+                                pArygos->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING);
                                 pArygos->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_NPC);
                             }
                         }
@@ -2036,7 +2012,7 @@ struct npc_anachronos_the_ancientAI : public ScriptedAI
                                 pCaelestrasz->SetWalk(false);
                                 pCaelestrasz->GetMotionMaster()->MovePoint(POINT_ID_DRAGON_ATTACK, pTrigger->GetPositionX(), pTrigger->GetPositionY(), pTrigger->GetPositionZ());
                                 pCaelestrasz->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
-                                pCaelestrasz->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+                                pCaelestrasz->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING);
                                 pCaelestrasz->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_NPC);
                             }
                         }
@@ -2156,23 +2132,24 @@ struct npc_anachronos_the_ancientAI : public ScriptedAI
                         m_uiEventTimer = 15000;
                         break;
                     case 40:
-                        // ToDo: Make Fandral equip the scepter
+                        m_creature->SetVirtualItem(VIRTUAL_ITEM_SLOT_0, ITEM_SCEPTER_OF_THE_SHIFTING_SANDS);
                         if (Creature* pFandral = m_creature->GetMap()->GetCreature(m_uiFandralGUID))
                             DoScriptText(EMOTE_ANACHRONOS_SCEPTER, m_creature, pFandral);
-                        m_creature->SetStandState(UNIT_STAND_STATE_KNEEL);
-                        m_uiEventTimer = 3000;
+                        m_uiEventTimer = 1500;
                         break;
                     case 41:
+                        m_creature->SetVirtualItem(VIRTUAL_ITEM_SLOT_0, 0);
+                        m_creature->HandleEmote(EMOTE_ONESHOT_BEG);
+                        m_uiEventTimer = 1500;
+                        break;
+                    case 42:
                         if (Creature* pFandral = m_creature->GetMap()->GetCreature(m_uiFandralGUID))
                         {
+                            pFandral->SetVirtualItem(VIRTUAL_ITEM_SLOT_0, ITEM_SCEPTER_OF_THE_SHIFTING_SANDS);
                             pFandral->SetStandState(UNIT_STAND_STATE_STAND);
                             DoScriptText(SAY_FANDRAL_EPILOGUE_4, pFandral);
                         }
                         m_uiEventTimer = 3000;
-                        break;
-                    case 42:
-                        m_creature->SetStandState(UNIT_STAND_STATE_STAND);
-                        m_uiEventTimer = 4000;
                         break;
                     case 43:
                         if (Creature* pFandral = m_creature->GetMap()->GetCreature(m_uiFandralGUID))
@@ -2184,6 +2161,7 @@ struct npc_anachronos_the_ancientAI : public ScriptedAI
                         {
                             pFandral->CastSpell(pFandral, SPELL_SHATTER_HAMMER, false);
                             DoScriptText(EMOTE_FANDRAL_SHATTER, pFandral);
+                            pFandral->SetVirtualItem(VIRTUAL_ITEM_SLOT_0, 0);
                         }
                         m_uiEventTimer = 3000;
                         break;
@@ -2238,7 +2216,7 @@ struct npc_anachronos_the_ancientAI : public ScriptedAI
                         //m_creature->SetDisplayId(DISPLAY_ID_BRONZE_DRAGON);
                         m_creature->SetWalk(true);
                         m_creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
-                        m_creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+                        m_creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING);
                         m_creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_NPC);
                         m_creature->CastSpell(m_creature, SPELL_BRONZE_DRAGON_TRANSFORM, false);
                         m_uiEventTimer = 1000;

@@ -149,9 +149,9 @@ namespace MaNGOS
     struct DynamicObjectUpdater
     {
         DynamicObject &i_dynobject;
-        WorldObject* i_check;
+        SpellCaster* i_check;
         bool i_positive;
-        DynamicObjectUpdater(DynamicObject &dynobject, WorldObject* caster, bool positive) : i_dynobject(dynobject), i_positive(positive)
+        DynamicObjectUpdater(DynamicObject &dynobject, SpellCaster* caster, bool positive) : i_dynobject(dynobject), i_positive(positive)
         {
             i_check = caster;
             Unit* owner = i_check->IsUnit() ? static_cast<Unit*>(i_check)->GetOwner() : nullptr;
@@ -595,6 +595,9 @@ namespace MaNGOS
                 if (goInfo->type != GAMEOBJECT_TYPE_SPELL_FOCUS)
                     return false;
 
+                if (!go->isSpawned())
+                    return false;
+
                 if (goInfo->spellFocus.focusId != i_focusId)
                     return false;
 
@@ -772,7 +775,7 @@ namespace MaNGOS
     class FriendlyCCedInRangeCheck
     {
         public:
-            FriendlyCCedInRangeCheck(WorldObject const* obj, float range) : i_obj(obj), i_range(range) {}
+            FriendlyCCedInRangeCheck(SpellCaster const* obj, float range) : i_obj(obj), i_range(range) {}
             WorldObject const& GetFocusObject() const { return *i_obj; }
             bool operator()(Unit* u)
             {
@@ -780,14 +783,14 @@ namespace MaNGOS
                     (u->IsCharmed() || u->IsFrozen() || u->HasUnitState(UNIT_STAT_CAN_NOT_REACT));
             }
         private:
-            WorldObject const* i_obj;
+            SpellCaster const* i_obj;
             float i_range;
     };
 
     class FriendlyMissingBuffInRangeCheck
     {
         public:
-            FriendlyMissingBuffInRangeCheck(WorldObject const* obj, float range, uint32 spellid) : i_obj(obj), i_range(range), i_spell(spellid) {}
+            FriendlyMissingBuffInRangeCheck(SpellCaster const* obj, float range, uint32 spellid) : i_obj(obj), i_range(range), i_spell(spellid) {}
             WorldObject const& GetFocusObject() const { return *i_obj; }
             bool operator()(Unit* u)
             {
@@ -795,7 +798,7 @@ namespace MaNGOS
                     !(u->HasAura(i_spell, EFFECT_INDEX_0) || u->HasAura(i_spell, EFFECT_INDEX_1) || u->HasAura(i_spell, EFFECT_INDEX_2));
             }
         private:
-            WorldObject const* i_obj;
+            SpellCaster const* i_obj;
             float i_range;
             uint32 i_spell;
     };
@@ -839,15 +842,58 @@ namespace MaNGOS
     class AnyFriendlyUnitInObjectRangeCheck
     {
         public:
-            AnyFriendlyUnitInObjectRangeCheck(WorldObject const* obj, float range) : i_obj(obj), i_range(range) {}
+            AnyFriendlyUnitInObjectRangeCheck(SpellCaster const* obj, float range) : i_obj(obj), i_range(range) {}
             WorldObject const& GetFocusObject() const { return *i_obj; }
             bool operator()(Unit* u)
             {
                 return u->IsAlive() && i_obj->IsWithinDistInMap(u, i_range) && i_obj->IsFriendlyTo(u) && u->CanSeeInWorld(i_obj);
             }
         private:
-            WorldObject const* i_obj;
+            SpellCaster const* i_obj;
             float i_range;
+    };
+
+    class AnySameFactionUnitInObjectRangeCheck
+    {
+    public:
+        AnySameFactionUnitInObjectRangeCheck(SpellCaster const* obj, float range) : i_obj(obj), i_range(range) {}
+        WorldObject const& GetFocusObject() const { return *i_obj; }
+        bool operator()(Unit* u)
+        {
+            return u->IsAlive() && i_obj->IsWithinDistInMap(u, i_range) && (i_obj->GetFactionTemplateId() == u->GetFactionTemplateId()) && u->CanSeeInWorld(i_obj);
+        }
+    private:
+        SpellCaster const* i_obj;
+        float i_range;
+    };
+
+    class AnyCreatureGroupMembersInObjectRangeCheck
+    {
+    public:
+        AnyCreatureGroupMembersInObjectRangeCheck(Creature const* obj, float range) : i_obj(obj), i_range(range) {}
+        WorldObject const& GetFocusObject() const { return *i_obj; }
+        bool operator()(Unit* u)
+        {
+            if (!u->IsAlive())
+                return false;
+            if (!u->IsCreature())
+                return false;
+            if (!i_obj->IsWithinDistInMap(u, i_range))
+                return false;
+            if (!u->CanSeeInWorld(i_obj))
+                return false;
+
+            if (i_obj->GetCreatureGroup() == static_cast<Creature*>(u)->GetCreatureGroup())
+                return true;
+
+            if (Creature* pOwner = u->GetOwnerCreature())
+                return i_obj->GetCreatureGroup() == static_cast<Creature*>(pOwner)->GetCreatureGroup();
+
+            return false;
+        }
+    private:
+        Creature const* i_obj;
+        float i_range;
     };
 
     class AnyUnitInObjectRangeCheck
@@ -872,7 +918,7 @@ namespace MaNGOS
             WorldObject const& GetFocusObject() const { return *i_obj; }
             bool operator()(Unit* u)
             {
-                if (i_owner && i_owner->IsPlayer() && u->IsPlayer() && !i_owner->IsPvP() && !i_owner->ToPlayer()->IsInDuelWith(u->ToPlayer()))
+                if (i_owner && !i_owner->CanAttackWithoutEnablingPvP(u))
                     return false;
 
                 if (i_obj->IsWithinDistInMap(u, i_range) && i_funit->IsValidAttackTarget(u) &&
@@ -897,24 +943,19 @@ namespace MaNGOS
     class AnyAoEVisibleTargetUnitInObjectRangeCheck
     {
         public:
-            AnyAoEVisibleTargetUnitInObjectRangeCheck(WorldObject const* obj, WorldObject const* originalCaster, float range)
+            AnyAoEVisibleTargetUnitInObjectRangeCheck(WorldObject const* obj, SpellCaster const* originalCaster, float range)
                 : i_obj(obj), i_originalCaster(originalCaster), i_range(range)
             {
-                i_targetForUnit = i_originalCaster->isType(TYPEMASK_UNIT);
             }
             WorldObject const& GetFocusObject() const { return *i_obj; }
             bool operator()(Unit* u)
             {
-                // Check contains checks for: live, non-selectable, non-attackable flags, flight check and GM check, ignore totems
-                if (!u->IsTargetableForAttack(false, i_originalCaster->IsPlayer()))
-                    return false;
-
                 // ignore totems as AoE targets
                 if (u->GetTypeId() == TYPEID_UNIT && ((Creature*)u)->IsImmuneToAoe())
                     return false;
 
                 // check visibility only for unit-like original casters
-                if (i_targetForUnit && !u->IsVisibleForOrDetect((Unit const*)i_originalCaster, i_originalCaster, false))
+                if (i_originalCaster->IsUnit() && !u->IsVisibleForOrDetect((Unit const*)i_originalCaster, i_originalCaster, false))
                     return false;
 
                 if (!u->CanSeeInWorld(i_obj))
@@ -923,33 +964,27 @@ namespace MaNGOS
                 if (!i_obj->IsWithinDistInMap(u, i_range))
                     return false;
 
-                if (i_targetForUnit)
-                    return i_originalCaster->ToUnit()->IsValidAttackTarget(u);
-                else // GameObject / Corpse case
-                    return i_originalCaster->IsHostileTo(u);
+                if (i_originalCaster->IsUnit() && !((Unit const*)i_originalCaster)->CanAttackWithoutEnablingPvP(u))
+                    return false;
+
+                return i_originalCaster->IsValidAttackTarget(u);
             }
         private:
             WorldObject const* i_obj;
-            WorldObject const* i_originalCaster;
+            SpellCaster const* i_originalCaster;
             float i_range;
-            bool i_targetForUnit;
     };
 
     class AnyAoETargetUnitInObjectRangeCheck
     {
         public:
-            AnyAoETargetUnitInObjectRangeCheck(WorldObject const* obj, WorldObject const* originalCaster, float range)
+            AnyAoETargetUnitInObjectRangeCheck(WorldObject const* obj, SpellCaster const* originalCaster, float range)
                 : i_obj(obj), i_originalCaster(originalCaster), i_range(range)
             {
-                i_targetForUnit = i_originalCaster->isType(TYPEMASK_UNIT);
             }
             WorldObject const& GetFocusObject() const { return *i_obj; }
             bool operator()(Unit* u)
             {
-                // Check contains checks for: live, non-selectable, non-attackable flags, flight check and GM check, ignore totems
-                if (!u->IsTargetableForAttack(false, i_originalCaster->IsPlayer()))
-                    return false;
-
                 // ignore totems as AoE targets
                 if (u->GetTypeId() == TYPEID_UNIT && ((Creature*)u)->IsImmuneToAoe())
                     return false;
@@ -960,16 +995,15 @@ namespace MaNGOS
                 if (!i_obj->IsWithinDistInMap(u, i_range))
                     return false;
 
-                if (i_targetForUnit)
-                    return i_originalCaster->ToUnit()->IsValidAttackTarget(u);
-                else // GameObject / Corpse case
-                    return i_originalCaster->IsHostileTo(u);
+                if (i_originalCaster->IsUnit() && !((Unit const*)i_originalCaster)->CanAttackWithoutEnablingPvP(u))
+                    return false;
+
+                return i_originalCaster->IsValidAttackTarget(u);
             }
         private:
             WorldObject const* i_obj;
-            WorldObject const* i_originalCaster;
+            SpellCaster const* i_originalCaster;
             float i_range;
-            bool i_targetForUnit;
     };
 
     // do attack at call of help to friendly crearture
@@ -984,19 +1018,21 @@ namespace MaNGOS
                 if (u == i_funit)
                     return;
 
-                if (!u->CanAssistTo(i_funit, i_enemy, false))
-                    return;
-
                 // too far
                 if (!i_funit->IsWithinDistInMap(u, i_range))
+                    return;
+
+                if (!u->CanBeTargetedByCallForHelp(i_funit, i_enemy, false))
                     return;
 
                 // only if see assisted creature
                 if (!i_funit->IsWithinLOSInMap(u))
                     return;
 
-                if (u->AI())
+                if (u->CanRespondToCallForHelpAgainst(i_enemy) && u->AI())
                     u->AI()->AttackStart(i_enemy);
+                else if (u->CanFleeFromCallForHelpAgainst(i_enemy))
+                    u->MoveAwayFromTarget(i_enemy, 10.0f);
             }
 
         private:
@@ -1037,7 +1073,7 @@ namespace MaNGOS
                 if (!u->CanSeeInWorld(i_funit))
                     return false;
 
-                return u->IsAlive() && u->IsHostileTo(i_funit) && i_funit->IsWithinDistInMap(u, u->GetAttackDistance(i_funit));
+                return u->IsAlive() && u->IsHostileTo(i_funit) && i_funit->IsWithinDistInMap(u, u->GetAttackDistance(i_funit), true, SizeFactor::None);
             }
         private:
             Unit* const i_funit;
@@ -1271,6 +1307,48 @@ namespace MaNGOS
             uint32 i_spellId;
     };
 
+    class NearestAlivePlayerCheck
+    {
+        public:
+            NearestAlivePlayerCheck(WorldObject const* source, float dist) : me(source), m_range(dist) {}
+            bool operator() (Player* pPlayer)
+            {
+                if (me == pPlayer)
+                    return false;
+
+                if (pPlayer->IsGameMaster())
+                    return false;
+
+                if (!pPlayer->IsAlive())
+                    return false;
+
+                if (!me->IsWithinDistInMap(pPlayer, m_range))
+                    return false;
+
+                m_range = me->GetDistance(pPlayer);   // use found unit range as new range limit for next check
+                return true;
+            }
+
+        private:
+            WorldObject const* me;
+            float m_range;
+    };
+
+    class PlayerAtMinimumRangeAway
+    {
+        public:
+            PlayerAtMinimumRangeAway(Unit const* unit, float fMinRange) : pUnit(unit), fRange(fMinRange) {}
+            bool operator() (Player* pPlayer)
+            {
+                //No threat list check, must be done explicit if expected to be in combat with creature
+                return !pPlayer->IsGameMaster() && pPlayer->IsAlive() && !pUnit->IsWithinDist(pPlayer,fRange,false);
+            }
+
+        private:
+            Unit const* pUnit;
+            float fRange;
+    };
+
     // Prepare using Builder localized packets with caching and send to player
     template<class Builder>
     class LocalizedPacketDo
@@ -1335,6 +1413,27 @@ namespace MaNGOS
             float m_fRange;
     };
 
+    class AllGameObjectsMatchingOneEntryInRange
+    {
+    public:
+        AllGameObjectsMatchingOneEntryInRange(WorldObject const* pObject, std::vector<uint32> const& entries, float fMaxRange)
+            : m_pObject(pObject), entries(entries), m_fRange(fMaxRange) {}
+        bool operator() (GameObject* pGo)
+        {
+            for (const auto entry : entries) {
+                if (pGo->GetEntry() == entry && m_pObject->IsWithinDist(pGo, m_fRange, false)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+    private:
+        WorldObject const* m_pObject;
+        std::vector<uint32> entries;
+        float m_fRange;
+    };
+
     class AllCreaturesOfEntryInRange
     {
     public:
@@ -1371,21 +1470,6 @@ namespace MaNGOS
         float m_fRange;
     };
 
-    class PlayerAtMinimumRangeAway
-    {
-        public:
-            PlayerAtMinimumRangeAway(Unit const* unit, float fMinRange) : pUnit(unit), fRange(fMinRange) {}
-            bool operator() (Player* pPlayer)
-            {
-                //No threat list check, must be done explicit if expected to be in combat with creature
-                return !pPlayer->IsGameMaster() && pPlayer->IsAlive() && !pUnit->IsWithinDist(pPlayer,fRange,false);
-            }
-
-        private:
-            Unit const* pUnit;
-            float fRange;
-    };
-
     class NearestUnitCheck
     {
         public:
@@ -1414,7 +1498,7 @@ namespace MaNGOS
     class NearestFriendlyUnitCheck
     {
         public:
-            explicit NearestFriendlyUnitCheck(Unit const* source, float dist = 0) : me(source)
+            explicit NearestFriendlyUnitCheck(WorldObject const* source, float dist = 0) : me(source)
             {
                 m_range = (dist == 0 ? 9999 : dist);
             }
@@ -1434,7 +1518,7 @@ namespace MaNGOS
             }
 
         private:
-            Unit const* me;
+            WorldObject const* me;
             float m_range;
             NearestFriendlyUnitCheck(NearestFriendlyUnitCheck const&);
     };
@@ -1443,7 +1527,7 @@ namespace MaNGOS
     class NearestHostileUnitCheck
     {
         public:
-            explicit NearestHostileUnitCheck(Unit const* source, float dist = 0) : me(source)
+            explicit NearestHostileUnitCheck(WorldObject const* source, float dist = 0) : me(source)
             {
                 m_range = (dist == 0 ? 9999 : dist);
             }
@@ -1455,7 +1539,10 @@ namespace MaNGOS
                 if (!me->IsWithinDistInMap(u, m_range))
                     return false;
 
-                if (!me->CanAttack(u))
+                if (!me->IsHostileTo(u))
+                    return false;
+
+                if (!me->IsValidAttackTarget(u))
                     return false;
 
                 m_range = me->GetDistance(u);   // use found unit range as new range limit for next check
@@ -1463,7 +1550,7 @@ namespace MaNGOS
             }
 
         private:
-            Unit const* me;
+            WorldObject const* me;
             float m_range;
             NearestHostileUnitCheck(NearestHostileUnitCheck const&);
     };
@@ -1477,16 +1564,16 @@ namespace MaNGOS
             }
             bool operator()(Unit* u)
             {
+                if (!u->IsWithinDistInMap(m_me, std::min(m_me->GetAttackDistance(u), m_dist), true, SizeFactor::None))
+                    return false;
+
+                if (!u->IsTargetableBy(m_me))
+                    return false;
+
                 if (!m_me->IsHostileTo(u))
                     return false;
 
                 if (!u->IsVisibleForOrDetect(m_me, m_me, false))
-                    return false;
-
-                if (!u->IsWithinDistInMap(m_me, std::min(m_me->GetAttackDistance(u), m_dist)))
-                    return false;
-
-                if (!u->IsTargetableForAttack())
                     return false;
 
                 if (m_ignoreCivilians && u->IsCreature() && static_cast<Creature*>(u)->IsCivilian())

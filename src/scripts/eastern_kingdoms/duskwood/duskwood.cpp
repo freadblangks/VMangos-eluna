@@ -14,6 +14,7 @@ npc_lord_ello_ebonlocke
 EndContentData */
 
 #include "scriptPCH.h"
+#include "CreatureGroups.h"
 
 enum NightmareCorruptionData
 {
@@ -42,7 +43,7 @@ void Handle_NightmareCorruption(/*const*/ Player* player)
 
         if (!corrupter)
         {
-            sLog.outError("Handle_NightmareCorruption: Could not summon creature %u for quest %u for player %s",
+            sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Handle_NightmareCorruption: Could not summon creature %u for quest %u for player %s",
                 NPC_TWILIGHT_CORRUPTER, QUEST_NIGHTMARE_CORRUPTION, player->GetName());
             return;
         }
@@ -644,7 +645,7 @@ struct npc_stitchesAI : npc_escortAI
             {
                 if (!HasEscortState(STATE_ESCORT_ESCORTING))
                 {
-                    sLog.outError("[Duskwood.Stitches] Emergency launch.");
+                    sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "[Duskwood.Stitches] Emergency launch.");
                     Start();
                 }
 
@@ -712,20 +713,12 @@ void elloEbonlockeAI::LaunchStitches(Creature* pStitches) const
         stitchesAI->Start();
     }
     else
-        sLog.outError("[Duskwood.Stitches] Failed to cast AI.");
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "[Duskwood.Stitches] Failed to cast AI.");
 }
 
 CreatureAI* GetAI_ElloEbonlocke(Creature* pCreature)
 {
     return new elloEbonlockeAI(pCreature);
-}
-
-bool GossipHello_npc_lord_ello_ebonlocke(Player* pPlayer, Creature* pCreature)
-{
-    /** Show quest menu */
-    pPlayer->PrepareQuestMenu(pCreature->GetGUID());
-    pPlayer->SEND_GOSSIP_MENU(pPlayer->GetGossipTextId(pCreature), pCreature->GetObjectGuid());
-    return true;
 }
 
 bool QuestRewarded_npc_lord_ello_ebonlocke(Player* pPlayer, Creature* pCreature, Quest const* pQuest)
@@ -767,7 +760,6 @@ void AddSC_duskwood()
     newscript->Name = "npc_lord_ello_ebonlocke";
     newscript->GetAI = &GetAI_ElloEbonlocke;
     newscript->pQuestRewardedNPC = &QuestRewarded_npc_lord_ello_ebonlocke;
-    newscript->pGossipHello = &GossipHello_npc_lord_ello_ebonlocke;
     newscript->RegisterSelf();
 
     newscript = new Script;

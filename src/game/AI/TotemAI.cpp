@@ -32,14 +32,14 @@
 int TotemAI::Permissible(Creature const* creature)
 {
     if (creature->IsTotem())
-        return PERMIT_BASE_PROACTIVE;
+        return PERMIT_BASE_SPECIAL;
 
     return PERMIT_BASE_NO;
 }
 
 TotemAI::TotemAI(Creature* pCreature) : CreatureAI(pCreature)
 {
-    pCreature->AddUnitState(UNIT_STAT_IGNORE_MOVE_LOS);
+    pCreature->AddUnitState(UNIT_STAT_NO_SEARCH_FOR_OTHERS);
 
     if (Totem const* pTotem = pCreature->ToTotem())
     {
@@ -50,7 +50,7 @@ TotemAI::TotemAI(Creature* pCreature) : CreatureAI(pCreature)
     {
         m_spellId = m_creature->GetCreatureInfo()->spells[0];
         SpellEntry const* totemSpell = sSpellMgr.GetSpellEntry(m_spellId);
-        if (totemSpell && totemSpell->GetCastTime())
+        if (totemSpell && totemSpell->GetCastTime(m_creature))
             m_totemType = TOTEM_ACTIVE;
         else
         {
@@ -65,6 +65,9 @@ TotemAI::TotemAI(Creature* pCreature) : CreatureAI(pCreature)
 
 void TotemAI::UpdateAI(uint32 const /*diff*/)
 {
+    if (!m_creature->HasUnitState(UNIT_STAT_ROOT))
+        m_creature->AddUnitState(UNIT_STAT_ROOT);
+
     if (m_totemType != TOTEM_ACTIVE)
         return;
 

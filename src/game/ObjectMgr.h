@@ -21,24 +21,19 @@
 #define _OBJECTMGR_H
 
 #include "Common.h"
-#include "Log.h"
 #include "Object.h"
-#include "Bag.h"
-#include "Creature.h"
-#include "Player.h"
+#include "CreatureDefines.h"
 #include "GameObject.h"
 #include "Corpse.h"
 #include "QuestDef.h"
 #include "ItemPrototype.h"
 #include "NPCHandler.h"
 #include "Database/DatabaseEnv.h"
-#include "Map.h"
 #include "MapPersistentStateMgr.h"
 #include "ObjectAccessor.h"
 #include "ObjectGuid.h"
 #include "Policies/Singleton.h"
 #include "SQLStorages.h"
-#include "Conditions.h"
 
 #include <string>
 #include <map>
@@ -130,30 +125,9 @@ struct SoundEntriesEntry
     std::string     Name;
 };
 
-// Number of spells in one template
-#define CREATURE_SPELLS_MAX_SPELLS 8
-// Columns in the db for each spell
-#define CREATURE_SPELLS_MAX_COLUMNS 11
-
-struct CreatureSpellsEntry
-{
-    uint16 const spellId;
-    uint8 const  probability;
-    uint8 const  castTarget;
-    uint32 const targetParam1;
-    uint32 const targetParam2;
-    uint16 const  castFlags;
-    uint32 const delayInitialMin;
-    uint32 const delayInitialMax;
-    uint32 const delayRepeatMin;
-    uint32 const delayRepeatMax;
-    uint32 const scriptId;
-    CreatureSpellsEntry(uint16 Id, uint8 Probability, uint8 CastTarget, uint32 TargetParam1, uint32 TargetParam2, uint16 CastFlags, uint32 InitialMin, uint32 InitialMax, uint32 RepeatMin, uint32 RepeatMax, uint32 ScriptId) : spellId(Id), probability(Probability), castTarget(CastTarget), targetParam1(TargetParam1), targetParam2(TargetParam2), castFlags(CastFlags), delayInitialMin(InitialMin), delayInitialMax(InitialMax), delayRepeatMin(RepeatMin), delayRepeatMax(RepeatMax), scriptId(ScriptId) {}
-};
-
-typedef std::vector<CreatureSpellsEntry> CreatureSpellsList;
-
 typedef std::unordered_map<uint32, CreatureSpellsList> CreatureSpellsMap;
+typedef std::unordered_map<uint32, std::vector<CreatureClassLevelStats>> CreatureCLSMap;
+typedef std::unordered_map<uint32, EquipmentTemplate> CreatureEquipmentMap;
 
 typedef std::map<uint32/*player guid*/,uint32/*instance*/> CellCorpseSet;
 struct CellObjectGuids
@@ -228,6 +202,7 @@ class FindCreatureData
 typedef std::unordered_map<uint32, FactionEntry> FactionsMap;
 typedef std::unordered_map<uint32, FactionTemplateEntry> FactionTemplatesMap;
 typedef std::unordered_map<uint32, SoundEntriesEntry> SoundEntryMap;
+typedef std::unordered_map<uint32, ItemPrototype> ItemPrototypeMap;
 
 typedef std::unordered_map<uint32,GameObjectData> GameObjectDataMap;
 typedef GameObjectDataMap::value_type GameObjectDataPair;
@@ -252,6 +227,12 @@ class FindGOData
         float i_spawnedDist;
 };
 
+struct AreaTriggerLocale
+{
+    std::vector<std::string> message;
+};
+
+typedef std::unordered_map<uint32, AreaTriggerLocale> AreaTriggerLocaleMap;
 typedef std::unordered_map<uint32,CreatureLocale> CreatureLocaleMap;
 typedef std::unordered_map<uint32,GameObjectLocale> GameObjectLocaleMap;
 typedef std::unordered_map<uint32,ItemLocale> ItemLocaleMap;
@@ -273,12 +254,12 @@ typedef std::pair<QuestRelationsMap::const_iterator, QuestRelationsMap::const_it
 
 struct PetLevelInfo
 {
-    PetLevelInfo() : health(0), mana(0), armor(0) { for (uint16 & stat : stats) stat = 0; }
-
-    uint16 stats[MAX_STATS];
-    uint16 health;
-    uint16 mana;
-    uint16 armor;
+    uint16 stats[MAX_STATS] = {};
+    uint16 health = 0;
+    uint16 mana = 0;
+    uint16 armor = 0;
+    float dmgMin = 0.0f;
+    float dmgMax = 0.0f;
 };
 
 // We assume the rate is in general the same for all three types below, but chose to keep three for scalability and customization
@@ -392,7 +373,7 @@ enum SkillRangeType
     SKILL_RANGE_NONE,                                       // 0..0 always
 };
 
-SkillRangeType GetSkillRangeType(SkillLineEntry const* pSkill, bool racial);
+SkillRangeType GetSkillRangeType(SkillLineEntry const* skill, SkillRaceClassInfoEntry const* rcEntry);
 
 #define MAX_PLAYER_NAME          12                         // max allowed by client name length
 #define MAX_INTERNAL_PLAYER_NAME 15                         // max server internal player name length ( > MAX_PLAYER_NAME for support declined names )
@@ -456,7 +437,7 @@ struct PlayerCacheData
     float fOrientation;
     bool bInFlight;
 };
-typedef std::map<uint32 /*guid*/, PlayerCacheData*> PlayerCacheDataMap;
+typedef std::map<uint32 /*guid*/, PlayerCacheData> PlayerCacheDataMap;
 
 struct FactionChangeMountData
 {
@@ -517,9 +498,10 @@ enum PermVariables
     EVENT_IND_WATER = 3,
 
     // Stranglethorn Fishing Extravaganza support
-    VAR_TOURNAMENT  = 30021,    // last quest completion time
-    VAR_TOURN_GOES  = 30022,    // tournament was started already
-    VAR_TOURN_OVER  = 30023,    // tournament is over
+    VAR_STV_FISHING_PREV_WIN_TIME         = 30021, // last master angler quest completion time
+    VAR_STV_FISHING_ANNOUNCE_EVENT_BEGIN  = 30022, // announce tournament start
+    VAR_STV_FISHING_ANNOUNCE_POOLS_DESPAN = 30023, // announce tournament over
+    VAR_STV_FISHING_HAS_WINNER            = 30056, // used for gosssip menu condition
 
     // War Effort shared contributions
     VAR_WE_ALLIANCE_COPPER          = 30024,
@@ -613,6 +595,7 @@ class ObjectMgr
 
         typedef std::unordered_map<uint32, AreaTriggerEntry> AreaTriggerMap;
         typedef std::map<uint32, AreaTriggerTeleport> AreaTriggerTeleportMap;
+
         typedef std::unordered_map<uint32, BattlegroundEntranceTrigger> BGEntranceTriggerMap;
 
         typedef std::unordered_map<uint32, RepRewardRate > RepRewardRateMap;
@@ -628,8 +611,8 @@ class ObjectMgr
 
         static GameObjectInfo const* GetGameObjectInfo(uint32 id) { return sGOStorage.LookupEntry<GameObjectInfo>(id); }
 
-        void LoadGameobjectInfo();
-        void CheckGameObjectInfos();
+        std::set<uint32> LoadGameobjectInfo();
+        std::set<uint32> CheckGameObjectInfos();
         void AddGameobjectInfo(GameObjectInfo* goinfo);
         void LoadGameObjectDisplayInfoAddon();
         void LoadGameobjectsRequirements();
@@ -648,13 +631,33 @@ class ObjectMgr
         CreatureDisplayInfoAddon const* GetCreatureDisplayInfoAddon(uint32 display_id);
         CreatureDisplayInfoAddon const* GetCreatureDisplayInfoRandomGender(uint32 display_id);
 
-        EquipmentInfo const* GetEquipmentInfo(uint32 entry);
+        EquipmentTemplate const* GetEquipmentTemplate(uint32 entry)
+        {
+            auto itr = m_CreatureEquipmentMap.find(entry);
+            if (itr != m_CreatureEquipmentMap.end())
+                return &itr->second;
+            return nullptr;
+        }
         static CreatureDataAddon const* GetCreatureAddon(uint32 lowguid)
         {
             return sCreatureDataAddonStorage.LookupEntry<CreatureDataAddon>(lowguid);
         }
 
-        static ItemPrototype const* GetItemPrototype(uint32 id) { return sItemStorage.LookupEntry<ItemPrototype>(id); }
+        ItemPrototype const* GetItemPrototype(uint32 id) const
+        {
+            auto iter = m_itemPrototypesMap.find(id);
+            if (iter == m_itemPrototypesMap.end())
+                return nullptr;
+
+            return &iter->second;
+        }
+
+        ItemPrototypeMap const& GetItemPrototypeMap() const
+        {
+            return m_itemPrototypesMap;
+        }
+
+        CreatureClassLevelStats const* GetCreatureClassLevelStats(uint32 unitClass, uint32 level) const;
 
         PetLevelInfo const* GetPetLevelInfo(uint32 creature_id, uint32 level) const;
 
@@ -696,6 +699,8 @@ class ObjectMgr
         TaxiNodesEntry const* GetTaxiNodeEntry(uint32 id) const { return id < GetMaxTaxiNodeId() ? m_TaxiNodes[id].get() : nullptr; }
         uint32 GetMaxTaxiNodeId() const { return m_TaxiNodes.size(); }
 
+        ObjectGuid GetFullTransportGuidFromLowGuid(uint32 lowGuid);
+
         Quest const* GetQuestTemplate(uint32 quest_id) const
         {
             auto itr = m_QuestTemplatesMap.find(quest_id);
@@ -724,7 +729,8 @@ class ObjectMgr
             return m_GameObjectForQuestSet.find(entry) != m_GameObjectForQuestSet.end();
         }
 
-        WorldSafeLocsEntry const* GetClosestGraveYard(float x, float y, float z, uint32 MapId, Team team);
+        WorldSafeLocsEntry const* GetClosestGraveYard(float x, float y, float z, uint32 mapId, Team team);
+        WorldSafeLocsEntry const* GetClosestGraveYardForArea(uint32 areaOrZoneId, float x, float y, float z, uint32 mapId, Team team);
         bool AddGraveYardLink(uint32 id, uint32 zone, Team team, bool inDB = true);
         void RemoveGraveYardLink(uint32 id, uint32 zone, Team team, bool inDB = false);
         void LoadGraveyardZones();
@@ -840,6 +846,7 @@ class ObjectMgr
         void LoadCreatureAddons();
         void LoadCreatureDisplayInfoAddon();
         void LoadCreatureSpells();
+        void LoadCreatureClassLevelStats();
         void LoadEquipmentTemplates();
         void LoadGameObjectLocales();
         void LoadGameobjects(bool reload = false);
@@ -864,6 +871,7 @@ class ObjectMgr
         void LoadAreaTriggerTeleports();
         void LoadQuestAreaTriggers();
         void LoadTavernAreaTriggers();
+        void LoadAreaTriggerLocales();
         void LoadGameObjectForQuests();
         void LoadBattlegroundEntranceTriggers();
 
@@ -994,6 +1002,13 @@ class ObjectMgr
             return &itr->second;
         }
 
+        AreaTriggerLocale const* GetAreaTriggerLocale(uint32 entry) const
+        {
+            auto itr = m_AreaTriggerLocaleMap.find(entry);
+            if (itr == m_AreaTriggerLocaleMap.end()) return nullptr;
+            return &itr->second;
+        }
+
         GameObjectLocale const* GetGameObjectLocale(uint32 entry) const
         {
             auto itr = m_GameObjectLocaleMap.find(entry);
@@ -1116,12 +1131,11 @@ class ObjectMgr
         // global grid objects state (static DB spawns, global spawn mods from gameevent system)
         CellObjectGuids const& GetCellObjectGuids(uint16 mapid, uint32 cell_id)
         {
-            m_MapObjectGuids_lock.acquire();
+            std::unique_lock<std::mutex> lock(m_MapObjectGuids_lock);
             CellObjectGuids const& guids = m_MapObjectGuids[mapid][cell_id];
-            m_MapObjectGuids_lock.release();
             return guids;
         }
-        ACE_Thread_Mutex& GetCellLoadingObjectsMutex() // TODO: Mutex per cell?
+        std::mutex& GetCellLoadingObjectsMutex() // TODO: Mutex per cell?
         {
             return m_MapObjectGuids_lock;
         }
@@ -1146,8 +1160,6 @@ class ObjectMgr
 
         int GetIndexForLocale(LocaleConstant loc);
         LocaleConstant GetLocaleForIndex(int i);
-
-        bool IsConditionSatisfied(uint32 conditionId, WorldObject const* target, Map const* map, WorldObject const* source, ConditionSource conditionSourceType) const;
 
         GameTele const* GetGameTele(uint32 id) const
         {
@@ -1208,7 +1220,7 @@ class ObjectMgr
 
         void AddVendorItem(uint32 entry,uint32 item, uint32 maxcount, uint32 incrtime, uint32 itemflags);
         bool RemoveVendorItem(uint32 entry,uint32 item);
-        bool IsVendorItemValid(bool isTemplate, char const* tableName, uint32 vendor_entry, uint32 item, uint32 maxcount, uint32 incrtime, uint32 conditionId, Player* pl = nullptr, std::set<uint32>* skip_vendors = nullptr) const;
+        bool IsVendorItemValid(bool isTemplate, char const* tableName, uint32 vendor_entry, uint32 item, uint32 maxcount, uint32 incrtime, uint32 conditionId, Player* pl = nullptr) const;
 
         int GetOrNewIndexForLocale(LocaleConstant loc);
 
@@ -1265,10 +1277,11 @@ class ObjectMgr
         SavedVariablesVector m_SavedVariables;
 
         // Caching Player Data
-        void LoadPlayerCacheData();
-        PlayerCacheData* GetPlayerDataByGUID(uint32 lowGuid) const;
-        PlayerCacheData* GetPlayerDataByName(std::string const& name) const;
-        void GetPlayerDataForAccount(uint32 accountId, std::list<PlayerCacheData*>& data) const;
+        void LoadPlayerCacheData(uint32 lowGuid = 0);
+        PlayerCacheData* GetPlayerDataByGUID(uint32 lowGuid);
+        PlayerCacheData const* GetPlayerDataByGUID(uint32 lowGuid) const;
+        PlayerCacheData const* GetPlayerDataByName(std::string const& name) const;
+        void GetPlayerDataForAccount(uint32 accountId, std::vector<PlayerCacheData const*>& data) const;
         PlayerCacheData* InsertPlayerInCache(Player* pPlayer);
         PlayerCacheData* InsertPlayerInCache(uint32 lowGuid, uint32 race, uint32 _class, uint32 uiGender, uint32 account, std::string const& name, uint32 level, uint32 zoneId);
         void DeletePlayerFromCache(uint32 lowGuid);
@@ -1505,15 +1518,19 @@ class ObjectMgr
         FishingBaseSkillMap m_FishingBaseSkillMap;
 
         typedef std::map<uint32,std::vector<std::string> > HalfNameMap;
+
         HalfNameMap m_PetHalfNameMap0;
         HalfNameMap m_PetHalfNameMap1;
 
         MapObjectGuids m_MapObjectGuids;
-        ACE_Thread_Mutex m_MapObjectGuids_lock;
+        std::mutex m_MapObjectGuids_lock;
 
+        AreaTriggerLocaleMap m_AreaTriggerLocaleMap;
         CreatureDataMap m_CreatureDataMap;
         CreatureLocaleMap m_CreatureLocaleMap;
         CreatureSpellsMap m_CreatureSpellsMap;
+        CreatureCLSMap m_CreatureCLSMap;
+        CreatureEquipmentMap m_CreatureEquipmentMap;
         GameObjectDataMap m_GameObjectDataMap;
         GameObjectLocaleMap m_GameObjectLocaleMap;
         ItemLocaleMap m_ItemLocaleMap;
@@ -1532,6 +1549,7 @@ class ObjectMgr
         FactionTemplatesMap m_FactionTemplatesMap;
 
         SoundEntryMap m_SoundEntriesMap;
+        ItemPrototypeMap m_itemPrototypesMap;
 
         typedef std::vector<std::unique_ptr<SkillLineAbilityEntry>> SkillLineAbiilityStore;
         SkillLineAbiilityStore m_SkillLineAbilities;

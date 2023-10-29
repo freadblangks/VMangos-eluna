@@ -21,6 +21,7 @@
 
 #include "Util.h"
 #include "Timer.h"
+#include "Log.h"
 
 #include "utf8cpp/utf8.h"
 #include "mersennetwister/MersenneTwister.h"
@@ -80,7 +81,7 @@ uint32 WorldTimer::tick()
     m_iPrevTime = m_iTime;
 
     //get the new one and don't forget to persist current system time in m_SystemTickTime
-    m_iTime = WorldTimer::getMSTime_internal(true);
+    m_iTime = WorldTimer::getMSTime_internal();
 
     //return tick diff
     return getMSTimeDiff(m_iPrevTime, m_iTime);
@@ -91,7 +92,7 @@ uint32 WorldTimer::getMSTime()
     return getMSTime_internal();
 }
 
-uint32 WorldTimer::getMSTime_internal(bool /*savetime*/ /*= false*/)
+uint32 WorldTimer::getMSTime_internal()
 {
     //get current time
     ACE_Time_Value const currTime = ACE_OS::gettimeofday();
@@ -223,6 +224,38 @@ void stripLineInvisibleChars(std::string &str)
         str.erase(wpos,str.size());
 }
 
+void stripLineInvisibleChars(char* str)
+{
+    static std::string invChars = " \t\7\n";
+
+    size_t wpos = 0;
+
+    bool space = false;
+    size_t pos = 0;
+    for (; str[pos] != '\0'; ++pos)
+    {
+        if (invChars.find(str[pos]) != std::string::npos)
+        {
+            if (!space)
+            {
+                str[wpos++] = ' ';
+                space = true;
+            }
+        }
+        else
+        {
+            if (wpos != pos)
+                str[wpos++] = str[pos];
+            else
+                ++wpos;
+            space = false;
+        }
+    }
+
+    for (; wpos < pos; wpos++)
+        str[wpos] = '\0';
+}
+
 std::string secsToTimeString(time_t timeInSecs, bool shortText, bool hoursOnly)
 {
     time_t secs    = timeInSecs % MINUTE;
@@ -324,7 +357,7 @@ std::string TimeToTimestampStr(time_t t)
     return std::string(buf);
 }
 
-/// Check if the string is a valid ip address representation
+// Check if the string is a valid ip address representation
 bool IsIPAddress(char const* ipaddress)
 {
     if(!ipaddress)
@@ -335,7 +368,7 @@ bool IsIPAddress(char const* ipaddress)
     return ACE_OS::inet_addr(ipaddress) != INADDR_NONE;
 }
 
-/// create PID file
+// create PID file
 uint32 CreatePIDFile(std::string const& filename)
 {
     FILE* pid_file = fopen (filename.c_str(), "w");
@@ -564,4 +597,64 @@ void HexStrToByteArray(std::string const& str, uint8* out, bool reverse /*= fals
         char buffer[3] = { str[i], str[i + 1], '\0' };
         out[j++] = strtoul(buffer, nullptr, 16);
     }
+}
+
+int32 dither(float v)
+{
+    return std::copysign(std::floor(std::abs(v) + frand(0,1)), v);
+}
+
+uint32 ditheru(float v)
+{
+    return std::copysign(std::floor(std::abs(v) + frand(0,1)), v);
+}
+
+void SetByteValue(uint32& variable, uint8 offset, uint8 value)
+{
+    if (offset > 4)
+    {
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Utility::SetByteValue: wrong offset %u", offset);
+        return;
+    }
+
+    if (uint8(variable >> (offset * 8)) != value)
+    {
+        variable &= ~uint32(uint32(0xFF) << (offset * 8));
+        variable |= uint32(uint32(value) << (offset * 8));
+    }
+}
+
+void SetUInt16Value(uint32& variable, uint8 offset, uint16 value)
+{
+    if (offset > 2)
+    {
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Utility::SetUInt16Value: wrong offset %u", offset);
+        return;
+    }
+
+    if (uint16(variable >> (offset * 16)) != value)
+    {
+        variable &= ~uint32(uint32(0xFFFF) << (offset * 16));
+        variable |= uint32(uint32(value) << (offset * 16));
+    }
+}
+
+std::string FlagsToString(uint32 flags, ValueToStringFunc getNameFunc)
+{
+    if (!flags)
+        return "None";
+
+    std::string names;
+    for (uint32 i = 0; i < 32; i++)
+    {
+        uint32 flag = 1 << i;
+        if (flags & flag)
+        {
+            if (!names.empty())
+                names += ", ";
+
+            names += getNameFunc(flag);
+        }
+    }
+    return names;
 }

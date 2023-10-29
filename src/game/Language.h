@@ -282,7 +282,7 @@ enum MangosStrings
     LANG_COMMAND_ADDVENDORITEMITEMS     = 280,
     LANG_COMMAND_KICKSELF               = 281,
     LANG_COMMAND_KICKMESSAGE            = 282,
-    //                                    283, not used
+    LANG_ACCOUNT_WARNED                 = 283,
     LANG_COMMAND_WHISPERACCEPTING       = 284,
     LANG_COMMAND_WHISPERON              = 285,
     LANG_COMMAND_WHISPEROFF             = 286,
@@ -637,25 +637,6 @@ enum MangosStrings
     LANG_GMLIST_EMPTY                   = 599,
     // End Level 3 list, continued at 1100
 
-    // Battleground
-    LANG_BG_A_WINS                      = 600,
-    LANG_BG_H_WINS                      = 601,
-
-    LANG_BG_WS_START_ONE_MINUTE         = 602,
-    LANG_BG_WS_START_HALF_MINUTE        = 603,
-    LANG_BG_WS_HAS_BEGUN                = 604,
-
-    LANG_BG_WS_CAPTURED_HF              = 605,
-    LANG_BG_WS_CAPTURED_AF              = 606,
-    LANG_BG_WS_DROPPED_HF               = 607,
-    LANG_BG_WS_DROPPED_AF               = 608,
-    LANG_BG_WS_RETURNED_AF              = 609,
-    LANG_BG_WS_RETURNED_HF              = 610,
-    LANG_BG_WS_PICKEDUP_HF              = 611,
-    LANG_BG_WS_PICKEDUP_AF              = 612,
-    LANG_BG_WS_F_PLACED                 = 613,
-    LANG_BG_WS_ALLIANCE_FLAG_RESPAWNED  = 614,
-    LANG_BG_WS_HORDE_FLAG_RESPAWNED     = 615,
     LANG_COMMAND_SOUND_NOT_FOUND        = 617,
     LANG_COMMAND_SOUND_LIST             = 618,
 
@@ -691,7 +672,7 @@ enum MangosStrings
     LANG_YOU_SET_IGNORE_TRIGGERS        = 647,
     LANG_YOUR_IGNORE_TRIGGERS_SET       = 648,
 
-    // 639 - 649 not used
+    // 649 not used
     LANG_BG_ALLY                        = 650,
     LANG_BG_HORDE                       = 651,
 
@@ -705,11 +686,6 @@ enum MangosStrings
     LANG_BG_AB_NODE_ASSAULTED           = 659,
     LANG_BG_AB_NODE_CLAIMED             = 660,
 
-    LANG_BG_AB_START_ONE_MINUTE         = 661,
-    LANG_BG_AB_START_HALF_MINUTE        = 662,
-    LANG_BG_AB_HAS_BEGUN                = 663,
-    LANG_BG_AB_A_NEAR_VICTORY           = 664,
-    LANG_BG_AB_H_NEAR_VICTORY           = 665,
     LANG_BG_MARK_BY_MAIL                = 666,
     LANG_NARAIN_LETTER                  = 667,
 
@@ -734,6 +710,13 @@ enum MangosStrings
     //LANG_BG_EY_CAPTURED_FLAG_H        = 685,
     //LANG_BG_EY_DROPPED_FLAG           = 686,
     //LANG_BG_EY_RESETED_FLAG           = 687,
+
+    LANG_YOU_SET_IMMUNE_PC              = 688,
+    LANG_YOUR_IMMUNE_PC_SET             = 689,
+    LANG_YOU_SET_IMMUNE_NPC             = 690,
+    LANG_YOUR_IMMUNE_NPC_SET            = 691,
+    LANG_YOU_SET_UNTARGETABLE           = 692,
+    LANG_YOUR_UNTARGETABLE_SET          = 693,
 
     LANG_RESTORED_ITEM                  = 699,
     //LANG_ARENA_ONE_TOOLOW             = 700,
@@ -825,12 +808,7 @@ enum MangosStrings
     LANG_BG_AV_NODE_TOWER_FROST_W       = 781,
     LANG_BG_AV_NODE_GRAVE_FROST_HUT     = 782,
 
-//                                      = 783, not used
-    LANG_BG_AV_START_ONE_MINUTE         = 784,
-    LANG_BG_AV_START_HALF_MINUTE        = 785,
-    LANG_BG_AV_HAS_BEGUN                = 786,
-    LANG_BG_AV_A_NEAR_LOSE              = 787,
-    LANG_BG_AV_H_NEAR_LOSE              = 788,
+    //                                    783 - 788 not used
     LANG_BG_AV_H_GENERAL_DEAD           = 789,
     LANG_BG_AV_A_GENERAL_DEAD           = 790,
     // Room for battleground/arena strings 791-799 not used
@@ -1152,23 +1130,6 @@ enum MangosStrings
     // NOT RESERVED IDS                   12000-1999999999
     // `db_script_string` table index     2000000000-2000009999 (MIN_DB_SCRIPT_STRING_ID-MAX_DB_SCRIPT_STRING_ID)
     // For other tables maybe             2000010000-2147483647 (max index),
-    // opvp ep
-    LANG_OPVP_EP_CAPTURE_NPT_H          = 10033,
-    LANG_OPVP_EP_CAPTURE_NPT_A          = 10034,
-    LANG_OPVP_EP_CAPTURE_EWT_H          = 10035,
-    LANG_OPVP_EP_CAPTURE_EWT_A          = 10036,
-    LANG_OPVP_EP_CAPTURE_CGT_H          = 10037,
-    LANG_OPVP_EP_CAPTURE_CGT_A          = 10038,
-    LANG_OPVP_EP_CAPTURE_PWT_H          = 10039,
-    LANG_OPVP_EP_CAPTURE_PWT_A          = 10040,
-    LANG_OPVP_EP_LOSE_NPT_H            = 10041,
-    LANG_OPVP_EP_LOSE_NPT_A            = 10042,
-    LANG_OPVP_EP_LOSE_EWT_H            = 10043,
-    LANG_OPVP_EP_LOSE_EWT_A            = 10044,
-    LANG_OPVP_EP_LOSE_CGT_H            = 10045,
-    LANG_OPVP_EP_LOSE_CGT_A            = 10046,
-    LANG_OPVP_EP_LOSE_PWT_H            = 10047,
-    LANG_OPVP_EP_LOSE_PWT_A            = 10048,
     // opvp si
     LANG_OPVP_SI_CAPTURE_H              = 10049,
     LANG_OPVP_SI_CAPTURE_A              = 10050,

@@ -36,6 +36,8 @@ enum
     NPC_PLAGUED_INSECT          = 10461,
     NPC_PLAGUED_MAGGOT          = 10536,
     NPC_MINDLESS_UNDEAD         = 11030,
+    NPC_VENGEFUL_PHANTOM        = 10387,
+    NPC_THE_UNFORGIVEN          = 10516,
 
     RIVENDARE_YELL_45MIN        = -1000020,
     RIVENDARE_YELL_10MIN        = -1000021,
@@ -62,6 +64,8 @@ static uint32 const aPlaguedCritters[] =
 {
     NPC_PLAGUED_RAT, NPC_PLAGUED_MAGGOT, NPC_PLAGUED_INSECT
 };
+
+static Position const unforgivenTriggerSpot(3712.607f, -3429.338f, 131.001f, 0.0f);
 
 struct instance_stratholme : public ScriptedInstance
 {
@@ -190,7 +194,7 @@ struct instance_stratholme : public ScriptedInstance
         }
         else
         {
-            sLog.outDebug("Instance Stratholme: Cannot open slaugther square yet.");
+            sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "Instance Stratholme: Cannot open slaugther square yet.");
             return false;
         }
     }
@@ -217,7 +221,7 @@ struct instance_stratholme : public ScriptedInstance
             case NPC_BARON:
                 m_uiBaronGUID = pCreature->GetGUID();
                 if (GetData(TYPE_RAMSTEIN) != DONE)
-                    pCreature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_NON_ATTACKABLE);
+                    pCreature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_SPAWNING);
                 break;
             case NPC_YSIDA_TRIGGER:
                 m_uiYsidaTriggerGUID = pCreature->GetGUID();
@@ -243,7 +247,7 @@ struct instance_stratholme : public ScriptedInstance
                 m_uiDathrohanGUID = pCreature->GetGUID();
                 break;
             case NPC_MAGISTRATE:
-                pCreature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+                pCreature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING);
                 break;
         }
 
@@ -378,7 +382,7 @@ struct instance_stratholme : public ScriptedInstance
                             break;
                         m_uiBaronRun_Timer = 45*MINUTE*IN_MILLISECONDS;
                         m_phaseBaron = 0;
-                        sLog.outDebug("Instance Stratholme: Baron run in progress.");
+                        sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "Instance Stratholme: Baron run in progress.");
                         if (Creature* pYsidaT = instance->GetCreature(m_uiYsidaTriggerGUID))
                             pYsidaT->SummonCreature(NPC_YSIDA,
                                                     4044.163f, -3334.2f, 115.0596f, 4.2f,
@@ -468,7 +472,7 @@ struct instance_stratholme : public ScriptedInstance
                         SummonRamstein();
                     }
                     else
-                        sLog.outDebug("Instance Stratholme: %u Abomnation left to kill.", uiCount);
+                        sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "Instance Stratholme: %u Abomnation left to kill.", uiCount);
                     m_summoningRammstein = false;
                 }
                 if (uiData == DONE) // on ramstein death OK
@@ -492,7 +496,7 @@ struct instance_stratholme : public ScriptedInstance
                     }
                     //UpdateGoState(m_uiZiggurat4GUID,GO_STATE_ACTIVE,false);
                     m_uiSlaugtherSquare_Timer = 60000;
-                    sLog.outDebug("Instance Stratholme: Slaugther event will continue in 60 sec.");
+                    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "Instance Stratholme: Slaugther event will continue in 60 sec.");
                 }
                 if (uiData == FAIL) // on mob Evade // on ramstein evade
                 {
@@ -540,7 +544,7 @@ struct instance_stratholme : public ScriptedInstance
                                             pPlayer->RemoveAurasDueToSpell(*spells_itr);
 
                                     if (pPlayer->GetQuestStatus(QUEST_DEAD_MAN_PLEA) == QUEST_STATUS_INCOMPLETE)
-                                        pPlayer->AreaExploredOrEventHappens(QUEST_DEAD_MAN_PLEA);
+                                        pPlayer->KilledMonsterCredit(NPC_YSIDA, m_uiYsidaGUID);
                                 }
                             }
                         }
@@ -574,6 +578,7 @@ struct instance_stratholme : public ScriptedInstance
             case TYPE_CRISTAL_ALL_DIE:
             case TYPE_EVENT_AURIUS:
             case TYPE_RAMSTEIN_EVENT:
+            case TYPE_UNFORGIVEN:
             {
                 m_auiEncounter[uiType] = uiData;
                 break;
@@ -732,6 +737,28 @@ struct instance_stratholme : public ScriptedInstance
 
     void Update(uint32 uiDiff) override
     {
+        if (GetData(TYPE_UNFORGIVEN) == NOT_STARTED)
+        {
+            Map::PlayerList const& players = instance->GetPlayers();
+            for (const auto& player : players)
+            {
+                if (Player* pPlayer = player.getSource())
+                {
+                    if (pPlayer->IsTargetableBy(nullptr) &&
+                        pPlayer->GetDistance3dToCenter(unforgivenTriggerSpot) < 10.0f)
+                    {
+                        SetData(TYPE_UNFORGIVEN, DONE);
+                        instance->SummonCreature(NPC_THE_UNFORGIVEN, 3719.82f, -3426.25f, 131.844f, 3.3412f, TEMPSUMMON_DEAD_DESPAWN, 1 * HOUR * IN_MILLISECONDS);
+                        instance->SummonCreature(NPC_VENGEFUL_PHANTOM, 3715.85f, -3428.25f, 131.442f, 3.57792f, TEMPSUMMON_DEAD_DESPAWN, 1 * HOUR * IN_MILLISECONDS);
+                        instance->SummonCreature(NPC_VENGEFUL_PHANTOM, 3714.14f, -3423.75f, 131.673f, 3.61283f, TEMPSUMMON_DEAD_DESPAWN, 1 * HOUR * IN_MILLISECONDS);
+                        instance->SummonCreature(NPC_VENGEFUL_PHANTOM, 3721.93f, -3429.88f, 131.844f, 3.33358f, TEMPSUMMON_DEAD_DESPAWN, 1 * HOUR * IN_MILLISECONDS);
+                        instance->SummonCreature(NPC_VENGEFUL_PHANTOM, 3718.09f, -3432.27f, 131.306f, 4.3381f, TEMPSUMMON_DEAD_DESPAWN, 1 * HOUR * IN_MILLISECONDS);
+                        break;
+                    }
+                }
+            }
+        }
+
         // Loop over the two Gate traps, each one has up to three timers (trap reset, gate opening delay, critters spawning delay)
         for (uint8 i = 0; i < 2; i++)
         {
@@ -741,7 +768,7 @@ struct instance_stratholme : public ScriptedInstance
                 m_uiGateTrapTimers[i][0] -= uiDiff;
                 if (m_uiGateTrapTimers[i][0] <= uiDiff)
                 {
-                    DEBUG_LOG("SD2: Instance Stratholme - Rat Trap reseted %u.", i);
+                    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "SD2: Instance Stratholme - Rat Trap reseted %u.", i);
                     m_uiGateTrapTimers[i][0] = 0;
                 }
             }
@@ -865,7 +892,7 @@ struct instance_stratholme : public ScriptedInstance
                     pYsida->CastSpell(pYsida, 5, true); // deathtouch
                 }
 
-                sLog.outDebug("Instance Stratholme: Baron run event reached end. Event has state %u.", GetData(TYPE_BARON_RUN));
+                sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "Instance Stratholme: Baron run event reached end. Event has state %u.", GetData(TYPE_BARON_RUN));
             }
             else
                 m_uiBaronRun_Timer -= uiDiff;
@@ -910,9 +937,9 @@ struct instance_stratholme : public ScriptedInstance
                         }
                         UpdateGoState(m_uiZiggurat4GUID, GO_STATE_ACTIVE, false);
                         UpdateGoState(m_uiZiggurat5GUID, GO_STATE_ACTIVE, false);
-                        pBaron->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_NON_ATTACKABLE);
+                        pBaron->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_SPAWNING);
 
-                        sLog.outDebug("Instance Stratholme: Black guard sentries spawned. Opening gates to baron.");
+                        sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "Instance Stratholme: Black guard sentries spawned. Opening gates to baron.");
                     }
                 }
                 m_uiSlaugtherSquare_Timer = 0;
@@ -952,7 +979,7 @@ struct instance_stratholme : public ScriptedInstance
             pRamstein->GetMotionMaster()->MovePoint(0, 4033.009f, -3404.3293f, 115.3554f);
             pRamstein->SetHomePosition(4033.009f, -3404.3293f, 115.3554f, 4.788970f);
             SetData(TYPE_RAMSTEIN_EVENT, DONE);
-            sLog.outDebug("Instance Stratholme: Ramstein spawned.");
+            sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "Instance Stratholme: Ramstein spawned.");
         }
     }
     void DoGateTrap(uint8 uiGate)
@@ -961,7 +988,7 @@ struct instance_stratholme : public ScriptedInstance
         if (m_uiGateTrapTimers[uiGate][0])
             return;
 
-        DEBUG_LOG("SD2: Instance Stratholme - Rat Trap activated %i.", uiGate);
+        sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "SD2: Instance Stratholme - Rat Trap activated %i.", uiGate);
         // close the gates
         DoUseDoorOrButton(m_ratTrapGateGUID[2 * uiGate]);
         DoUseDoorOrButton(m_ratTrapGateGUID[2 * uiGate + 1]);

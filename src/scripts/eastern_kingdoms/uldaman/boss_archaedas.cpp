@@ -96,10 +96,10 @@ struct boss_archaedasAI : public ScriptedAI
         bGuardiansAwake = false;
         bVaultWardersAwake = false;
 
-        m_creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+        m_creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
     }
 
-    void SpellHit(Unit* /*caster*/, SpellEntry const* spell) override
+    void SpellHit(SpellCaster* /*caster*/, SpellEntry const* spell) override
     {
         // Being woken up from the altar, start the awaken sequence
         if (spell->Id == SPELL_ARCHAEDAS_AWAKEN && !bWakingUp)
@@ -150,7 +150,7 @@ struct boss_archaedasAI : public ScriptedAI
         }
 
         //Return since we have no target
-        if (!UpdateVictim())
+        if (!m_creature->SelectHostileTarget() || !m_creature->GetVictim())
         {
             return;
         }
@@ -194,14 +194,14 @@ struct boss_archaedasAI : public ScriptedAI
             // fix factions now or they'll look green for a brief moment
             if (Creature* target = instance->GetMap()->GetCreature(instance->GetData64(1)))
             {
-                target->SetFactionTemplateId(FACTION_AWAKE);
-                target->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+                target->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PLAYER | UNIT_FLAG_IMMUNE_TO_NPC | UNIT_FLAG_NOT_SELECTABLE);
+                target->SetFactionTemporary(415, TEMPFACTION_RESTORE_RESPAWN | TEMPFACTION_RESTORE_COMBAT_STOP);
                 target->CastSpell(target, SPELL_STONE_DWARF_AWAKEN, false);
             }
             if (Creature* target = instance->GetMap()->GetCreature(instance->GetData64(2)))
             {
-                target->SetFactionTemplateId(FACTION_AWAKE);
-                target->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+                target->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PLAYER | UNIT_FLAG_IMMUNE_TO_NPC | UNIT_FLAG_NOT_SELECTABLE);
+                target->SetFactionTemporary(415, TEMPFACTION_RESTORE_RESPAWN | TEMPFACTION_RESTORE_COMBAT_STOP);
                 target->CastSpell(target, SPELL_STONE_DWARF_AWAKEN, false);
             }
             me->CastSpell(me, SPELL_AWAKEN_VAULT_WARDER, false);
@@ -285,6 +285,8 @@ struct mob_archaedas_minionsAI : public ScriptedAI
         bWokenUp = false;
         bWakingUp = false;
         bAwake = false;
+
+        m_creature->EnableMoveInLosEvent();
     }
     
     void EnterEvadeMode() override
@@ -313,7 +315,7 @@ struct mob_archaedas_minionsAI : public ScriptedAI
         }
     }
 
-    void SpellHit(Unit* /*caster*/, SpellEntry const* spell) override
+    void SpellHit(SpellCaster* /*caster*/, SpellEntry const* spell) override
     {
         // time to wake up, start animation
         if (spell->Id == SPELL_AWAKEN_EARTHEN_DWARF
@@ -386,7 +388,7 @@ struct mob_archaedas_minionsAI : public ScriptedAI
         else if (bAwake) uiReconstruct_Timer -= uiDiff;
 
         //Return since we have no target
-        if (!UpdateVictim())
+        if (!m_creature->SelectHostileTarget() || !m_creature->GetVictim())
         {
             return;
         }

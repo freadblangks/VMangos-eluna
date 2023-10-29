@@ -24,7 +24,7 @@ public:
     MasterPlayer(WorldSession* s);
     ~MasterPlayer();
 
-    void Create(Player* player);
+    void Create(ObjectGuid playerGuid, uint8 raceId, uint32 classId);
     void LoadPlayer(Player* player);
     void SaveToDB();
     void Update();
@@ -38,7 +38,7 @@ public:
 
     // CHAT SYSTEM
     void UpdateSpeakTime();
-    void Whisper(std::string const& text, uint32 language, MasterPlayer* receiver);
+    void Whisper(char const* text, uint32 language, MasterPlayer* receiver);
     void ToggleDND();
     void ToggleAFK();
     void JoinedChannel(Channel *c);
@@ -62,8 +62,6 @@ public:
     void LoadMailedItems(QueryResult* result);
     void LoadMails(QueryResult* result);
     void SaveMails();
-    void SendMailResult(uint32 mailId, MailResponseType mailAction, MailResponseResult mailError, uint32 equipError = 0, uint32 item_guid = 0, uint32 item_count = 0);
-    void SendNewMail();
     void UpdateNextMailTimeAndUnreads();
     void AddNewMailDeliverTime(time_t deliver_time);
     void RemoveMail(uint32 id);

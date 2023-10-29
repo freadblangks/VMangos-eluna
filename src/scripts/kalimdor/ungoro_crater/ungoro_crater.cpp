@@ -40,7 +40,6 @@ enum
     SAY_AME_AGGRO2          = -1000450,
     SAY_AME_AGGRO3          = -1000451,
 
-    FACTION_ESCORTEE        = 113,
     QUEST_CHASING_AME       = 4245
 };
 
@@ -110,7 +109,7 @@ bool QuestAccept_npc_ame01(Player* pPlayer, Creature* pCreature, Quest const* pQ
         if (npc_ame01AI* pAmeAI = dynamic_cast<npc_ame01AI*>(pCreature->AI()))
         {
             pCreature->SetStandState(UNIT_STAND_STATE_STAND);
-            pCreature->SetFactionTemporary(FACTION_ESCORTEE, TEMPFACTION_RESTORE_RESPAWN);
+            pCreature->SetFactionTemporary(FACTION_ESCORT_N_NEUTRAL_PASSIVE, TEMPFACTION_RESTORE_RESPAWN);
             pCreature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_NPC);
             pAmeAI->Start(false, pPlayer->GetGUID(), pQuest);
         }
@@ -175,6 +174,7 @@ struct npc_ringoAI : public FollowerAI
         m_uiEndEventProgress = 0;
         m_uiEndEventTimer = 1000;
         pSpraggle = nullptr;
+        m_creature->EnableMoveInLosEvent();
     }
 
     void JustRespawned() override
@@ -203,7 +203,7 @@ struct npc_ringoAI : public FollowerAI
         }
     }
 
-    void SpellHit(Unit* pCaster, SpellEntry const* pSpell) override
+    void SpellHit(SpellCaster* pCaster, SpellEntry const* pSpell) override
     {
         if (HasFollowState(STATE_FOLLOW_INPROGRESS | STATE_FOLLOW_PAUSED) && pSpell->Id == SPELL_REVIVE_RINGO)
             ClearFaint();
@@ -356,7 +356,7 @@ bool QuestAccept_npc_ringo(Player* pPlayer, Creature* pCreature, Quest const* pQ
         {
             pCreature->SetStandState(UNIT_STAND_STATE_STAND);
             pCreature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_NPC);
-            pRingoAI->StartFollow(pPlayer, FACTION_ESCORTEE, pQuest);
+            pRingoAI->StartFollow(pPlayer, FACTION_ESCORT_N_NEUTRAL_PASSIVE, pQuest);
         }
     }
 
@@ -393,8 +393,8 @@ bool AreaTrigger_at_scent_larkorwi(Player* pPlayer, AreaTriggerEntry const* pAt)
 
 enum
 {
-	SPELL_MERGING_OOZES = 16032,
-	NPC_PRIMAL_OOZE = 6557
+    SPELL_MERGING_OOZES = 16032,
+    NPC_PRIMAL_OOZE = 6557
 };
 
 struct mob_captured_felwood_oozeAI : public ScriptedAI
@@ -510,7 +510,7 @@ struct npc_precious_the_devourerAI : public ScriptedAI
         if (Creature* pSimone = m_creature->GetMap()->GetCreature(m_simoneGuid))
         {
             if (pSimone->IsAlive())
-                pSimone->ResetLastDamageTakenTime();
+                pSimone->UpdateLeashExtensionTime();
         }
     }
 
@@ -713,11 +713,11 @@ struct npc_simone_seductressAI : public ScriptedAI
         if (Creature* pPrecious = m_creature->GetMap()->GetCreature(m_preciousGuid))
         {
             if (pPrecious->IsAlive())
-                pPrecious->ResetLastDamageTakenTime();
+                pPrecious->UpdateLeashExtensionTime();
         }
     }
     
-    void SpellHit(Unit* /*pCaster*/, SpellEntry const* pSpell) override
+    void SpellHit(SpellCaster* /*pCaster*/, SpellEntry const* pSpell) override
     {
         if (pSpell && pSpell->Id == 14280)   // Viper Sting (Rank 3)
         {

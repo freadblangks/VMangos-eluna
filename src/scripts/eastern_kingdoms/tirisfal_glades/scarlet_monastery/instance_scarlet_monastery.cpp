@@ -22,6 +22,7 @@ SDCategory: Scarlet Monastery
 EndScriptData */
 
 #include "scriptPCH.h"
+#include "Utilities/EventMap.h"
 #include "scarlet_monastery.h"
 
 enum AshbringerEventMisc
@@ -183,7 +184,7 @@ struct instance_scarlet_monastery : ScriptedInstance
         return 0;
     }
 
-    void OnCreatureSpellHit(Unit* pCaster, Creature* receiver, SpellEntry const* spell) override
+    void OnCreatureSpellHit(SpellCaster* pCaster, Creature* receiver, SpellEntry const* spell) override
     {
         if (!m_ashbringerActive || !pCaster || !receiver || !spell)
             return;

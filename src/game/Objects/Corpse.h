@@ -74,6 +74,8 @@ class Corpse : public WorldObject
         void ResetGhostTime() { m_time = time(nullptr); }
         CorpseType GetType() const { return m_type; }
 
+        char const* GetName() const final { return "Corpse"; }
+
         ReputationRank GetReactionTo(WorldObject const* target) const final ;
         bool IsHostileTo(WorldObject const* target) const override;
         bool IsFriendlyTo(WorldObject const* target) const override;
@@ -93,7 +95,6 @@ class Corpse : public WorldObject
         void SetFactionTemplate(FactionTemplateEntry const* entry) { m_faction = entry; }
         FactionTemplateEntry const* GetFactionTemplate() { return m_faction; }
         uint32 GetFactionTemplateId() const final;
-        uint32 GetLevel() const final ;
     private:
         GridReference<Corpse> m_gridRef;
         FactionTemplateEntry const* m_faction;
@@ -102,4 +103,15 @@ class Corpse : public WorldObject
         time_t m_time;
         GridPair m_grid;                                    // gride for corpse position for fast search
 };
+
+inline Corpse* Object::ToCorpse()
+{
+    return IsCorpse() ? static_cast<Corpse*>(this) : nullptr;
+}
+
+inline Corpse const* Object::ToCorpse() const
+{
+    return IsCorpse() ? static_cast<Corpse const*>(this) : nullptr;
+}
+
 #endif

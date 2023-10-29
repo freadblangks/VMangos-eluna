@@ -18,8 +18,6 @@
 #include "OutdoorPvP/OutdoorPvPSI.h"
 #include "WorldPacket.h"
 #include "Player.h"
-#include "GameObject.h"
-#include "MapManager.h"
 #include "ObjectMgr.h"
 #include "ZoneScriptMgr.h"
 #include "Language.h"
@@ -39,27 +37,27 @@ OutdoorPvPSI::OutdoorPvPSI()
 
 uint32 OutdoorPvPSI::FillInitialWorldStates(WorldPacket& data)
 {
-    data << SI_GATHERED_A << m_Gathered_A;
-    data << SI_GATHERED_H << m_Gathered_H;
-    data << SI_SILITHYST_MAX << m_MaxRessources;
+    WriteInitialWorldStatePair(data, WS_OPVP_SI_GATHERED_A, m_Gathered_A);
+    WriteInitialWorldStatePair(data, WS_OPVP_SI_GATHERED_H, m_Gathered_H);
+    WriteInitialWorldStatePair(data, WS_OPVP_SI_SILITHYST_MAX, m_MaxRessources);
     return 3;
 }
 
 void OutdoorPvPSI::SendRemoveWorldStates(Player* plr)
 {
-    plr->SendUpdateWorldState(SI_GATHERED_A, 0);
-    plr->SendUpdateWorldState(SI_GATHERED_H, 0);
-    plr->SendUpdateWorldState(SI_SILITHYST_MAX, 0);
+    plr->SendUpdateWorldState(WS_OPVP_SI_GATHERED_A, 0);
+    plr->SendUpdateWorldState(WS_OPVP_SI_GATHERED_H, 0);
+    plr->SendUpdateWorldState(WS_OPVP_SI_SILITHYST_MAX, 0);
 }
 
 void OutdoorPvPSI::UpdateWorldState()
 {
-    SendUpdateWorldState(SI_GATHERED_A, m_Gathered_A);
-    SendUpdateWorldState(SI_GATHERED_H, m_Gathered_H);
-    SendUpdateWorldState(SI_SILITHYST_MAX, m_MaxRessources);
-    sObjectMgr.SetSavedVariable(uint32(SI_GATHERED_A),    m_Gathered_A);
-    sObjectMgr.SetSavedVariable(uint32(SI_GATHERED_H),    m_Gathered_H);
-    sObjectMgr.SetSavedVariable(uint32(SI_SILITHYST_MAX), m_MaxRessources);
+    SendUpdateWorldState(WS_OPVP_SI_GATHERED_A, m_Gathered_A);
+    SendUpdateWorldState(WS_OPVP_SI_GATHERED_H, m_Gathered_H);
+    SendUpdateWorldState(WS_OPVP_SI_SILITHYST_MAX, m_MaxRessources);
+    sObjectMgr.SetSavedVariable(uint32(WS_OPVP_SI_GATHERED_A),    m_Gathered_A);
+    sObjectMgr.SetSavedVariable(uint32(WS_OPVP_SI_GATHERED_H),    m_Gathered_H);
+    sObjectMgr.SetSavedVariable(uint32(WS_OPVP_SI_SILITHYST_MAX), m_MaxRessources);
 }
 
 bool OutdoorPvPSI::SetupZoneScript()
@@ -67,7 +65,7 @@ bool OutdoorPvPSI::SetupZoneScript()
     for (uint32 i : OutdoorPvPSIBuffZones)
         RegisterZone(i);
     // On reprend les donnees precedentes (avant dernier reboot)
-    m_MaxRessources = sObjectMgr.GetSavedVariable(uint32(SI_SILITHYST_MAX), SI_MAX_RESOURCES_DEFAULT);
+    m_MaxRessources = sObjectMgr.GetSavedVariable(uint32(WS_OPVP_SI_SILITHYST_MAX), SI_MAX_RESOURCES_DEFAULT);
 
     m_Gathered_A = 0;
     m_Gathered_H = 0;
@@ -87,8 +85,6 @@ void OutdoorPvPSI::OnPlayerEnter(Player* plr)
 
 void OutdoorPvPSI::OnPlayerLeave(Player* plr)
 {
-    // remove buffs
-    plr->RemoveAurasDueToSpell(SI_CENARION_FAVOR);
     OutdoorPvP::OnPlayerLeave(plr);
 }
 
@@ -115,14 +111,14 @@ bool OutdoorPvPSI::HandleAreaTrigger(Player* plr, uint32 trigger)
                     m_LastController = ALLIANCE;
                     m_Gathered_A = 0;
                     m_Gathered_H = 0;
-                    sLog.out(LOG_BG, "[Silithus] Under Alliance control");
+                    sLog.Out(LOG_BG, LOG_LVL_DETAIL, "[Silithus] Under Alliance control");
                     //sGameEventMgr.SetSilithusPVPEventCompleted(true);
                     //sGameEventMgr.UpdateSilithusPVP();
                 }
                 // complete quest
                 plr->KilledMonsterCredit(SI_TURNIN_QUEST_CM_A, ObjectGuid());
             }
-            else // H2 dans le trigger A2
+            else
                 return true;
             break;
         case SI_AREATRIGGER_H:
@@ -136,120 +132,55 @@ bool OutdoorPvPSI::HandleAreaTrigger(Player* plr, uint32 trigger)
                     m_LastController = HORDE;
                     m_Gathered_A = 0;
                     m_Gathered_H = 0;
-                    sLog.out(LOG_BG, "[Silithus] Under Horde control");
+                    sLog.Out(LOG_BG, LOG_LVL_DETAIL, "[Silithus] Under Horde control");
                     //sGameEventMgr.SetSilithusPVPEventCompleted(true);
                     //sGameEventMgr.UpdateSilithusPVP();
                 }
                 // complete quest
                 plr->KilledMonsterCredit(SI_TURNIN_QUEST_CM_H, ObjectGuid());
             }
-            else // A2 dans le trigger H2
+            else
                 return true;
             break;
         default:
             return false;
     }
-    plr->RemoveAurasDueToSpell(SI_SILITHYST_FLAG);                               /** Remove silithyst aura */
+
+    plr->RemoveAurasDueToSpell(SI_SILITHYST_FLAG); 
+    //plr->CastSpell(plr, SILLITHUS_FLAG_CAPTURE_TEST, true);
+    plr->CastSpell(plr, SI_TRACES_OF_SILITHYST, true);
+    plr->CastSpell(plr, HONOR_POINTS_199, true);                // Honor reward
+    plr->CastSpell(plr, SILITHYST_CAP_REWARD, true);            // Cenarian faction
+
     UpdateWorldState();
 
-    plr->CastSpell(plr, SI_TRACES_OF_SILITHYST, true);                           /** Reward animation */
-    plr->GetHonorMgr().Add(19, BONUS);                                       /** Instant honor reward */
-    plr->GetReputationMgr().ModifyReputation(sObjectMgr.GetFactionEntry(609), 10); /** Cenarian faction */
-
-    sLog.out(LOG_BG, "%s [%u:%u:'%s'] added a Silithyst to its faction",
-             plr->GetName(),
-             plr->GetGUIDLow(),
-             plr->GetSession()->GetAccountId(),
-             plr->GetSession()->GetRemoteAddress().c_str());
+    sLog.Out(LOG_BG, LOG_LVL_DETAIL, "%s [%u:%u:'%s'] added a Silithyst to its faction",
+        plr->GetName(),
+        plr->GetGUIDLow(),
+        plr->GetSession()->GetAccountId(),
+        plr->GetSession()->GetRemoteAddress().c_str());
 
     return true;
 }
 
 bool OutdoorPvPSI::HandleDropFlag(Player* plr, uint32 spellId)
 {
-    if (spellId == SI_SILITHYST_FLAG)
-    {
-        /** if it was dropped away from the player's turn-in point,
-         * then create a silithyst mound. Ff it was dropped near the areatrigger,
-         * then it was dispelled by the outdoorpvp, so do nothing
-         */
-        switch (plr->GetTeam())
-        {
-            case ALLIANCE:
-            {
-                AreaTriggerEntry const* atEntry = sObjectMgr.GetAreaTrigger(SI_AREATRIGGER_A);
-                if (atEntry)
-                {
-                    // 5.0f is safe-distance
-                    if (plr->GetDistance(atEntry->x, atEntry->y, atEntry->z) > 5.0f + atEntry->radius)
-                    {
-                        // he dropped it further, summon mound
-                        if (GameObject* pGo = plr->SummonGameObject(
-                                                  SI_SILITHYST_MOUND,
-                                                  plr->GetPositionX(),
-                                                  plr->GetPositionY(),
-                                                  plr->GetPositionZ(),
-                                                  plr->GetOrientation(),
-                                                  0, 0, 0, 0, 25000, false))
-                        {
-                            pGo->SetRespawnTime(0);
-                            sLog.out(LOG_BG, "%s [%u:%u:'%s'] dropped a silithyst",
-                                     plr->GetName(),
-                                     plr->GetGUIDLow(),
-                                     plr->GetSession()->GetAccountId(),
-                                     plr->GetSession()->GetRemoteAddress().c_str());
-                        }
-                    }
-                }
-            }
-            break;
-            case HORDE:
-            {
-                AreaTriggerEntry const* atEntry = sObjectMgr.GetAreaTrigger(SI_AREATRIGGER_H);
-                if (atEntry)
-                {
-                    // 5.0f is safe-distance
-                    if (plr->GetDistance(atEntry->x, atEntry->y, atEntry->z) > 5.0f + atEntry->radius)
-                    {
-                        // he dropped it further, summon mound
-                        if (GameObject* pGo = plr->SummonGameObject(
-                                                  SI_SILITHYST_MOUND,
-                                                  plr->GetPositionX(),
-                                                  plr->GetPositionY(),
-                                                  plr->GetPositionZ(),
-                                                  plr->GetOrientation(),
-                                                  0, 0, 0, 0, 25000, false))
-                        {
-                            pGo->SetRespawnTime(0);
-                            sLog.out(LOG_BG, "%s [%u:%u:'%s'] dropped a silithyst",
-                                     plr->GetName(),
-                                     plr->GetGUIDLow(),
-                                     plr->GetSession()->GetAccountId(),
-                                     plr->GetSession()->GetRemoteAddress().c_str());
-                        }
-                    }
-                }
-            }
-            break;
-        }
-        return true;
-    }
-    return false;
-}
-
-/** Player taking a silithyst from geyser or from silithyst mound*/
-bool OutdoorPvPSI::HandleCustomSpell(Player* plr, uint32 spellId, GameObject* go)
-{
-    if (!go || spellId != SI_SILITHYST_FLAG_GO_SPELL)
+    if (spellId != SI_SILITHYST_FLAG)
         return false;
-    plr->CastSpell(plr, SI_SILITHYST_FLAG, true);
 
-    /** If it was taken from silithyst mound, delete it */
-    if (go->GetGOInfo()->id == SI_SILITHYST_MOUND)
+    if (AreaTriggerEntry const* atEntry = sObjectMgr.GetAreaTrigger(plr->GetTeam() == ALLIANCE ? SI_AREATRIGGER_A : SI_AREATRIGGER_H))
+        if (plr->IsWithinDist3d(atEntry->x, atEntry->y, atEntry->z, 5.0f))
+            return false;
+
+    plr->CastSpell(plr, SILLITHUS_FLAG_DROP, true);
     {
-        go->SetRespawnTime(0);
-        go->Delete();
+        sLog.Out(LOG_BG, LOG_LVL_DETAIL, "%s [%u:%u:'%s'] dropped a silithyst",
+            plr->GetName(),
+            plr->GetGUIDLow(),
+            plr->GetSession()->GetAccountId(),
+            plr->GetSession()->GetRemoteAddress().c_str());
     }
+
     return true;
 }
 

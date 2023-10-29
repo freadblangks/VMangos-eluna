@@ -23,13 +23,12 @@
 #define MANGOSSERVER_QUEST_H
 
 #include "Platform/Define.h"
-#include "Database/DatabaseEnv.h"
 
 #include <string>
 #include <vector>
 
+class Field;
 class Player;
-
 class ObjectMgr;
 
 #define MAX_QUEST_LOG_SIZE 20
@@ -238,17 +237,18 @@ class Quest
         int32  GetPrevQuestId() const { return PrevQuestId; }
         int32  GetNextQuestId() const { return NextQuestId; }
         int32  GetExclusiveGroup() const { return ExclusiveGroup; }
+        uint32 GetBreadcrumbForQuestId() const { return BreadcrumbForQuestId; }
         uint32 GetNextQuestInChain() const { return NextQuestInChain; }
         // [-ZERO] not exist
         uint32 GetSrcItemId() const { return SrcItemId; }
         uint32 GetSrcItemCount() const { return SrcItemCount; }
         uint32 GetSrcSpell() const { return SrcSpell; }
-        std::string GetTitle() const { return Title; }
-        std::string GetDetails() const { return Details; }
-        std::string GetObjectives() const { return Objectives; }
-        std::string GetOfferRewardText() const { return OfferRewardText; }
-        std::string GetRequestItemsText() const { return RequestItemsText; }
-        std::string GetEndText() const { return EndText; }
+        std::string const& GetTitle() const { return Title; }
+        std::string const& GetDetails() const { return Details; }
+        std::string const& GetObjectives() const { return Objectives; }
+        std::string const& GetOfferRewardText() const { return OfferRewardText; }
+        std::string const& GetRequestItemsText() const { return RequestItemsText; }
+        std::string const& GetEndText() const { return EndText; }
         int32  GetRewOrReqMoney() const;
         uint32 GetRewMoneyMaxLevel() const { return RewMoneyMaxLevel; }
         int32 GetRewMoneyMaxLevelAtComplete() const;
@@ -305,6 +305,7 @@ class Quest
         PrevQuests prevQuests;
         typedef std::vector<uint32> PrevChainQuests;
         PrevChainQuests prevChainQuests;
+        std::vector<uint32> DependentBreadcrumbQuests;
 
         // cached data
     private:
@@ -342,6 +343,7 @@ class Quest
         int32  PrevQuestId;
         int32  NextQuestId;
         int32  ExclusiveGroup;
+        uint32 BreadcrumbForQuestId;
         uint32 NextQuestInChain;
         uint32 SrcItemId;
         uint32 SrcItemCount;

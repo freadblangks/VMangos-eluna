@@ -1,14 +1,25 @@
+/*
+* This program is free software; you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation; either version 2 of the License, or
+* (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program; if not, write to the Free Software
+* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+*/
+
 #ifndef MANGOS_PARTYBOTAI_H
 #define MANGOS_PARTYBOTAI_H
 
 #include "CombatBotBaseAI.h"
-
-struct LootResponseData
-{
-    LootResponseData(uint64 guid_, uint32 slot_) : guid(guid_), slot(slot_) {}
-    uint64 guid = 0;
-    uint32 slot = 0;
-};
+#include "Group.h"
+#include "ObjectAccessor.h"
 
 class PartyBotAI : public CombatBotBaseAI
 {
@@ -22,20 +33,23 @@ public:
         m_cloneGuid = pClone ? pClone->GetObjectGuid() : ObjectGuid();
         m_updateTimer.Reset(2000);
     }
-    bool OnSessionLoaded(PlayerBotEntry* entry, WorldSession* sess) override
+    PartyBotAI(Player* pLeader, uint32 mapId, uint32 instanceId, float x, float y, float z, float o)
+        : CombatBotBaseAI(), m_mapId(mapId), m_instanceId(instanceId), m_x(x), m_y(y), m_z(z), m_o(o)
     {
-        return SpawnNewPlayer(sess, m_class, m_race, m_mapId, m_instanceId, m_x, m_y, m_z, m_o, sObjectAccessor.FindPlayer(m_cloneGuid));
+        m_role = ROLE_INVALID;
+        m_leaderGuid = pLeader->GetObjectGuid();
+        m_updateTimer.Reset(2000);
     }
 
+    bool OnSessionLoaded(PlayerBotEntry* entry, WorldSession* sess) final;
     void OnPlayerLogin() final;
     void UpdateAI(uint32 const diff) final;
     void OnPacketReceived(WorldPacket const* packet) final;
-    void SendFakePacket(uint16 opcode) final;
 
     void CloneFromPlayer(Player const* pPlayer);
     void AddToPlayerGroup();
-    void LearnPremadeSpecForClass();
 
+    bool CanTryToCastSpell(Unit const* pTarget, SpellEntry const* pSpellEntry) const final;
     Player* GetPartyLeader() const;
     bool AttackStart(Unit* pVictim);
     Unit* SelectAttackTarget(Player* pLeader) const;
@@ -46,9 +60,13 @@ public:
     bool CanUseCrowdControl(SpellEntry const* pSpellEntry, Unit* pTarget) const;
     bool DrinkAndEat();
     bool ShouldAutoRevive() const;
-    bool RunAwayFromTarget(Unit* pTarget);
+    bool IsValidDistancingTarget(Unit* pTarget, Unit* pEnemy);
+    Unit* GetDistancingTarget(Unit* pEnemy);
+    bool RunAwayFromTarget(Unit* pEnemy);
     bool CrowdControlMarkedTargets();
     bool EnterCombatDruidForm();
+    bool ShouldEnterStealth() const;
+    bool EnterStealthIfNeeded(SpellEntry const* pStealthSpell);
 
     void UpdateInCombatAI() final;
     void UpdateOutOfCombatAI() final;
@@ -71,7 +89,6 @@ public:
     void UpdateInCombatAI_Druid() final;
     void UpdateOutOfCombatAI_Druid() final;
 
-    std::vector<LootResponseData> m_lootResponses;
     std::vector<RaidTargetIcon> m_marksToCC;
     std::vector<RaidTargetIcon> m_marksToFocus;
     ShortTimeTracker m_updateTimer;
@@ -86,6 +103,7 @@ public:
     float m_y = 0.0f;
     float m_z = 0.0f;
     float m_o = 0.0f;
+    bool m_resetSpellData = false;
 };
 
 #endif

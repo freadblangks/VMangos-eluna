@@ -9,7 +9,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-cmake_minimum_required (VERSION 2.6)
+cmake_minimum_required(VERSION 2.6...3.20)
 project (MANGOS_VMAP_ASSEMB_IO)
 
 #set(CMAKE_VERBOSE_MAKEFILE true)
@@ -42,10 +42,11 @@ add_library(vmap
 SET_TARGET_PROPERTIES (vmap PROPERTIES FOLDER "Game Libs")
 
 if(UNIX)
+  find_package(Threads)
   find_package(ZLIB REQUIRED)
   if(ZLIB_FOUND)
     include_directories(${ZLIB_INCLUDE_DIRS})
-    target_link_libraries(vmap g3dlite ${ZLIB_LIBRARIES})
+    target_link_libraries(vmap g3dlite ${ZLIB_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
   endif(ZLIB_FOUND)
 else()
   target_link_libraries(vmap g3dlite zlib)
@@ -57,7 +58,6 @@ target_link_libraries(vmap_assembler
                     vmap
                     g3dlite
                     ${ACE_LIBRARIES}
-                    shared
                     framework
 )
 

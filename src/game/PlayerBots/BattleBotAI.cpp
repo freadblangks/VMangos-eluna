@@ -1,17 +1,35 @@
+/*
+* This program is free software; you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation; either version 2 of the License, or
+* (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program; if not, write to the Free Software
+* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+*/
+
 #include "BattleBotAI.h"
 #include "BattleBotWaypoints.h"
 #include "Player.h"
+#include "Group.h"
+#include "CreatureAI.h"
 #include "Log.h"
 #include "MotionMaster.h"
 #include "ObjectMgr.h"
 #include "PlayerBotMgr.h"
+#include "Opcodes.h"
 #include "WorldPacket.h"
 #include "World.h"
 #include "Spell.h"
 #include "SpellAuras.h"
 #include "Chat.h"
 #include "TargetedMovementGenerator.h"
-#include <random>
 
 enum BattleBotSpells
 {
@@ -52,96 +70,6 @@ enum BattleBotSpells
 
 #define GO_WSG_DROPPED_SILVERWING_FLAG 179785
 #define GO_WSG_DROPPED_WARSONG_FLAG 179786
-
-void BattleBotAI::AddPremadeGearAndSpells()
-{
-    uint8 const level = m_level ? m_level : sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL);
-
-    std::vector<PlayerPremadeSpecTemplate const*> vSpecs;
-    for (const auto& itr : sObjectMgr.GetPlayerPremadeSpecTemplates())
-    {
-        if (itr.second.requiredClass == me->GetClass() &&
-            itr.second.level == level)
-            vSpecs.push_back(&itr.second);
-    }
-    // Use lower level spec template if there are no templates for the current level.
-    if (vSpecs.empty())
-    {
-        for (const auto& itr : sObjectMgr.GetPlayerPremadeSpecTemplates())
-        {
-            if (itr.second.requiredClass == me->GetClass() &&
-                itr.second.level < level)
-                vSpecs.push_back(&itr.second);
-        }
-    }
-    if (!vSpecs.empty())
-    {
-        PlayerPremadeSpecTemplate const* pSpec = SelectRandomContainerElement(vSpecs);
-        sObjectMgr.ApplyPremadeSpecTemplateToPlayer(pSpec->entry, me);
-        m_role = pSpec->role;
-    }
-
-    if (m_role == ROLE_INVALID)
-        AutoAssignRole();
-
-    std::vector<PlayerPremadeGearTemplate const*> vGear;
-    for (const auto& itr : sObjectMgr.GetPlayerPremadeGearTemplates())
-    {
-        if (itr.second.requiredClass == me->GetClass() &&
-            itr.second.level == level)
-            vGear.push_back(&itr.second);
-    }
-    // Use lower level gear template if there are no templates for the current level.
-    if (vGear.empty())
-    {
-        for (const auto& itr : sObjectMgr.GetPlayerPremadeGearTemplates())
-        {
-            if (itr.second.requiredClass == me->GetClass() &&
-                itr.second.level < level)
-                vGear.push_back(&itr.second);
-        }
-    }
-    if (!vGear.empty())
-    {
-        uint32 gearId = 0;
-        // Try to find a role appropriate gear template.
-        for (const auto itr : vGear)
-        {
-            if (itr->role == m_role)
-            {
-                gearId = itr->entry;
-                break;
-            }
-        }
-        // There is no gear template for this role, pick randomly.
-        if (!gearId)
-            gearId = SelectRandomContainerElement(vGear)->entry;
-        sObjectMgr.ApplyPremadeGearTemplateToPlayer(gearId, me);
-    } 
-
-    switch (me->GetClass())
-    {
-        case CLASS_HUNTER:
-        {
-            if (Item* pItem = me->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_RANGED))
-            {
-                if (pItem->GetProto()->SubClass == ITEM_SUBCLASS_WEAPON_GUN)
-                    me->StoreNewItemInBestSlots(BB_ITEM_BULLET, 200);
-                else
-                    me->StoreNewItemInBestSlots(BB_ITEM_ARROW, 200);
-            }
-            break;
-        }
-    }
-
-    if (level != me->GetLevel())
-    {
-        sLog.outError("BattleBotAI::AddPremadeGearAndSpells - No level %u templates found!", level);
-        me->GiveLevel(level);
-        me->InitTalentForLevel();
-        me->SetUInt32Value(PLAYER_XP, 0);
-    }
-}
 
 uint32 BattleBotAI::GetMountSpellId() const
 {
@@ -403,6 +331,9 @@ Unit* BattleBotAI::SelectAttackTarget(Unit* pExcept) const
         if (!me->IsWithinDist(pTarget, aggroDistance))
             continue;
 
+        if (me->GetDistanceZ(pTarget) > 10.0f)
+            continue;
+
         if (me->IsWithinLOSInMap(pTarget))
             return pTarget;
     }
@@ -422,11 +353,14 @@ Unit* BattleBotAI::SelectAttackTarget(Unit* pExcept) const
                     continue;
 
                 if (Unit* pAttacker = pMember->GetAttackerForHelper())
-                    if (IsValidHostileTarget(pAttacker) &&
+                {
+                    if (pAttacker != pExcept &&
+                        IsValidHostileTarget(pAttacker) &&
                         me->IsWithinDist(pAttacker, maxAggroDistance * 2.0f) &&
-                        me->IsWithinLOSInMap(pAttacker) && 
-                        pAttacker != pExcept)
+                        me->GetDistanceZ(pAttacker) < 10.0f &&
+                        me->IsWithinLOSInMap(pAttacker))
                         return pAttacker;
+                }
             }
         }
     }
@@ -516,54 +450,6 @@ void BattleBotAI::StopMoving()
     me->GetMotionMaster()->MoveIdle();
 }
 
-void BattleBotAI::SendFakePacket(uint16 opcode)
-{
-    //printf("Bot send %s\n", LookupOpcodeName(opcode));
-    switch (opcode)
-    {
-        case CMSG_BATTLEMASTER_JOIN:
-        {
-            WorldPacket data(CMSG_BATTLEMASTER_JOIN);
-            data << me->GetObjectGuid();                       // battlemaster guid, or player guid if joining queue from BG portal
-
-            switch (m_battlegroundId)
-            {
-                case BATTLEGROUND_QUEUE_AV:
-                    data << uint32(30);
-                    break;
-                case BATTLEGROUND_QUEUE_WS:
-                    data << uint32(489);
-                    break;
-                case BATTLEGROUND_QUEUE_AB:
-                    data << uint32(529);
-                    break;
-                default:
-                    sLog.outError("BattleBot: Invalid BG queue type!");
-                    botEntry->requestRemoval = true;
-                    return;
-            }
-
-            data << uint32(0);                                 // instance id, 0 if First Available selected
-            data << uint8(0);                                  // join as group
-            me->GetSession()->HandleBattlemasterJoinOpcode(data);
-            return;
-        }
-        case CMSG_LEAVE_BATTLEFIELD:
-        {
-            WorldPacket data(CMSG_LEAVE_BATTLEFIELD);
-#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_8_4
-            data << uint8(0);                           // unk1
-            data << uint8(0);                           // BattleGroundTypeId-1 ?
-            data << uint16(0);                          // unk2 0
-#endif
-            me->GetSession()->HandleLeaveBattlefieldOpcode(data);
-            return;
-        }
-    }
-
-    CombatBotBaseAI::SendFakePacket(opcode);
-}
-
 void BattleBotAI::OnPacketReceived(WorldPacket const* packet)
 {
     //printf("Bot received %s\n", LookupOpcodeName(packet->GetOpcode()));
@@ -571,9 +457,18 @@ void BattleBotAI::OnPacketReceived(WorldPacket const* packet)
     {
         case MSG_PVP_LOG_DATA:
         {
+            if (!me)
+                return;
+
             uint8 ended = *((uint8*)(*packet).contents());
             if (ended)
-                botEntry->m_pendingResponses.push_back(CMSG_LEAVE_BATTLEFIELD);
+            {
+                std::unique_ptr<WorldPacket> data = std::make_unique<WorldPacket>(CMSG_LEAVE_BATTLEFIELD);
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_8_4
+                *data << uint32(me->GetMapId());
+#endif
+                me->GetSession()->QueuePacket(std::move(data));
+            }
             return;
         }
     }
@@ -584,7 +479,7 @@ void BattleBotAI::OnPacketReceived(WorldPacket const* packet)
 void BattleBotAI::OnPlayerLogin()
 {
     if (!m_initialized)
-        me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+        me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING);
 }
 
 void BattleBotAI::UpdateWaypointMovement()
@@ -743,12 +638,24 @@ void BattleBotAI::UpdateAI(uint32 const diff)
 
     if (!m_initialized)
     {
+        if (m_level && m_level != me->GetLevel())
+        {
+            me->GiveLevel(m_level);
+            me->InitTalentForLevel();
+            me->SetUInt32Value(PLAYER_XP, 0);
+        }
+
+        LearnPremadeSpecForClass();
+
+        if (m_role == ROLE_INVALID)
+            AutoAssignRole();
+
+        AutoEquipGear(sWorld.getConfig(CONFIG_UINT32_BATTLE_BOT_AUTO_EQUIP));
         ResetSpellData();
-        AddPremadeGearAndSpells();
         PopulateSpellData();
         AddAllSpellReagents();
         me->UpdateSkillsToMaxSkillsForLevel();
-        me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+        me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING);
         SummonPetIfNeeded();
         me->SetHealthPercent(100.0f);
         me->SetPowerPercent(me->GetPowerType(), 100.0f);
@@ -778,32 +685,40 @@ void BattleBotAI::UpdateAI(uint32 const diff)
 
         if (m_receivedBgInvite)
         {
-            SendFakePacket(CMSG_BATTLEFIELD_PORT);
+            SendBattlefieldPortPacket();
             m_receivedBgInvite = false;
             return;
         }
 
         if (!me->InBattleGroundQueue())
         {
+            bool canQueue;
             char args[] = "";
             switch (m_battlegroundId)
             {
                 case BATTLEGROUND_QUEUE_AV:
-                    ChatHandler(me).HandleGoAlteracCommand(args);
+                    canQueue = ChatHandler(me).HandleGoAlteracCommand(args);
                     break;
                 case BATTLEGROUND_QUEUE_WS:
-                    ChatHandler(me).HandleGoWarsongCommand(args);
+                    canQueue = ChatHandler(me).HandleGoWarsongCommand(args);
                     break;
                 case BATTLEGROUND_QUEUE_AB:
-                    ChatHandler(me).HandleGoArathiCommand(args);
+                    canQueue = ChatHandler(me).HandleGoArathiCommand(args);
                     break;
                 default:
-                    sLog.outError("BattleBot: Invalid BG queue type!");
+                    sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "BattleBot: Invalid BG queue type!");
                     botEntry->requestRemoval = true;
                     return;
             }
 
-            SendFakePacket(CMSG_BATTLEMASTER_JOIN);
+            if (!canQueue)
+            {
+                sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "BattleBot: Attempt to queue for BG failed! Bot is too low level or BG is not available in this patch.");
+                botEntry->requestRemoval = true;
+                return;
+            }
+
+            SendBattlemasterJoinPacket(m_battlegroundId);
             return;
         }
 
@@ -914,7 +829,7 @@ void BattleBotAI::UpdateAI(uint32 const diff)
         if (me->IsNonMeleeSpellCasted())
             return;
 
-        if (!pVictim || pVictim->IsDead() || pVictim->HasBreakableByDamageCrowdControlAura())
+        if (!pVictim || !IsValidHostileTarget(pVictim))
         {
             if (pVictim = SelectAttackTarget(pVictim))
             {
@@ -949,7 +864,7 @@ void BattleBotAI::UpdateAI(uint32 const diff)
         return;
     }
 
-    if (!pVictim || pVictim->IsDead() || pVictim->HasBreakableByDamageCrowdControlAura() || 
+    if (!pVictim || !IsValidHostileTarget(pVictim) || 
         !pVictim->IsWithinDist(me, VISIBILITY_DISTANCE_NORMAL))
     {
         if (pVictim = SelectAttackTarget(pVictim))
@@ -968,7 +883,7 @@ void BattleBotAI::UpdateAI(uint32 const diff)
     }
     else
     {
-        if (!me->HasInArc(2 * M_PI_F / 3, pVictim) && !me->IsMoving())
+        if (!me->HasInArc(pVictim, 2 * M_PI_F / 3) && !me->IsMoving())
         {
             me->SetInFront(pVictim);
             me->SendMovementPacket(MSG_MOVE_SET_FACING, false);
@@ -1070,6 +985,9 @@ void BattleBotAI::UpdateInCombatAI()
             UpdateInCombatAI_Druid();
             break;
     }
+
+    if (me->GetVictim())
+        UseTrinketEffects();
 }
 
 void BattleBotAI::UpdateOutOfCombatAI_Paladin()
@@ -1417,11 +1335,34 @@ void BattleBotAI::UpdateInCombatAI_Hunter()
             me->GetMotionMaster()->MoveChase(pVictim, 25.0f);
         }
 
+        if (me->HasSpell(BB_SPELL_AUTO_SHOT) &&
+            !me->IsMoving() &&
+            (me->GetCombatDistance(pVictim) > 8.0f) &&
+            !me->IsNonMeleeSpellCasted())
+        {
+            switch (me->CastSpell(pVictim, BB_SPELL_AUTO_SHOT, false))
+            {
+                case SPELL_FAILED_NEED_AMMO:
+                case SPELL_FAILED_NO_AMMO:
+                {
+                    AddHunterAmmo();
+                    break;
+                }
+            }
+        }
+
         if (m_spells.hunter.pConcussiveShot &&
             pVictim->IsMoving() && (pVictim->GetVictim() == me) &&
             CanTryToCastSpell(pVictim, m_spells.hunter.pConcussiveShot))
         {
             if (DoCastSpell(pVictim, m_spells.hunter.pConcussiveShot) == SPELL_CAST_OK)
+                return;
+        }
+
+        if (m_spells.hunter.pAimedShot &&
+            CanTryToCastSpell(pVictim, m_spells.hunter.pAimedShot))
+        {
+            if (DoCastSpell(pVictim, m_spells.hunter.pAimedShot) == SPELL_CAST_OK)
                 return;
         }
 
@@ -1443,13 +1384,6 @@ void BattleBotAI::UpdateInCombatAI_Hunter()
             CanTryToCastSpell(pVictim, m_spells.hunter.pMultiShot))
         {
             if (DoCastSpell(pVictim, m_spells.hunter.pMultiShot) == SPELL_CAST_OK)
-                return;
-        }
-
-        if (m_spells.hunter.pAimedShot &&
-            CanTryToCastSpell(pVictim, m_spells.hunter.pAimedShot))
-        {
-            if (DoCastSpell(pVictim, m_spells.hunter.pAimedShot) == SPELL_CAST_OK)
                 return;
         }
 
@@ -1514,12 +1448,6 @@ void BattleBotAI::UpdateInCombatAI_Hunter()
             if (me->GetMotionMaster()->MoveDistance(pVictim, 25.0f))
                 return;
         }
-
-        if (me->HasSpell(BB_SPELL_AUTO_SHOT) &&
-           !me->IsMoving() &&
-           (me->GetCombatDistance(pVictim) > 8.0f) &&
-           !me->GetCurrentSpell(CURRENT_AUTOREPEAT_SPELL))
-            me->CastSpell(pVictim, BB_SPELL_AUTO_SHOT, false);
     }
 }
 
@@ -1564,6 +1492,13 @@ void BattleBotAI::UpdateInCombatAI_Mage()
 {
     if (Unit* pVictim = me->GetVictim())
     {
+        if (m_spells.mage.pCombustion &&
+            CanTryToCastSpell(me, m_spells.mage.pCombustion))
+        {
+            if (DoCastSpell(me, m_spells.mage.pCombustion) == SPELL_CAST_OK)
+                return;
+        }
+
         if (m_spells.mage.pPyroblast &&
             m_spells.mage.pPresenceOfMind &&
             me->HasAura(m_spells.mage.pPresenceOfMind->Id) &&
@@ -1950,7 +1885,7 @@ void BattleBotAI::UpdateInCombatAI_Priest()
         }
 
         if (m_spells.priest.pPsychicScream &&
-            pVictim->CanReachWithMeleeAutoAttack(me) &&
+            GetAttackersInRangeCount(10.0f) &&
             CanTryToCastSpell(me, m_spells.priest.pPsychicScream))
         {
             if (DoCastSpell(me, m_spells.priest.pPsychicScream) == SPELL_CAST_OK)
@@ -1966,7 +1901,7 @@ void BattleBotAI::UpdateInCombatAI_Priest()
         }
 
         if (m_spells.priest.pMindFlay &&
-           !pVictim->CanReachWithMeleeAutoAttack(me) &&
+           (!GetAttackersInRangeCount(10.0f) || me->HasAuraType(SPELL_AURA_SCHOOL_ABSORB)) &&
             CanTryToCastSpell(pVictim, m_spells.priest.pMindFlay))
         {
             if (DoCastSpell(pVictim, m_spells.priest.pMindFlay) == SPELL_CAST_OK)
@@ -1979,13 +1914,22 @@ void BattleBotAI::UpdateInCombatAI_Priest()
             me->GetMotionMaster()->MoveChase(pVictim, 25.0f);
         }
 
-        if (m_spells.priest.pHolyNova &&
-            me->GetShapeshiftForm() == FORM_NONE &&
-            GetAttackersInRangeCount(10.0f) > 2 &&
-            CanTryToCastSpell(me, m_spells.priest.pHolyNova))
+        if (me->GetShapeshiftForm() == FORM_NONE)
         {
-            if (DoCastSpell(me, m_spells.priest.pHolyNova) == SPELL_CAST_OK)
-                return;
+            if (m_spells.priest.pHolyNova &&
+                GetAttackersInRangeCount(10.0f) > 2 &&
+                CanTryToCastSpell(me, m_spells.priest.pHolyNova))
+            {
+                if (DoCastSpell(me, m_spells.priest.pHolyNova) == SPELL_CAST_OK)
+                    return;
+            }
+
+            if (m_spells.priest.pSmite &&
+                CanTryToCastSpell(pVictim, m_spells.priest.pSmite))
+            {
+                if (DoCastSpell(pVictim, m_spells.priest.pSmite) == SPELL_CAST_OK)
+                    return;
+            }
         }
 
         if (me->HasSpell(BB_SPELL_SHOOT_WAND) &&
@@ -2035,10 +1979,21 @@ void BattleBotAI::UpdateOutOfCombatAI_Warlock()
         m_isBuffing = false;
     }
 
-    SummonPetIfNeeded();
-
     if (Unit* pVictim = me->GetVictim())
+    {
+        if (Pet* pPet = me->GetPet())
+        {
+            if (!pPet->GetVictim())
+            {
+                pPet->GetCharmInfo()->SetIsCommandAttack(true);
+                pPet->AI()->AttackStart(pVictim);
+            }
+        }
+
         UpdateInCombatAI_Warlock();
+    }
+    else
+        SummonPetIfNeeded();
 }
 
 void BattleBotAI::UpdateInCombatAI_Warlock()
@@ -2238,7 +2193,7 @@ void BattleBotAI::UpdateInCombatAI_Warrior()
             }
 
             if (m_spells.warrior.pShieldBash &&
-                IsWearingShield() &&
+                IsWearingShield(me) &&
                 CanTryToCastSpell(pVictim, m_spells.warrior.pShieldBash))
             {
                 if (DoCastSpell(pVictim, m_spells.warrior.pShieldBash) == SPELL_CAST_OK)
@@ -2278,7 +2233,7 @@ void BattleBotAI::UpdateInCombatAI_Warrior()
         }
 
         if (me->GetShapeshiftForm() == FORM_DEFENSIVESTANCE &&
-            IsWearingShield())
+            IsWearingShield(me))
         {
             if (!me->GetAttackers().empty() &&
                 IsPhysicalDamageClass(pVictim->GetClass()))
@@ -2441,7 +2396,7 @@ void BattleBotAI::UpdateInCombatAI_Warrior()
         }
 
         if (m_spells.warrior.pHeroicStrike &&
-           (me->GetPower(POWER_RAGE) > 20) &&
+           (me->GetPower(POWER_RAGE) > 30) &&
             CanTryToCastSpell(pVictim, m_spells.warrior.pHeroicStrike))
         {
             if (DoCastSpell(pVictim, m_spells.warrior.pHeroicStrike) == SPELL_CAST_OK)
@@ -2862,6 +2817,18 @@ void BattleBotAI::UpdateInCombatAI_Druid()
            }
        }
 
+        if (m_spells.druid.pRemoveCurse)
+        {
+            if (Unit* pFriend = SelectDispelTarget(m_spells.druid.pRemoveCurse))
+            {
+                if (CanTryToCastSpell(pFriend, m_spells.druid.pRemoveCurse))
+                {
+                    if (DoCastSpell(pFriend, m_spells.druid.pRemoveCurse) == SPELL_CAST_OK)
+                        return;
+                }
+            }
+        }
+
         if (m_spells.druid.pInnervate &&
             me->GetVictim() &&
            (me->GetHealthPercent() > 40.0f) &&
@@ -2905,7 +2872,7 @@ void BattleBotAI::UpdateInCombatAI_Druid()
     {
         if (me->HasUnitState(UNIT_STAT_ROOT) &&
             me->HasAuraType(SPELL_AURA_MOD_SHAPESHIFT))
-            me->RemoveAurasDueToSpellByCancel(me->GetAurasByType(SPELL_AURA_MOD_SHAPESHIFT).front()->GetId());
+            me->RemoveSpellsCausingAura(SPELL_AURA_MOD_SHAPESHIFT);
     }
     
     if (Unit* pVictim = me->GetVictim())

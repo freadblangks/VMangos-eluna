@@ -85,6 +85,7 @@ struct boss_majordomoAI : public ScriptedAI
         Reset();
     }
 
+    ObjectGuid m_addSpawns[8];
     uint32 Reflection_Timer;
     uint32 Blastwave_Timer;
     uint32 TPDomo_Timer[2];
@@ -111,11 +112,17 @@ struct boss_majordomoAI : public ScriptedAI
         AddVivant = 8;
         Immune = 0;
 
-        while (Creature* Add = m_creature->FindNearestCreature(11663, 100.0f, true))
-            Add->ForcedDespawn();
-
-        while (Creature* Add = m_creature->FindNearestCreature(11664, 100.0f, true))
-            Add->ForcedDespawn();
+        for (auto& guid : m_addSpawns)
+        {
+            if (!guid.IsEmpty())
+            {
+                if (Creature* pOldAdd = m_creature->GetMap()->GetCreature(guid))
+                {
+                    pOldAdd->DespawnOrUnsummon();
+                    guid = ObjectGuid();
+                }
+            }
+        }
 
         if (m_pInstance && m_creature->GetFactionTemplateId() != 35)
         {
@@ -135,33 +142,41 @@ struct boss_majordomoAI : public ScriptedAI
         if (AddVivant > 0)
             AddVivant--;
 
-        std::list<Creature*> AddListe;
-        GetCreatureListWithEntryInGrid(AddListe, m_creature, 11663, 150.0f);
-        GetCreatureListWithEntryInGrid(AddListe, m_creature, 11664, 150.0f);
-        if (!AddListe.empty())
+        if (AddVivant > 0)
         {
-            for (const auto& itr : AddListe)
+            for (auto const& guid : m_addSpawns)
             {
-                if (itr->IsAlive() && AddVivant > 0)
+                if (!guid.IsEmpty())
                 {
-                    CreatureInfo const *cinfo = itr->GetCreatureInfo();
-                    itr->SetBaseWeaponDamage(BASE_ATTACK, MINDAMAGE, cinfo->dmg_min + cinfo->dmg_min / AddVivant);
-                    itr->SetBaseWeaponDamage(BASE_ATTACK, MAXDAMAGE, cinfo->dmg_max + cinfo->dmg_max / AddVivant);
+                    if (Creature* pAdd = m_creature->GetMap()->GetCreature(guid))
+                    {
+                        if (pAdd->IsAlive())
+                        {
+                            float dmgMin;
+                            float dmgMax;
+                            pAdd->GetDefaultDamageRange(dmgMin, dmgMax);
+                            pAdd->SetBaseWeaponDamage(BASE_ATTACK, MINDAMAGE, dmgMin + dmgMin / AddVivant);
+                            pAdd->SetBaseWeaponDamage(BASE_ATTACK, MAXDAMAGE, dmgMax + dmgMax / AddVivant);
+                        }
+                    }
                 }
             }
         }
 
         if (AddVivant == 4 && Immune == 0)
         {
-            if (!AddListe.empty())
+            for (auto const& guid : m_addSpawns)
             {
-                for (const auto& itr : AddListe)
+                if (!guid.IsEmpty())
                 {
-                    if (itr->IsAlive())
+                    if (Creature* pAdd = m_creature->GetMap()->GetCreature(guid))
                     {
-                        itr->ApplySpellImmune(0, IMMUNITY_MECHANIC, MECHANIC_POLYMORPH, true);
-                        itr->ApplySpellImmune(0, IMMUNITY_MECHANIC, MECHANIC_STUN, true);
-                        itr->RemoveSpellsCausingAura(SPELL_AURA_MOD_CONFUSE);
+                        if (pAdd->IsAlive())
+                        {
+                            pAdd->ApplySpellImmune(0, IMMUNITY_MECHANIC, MECHANIC_POLYMORPH, true);
+                            pAdd->ApplySpellImmune(0, IMMUNITY_MECHANIC, MECHANIC_STUN, true);
+                            pAdd->RemoveSpellsCausingAura(SPELL_AURA_MOD_CONFUSE);
+                        }
                     }
                 }
             }
@@ -169,15 +184,18 @@ struct boss_majordomoAI : public ScriptedAI
         }
         else if (AddVivant == 1 && Immune == 1)
         {
-            if (!AddListe.empty())
+            for (auto const& guid : m_addSpawns)
             {
-                for (const auto& itr : AddListe)
+                if (!guid.IsEmpty())
                 {
-                    if (itr->IsAlive())
+                    if (Creature* pAdd = m_creature->GetMap()->GetCreature(guid))
                     {
-                        m_creature->MonsterYell(SAY_LAST_ADD);
-                        itr->SetPower(POWER_MANA, itr->GetMaxPower(POWER_MANA));
-                        itr->SetHealthPercent(100.0f);
+                        if (pAdd->IsAlive())
+                        {
+                            m_creature->MonsterYell(SAY_LAST_ADD);
+                            pAdd->SetPower(POWER_MANA, pAdd->GetMaxPower(POWER_MANA));
+                            pAdd->SetHealthPercent(100.0f);
+                        }
                     }
                 }
             }
@@ -285,25 +303,21 @@ struct boss_majordomoAI : public ScriptedAI
                 // World of Warcraft Client Patch 1.4.0 (2005-04-19)
                 // - Ragnaros now stays up 2 hours rather than 1 after being summoned. 
                 uint32 const despawnTime = (sWorld.GetWowPatch() >= WOW_PATCH_104) ? (2 * HOUR * IN_MILLISECONDS) : (1 * HOUR * IN_MILLISECONDS);
-                if (Creature* Ragnaros = m_creature->SummonCreature(NPC_RAGNAROS, 842.237488f, -833.683105f, -231.916498f, M_PI + m_creature->GetAngle(842.237488f, -833.683105f), TEMPSUMMON_MANUAL_DESPAWN, despawnTime))
-                {
-                    Ragnaros->SetUInt64Value(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+                if (Creature* Ragnaros = m_creature->SummonCreature(NPC_RAGNAROS, 838.308f, -831.466f, -232.185f, 2.19911f, TEMPSUMMON_TIMED_OR_DEAD_DESPAWN, despawnTime))
                     m_creature->SetFacingToObject(Ragnaros);
-                    Ragnaros->CastSpell(Ragnaros, SPELL_RAGNAROS_EMERGE, false);
-                }
                 break;
             }
-            case 34:
+            case 36:
                 if (Creature* Ragnaros = m_creature->FindNearestCreature(NPC_RAGNAROS, 100.0f, true))
                 {
                     DoScriptText(SAY_ARRIVAL1_RAG, Ragnaros);
                     Ragnaros->HandleEmote(EMOTE_ONESHOT_ROAR);
                 }
                 break;
-            case 47:
+            case 50:
                 DoScriptText(SAY_ARRIVAL2_MAJ, m_creature);
                 break;
-            case 55:
+            case 60:
                 if (Creature* Ragnaros = m_creature->FindNearestCreature(NPC_RAGNAROS, 100.0f, true))
                 {
                     Ragnaros->SetTargetGuid(m_creature->GetGUID());
@@ -311,7 +325,7 @@ struct boss_majordomoAI : public ScriptedAI
                     Ragnaros->HandleEmote(EMOTE_ONESHOT_ROAR);
                 }
                 break;
-            case 70:
+            case 76:
                 if (Creature* Ragnaros = m_creature->FindNearestCreature(NPC_RAGNAROS, 100.0f, true))
                     Ragnaros->CastSpell(m_creature, SPELL_ELEMENTAL_FIRE, false);  // 20565
                 // Handle rest in Ragnaros script
@@ -323,22 +337,26 @@ struct boss_majordomoAI : public ScriptedAI
     {
         if (m_creature->GetFactionTemplateId() != 35 && !AddSpawn)
         {
-            Creature* DomoAdd[8];
-            for (auto& i : DomoAdd)
-                i = nullptr;
-
             for (int i = 0; i < 8; i++)
-                DomoAdd[i] = m_creature->SummonCreature(m_aBosspawnLocs[i].m_uiEntry, m_aBosspawnLocs[i].m_fX, m_aBosspawnLocs[i].m_fY, m_aBosspawnLocs[i].m_fZ, m_aBosspawnLocs[i].m_fO, TEMPSUMMON_DEAD_DESPAWN, 0);
+            {
+                if (!m_addSpawns[i].IsEmpty())
+                {
+                    if (Creature* pOldAdd = m_creature->GetMap()->GetCreature(m_addSpawns[i]))
+                    {
+                        pOldAdd->DespawnOrUnsummon();
+                        m_addSpawns[i] = ObjectGuid();
+                    }
+                }
 
-            for (int i = 0; i < 4; i++)
-            {
-                if (DomoAdd[i])
-                    DomoAdd[i]->ApplySpellImmune(0, IMMUNITY_MECHANIC, MECHANIC_POLYMORPH, true);
-            }
-            for (int i = 4; i < 8; i++)
-            {
-                if (DomoAdd[i])
-                    DomoAdd[i]->ApplySpellImmune(0, IMMUNITY_MECHANIC, MECHANIC_STUN, true);
+                if (Creature* pNewAdd = m_creature->SummonCreature(m_aBosspawnLocs[i].m_uiEntry, m_aBosspawnLocs[i].m_fX, m_aBosspawnLocs[i].m_fY, m_aBosspawnLocs[i].m_fZ, m_aBosspawnLocs[i].m_fO, TEMPSUMMON_DEAD_DESPAWN, 0))
+                {
+                    m_addSpawns[i] = pNewAdd->GetObjectGuid();
+
+                    if (i < 4)
+                        pNewAdd->ApplySpellImmune(0, IMMUNITY_MECHANIC, MECHANIC_POLYMORPH, true);
+                    else
+                        pNewAdd->ApplySpellImmune(0, IMMUNITY_MECHANIC, MECHANIC_STUN, true);
+                }
             }
 
             AddSpawn = true;

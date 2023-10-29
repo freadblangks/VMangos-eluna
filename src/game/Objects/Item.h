@@ -36,7 +36,6 @@ struct ItemRandomPropertiesEntry;
 
 struct ItemSetEffect
 {
-    uint32 setid = 0;
     uint32 item_count = 0;
     SpellEntry const* spells[8] = {};
 };
@@ -160,7 +159,11 @@ enum EnchantmentSlot
     MAX_ENCHANTMENT_SLOT        = 7
 };
 
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_5_1
 #define MAX_VISIBLE_ITEM_OFFSET       12
+#else
+#define MAX_VISIBLE_ITEM_OFFSET       11
+#endif
 
 enum EnchantmentOffset
 {
@@ -243,7 +246,7 @@ bool ItemCanGoIntoBag(ItemPrototype const* proto, ItemPrototype const* pBagProto
 class Item : public Object
 {
     public:
-        static Item* CreateItem(uint32 item, uint32 count, Player const* player = nullptr);
+        static Item* CreateItem(uint32 item, uint32 count, ObjectGuid playerGuid = ObjectGuid());
         Item* CloneItem(uint32 count, Player const* player = nullptr) const;
 
         Item();
@@ -312,10 +315,10 @@ class Item : public Object
         uint32 GetItemSuffixFactor() const { return GetUInt32Value(ITEM_FIELD_PROPERTY_SEED); }
         void SetItemRandomProperties(int32 randomPropId);
         static int32 GenerateItemRandomPropertyId(uint32 item_id);
-        void SetEnchantment(EnchantmentSlot slot, uint32 id, uint32 duration, uint32 charges);
+        void SetEnchantment(EnchantmentSlot slot, uint32 id, uint32 duration, uint32 charges, ObjectGuid casterGuid = ObjectGuid());
         void SetEnchantmentDuration(EnchantmentSlot slot, uint32 duration);
         void SetEnchantmentCharges(EnchantmentSlot slot, uint32 charges);
-        void ClearEnchantment(EnchantmentSlot slot);
+        void ClearEnchantment(EnchantmentSlot slot, bool sendToClient = false);
         uint32 GetEnchantmentId(EnchantmentSlot slot)       const { return GetUInt32Value(ITEM_FIELD_ENCHANTMENT + slot*MAX_ENCHANTMENT_OFFSET + ENCHANTMENT_ID_OFFSET);}
         uint32 GetEnchantmentDuration(EnchantmentSlot slot) const { return GetUInt32Value(ITEM_FIELD_ENCHANTMENT + slot*MAX_ENCHANTMENT_OFFSET + ENCHANTMENT_DURATION_OFFSET);}
         uint32 GetEnchantmentCharges(EnchantmentSlot slot)  const { return GetUInt32Value(ITEM_FIELD_ENCHANTMENT + slot*MAX_ENCHANTMENT_OFFSET + ENCHANTMENT_CHARGES_OFFSET);}

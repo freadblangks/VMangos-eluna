@@ -2,6 +2,8 @@
 #define MANGOS_COMBAT_BOT_BASE_H
 
 #include "PlayerBotAI.h"
+#include "SpellEntry.h"
+#include "Player.h"
 
 struct HealSpellCompare
 {
@@ -80,13 +82,22 @@ public:
     }
 
     virtual void OnPacketReceived(WorldPacket const* packet) override;
-    virtual void SendFakePacket(uint16 opcode) override;
+    void SendBattlefieldPortPacket();
+    void SendBattlemasterJoinPacket(uint8 battlegroundId);
+    void SendAreaTriggerPacket(uint32 areaTriggerId);
+    void ActivateNearbyAreaTrigger();
 
     void AutoAssignRole();
     void PopulateSpellData();
     void ResetSpellData();
     void AddAllSpellReagents();
     void SummonPetIfNeeded();
+    void LearnArmorProficiencies();
+    void LearnPremadeSpecForClass();
+    void EquipPremadeGearTemplate();
+    void EquipRandomGearInEmptySlots();
+    void AutoEquipGear(uint32 option);
+    void LearnRandomTalents();
     
     uint8 GetAttackersInRangeCount(float range) const;
     Unit* SelectAttackerDifferentFrom(Unit const* pExcept) const;
@@ -98,23 +109,32 @@ public:
     bool IsValidHealTarget(Unit const* pTarget, float healthPercent = 100.0f) const;
     bool IsValidHostileTarget(Unit const* pTarget) const;
     bool IsValidDispelTarget(Unit const* pTarget, SpellEntry const* pSpellEntry) const;
+    bool FindAndPreHealTarget();
     bool FindAndHealInjuredAlly(float selfHealPercent = 100.0f, float groupHealPercent = 100.0f);
     bool HealInjuredTarget(Unit* pTarget);
     bool HealInjuredTargetDirect(Unit* pTarget);
     bool HealInjuredTargetPeriodic(Unit* pTarget);
     template <class T>
     SpellEntry const* SelectMostEfficientHealingSpell(Unit const* pTarget, std::set<SpellEntry const*, T>& spellList) const;
+    template <class T>
+    SpellEntry const* SelectMostEfficientHealingSpell(Unit const* pTarget, int32 missingHealth, std::set<SpellEntry const*, T>& spellList) const;
+    int32 GetIncomingdamage(Unit const* pTarget) const;
     bool AreOthersOnSameTarget(ObjectGuid guid, bool checkMelee = true, bool checkSpells = true) const;
 
     SpellCastResult DoCastSpell(Unit* pTarget, SpellEntry const* pSpellEntry);
-    bool CanTryToCastSpell(Unit const* pTarget, SpellEntry const* pSpellEntry) const;
-    bool IsWearingShield() const;
+    virtual bool CanTryToCastSpell(Unit const* pTarget, SpellEntry const* pSpellEntry) const;
+    bool IsWearingShield(Player* pPlayer) const;
 
     void EquipOrUseNewItem();
-    void AddItemToInventory(uint32 itemId);
+    void AddItemToInventory(uint32 itemId, uint32 count = 1);
+    void AddHunterAmmo();
+    uint8 GetHighestHonorRankFromEquippedItems() const;
+    void UpdateVisualHonorRankBasedOnItems();
 
     bool SummonShamanTotems();
     SpellCastResult CastWeaponBuff(SpellEntry const* pSpellEntry, EquipmentSlots slot);
+    void UseTrinketEffects();
+    bool UseItemEffect(Item* pItem);
 
     virtual void UpdateInCombatAI() = 0;
     virtual void UpdateOutOfCombatAI() = 0;
@@ -190,6 +210,17 @@ public:
         }
         return false;
     }
+    static bool IsShieldClass(uint8 playerClass)
+    {
+        switch (playerClass)
+        {
+            case CLASS_WARRIOR:
+            case CLASS_PALADIN:
+            case CLASS_SHAMAN:
+                return true;
+        }
+        return false;
+    }
     static bool IsTankClass(uint8 playerClass)
     {
         switch (playerClass)
@@ -252,7 +283,7 @@ public:
     {
         struct
         {
-            SpellEntry const* spells[44];
+            SpellEntry const* spells[45];
         } raw;
         struct
         {
@@ -342,6 +373,7 @@ public:
             SpellEntry const* pIceBlock;
             SpellEntry const* pBlizzard;
             SpellEntry const* pBlastWave;
+            SpellEntry const* pCombustion;
         } mage;
         struct
         {
@@ -368,6 +400,7 @@ public:
             SpellEntry const* pSilence;
             SpellEntry const* pFade;
             SpellEntry const* pShackleUndead;
+            SpellEntry const* pSmite;
         } priest;
         struct
         {
@@ -481,6 +514,7 @@ public:
             SpellEntry const* pMarkoftheWild;
             SpellEntry const* pGiftoftheWild;
             SpellEntry const* pThorns;
+            SpellEntry const* pRemoveCurse;
             SpellEntry const* pCurePoison;
             SpellEntry const* pAbolishPoison;
             SpellEntry const* pRebirth;
@@ -518,6 +552,7 @@ public:
     bool m_initialized = false;
     bool m_isBuffing = false;
     bool m_receivedBgInvite = false;
+    uint8 m_visualHonorRank = 0;
     CombatBotRoles m_role = ROLE_INVALID;
 };
 

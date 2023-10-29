@@ -197,10 +197,10 @@ struct boss_patchwerkAI : public ScriptedAI
         if (target)
         {
             // Nostalrius : Correction bug sheep/fear
-            if (!m_creature->HasUnitState(UNIT_STAT_STUNNED | UNIT_STAT_PENDING_STUNNED | UNIT_STAT_DIED | UNIT_STAT_CONFUSED | UNIT_STAT_FLEEING)
+            if (!m_creature->HasUnitState(UNIT_STAT_STUNNED | UNIT_STAT_PENDING_STUNNED | UNIT_STAT_FEIGN_DEATH | UNIT_STAT_CONFUSED | UNIT_STAT_FLEEING)
                 && (!m_creature->HasAuraType(SPELL_AURA_MOD_FEAR) || m_creature->HasAuraType(SPELL_AURA_PREVENTS_FLEEING)) && !m_creature->HasAuraType(SPELL_AURA_MOD_CONFUSE))
             {
-                if (!m_creature->IsAttackReady(BASE_ATTACK) && m_creature->IsWithinMeleeRange(target)) // he does not have offhand attack
+                if (!m_creature->IsAttackReady(BASE_ATTACK) && m_creature->CanReachWithMeleeAutoAttack(target)) // he does not have offhand attack
                     return true;
 
                 if (target->GetObjectGuid() != previousTarget)
@@ -226,7 +226,7 @@ struct boss_patchwerkAI : public ScriptedAI
         {
             for (const auto itr : m_creature->GetAttackers())
             {
-                if (itr->IsInMap(m_creature) && itr->IsTargetableForAttack())
+                if (itr->IsInMap(m_creature) && itr->IsTargetableBy(m_creature))
                     return false;
             }
         }

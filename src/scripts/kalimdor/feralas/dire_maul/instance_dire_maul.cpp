@@ -10,7 +10,7 @@
 void EnableCreature(Creature* pCreature)
 {
     pCreature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
-    pCreature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+    pCreature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING);
     pCreature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_NPC);
 }
 
@@ -25,6 +25,8 @@ instance_dire_maul::instance_dire_maul(Map* pMap) : ScriptedInstance(pMap),
     m_uiForceFieldGUID(0),
     m_uiImmolTharGUID(0),
     m_uiTortheldrinGUID(0),
+    m_uiRitualCandleAuraGUID(0),
+    m_uiRitualPlayerGUID(0),
     
     // North
     m_uiGuardAliveCount(6),
@@ -161,6 +163,9 @@ void instance_dire_maul::OnObjectCreate(GameObject* pGo)
         case GO_BROKEN_TRAP:
             m_uiBrokenTrapGUID = pGo->GetGUID();
             break;
+        case GO_RITUAL_CANDLE_AURA:
+            m_uiRitualCandleAuraGUID = pGo->GetGUID();
+            break;
         default:
             break;
     }
@@ -190,7 +195,7 @@ void instance_dire_maul::OnCreatureDeath(Creature* pCreature)
                 SetData(TYPE_GORDOK_TRIBUTE, SPECIAL);
             break;
         case NPC_KING_GORDOK:
-            GetMap()->SummonCreature(NPC_MIZZLE_THE_CRAFTY, 693.44f, 480.806f, 28.175f, 0.02757f, TEMPSUMMON_TIMED_OR_DEAD_DESPAWN, 3000000);
+            GetMap()->SummonCreature(NPC_MIZZLE_THE_CRAFTY, 693.44f, 480.806f, 28.175f, 0.02757f, TEMPSUMMON_DEAD_DESPAWN, 3000000);
 
             if (Creature* pChorush = instance->GetCreature(m_uiChoRushTheObserverGUID))
             {
@@ -212,7 +217,7 @@ void instance_dire_maul::OnCreatureCreate(Creature* pCreature)
         case NPC_IMMOL_THAR:
             m_uiImmolTharGUID   = pCreature->GetGUID();
             if (GetData(TYPE_CRISTAL_EVENT) != DONE)
-                pCreature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_NON_ATTACKABLE);
+                pCreature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_SPAWNING);
             break;
         case NPC_TORTHELDRIN:
             m_uiTortheldrinGUID = pCreature->GetGUID();
@@ -271,7 +276,7 @@ void instance_dire_maul::SetData(uint32 uiType, uint32 uiData)
                     EnableCreature(pImmolThar);
                     // ... et ses gardiens doivent l'attaquer.
 #ifdef DEBUG_ON
-                    sLog.outString("Immol'Thar (%u) rendu attaquable, %u gardiens trouves.", pImmolThar->GetGUIDLow(), m_lImmolTharGardiensMobGUIDList.size());
+                    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Immol'Thar (%u) rendu attaquable, %u gardiens trouves.", pImmolThar->GetGUIDLow(), m_lImmolTharGardiensMobGUIDList.size());
 #endif
                     bool bHasYelled = false;
                     for (const auto& guid : m_lImmolTharGardiensMobGUIDList)
@@ -301,7 +306,7 @@ void instance_dire_maul::SetData(uint32 uiType, uint32 uiData)
                     }
                 }
                 else
-                    sLog.outError("Immol'Thar introuvable !! GUID %u", m_uiImmolTharGUID);
+                    sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Immol'Thar introuvable !! GUID %u", m_uiImmolTharGUID);
             }
             m_auiEncounter[TYPE_CRISTAL_EVENT] = uiData;
             break;
@@ -314,10 +319,10 @@ void instance_dire_maul::SetData(uint32 uiType, uint32 uiData)
                 {
                     tortheldrin->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PLAYER);
                     tortheldrin->SetFactionTemporary(14, TEMPFACTION_RESTORE_RESPAWN);
-                    sLog.outString("Tortheldrin (%u) made attackable.", tortheldrin->GetGUIDLow());
+                    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Tortheldrin (%u) made attackable.", tortheldrin->GetGUIDLow());
                 }
                 else
-                    sLog.outError("Tortheldrin not found!");
+                    sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Tortheldrin not found!");
             }
             m_auiEncounter[TYPE_IMMOL_THAR] = uiData;
             break;
@@ -327,7 +332,7 @@ void instance_dire_maul::SetData(uint32 uiType, uint32 uiData)
             if (uiData == DONE)
             {
 #ifdef DEBUG_ON
-                sLog.outString("Zevrim DOWN");
+                sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Zevrim DOWN");
 #endif
             }
             m_auiEncounter[TYPE_BOSS_ZEVRIM] = uiData;
@@ -342,7 +347,7 @@ void instance_dire_maul::SetData(uint32 uiType, uint32 uiData)
             if (uiData == DONE)
             {
 #ifdef DEBUG_ON
-                sLog.outString("EcorceFer Speak OK");
+                sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "EcorceFer Speak OK");
 #endif
                 DoUseDoorOrButton(m_uiDoorAlzzinInGUID);
             }
@@ -449,8 +454,9 @@ void instance_dire_maul::SetData(uint32 uiType, uint32 uiData)
 void instance_dire_maul::SetData64(uint32 uiType, uint64 uiData)
 {
 #ifdef DEBUG_ON
-    sLog.outString("SetData64(%u, %u) data is %u", uiType, uiData, GetData(TYPE_CRISTAL_EVENT));
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "SetData64(%u, %u) data is %u", uiType, uiData, GetData(TYPE_CRISTAL_EVENT));
 #endif
+
     if (uiType == TYPE_CRISTAL_EVENT && GetData(TYPE_CRISTAL_EVENT) == NOT_STARTED)
         DoSortCristalsEventMobs();
 
@@ -466,7 +472,7 @@ void instance_dire_maul::SetData64(uint32 uiType, uint64 uiData)
                 {
                     DoUseDoorOrButton(m_auiCristalsGUID[i]);
 #ifdef DEBUG_ON
-                    sLog.outString("ACTIVATION d'un cristal. Numero %u", i + 1);
+                    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "ACTIVATION d'un cristal. Numero %u", i + 1);
 #endif
                     m_auiCristalsGUID[i] = 0;
                 }
@@ -477,6 +483,9 @@ void instance_dire_maul::SetData64(uint32 uiType, uint64 uiData)
         if (!uiNotEmptyRoomsCount)
             SetData(TYPE_CRISTAL_EVENT, DONE);
     }
+
+    if (uiType == DATA_DREADSTEED_RITUAL_PLAYER)
+        m_uiRitualPlayerGUID = uiData;
 }
 
 void instance_dire_maul::Load(char const* chrIn)
@@ -528,6 +537,10 @@ uint64 instance_dire_maul::GetData64(uint32 uiType)
             return m_uiForceFieldGUID;
         case GO_MAGIC_VORTEX:
             return m_uiMagicVortexGUID;
+        case GO_RITUAL_CANDLE_AURA:
+            return m_uiRitualCandleAuraGUID;
+        case DATA_DREADSTEED_RITUAL_PLAYER:
+            return m_uiRitualPlayerGUID;
     }
     return 0;
 }
@@ -548,7 +561,7 @@ void instance_dire_maul::DoSortCristalsEventMobs()
     if (GetData(TYPE_CRISTAL_EVENT) != NOT_STARTED)
         return;
 #ifdef DEBUG_ON
-    sLog.outString("instance_dire_maul::DoSortCristalsEventMobs");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "instance_dire_maul::DoSortCristalsEventMobs");
 #endif
     for (uint8 i = 0; i < MAX_CRISTALS; i++)
     {
@@ -563,7 +576,7 @@ void instance_dire_maul::DoSortCristalsEventMobs()
                 }
             }
 #ifdef DEBUG_ON
-            sLog.outString("Cristal %u : %u mobs", i + 1,  m_alCristalsEventtMobGUIDSorted[i].size());
+            sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Cristal %u : %u mobs", i + 1,  m_alCristalsEventtMobGUIDSorted[i].size());
 #endif
         }
     }
@@ -760,7 +773,7 @@ struct npc_residual_montruosityAI : public ScriptedAI
                 {
                     if (itr != m_creature)
                     {
-                        if (!itr->isInFrontInMap(m_creature, 45.0f, M_PI_F))
+                        if (!(itr->IsWithinDistInMap(m_creature, 45.0f) && itr->HasInArc(m_creature)))
                         {
                             float distance = m_creature->GetDistance(itr);
                             if (distance < closestbefore)
@@ -1055,7 +1068,7 @@ struct GordokBruteAI : public ScriptedAI
     GordokBruteAI(Creature* pCreature) : ScriptedAI(pCreature)
     {
         /** Save current equipment of the creature */
-        m_uiEquipment_id = m_creature->GetEquipmentId();
+        m_uiEquipment_id = m_creature->GetCurrentEquipmentId();
         Reset();
     }
 
@@ -1337,7 +1350,7 @@ struct go_fixed_trap : public GameObjectAI
                 pSlipkik->CombatStop(true);
                 pSlipkik->DeleteThreatList();
                 pSlipkik->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_NPC);
-                pSlipkik->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+                pSlipkik->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING);
                 pSlipkik->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PLAYER);
                 pSlipkik->CastSpell(pSlipkik, SPELL_ICE_LOCK, true, nullptr);
                 me->SendGameObjectCustomAnim();
@@ -1403,7 +1416,7 @@ struct boss_kromcrushAI : public ScriptedAI
         DoCastSpellIfCan(m_creature, SPELL_ENRAGE);
         m_creature->SetWalk(false);
         m_creature->GetMotionMaster()->MovePoint(0, 501.971f, 482.321f, 29.463f);
-        m_creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NOT_SELECTABLE);
+        m_creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING | UNIT_FLAG_NOT_SELECTABLE);
         m_creature->RemoveFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP);
     }
 
@@ -1428,7 +1441,7 @@ struct boss_kromcrushAI : public ScriptedAI
                     DoScriptText(SAY_FIND_FURGUS, m_creature);
                     m_creature->GetMotionMaster()->Clear();
                     m_creature->Relocate(383.887f, 258.610f, 11.440f);
-                    m_creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NOT_SELECTABLE);
+                    m_creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING | UNIT_FLAG_NOT_SELECTABLE);
                     break;
                 }
             }
@@ -2087,7 +2100,7 @@ struct npc_alzzins_minionAI : ScriptedAI
     {
         if (!m_creature->IsInCombat())
         {
-            if (pWho->IsPlayer() && pWho->IsTargetableForAttack() && m_creature->IsWithinDistInMap(pWho, 30.0f) && m_creature->IsWithinLOSInMap(pWho))
+            if (pWho->IsPlayer() && pWho->IsTargetableBy(m_creature) && m_creature->IsWithinDistInMap(pWho, 30.0f) && m_creature->IsWithinLOSInMap(pWho))
                 m_creature->AttackedBy(pWho);
         }
     }
@@ -2109,13 +2122,13 @@ CreatureAI* GetAI_boss_alzzin_the_wildshaper(Creature* pCreature)
 
 CreatureAI* GetAI_npc_alzzins_minion(Creature* pCreature)
 {
-	return new npc_alzzins_minionAI(pCreature);
+    return new npc_alzzins_minionAI(pCreature);
 }
 
 enum
 {
-	SPELL_CHARGE = 22911,
-	SPELL_MAUL = 17156
+    SPELL_CHARGE = 22911,
+    SPELL_MAUL = 17156
 };
 
 struct boss_ferraAI : public ScriptedAI
@@ -2136,7 +2149,7 @@ struct boss_ferraAI : public ScriptedAI
         m_uiCharge_Timer        = 0;
         m_uiMaul_Timer          = urand(5000, 10000);
 
-		m_creature->SetNoCallAssistance(true);
+        m_creature->SetNoCallAssistance(true);
     }   
 
     void MoveInLineOfSight(Unit *pWho) override
@@ -2144,7 +2157,7 @@ struct boss_ferraAI : public ScriptedAI
         if (!m_creature->IsInCombat()) 
         {
             if (pWho->IsPlayer() && m_creature->IsWithinDistInMap(pWho, 80.0f) && m_creature->IsWithinLOSInMap(pWho)
-            &&  pWho->IsTargetableForAttack())
+            &&  pWho->IsTargetableBy(m_creature))
             {
                 // don't aggro people through the floor, ever!
                 if ((m_creature->GetPositionZ() - pWho->GetPositionZ()) < 10.0f)

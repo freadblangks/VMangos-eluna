@@ -106,7 +106,7 @@ bool boss_taerarAI::UpdateDragonAI(uint32 const uiDiff)
 {
     if (m_uiShadesTimeoutTimer)
     {
-        m_creature->ResetLastDamageTakenTime();
+        m_creature->UpdateLeashExtensionTime();
 
         if (m_uiShadesTimeoutTimer <= uiDiff)
             DoUnbanish();
@@ -142,9 +142,7 @@ bool boss_taerarAI::UpdateDragonAI(uint32 const uiDiff)
 
 npc_shade_of_taerarAI::npc_shade_of_taerarAI(Creature* pCreature) : ScriptedPetAI(pCreature)
 {
-    if (m_creature->GetCharmInfo())
-        m_creature->GetCharmInfo()->SetReactState(REACT_AGGRESSIVE);
-
+    m_creature->SetReactState(REACT_AGGRESSIVE);
     npc_shade_of_taerarAI::Reset();
 }
 

@@ -19,9 +19,9 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-/// \addtogroup mangosd
-/// @{
-/// \file
+// \addtogroup mangosd
+// @{
+// \file
 
 #ifndef _OFFLINE_CHAT_SOCKET_H
 #define _OFFLINE_CHAT_SOCKET_H
@@ -31,7 +31,6 @@
 #include <ace/Svc_Handler.h>
 #include <ace/SOCK_Acceptor.h>
 #include <ace/Acceptor.h>
-#include <ace/Thread_Mutex.h>
 #include <ace/Semaphore.h>
 
 #define OFFCHAT_BUFF_SIZE 8192
@@ -42,7 +41,7 @@ enum OfflineChatSpecialCommands
     OFFLINE_CHAT_GM_COMMAND         = -1,
 };
 
-/// Remote Administration socket
+// Remote Administration socket
 typedef ACE_Svc_Handler < ACE_SOCK_STREAM, ACE_NULL_SYNCH> OfflineChatHandler;
 class OfflineChatSocket: protected OfflineChatHandler
 {
@@ -54,23 +53,23 @@ class OfflineChatSocket: protected OfflineChatHandler
         int sendf(const char*);
 
     protected:
-        /// things called by ACE framework.
+        // things called by ACE framework.
         OfflineChatSocket(void);
         virtual ~OfflineChatSocket(void);
 
-        /// Called on open ,the void* is the acceptor.
+        // Called on open ,the void* is the acceptor.
         virtual int open (void *);
 
-        /// Called on failures inside of the acceptor, don't call from your code.
+        // Called on failures inside of the acceptor, don't call from your code.
         virtual int close (int);
 
-        /// Called when we can read from the socket.
+        // Called when we can read from the socket.
         virtual int handle_input (ACE_HANDLE = ACE_INVALID_HANDLE);
 
-        /// Called when the socket can write.
+        // Called when the socket can write.
         virtual int handle_output (ACE_HANDLE = ACE_INVALID_HANDLE);
 
-        /// Called when connection is closed or error happens.
+        // Called when connection is closed or error happens.
         virtual int handle_close (ACE_HANDLE = ACE_INVALID_HANDLE,
             ACE_Reactor_Mask = ACE_Event_Handler::ALL_EVENTS_MASK);
 
@@ -80,7 +79,7 @@ class OfflineChatSocket: protected OfflineChatHandler
         char inputBuffer[OFFCHAT_BUFF_SIZE];
         uint32 inputBufferLen;
 
-        ACE_Thread_Mutex outBufferLock;
+        std::mutex outBufferLock;
         char outputBuffer[OFFCHAT_BUFF_SIZE];
         uint32 outputBufferLen;
 
@@ -94,4 +93,4 @@ class OfflineChatSocket: protected OfflineChatHandler
         }stage;
 };
 #endif
-/// @}
+// @}

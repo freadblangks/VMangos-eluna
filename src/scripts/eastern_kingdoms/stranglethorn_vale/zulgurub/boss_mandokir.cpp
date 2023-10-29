@@ -115,7 +115,7 @@ static SpawnLocations aSpirits[] =
 
 struct boss_mandokirAI : public ScriptedAI
 {
-    const static uint32 START_FLAGS = UNIT_FLAG_PACIFIED | UNIT_FLAG_NON_ATTACKABLE |
+    const static uint32 START_FLAGS = UNIT_FLAG_PACIFIED | UNIT_FLAG_SPAWNING |
         UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_IMMUNE_TO_PLAYER;
 
     boss_mandokirAI(Creature* pCreature) : ScriptedAI(pCreature)
@@ -139,7 +139,7 @@ struct boss_mandokirAI : public ScriptedAI
     ObjectGuid m_uiRaptorGUID;
     ObjectGuid m_uiChargedPlayerGUID;
 
-    bool m_VilebranchDead;
+    bool m_VilebranchDead = false;
 
     float m_fTargetX, m_fTargetY;
     uint64 m_uiWatchTarget;
@@ -183,8 +183,8 @@ struct boss_mandokirAI : public ScriptedAI
 
         m_uiPlayerToRez = 0;
 
-        m_creature->ResetStats();
         m_creature->SetLevel(63);
+        m_creature->ResetStats();
 
         DoCastSpellIfCan(m_creature, SPELL_MOUNT);
         DespawnRaptor();

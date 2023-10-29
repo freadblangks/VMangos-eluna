@@ -110,6 +110,7 @@ struct boss_four_horsemen_shared : public ScriptedAI
     bool m_bShieldWall1;
     bool m_bShieldWall2;
     uint32 m_uiMarkTimer;
+    uint32 m_uiShieldWallTimer;
     uint32 const m_uiMarkId;
     uint32 const m_uiGhostId;
     bool const m_bIsSpirit;
@@ -129,7 +130,7 @@ struct boss_four_horsemen_shared : public ScriptedAI
     {
         m_pInstance = (instance_naxxramas*)pCreature->GetInstanceData();
         if (!m_pInstance)
-            sLog.outError("boss_four_horsemen_shared ctor could not get instance data");
+            sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "boss_four_horsemen_shared ctor could not get instance data");
 
         if (m_bIsSpirit)
             SetCombatMovement(false);
@@ -168,7 +169,7 @@ struct boss_four_horsemen_shared : public ScriptedAI
             if (!pPlayer->IsVisibleForOrDetect(m_creature, m_creature, true, false, &alert))
                 return;
 
-            if (m_creature->CanInitiateAttack() && pPlayer->IsTargetableForAttack() && m_creature->IsHostileTo(pPlayer))
+            if (m_creature->CanInitiateAttack() && pPlayer->IsTargetableBy(m_creature) && m_creature->IsHostileTo(pPlayer))
             {
                 if (pPlayer->IsInAccessablePlaceFor(m_creature) && m_creature->IsWithinLOSInMap(pPlayer))
                 {
@@ -197,7 +198,7 @@ struct boss_four_horsemen_shared : public ScriptedAI
         if (!m_creature->IsWithinDistInMap(pWho, 75.0f))
             return;
 
-        if (m_creature->CanInitiateAttack() && pWho->IsTargetableForAttack() && m_creature->IsHostileTo(pWho))
+        if (m_creature->CanInitiateAttack() && pWho->IsTargetableBy(m_creature) && m_creature->IsHostileTo(pWho))
         {
             if (pWho->IsInAccessablePlaceFor(m_creature) && m_creature->IsWithinLOSInMap(pWho))
             {
@@ -229,6 +230,7 @@ struct boss_four_horsemen_shared : public ScriptedAI
 
         m_bShieldWall1 = true;
         m_bShieldWall2 = true;
+        m_uiShieldWallTimer = 0;
         m_uiMarkTimer = 20000;
         killSayCooldown = 0;
 
@@ -329,7 +331,7 @@ struct boss_four_horsemen_shared : public ScriptedAI
                     break;
             }
 
-            m_creature->CastCustomSpell(pTarget, SPELL_MARK, &damage, nullptr, nullptr, true, nullptr, holder->GetAuraByEffectIndex(EFFECT_INDEX_0), m_creature->GetObjectGuid(), pSpell);
+            m_creature->CastCustomSpell(pTarget, SPELL_MARK, damage, {}, {}, true, nullptr, holder->GetAuraByEffectIndex(EFFECT_INDEX_0), m_creature->GetObjectGuid(), pSpell);
         }
     }
 
@@ -346,14 +348,22 @@ struct boss_four_horsemen_shared : public ScriptedAI
         if (m_bShieldWall1 && m_creature->GetHealthPercent() < 50.0f)
         {
             if ((DoCastSpellIfCan(m_creature, SPELL_SHIELDWALL)) == CAST_OK)
+            {
                 m_bShieldWall1 = false;
+                m_uiShieldWallTimer = 0;
+            }
         }
         else if (m_bShieldWall2 && m_creature->GetHealthPercent() < 20.0f)
         {
-            if ((DoCastSpellIfCan(m_creature, SPELL_SHIELDWALL)) == CAST_OK)
+            if (m_uiShieldWallTimer < 30000) // If a Horseman is taken from 50% to 20% health in less than 30 seconds, the second Shield Wall will never trigger.
+            {
+                m_bShieldWall2 = false;
+            }
+            else if ((DoCastSpellIfCan(m_creature, SPELL_SHIELDWALL)) == CAST_OK)
                 m_bShieldWall2 = false;
         }
-
+        m_uiShieldWallTimer += uiDiff;
+        
         if (m_uiMarkTimer < uiDiff)
         {
             if ((DoCastSpellIfCan(m_creature, m_uiMarkId)) == CAST_OK)

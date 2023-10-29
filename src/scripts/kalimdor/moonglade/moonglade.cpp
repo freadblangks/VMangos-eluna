@@ -21,64 +21,7 @@
  SDCategory: Moonglade
  EndScriptData */
 
-/* ContentData
- npc_great_bear_spirit
- EndContentData */
-
 #include "scriptPCH.h"
-
-/*######
- ## npc_great_bear_spirit
- ######*/
-
-enum
-{
-    GOSSIP_BEAR1 = 7439,
-    GOSSIP_BEAR2 = 7442,
-    GOSSIP_BEAR3 = 7444,
-    GOSSIP_BEAR4 = 7446,
-};
-
-bool GossipHello_npc_great_bear_spirit(Player* pPlayer, Creature* pCreature)
-{
-    //ally or horde quest
-    if (pPlayer->GetQuestStatus(5929) == QUEST_STATUS_INCOMPLETE || pPlayer->GetQuestStatus(5930) == QUEST_STATUS_INCOMPLETE)
-    {
-        pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, GOSSIP_BEAR1, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF);
-        pPlayer->SEND_GOSSIP_MENU(4719, pCreature->GetGUID());
-    }
-    else
-        pPlayer->SEND_GOSSIP_MENU(4718, pCreature->GetGUID());
-
-    return true;
-}
-
-bool GossipSelect_npc_great_bear_spirit(Player* pPlayer, Creature* pCreature, uint32 uiSender, uint32 uiAction)
-{
-    switch (uiAction)
-    {
-        case GOSSIP_ACTION_INFO_DEF:
-            pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, GOSSIP_BEAR2, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
-            pPlayer->SEND_GOSSIP_MENU(4721, pCreature->GetGUID());
-            break;
-        case GOSSIP_ACTION_INFO_DEF + 1:
-            pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, GOSSIP_BEAR3, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 2);
-            pPlayer->SEND_GOSSIP_MENU(4733, pCreature->GetGUID());
-            break;
-        case GOSSIP_ACTION_INFO_DEF + 2:
-            pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, GOSSIP_BEAR4, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 3);
-            pPlayer->SEND_GOSSIP_MENU(4734, pCreature->GetGUID());
-            break;
-        case GOSSIP_ACTION_INFO_DEF + 3:
-            pPlayer->SEND_GOSSIP_MENU(4735, pCreature->GetGUID());
-            if (pPlayer->GetQuestStatus(5929) == QUEST_STATUS_INCOMPLETE)
-                pPlayer->AreaExploredOrEventHappens(5929);
-            if (pPlayer->GetQuestStatus(5930) == QUEST_STATUS_INCOMPLETE)
-                pPlayer->AreaExploredOrEventHappens(5930);
-            break;
-    }
-    return true;
-}
 
 /*######
  ## npc_keeper_remulos
@@ -312,7 +255,7 @@ struct npc_keeper_remulosAI : public npc_escortAI
                 pSummoned->AddAura(17131); // hover
                 pSummoned->SetFly(true);
                 pSummoned->MonsterMove(aEranikusLocations[0].m_fX, aEranikusLocations[0].m_fY, aEranikusLocations[0].m_fZ);
-                pSummoned->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+                pSummoned->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING);
                 pSummoned->SetRespawnDelay(DAY);
                 break;
             case NPC_NIGHTMARE_PHANTASM:
@@ -371,6 +314,9 @@ struct npc_keeper_remulosAI : public npc_escortAI
                 pPlayer->FailQuest(QUEST_WAKING_LEGENDS);
             m_idQuestActive = 0;
         }
+
+        // Remulos is only targetable for friendly player spells during Eranikus event so reset on death
+        m_creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PVP);
     }
 
     void WaypointReached(uint32 uiPointId) override
@@ -382,6 +328,8 @@ struct npc_keeper_remulosAI : public npc_escortAI
                 case 0:
                     if (Player* pPlayer = GetPlayerForEscort())
                         DoScriptText(SAY_REMULOS_INTRO_1, m_creature, pPlayer);
+                    // Remulos is only targetable for friendly player spells during Eranikus event
+                    m_creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PVP);
                     m_creature->SetSpeedRate(MOVE_WALK, 2.2f); //du cout faudrait ptetre aussi revoir la vitesse de course.
                     m_creature->SetWalk(true);
                     break;
@@ -470,6 +418,9 @@ struct npc_keeper_remulosAI : public npc_escortAI
     {
         if (Player* pPlayer = GetPlayerForEscort())
             pPlayer->GroupEventHappens(QUEST_NIGHTMARE_MANIFESTS, pTarget);
+
+        // Remulos is only targetable for friendly player spells during Eranikus event: remove flag on quest completion
+        m_creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PVP);
 
         m_uiOutroTimer = 3000;
     }
@@ -593,7 +544,7 @@ struct npc_keeper_remulosAI : public npc_escortAI
                         m_uiTransitionTimer = 0;
 
                         pEranikus->SetWalk(true);
-                        pEranikus->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+                        pEranikus->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING);
                         pEranikus->AI()->AttackStart(m_creature);
                     }
                 }
@@ -1078,7 +1029,7 @@ struct boss_eranikusAI : public ScriptedAI
             // redeem eranikus
             m_uiEventTimer = 5000;
             m_creature->SetFactionTemplateId(FACTION_FRIENDLY);
-            m_creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_PACIFIED);
+            m_creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING | UNIT_FLAG_PACIFIED);
         }
         else
         {
@@ -1280,13 +1231,13 @@ struct boss_eranikusAI : public ScriptedAI
         //Alita : make sure he prefers targets he can hit. TO REMOVE WHEN AGGRO MECANICS WILL DO THE JOB.
         Unit* pTarget = m_creature->GetVictim();
 
-        if (!m_creature->IsWithinMeleeRange(pTarget))
+        if (!m_creature->CanReachWithMeleeAutoAttack(pTarget))
         {
             ThreatList const& tList = m_creature->GetThreatManager().getThreatList();
             for (const auto itr : tList)
             {
                 if (Unit* pAttacker = m_creature->GetMap()->GetUnit(itr->getUnitGuid()))
-                    if (m_creature->IsWithinMeleeRange(pAttacker))
+                    if (m_creature->CanReachWithMeleeAutoAttack(pAttacker))
                         m_creature->GetThreatManager().modifyThreatPercent(pAttacker, 5);
             }
         }
@@ -1389,12 +1340,6 @@ CreatureAI* GetAI_boss_eranikus(Creature* pCreature)
 void AddSC_moonglade()
 {
     Script* pNewScript;
-
-    pNewScript = new Script;
-    pNewScript->Name = "npc_great_bear_spirit";
-    pNewScript->pGossipHello =  &GossipHello_npc_great_bear_spirit;
-    pNewScript->pGossipSelect = &GossipSelect_npc_great_bear_spirit;
-    pNewScript->RegisterSelf();
 
     pNewScript = new Script;
     pNewScript->Name = "npc_keeper_remulos";

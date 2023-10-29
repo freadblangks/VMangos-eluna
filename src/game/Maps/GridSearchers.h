@@ -40,7 +40,8 @@ struct ObjectDistanceOrderReversed
 GameObject* GetClosestGameObjectWithEntry(WorldObject* pSource, uint32 uiEntry, float fMaxSearchRange);
 Creature* GetClosestCreatureWithEntry(WorldObject* pSource, uint32 uiEntry, float fMaxSearchRange);
 
-void GetGameObjectListWithEntryInGrid(std::list<GameObject*>& lList , WorldObject* pSource, uint32 uiEntry, float fMaxSearchRange);
+void GetGameObjectListWithEntryInGrid(std::list<GameObject*>& lList, WorldObject* pSource, uint32 uiEntry, float fMaxSearchRange);
+void GetGameObjectListWithEntryInGrid(std::list<GameObject*>& lList, WorldObject* pSource, std::vector<uint32> const& entries, float fMaxSearchRange);
 void GetCreatureListWithEntryInGrid(std::list<Creature*>& lList, WorldObject* pSource, uint32 uiEntry, float fMaxSearchRange);
 void GetCreatureListWithEntryInGrid(std::list<Creature*>& lList, WorldObject* pSource, std::vector<uint32> const& entries, float fMaxSearchRange);
 
@@ -97,24 +98,6 @@ class AllCreaturesOfEntryInRangeCheck
         WorldObject const* m_pObject;
         uint32 m_uiEntry;
         float m_fRange;
-};
-
-class PlayerAtMinimumRangeAway
-{
-    public:
-        PlayerAtMinimumRangeAway(Unit const* unit, float fMinRange) : pUnit(unit), fRange(fMinRange) {}
-        bool operator() (Player* pPlayer)
-        {
-            //No threat list check, must be done explicit if expected to be in combat with creature
-            if (!pPlayer->IsGameMaster() && pPlayer->IsAlive() && !pUnit->IsWithinDist(pPlayer,fRange,false))
-                return true;
-
-            return false;
-        }
-
-    private:
-        Unit const* pUnit;
-        float fRange;
 };
 */
 

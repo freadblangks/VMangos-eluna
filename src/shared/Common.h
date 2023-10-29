@@ -92,12 +92,9 @@ typedef std::chrono::time_point<std::chrono::system_clock, std::chrono::millisec
 
 #include "Errors.h"
 #include "LockedQueue.h"
-#include "Threading.h"
 
 #include <ace/Basic_Types.h>
 #include <ace/Guard_T.h>
-#include <ace/RW_Thread_Mutex.h>
-#include <ace/Thread_Mutex.h>
 #include <ace/OS_NS_arpa_inet.h>
 
 // Old ACE versions (pre-ACE-5.5.4) not have this type (add for allow use at Unix side external old ACE versions)
@@ -130,7 +127,6 @@ typedef off_t ACE_OFF_T;
 #  define I64FMT "%016I64X"
 //#  define snprintf _snprintf
 #  define vsnprintf _vsnprintf
-#  define finite(X) _finite(X)
 
 #else
 
@@ -154,7 +150,7 @@ typedef off_t ACE_OFF_T;
 
 #define SIZEFMTD ACE_SIZE_T_FORMAT_SPECIFIER
 
-inline float finiteAlways(float f) { return finite(f) ? f : 0.0f; }
+inline float finiteAlways(float f) { return std::isfinite(f) ? f : 0.0f; }
 
 #define atol(a) strtoul(a, nullptr, 10)
 
@@ -189,7 +185,7 @@ enum AccountTypes
     SEC_TICKETMASTER   = 2,
     SEC_GAMEMASTER     = 3,
     SEC_BASIC_ADMIN    = 4,
-    SEC_DEVELOPPER     = 5,
+    SEC_DEVELOPER      = 5,
     SEC_ADMINISTRATOR  = 6,
     SEC_CONSOLE        = 7                                  // must be always last in list, accounts must have less security level always also
 };
@@ -211,15 +207,18 @@ enum RealmFlags
 // Index returned by GetSessionDbcLocale.
 enum LocaleConstant
 {
-    LOCALE_enUS = 0,   // also enGB
+    LOCALE_enUS = 0, // also enGB
     LOCALE_koKR = 1,
     LOCALE_frFR = 2,
     LOCALE_deDE = 3,
     LOCALE_zhCN = 4,
     LOCALE_zhTW = 5,
     LOCALE_esES = 6,
-    LOCALE_esMX = 7,
-    LOCALE_ruRU = 8    // not in vanilla                             
+
+    // no official vanilla clients for these exist
+    // the locale strings first appear in the binary in 2.2.0
+    LOCALE_esMX = 7, // unused text column exists for this index in dbc files
+    LOCALE_ruRU = 8  // did not exist in any way, but has fan made client now (english texts replaced with russian)
 };
 
 // Index returned by GetSessionDbLocaleIndex.
@@ -281,5 +280,7 @@ inline char* mangos_strdup(char const* source)
 #ifndef countof
 #define countof(array) (sizeof(array) / sizeof((array)[0]))
 #endif
+
+#define BATCHING_INTERVAL 400
 
 #endif

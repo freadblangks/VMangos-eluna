@@ -23,11 +23,8 @@
 #define MANGOSSERVER_GUILD_H
 
 #include "Common.h"
-#include "Item.h"
 #include "ObjectAccessor.h"
-#include "SharedDefines.h"
 
-class Item;
 class Petition;
 
 #define GUILD_RANKS_MIN_COUNT   5
@@ -38,9 +35,7 @@ enum
     GUILD_NOTE_MAX_LENGTH       = 31,
     GUILD_INFO_MAX_LENGTH       = 500,
     GUILD_MOTD_MAX_LENGTH       = 128,
-    // 0x8000 is client max accepted packet size.
-    // Set a limit so that SMSG_GUILD_ROSTER size is never over this size.
-    GUILD_MAX_MEMBERS           = (0x8000 - 10 - GUILD_RANKS_MAX_COUNT - GUILD_INFO_MAX_LENGTH - GUILD_MOTD_MAX_LENGTH) / 100,
+    GUILD_ROSTER_MAX_LENGTH     = 0x8000 - 4, // max packet size accepted by client - packet header size
 };
 
 enum GuildDefaultRanks
@@ -170,11 +165,11 @@ enum GuildEmblem
 
 struct GuildEventLogEntry
 {
-    uint8  EventType;
-    uint32 PlayerGuid1;
-    uint32 PlayerGuid2;
-    uint8  NewRank;
-    uint64 TimeStamp;
+    uint8  eventType = 0;
+    uint32 playerGuid1 = 0;
+    uint32 playerGuid2 = 0;
+    uint8  newRank = 0;
+    uint64 timestamp = 0;
 };
 
 struct MemberSlot
@@ -233,21 +228,21 @@ class Guild
         uint32 GetCreatedMonth() const { return m_CreatedMonth; }
         uint32 GetCreatedDay() const { return m_CreatedDay; }
 
-        uint32 GetEmblemStyle() const { return m_EmblemStyle; }
-        uint32 GetEmblemColor() const { return m_EmblemColor; }
-        uint32 GetBorderStyle() const { return m_BorderStyle; }
-        uint32 GetBorderColor() const { return m_BorderColor; }
-        uint32 GetBackgroundColor() const { return m_BackgroundColor; }
+        int32 GetEmblemStyle() const { return m_EmblemStyle; }
+        int32 GetEmblemColor() const { return m_EmblemColor; }
+        int32 GetBorderStyle() const { return m_BorderStyle; }
+        int32 GetBorderColor() const { return m_BorderColor; }
+        int32 GetBackgroundColor() const { return m_BackgroundColor; }
 
         void SetLeader(ObjectGuid guid);
-        GuildAddStatus AddMember(ObjectGuid plGuid, uint32 plRank);
+        GuildAddStatus AddMember(ObjectGuid plGuid, uint32 plRank, uint32 petitionId = 0);
         bool DelMember(ObjectGuid guid, bool isDisbanding = false);
         //lowest rank is the count of ranks - 1 (the highest rank_id in table)
         uint32 GetLowestRank() const { return m_Ranks.size() - 1; }
 
         void SetMOTD(std::string motd);
         void SetGINFO(std::string ginfo);
-        void SetEmblem(uint32 emblemStyle, uint32 emblemColor, uint32 borderStyle, uint32 borderColor, uint32 backgroundColor);
+        void SetEmblem(int32 emblemStyle, int32 emblemColor, int32 borderStyle, int32 borderColor, int32 backgroundColor);
 
         uint32 GetMemberSize() const { return members.size(); }
         uint32 GetAccountsNumber();
@@ -257,8 +252,8 @@ class Guild
         bool LoadRanksFromDB(QueryResult* guildRanksResult);
         bool LoadMembersFromDB(QueryResult* guildMembersResult);
 
-        void BroadcastToGuild(WorldSession* session, std::string const& msg, uint32 language = LANG_UNIVERSAL);
-        void BroadcastToOfficers(WorldSession* session, std::string const& msg, uint32 language = LANG_UNIVERSAL);
+        void BroadcastToGuild(WorldSession* session, char const* msg, uint32 language = LANG_UNIVERSAL);
+        void BroadcastToOfficers(WorldSession* session, char const* msg, uint32 language = LANG_UNIVERSAL);
         void BroadcastPacketToRank(WorldPacket* packet, uint32 rankId);
         void BroadcastPacket(WorldPacket* packet);
 
@@ -317,7 +312,8 @@ class Guild
         // Guild EventLog
         void   LoadGuildEventLogFromDB();
         void   DisplayGuildEventLog(WorldSession* session);
-        void   LogGuildEvent(uint8 EventType, ObjectGuid playerGuid1, ObjectGuid playerGuid2 = ObjectGuid(), uint8 newRank = 0);
+        void   LogGuildEvent(uint8 eventType, ObjectGuid playerGuid1, ObjectGuid playerGuid2 = ObjectGuid(), uint8 newRank = 0);
+        ObjectGuid GetGuildInviter(ObjectGuid playerGuid) const;
 
     protected:
         void AddRank(std::string const& name,uint32 rights);
@@ -331,11 +327,11 @@ class Guild
         uint32 m_CreatedMonth;
         uint32 m_CreatedDay;
 
-        uint32 m_EmblemStyle;
-        uint32 m_EmblemColor;
-        uint32 m_BorderStyle;
-        uint32 m_BorderColor;
-        uint32 m_BackgroundColor;
+        int32 m_EmblemStyle;
+        int32 m_EmblemColor;
+        int32 m_BorderStyle;
+        int32 m_BorderColor;
+        int32 m_BackgroundColor;
         uint32 m_accountsNumber;                            // 0 used as marker for need lazy calculation at request
 
         RankList m_Ranks;
@@ -343,9 +339,7 @@ class Guild
         MemberList members;
 
         /** These are actually ordered lists. The first element is the oldest entry.*/
-        typedef std::list<GuildEventLogEntry> GuildEventLog;
-        GuildEventLog m_GuildEventLog;
-
+        std::list<GuildEventLogEntry> m_GuildEventLog;
         uint32 m_GuildEventLogNextGuid;
 
     private:

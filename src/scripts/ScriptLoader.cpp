@@ -37,9 +37,7 @@ void AddSC_go_scripts();
 void AddSC_event_fireworks();
 void AddSC_npcs_special();
 void AddSC_Totems();
-void AddSC_world_event_naxxramas();
-void AddSC_event_scourge_invasion();
-void AddSC_spell_scripts();
+void AddSC_scourge_invasion();
 
 //eastern kingdoms
 void AddSC_instance_blackrock_spire();
@@ -56,15 +54,12 @@ void AddSC_boss_magmus();
 void AddSC_boss_tomb_of_seven();
 void AddSC_boss_urok();
 void AddSC_instance_blackrock_depths();
-void AddSC_boss_drakkisath();                        //blackrock_spire
 void AddSC_boss_halycon();
 void AddSC_boss_highlordomokk();
-//void AddSC_boss_mothersmolderweb();
 void AddSC_boss_overlordwyrmthalak();
 void AddSC_boss_shadowvosh();
 void AddSC_boss_thebeast();
 void AddSC_boss_warmastervoone();
-void AddSC_boss_pyroguard_emberseer();
 void AddSC_boss_razorgore();                         //blackwing_lair
 void AddSC_boss_vael();
 void AddSC_boss_broodlord();
@@ -114,15 +109,12 @@ void AddSC_boss_sapphiron();
 void AddSC_instance_naxxramas();
 void AddSC_boss_arcanist_doan();                     //scarlet_monastery
 //void AddSC_boss_azshir_the_sleepless();
-void AddSC_boss_bloodmage_thalnos();
-void AddSC_boss_scorn();
 void AddSC_boss_herod();
 void AddSC_boss_high_inquisitor_fairbanks();
 void AddSC_boss_houndmaster_loksey();
 void AddSC_boss_interrogator_vishas();
 void AddSC_boss_mograine_and_whitemane();
 void AddSC_instance_scarlet_monastery();
-void AddSC_boss_darkmaster_gandling();               //scholomance
 void AddSC_boss_theolenkrastinov();
 void AddSC_boss_illuciabarov();
 void AddSC_boss_instructormalicia();
@@ -133,7 +125,6 @@ void AddSC_boss_lorekeeperpolkelt();
 void AddSC_boss_rasfrost();
 void AddSC_boss_theravenian();
 void AddSC_boss_vectus();
-//void AddSC_boss_lordblackwood();
 void AddSC_scholo_trash();
 void AddSC_instance_scholomance();
 void AddSC_instance_shadowfang_keep();
@@ -199,8 +190,6 @@ void AddSC_instance_blackfathom_deeps();             //blackfathom_deeps
 void AddSC_boss_celebras_the_cursed();               //maraudon
 void AddSC_boss_landslide();
 void AddSC_boss_noxxion();
-void AddSC_boss_ptheradras();
-void AddSC_maraudon();
 void AddSC_instance_maraudon();
 void AddSC_instance_onyxia_lair();
 void AddSC_boss_onyxia();                            //onyxias_lair
@@ -213,7 +202,6 @@ void AddSC_boss_buru();
 void AddSC_boss_kurinnaxx();
 void AddSC_boss_moam();
 void AddSC_boss_ossirian();
-void AddSC_boss_rajaxx();
 void AddSC_ruins_of_ahnqiraj();
 void AddSC_instance_ruins_of_ahnqiraj();
 void AddSC_boss_cthun();                             //temple_of_ahnqiraj
@@ -242,7 +230,6 @@ void AddSC_felwood();
 void AddSC_feralas();
 void AddSC_moonglade();
 void AddSC_mulgore();
-void AddSC_orgrimmar();
 void AddSC_silithus();
 void AddSC_stonetalon_mountains();
 void AddSC_tanaris();
@@ -289,9 +276,7 @@ void AddScripts()
     AddSC_event_fireworks();
     AddSC_npcs_special();
     AddSC_Totems();
-    AddSC_world_event_naxxramas();
-    AddSC_event_scourge_invasion();
-    AddSC_spell_scripts();
+    AddSC_scourge_invasion();
 
     AddSC_war_effort();
 
@@ -309,17 +294,14 @@ void AddScripts()
     AddSC_boss_tomb_of_seven();
     AddSC_boss_urok();
     AddSC_instance_blackrock_depths();
-    AddSC_boss_drakkisath();                                //blackrock_spire
     AddSC_boss_halycon();
     AddSC_boss_highlordomokk();
-    //AddSC_boss_mothersmolderweb();
     AddSC_boss_overlordwyrmthalak();
     AddSC_boss_shadowvosh();
     AddSC_boss_thebeast();
     AddSC_boss_warmastervoone();
 
     AddSC_instance_blackrock_spire();
-    AddSC_boss_pyroguard_emberseer();
     AddSC_boss_razorgore();                                 //blackwing_lair
     AddSC_boss_vael();
     AddSC_boss_broodlord();
@@ -366,15 +348,12 @@ void AddScripts()
     AddSC_instance_naxxramas();
     AddSC_boss_arcanist_doan();                             //scarlet_monastery
     //AddSC_boss_azshir_the_sleepless();
-    AddSC_boss_bloodmage_thalnos();
-    AddSC_boss_scorn();
     AddSC_boss_herod();
     AddSC_boss_high_inquisitor_fairbanks();
     AddSC_boss_houndmaster_loksey();
     AddSC_boss_interrogator_vishas();
     AddSC_boss_mograine_and_whitemane();
     AddSC_instance_scarlet_monastery();
-    AddSC_boss_darkmaster_gandling();                       //scholomance
     AddSC_boss_theolenkrastinov();
     AddSC_boss_illuciabarov();
     AddSC_boss_instructormalicia();
@@ -385,7 +364,6 @@ void AddScripts()
     AddSC_boss_rasfrost();
     AddSC_boss_theravenian();
     AddSC_boss_vectus();
-    //AddSC_boss_lordblackwood();
     AddSC_scholo_trash();
     AddSC_instance_scholomance();
     AddSC_instance_shadowfang_keep();
@@ -451,8 +429,6 @@ void AddScripts()
     AddSC_boss_celebras_the_cursed();                       //maraudon
     AddSC_boss_landslide();
     AddSC_boss_noxxion();
-    AddSC_boss_ptheradras();
-    AddSC_maraudon();
     AddSC_instance_maraudon();
     AddSC_instance_onyxia_lair();
     AddSC_boss_onyxia();                                    //onyxias_lair
@@ -465,7 +441,6 @@ void AddScripts()
     AddSC_boss_kurinnaxx();
     AddSC_boss_moam();
     AddSC_boss_ossirian();
-    AddSC_boss_rajaxx();
     AddSC_ruins_of_ahnqiraj();
     AddSC_instance_ruins_of_ahnqiraj();
     AddSC_boss_cthun();                                     //temple_of_ahnqiraj
@@ -494,7 +469,6 @@ void AddScripts()
     AddSC_feralas();
     AddSC_moonglade();
     AddSC_mulgore();
-    AddSC_orgrimmar();
     AddSC_silithus();
     AddSC_stonetalon_mountains();
     AddSC_tanaris();

@@ -59,14 +59,14 @@ inline void MaNGOS::ObjectUpdater::Visit(CreatureMapType& m)
 inline void CallAIMoveLOS(Creature* c, Unit* moving)
 {
     // Creature AI reaction
-    if (!c->HasUnitState(UNIT_STAT_LOST_CONTROL | UNIT_STAT_IGNORE_MOVE_LOS) && !c->IsInEvadeMode() && c->AI())
+    if (!c->HasUnitState(UNIT_STAT_LOST_CONTROL | UNIT_STAT_NO_SEARCH_FOR_OTHERS) && !c->IsInEvadeMode() && c->AI())
     {
         bool alert = false;
         if (moving->IsVisibleForOrDetect(c, c, true, false, &alert))
               c->AI()->MoveInLineOfSight(moving);
         else
             if (moving->GetTypeId() == TYPEID_PLAYER && moving->HasStealthAura() && alert)
-                c->AI()->TriggerAlert(moving);
+                c->AI()->OnMoveInStealth(moving);
     }
 }
 
@@ -137,7 +137,7 @@ inline void MaNGOS::DynamicObjectUpdater::VisitHelper(Unit* target)
         return;
 
     //Check targets for not_selectable unit flag and remove
-    if (target->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NOT_SELECTABLE))
+    if (target->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING | UNIT_FLAG_NOT_SELECTABLE))
         return;
 
     if (i_dynobject.GetCasterGuid().IsPlayer() && target->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PLAYER))
@@ -178,16 +178,21 @@ inline void MaNGOS::DynamicObjectUpdater::VisitHelper(Unit* target)
     SpellEntry const* spellInfo = sSpellMgr.GetSpellEntry(i_dynobject.GetSpellId());
     SpellEffectIndex eff_index  = i_dynobject.GetEffIndex();
 
-    // Mise en combat
-    // Exception : fusee eclairante, piege de givre
-    if (pUnit && !i_positive && i_dynobject.GetSpellId() != 1543 && i_dynobject.GetSpellId() != 13810)
+    // Enter combat
+    if (pUnit && !i_positive &&
+        !spellInfo->HasAttribute(SPELL_ATTR_EX_NO_THREAT) &&
+        !spellInfo->HasAttribute(SPELL_ATTR_EX_THREAT_ONLY_ON_MISS) &&
+        !spellInfo->HasAttribute(SPELL_ATTR_EX2_NO_INITIAL_THREAT) &&
+        !spellInfo->HasAttribute(SPELL_ATTR_EX2_NOT_AN_ACTION))
     {
         if (CreatureAI* pAi = target->AI())
             pAi->AttackedBy(pUnit);
 
+        target->AddThreat(pUnit);
         target->SetInCombatWithAggressor(pUnit);
         pUnit->SetInCombatWithVictim(target);
     }
+
     // Check target immune to spell or aura
     if (target->IsImmuneToSpell(spellInfo, false) || target->IsImmuneToSpellEffect(spellInfo, eff_index, false))
         return;
@@ -204,7 +209,7 @@ inline void MaNGOS::DynamicObjectUpdater::VisitHelper(Unit* target)
         {
             Unit* pCasterUnit = i_dynobject.GetUnitCaster();
 
-            PersistentAreaAura* Aur = new PersistentAreaAura(spellInfo, eff_index, nullptr, holder, target, pCasterUnit);
+            PersistentAreaAura* Aur = new PersistentAreaAura(i_dynobject.GetObjectGuid(), spellInfo, eff_index, holder, target, pCasterUnit);
             holder->AddAura(Aur, eff_index);
             
             target->AddAuraToModList(Aur);
@@ -226,7 +231,7 @@ inline void MaNGOS::DynamicObjectUpdater::VisitHelper(Unit* target)
         Unit* pCasterUnit = i_dynobject.GetUnitCaster();
 
         holder = CreateSpellAuraHolder(spellInfo, target, pCasterUnit, pCaster);
-        PersistentAreaAura* Aur = new PersistentAreaAura(spellInfo, eff_index, nullptr, holder, target, pCasterUnit);
+        PersistentAreaAura* Aur = new PersistentAreaAura(i_dynobject.GetObjectGuid(), spellInfo, eff_index, holder, target, pCasterUnit);
         holder->AddAura(Aur, eff_index);
 
         // Debuff slots may be full, in which case holder is deleted or holder is not able to
@@ -237,7 +242,7 @@ inline void MaNGOS::DynamicObjectUpdater::VisitHelper(Unit* target)
 
     if (holder && holder->IsChanneled())
     {
-        if (WorldObject* caster = i_dynobject.GetCaster())
+        if (SpellCaster* caster = i_dynobject.GetCaster())
         {
             // Caster is channeling this spell, update current channel spell holders with
             // the new holder. Don't check channel object, as it might be a spell with
