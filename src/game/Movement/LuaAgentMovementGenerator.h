@@ -73,10 +73,10 @@ template<class T>
 class LuaAIChaseMovementGenerator : public LuaAITargetedMovementGeneratorMedium<T, LuaAIChaseMovementGenerator<T> >
 {
     public:
-        explicit LuaAIChaseMovementGenerator(Unit &target)
-            : LuaAITargetedMovementGeneratorMedium<T, LuaAIChaseMovementGenerator<T> >(target) {}
-        LuaAIChaseMovementGenerator(Unit &target, float offset, float angle)
-            : LuaAITargetedMovementGeneratorMedium<T, LuaAIChaseMovementGenerator<T> >(target, offset, angle) {}
+        LuaAIChaseMovementGenerator(Unit &target, float offset, float offsetMin, float offsetMax, float angle, float angleT, bool noMinOffsetIfMutual)
+            : LuaAITargetedMovementGeneratorMedium<T, LuaAIChaseMovementGenerator<T> >(target, offset, angle),
+            m_offsetMin(offsetMin != 0.f ? offsetMin : .2f), m_offsetMax(offsetMax != .0f ? offsetMax : .2f),
+            m_angleT(angleT), m_noMinOffsetIfMutual(noMinOffsetIfMutual) {}
         ~LuaAIChaseMovementGenerator() {}
 
         MovementGeneratorType GetMovementGeneratorType() const { return CHASE_MOTION_TYPE; }
@@ -99,6 +99,14 @@ class LuaAIChaseMovementGenerator : public LuaAITargetedMovementGeneratorMedium<
         bool m_bIsSpreading = false;
         bool m_bCanSpread = true;
         uint8 m_uiSpreadAttempts = 0;
+
+        float m_angleT;
+        float m_offsetMin;
+        float m_offsetMax;
+        float m_noMinOffsetIfMutual;
+
+        bool IsAngleBad(T& owner, bool mutualChase);
+        bool IsDistBad(T& owner, bool mutualChase);
 
         void DoBackMovement(T &, Unit* target);
         void DoSpreadIfNeeded(T &, Unit* target);

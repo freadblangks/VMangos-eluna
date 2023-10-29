@@ -124,7 +124,7 @@ class MotionMaster : std::stack<MovementGenerator *>
         }
         void ClearType(MovementGeneratorType moveType);
 
-        void LuaAIMoveChase(Unit* target, float dist, float angle);
+        void LuaAIMoveChase(Unit* target, float dist, float distMin, float distMax, float angle, float angleT, float noMinOffsetIfMutual);
         void LuaAIMoveFollow(Unit* target, float dist, float angle);
         void MoveIdle();
         void MoveRandom(bool use_current_position = false, float wander_distance = 0.0f, uint32 expire_time = 0);

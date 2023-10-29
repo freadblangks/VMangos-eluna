@@ -48,7 +48,6 @@ void LuaAITargetedMovementGeneratorMedium<T, D>::_setTargetLocation(T &owner)
     bool losResult = false;
 
     GenericTransport* transport = owner.GetTransport();
-    bool isPet = (owner.GetTypeId() == TYPEID_UNIT && ((Creature*)&owner)->IsPet());
 
     // Can switch transports during follow movement.
     if (this->GetMovementGeneratorType() == FOLLOW_MOTION_TYPE)
@@ -93,11 +92,6 @@ void LuaAITargetedMovementGeneratorMedium<T, D>::_setTargetLocation(T &owner)
             return;
         }
     }
-    // prevent redundant micro-movement for pets, other followers.
-    else if (!i_target->IsMoving() && owner.movespline->Finalized() && i_target->IsWithinDistInMap(&owner, 1.4f * m_fOffset))
-    {
-        owner.GetPosition(x, y, z);
-    }
     else
     {
         // to at m_fOffset distance from target and m_fAngle from target facing
@@ -122,7 +116,15 @@ void LuaAITargetedMovementGeneratorMedium<T, D>::_setTargetLocation(T &owner)
                 o = i_target->GetOrientation();
             }
             
-            i_target->GetNearPointAroundPosition(&owner, x, y, z, owner.GetObjectBoundingRadius(), m_fOffset, o + m_fAngle);
+            if (GetMovementGeneratorType() == CHASE_MOTION_TYPE)
+            {
+                float angle = i_target->GetOrientation();
+                if (i_target->GetVictim() && i_target->GetVictim()->GetObjectGuid() != owner.GetObjectGuid())
+                    angle += m_fAngle;
+                i_target->GetNearPointAroundPosition(&owner, x, y, z, owner.GetObjectBoundingRadius(), m_fOffset, angle);
+            }
+            else
+                i_target->GetNearPointAroundPosition(&owner, x, y, z, owner.GetObjectBoundingRadius(), m_fOffset, o + m_fAngle);
         }
 
         if (!i_target->m_movementInfo.HasMovementFlag(MOVEFLAG_SWIMMING) && !i_target->IsInWater())
@@ -133,7 +135,7 @@ void LuaAITargetedMovementGeneratorMedium<T, D>::_setTargetLocation(T &owner)
     PathFinder path(&owner);
 
     // allow pets following their master to cheat while generating paths
-    bool petFollowing = (isPet && owner.HasUnitState(UNIT_STAT_FOLLOW));
+    bool petFollowing = owner.HasUnitState(UNIT_STAT_FOLLOW);
     Movement::MoveSplineInit init(owner, "TargetedMovementGenerator");
     path.SetTransport(transport);
     path.calculate(x, y, z, petFollowing);
@@ -146,15 +148,12 @@ void LuaAITargetedMovementGeneratorMedium<T, D>::_setTargetLocation(T &owner)
         if (pathType == PATHFIND_NOPATH)
             return;
 
-        if (isPet)
+        // prevent pets from going through closed doors
+        path.CutPathWithDynamicLoS();
+        if (path.getPath().size() == 2 && path.Length() < 0.1f)
         {
-            // prevent pets from going through closed doors
-            path.CutPathWithDynamicLoS();
-            if (path.getPath().size() == 2 && path.Length() < 0.1f)
-            {
-                m_bReachable = false;
-                return;
-            }
+            m_bReachable = false;
+            return;
         }
     }
 
@@ -205,10 +204,10 @@ void LuaAITargetedMovementGeneratorMedium<T, D>::_setTargetLocation(T &owner)
     {
         float dist = path.Length();
         init.SetWalk(false);
-        float speedupDistance = m_fOffset * 2.0f + owner.GetObjectBoundingRadius() + i_target->GetObjectBoundingRadius();
+        float speedupDistance = m_fOffset + .5f + owner.GetObjectBoundingRadius() + i_target->GetObjectBoundingRadius();
         if (dist > speedupDistance)
         {
-            Unit* pOwner = owner.GetCharmerOrOwner();
+            Unit* pOwner = i_target.getTarget();
             if (pOwner && (!pOwner->IsInCombat() && !owner.IsInCombat() || pOwner->IsPlayer() && pOwner->IsMounted()))
             {
                 float distFactor = 1.0f;
@@ -235,7 +234,7 @@ void LuaAITargetedMovementGeneratorMedium<T, D>::_setTargetLocation(T &owner)
     }
 
     init.Launch();
-    m_checkDistanceTimer.Reset(500);
+    m_checkDistanceTimer.Reset(100);
 
     // Fly-hack
     if (Player* player = i_target->ToPlayer())
@@ -290,6 +289,42 @@ void LuaAITargetedMovementGeneratorMedium<T, D>::UpdateAsync(T &owner, uint32 /*
 }
 
 template<class T>
+bool LuaAIChaseMovementGenerator<T>::IsAngleBad(T& owner, bool mutualChase)
+{
+    if (mutualChase)
+        return false;
+
+    float relAngle = MapManager::NormalizeOrientation(i_target->GetAngle(&owner) - i_target->GetOrientation());
+    float angleDiff = std::abs(relAngle - m_fAngle);
+    return std::min(angleDiff, M_PI_F * 2 - angleDiff) > m_angleT;
+}
+
+template<class T>
+bool LuaAIChaseMovementGenerator<T>::IsDistBad(T& owner, bool mutualChase)
+{
+    // must be within (offset - offsetMin, offset + offsetMax)
+    float combinedBoundingRadius = i_target->GetObjectBoundingRadius() + owner.GetObjectBoundingRadius();
+    float distanceToTarget = i_target->GetDistance(&owner, SizeFactor::None);
+
+    float dMin = m_fOffset + combinedBoundingRadius - m_offsetMin;
+    float dMax = m_fOffset + combinedBoundingRadius + m_offsetMax;
+
+    if (m_noMinOffsetIfMutual && mutualChase)
+        dMin = combinedBoundingRadius - 1.0f;
+
+    if (dMin < 0.00001f)
+        dMin = 0.00001f;
+
+    //float relAngle = MapManager::NormalizeOrientation(i_target->GetAngle(&owner) - i_target->GetOrientation());
+    //float angleDiff = std::abs(relAngle - m_fAngle);
+    //angleDiff = std::min(angleDiff, (float) (M_PI) * 2 - angleDiff);
+    //printf("Dist = %.3f dMax = %.3f dMin = %.3f dReq = %.3f Angle = %.3f adiff = %.3f aReq = %.3f aT = %.3f\n", distanceToTarget, dMax, dMin, combinedBoundingRadius, relAngle, angleDiff, m_fAngle, m_angleT);
+    if (m_fOffset != .0f)
+        return distanceToTarget > dMax || distanceToTarget < dMin || !i_target->IsWithinLOSInMap(&owner);
+    return distanceToTarget > dMax || distanceToTarget < dMin;
+}
+
+template<class T>
 bool LuaAIChaseMovementGenerator<T>::Update(T &owner, uint32 const&  time_diff)
 {
     if (!i_target.isValid() || !i_target->IsInWorld())
@@ -327,7 +362,7 @@ bool LuaAIChaseMovementGenerator<T>::Update(T &owner, uint32 const&  time_diff)
     m_checkDistanceTimer.Update(time_diff);
     if (m_checkDistanceTimer.Passed())
     {
-        m_checkDistanceTimer.Reset(100);
+        m_checkDistanceTimer.Reset(50);
         if (m_bIsSpreading)
         {
             if (!owner.movespline->Finalized() && !owner.CanReachWithMeleeAutoAttack(i_target.getTarget()))
@@ -362,10 +397,16 @@ bool LuaAIChaseMovementGenerator<T>::Update(T &owner, uint32 const&  time_diff)
                 if (!targetMoved)
                     targetMoved = !i_target->IsWithinDist3d(dest.x, dest.y, dest.z, 0.5f);
 
-                // Chase movement may be interrupted
+                bool mutualChase = false;
+                if (Unit* victim = i_target->GetVictim())
+                    if (victim->GetObjectGuid() == owner.GetObjectGuid())
+                        mutualChase = true;
+
                 if (!targetMoved)
-                    if (owner.movespline->Finalized())
-                        targetMoved = !owner.IsWithinDist3d(dest.x, dest.y, dest.z, allowed_dist - owner.GetObjectBoundingRadius());
+                    targetMoved = IsDistBad(owner, mutualChase);
+
+                if (!targetMoved)
+                    targetMoved = IsAngleBad(owner, mutualChase);
 
                 if (targetMoved)
                 {
@@ -664,13 +705,19 @@ bool LuaAIFollowMovementGenerator<T>::Update(T &owner, uint32 const&  time_diff)
             }
             else if (m_bTargetOnTransport)
                 targetMoved = true;
-            
-            if (!targetMoved)
-                targetMoved = !i_target->IsWithinDist3d(dest.x, dest.y, dest.z, 0.1f);
 
-            // Follow movement may be interrupted
-            if (!targetMoved && owner.movespline->Finalized())
-                targetMoved = !owner.IsWithinDist3d(dest.x, dest.y, dest.z, m_fOffset + i_target->GetObjectBoundingRadius() + 0.5f); 
+            if (!targetMoved)
+                targetMoved = !i_target->IsWithinDist3d(dest.x, dest.y, dest.z, 0.5f);
+
+            if (!targetMoved)
+                targetMoved = std::abs(i_target->GetDistance(&owner) - m_fOffset) > .1f;
+
+            if (!targetMoved)
+            {
+                float relAngle = MapManager::NormalizeOrientation(i_target->GetAngle(&owner) - i_target->GetOrientation());
+                float angleDiff = std::abs(relAngle - m_fAngle);
+                targetMoved = std::min(angleDiff, M_PI_F * 2 - angleDiff) > .1f;
+            }
 
             if (targetMoved)
             {
@@ -821,6 +868,10 @@ template void LuaAIChaseMovementGenerator<Creature>::Interrupt(Creature &);
 template void LuaAIChaseMovementGenerator<Player>::Reset(Player &);
 template void LuaAIChaseMovementGenerator<Creature>::Reset(Creature &);
 template void LuaAIChaseMovementGenerator<Player>::MovementInform(Player&);
+template bool LuaAIChaseMovementGenerator<Player>::IsDistBad(Player &, bool);
+template bool LuaAIChaseMovementGenerator<Creature>::IsDistBad(Creature &, bool);
+template bool LuaAIChaseMovementGenerator<Player>::IsAngleBad(Player &, bool);
+template bool LuaAIChaseMovementGenerator<Creature>::IsAngleBad(Creature &, bool);
 
 template bool LuaAIFollowMovementGenerator<Player>::Update(Player &, uint32 const&);
 template bool LuaAIFollowMovementGenerator<Creature>::Update(Creature &, uint32 const&);

@@ -954,7 +954,7 @@ void Creature::PauseOutOfCombatMovement(uint32 pauseTime)
     }
 }
 
-void MotionMaster::LuaAIMoveChase(Unit* target, float dist, float angle)
+void MotionMaster::LuaAIMoveChase(Unit* target, float dist, float distMin, float distMax, float angle, float angleT, float noMinOffsetIfMutual)
 {
     // ignore movement request if target not exist
     if (!target)
@@ -962,16 +962,7 @@ void MotionMaster::LuaAIMoveChase(Unit* target, float dist, float angle)
 
     DEBUG_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS, "%s chase to %s", m_owner->GetGuidStr().c_str(), target->GetGuidStr().c_str());
 
-    if (m_owner->IsPlayer())
-        Mutate(new LuaAIChaseMovementGenerator<Player>(*target, dist, angle));
-    else
-    {
-        // interrupt current movespline
-        if (!m_owner->IsStopped())
-            m_owner->StopMoving();
-
-        Mutate(new LuaAIChaseMovementGenerator<Creature>(*target, dist, angle));
-    }
+    Mutate(new LuaAIChaseMovementGenerator<Player>(*target, dist, distMin, distMax, angle, angleT, noMinOffsetIfMutual));
 }
 
 void MotionMaster::LuaAIMoveFollow(Unit* target, float dist, float angle)
@@ -987,8 +978,5 @@ void MotionMaster::LuaAIMoveFollow(Unit* target, float dist, float angle)
 
     DEBUG_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS, "%s follow to %s", m_owner->GetGuidStr().c_str(), target->GetGuidStr().c_str());
 
-    if (m_owner->IsPlayer())
-        Mutate(new LuaAIFollowMovementGenerator<Player>(*target, dist, angle));
-    else
-        Mutate(new LuaAIFollowMovementGenerator<Creature>(*target, dist, angle));
+    Mutate(new LuaAIFollowMovementGenerator<Player>(*target, dist, angle));
 }
