@@ -428,6 +428,28 @@ set (game_SRCS
     LuaAI/LuaAgent.cpp
     LuaAI/LuaAgent.h
     LuaAI/LuaAgentCommands.cpp
+    LuaAI/Goal/Goal.cpp
+    LuaAI/Goal/Goal.h
+    LuaAI/Goal/GoalParam.cpp
+    LuaAI/Goal/GoalParam.h
+    LuaAI/Goal/GoalManager.cpp
+    LuaAI/Goal/GoalManager.h
+    LuaAI/Goal/LogicManager.cpp
+    LuaAI/Goal/LogicManager.h
+    LuaAI/LuaAgentBindsCommon.cpp
+    LuaAI/LuaAgentBindsCommon.h
+    LuaAI/LuaAgentUtils.cpp
+    LuaAI/LuaAgentUtils.h
+	LuaAI/LuaAgentLibAux.cpp
+    LuaAI/LuaAgentLibAux.h
+    LuaAI/LuaAgentLibAI.cpp
+    LuaAI/LuaAgentLibAI.h
+    LuaAI/LuaAgentLibPlayer.cpp
+    LuaAI/LuaAgentLibPlayer.h
+    LuaAI/LuaAgentLibUnit.cpp
+    LuaAI/LuaAgentLibUnit.h
+    LuaAI/LuaAgentLibWorldObj.cpp
+    LuaAI/LuaAgentLibWorldObj.h
     Movement/LuaAgentMovementGenerator.cpp
     Movement/LuaAgentMovementGenerator.h
 )
@@ -577,6 +599,10 @@ source_group("ProgressionExtras"
   REGULAR_EXPRESSION ProgressionExtras
 )
 
+source_group("LuaAI/Goal"
+  REGULAR_EXPRESSION Goal
+)
+
 source_group("LuaAI"
   REGULAR_EXPRESSION LuaAI
 )
@@ -586,6 +612,15 @@ add_library(game STATIC
 )
 
 SET_TARGET_PROPERTIES (game PROPERTIES FOLDER "Game Libs")
+
+# luas
+add_compile_definitions(_SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING)
+get_filename_component(LUADIR ${CMAKE_SOURCE_DIR}/../lua ABSOLUTE)
+target_link_libraries(game ${LUADIR}/lib/lua.lib)
+target_include_directories(game
+  PUBLIC
+    ${LUADIR}/src)
+#luas
 
 target_link_libraries(game
   shared

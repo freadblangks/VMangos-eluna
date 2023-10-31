@@ -197,6 +197,7 @@ World::~World()
 void World::Shutdown()
 {
     sPlayerBotMgr.DeleteAll();
+    sLuaAgentMgr.LogoutAllImmediately();
     KickAll();                                     // save and kick all players
     UpdateSessions(1);                             // real players unload required UpdateSessions call
 

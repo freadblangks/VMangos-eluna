@@ -50,6 +50,10 @@ class LuaAgentMgr
 
 	void SetGroupAllInProgress(bool value) { m_bGroupAllInProgress = value; }
 
+	bool LuaDofile(const std::string& filename);
+	void LuaLoadAll();
+	void LuaLoadFiles(const std::string& fpath);
+
 protected:
 	void EraseLoginInfo(ObjectGuid guid);
 
@@ -80,6 +84,7 @@ public:
 	void OnAgentLogin(WorldSession* session, ObjectGuid guid, ObjectGuid masterGuid, int logicID, std::string spec);
 	void LogoutAgent(ObjectGuid guid);
 	void LogoutAllAgents();
+	void LogoutAllImmediately();
 
 	void Update(uint32 diff);
 

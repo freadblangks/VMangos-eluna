@@ -4,6 +4,12 @@
 #include "AccountMgr.h"
 #include "Database/DatabaseImpl.h"
 #include "Group.h"
+#include "lua.hpp"
+#include "Goal/GoalManager.h"
+#include "Goal/LogicManager.h"
+#include "LuaAgentBindsCommon.h"
+#include <experimental/filesystem>
+
 
 class LuaAgentLoginQueryHolder : public LoginQueryHolder
 {
@@ -64,16 +70,73 @@ public:
 
 LuaAgentMgr::LuaAgentMgr() : m_bLuaCeaseUpdates(false), m_bLuaReload(false), L(nullptr), m_bGroupAllInProgress(false)
 {
-
+	LuaLoadAll();
 }
 
 
 LuaAgentMgr::~LuaAgentMgr()
 {
-
+	m_agents = LuaAgentMap();
+	if (L) lua_close(L);
+	L = nullptr;
 }
 
 
+// ********************************************************
+// **                  Lua basics                        **
+// ********************************************************
+
+
+bool LuaAgentMgr::LuaDofile(const std::string& filename) {
+	if (luaL_dofile(L, filename.c_str()) != LUA_OK) {
+		m_bLuaCeaseUpdates = true;
+		sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "LuaAgentMgr: Lua error executing file %s: %s\n", filename.c_str(), lua_tostring(L, -1));
+		lua_pop(L, 1); // pop the error object
+		return false;
+	}
+	return true;
+}
+
+
+void LuaAgentMgr::LuaLoadFiles(const std::string& fpath) {
+	if (!L) return;
+
+	// logic and goal list must be loaded before all other files.
+	if (!LuaDofile((fpath + "/logic_list.lua")))
+		return;
+	if (!LuaDofile((fpath + "/goal_list.lua")))
+		return;
+	if (!LuaDofile((fpath + "/ai_define.lua")))
+		return;
+
+	// do all files recursively
+	for (const auto& entry : std::experimental::filesystem::recursive_directory_iterator(fpath))
+		if (entry.path().extension().generic_string() == ".lua")
+			if (!LuaDofile(entry.path().generic_string()))
+				return;
+}
+
+
+void LuaAgentMgr::LuaLoadAll() {
+	std::string fpath = "ai";
+	if (L) lua_close(L); // kill old state
+	L = nullptr;
+
+	GoalManager::ClearRegistered();
+	LogicManager::ClearRegistered();
+
+	L = luaL_newstate();
+	luaL_openlibs(L); // replace with individual libraries later
+
+	LuaBindsAI::BindAll(L);
+
+	LuaLoadFiles(fpath);
+}
+
+
+// ********************************************************
+// **                  Bot Management                    **
+// ********************************************************
 void LuaAgentMgr::Update(uint32 diff)
 {
 
@@ -85,11 +148,16 @@ void LuaAgentMgr::Update(uint32 diff)
 		m_bLuaReload = false;
 		m_bLuaCeaseUpdates = false;
 
-		for (auto& agent : m_agents)
+		for (auto& it : m_agents)
 		{
 			// reset all
+			if (LuaAgent* agent = it.second->GetLuaAI())
+			{
+				agent->Reset(true);
+				agent->SetCeaseUpdates(false);
+			}
 		}
-
+		LuaLoadAll();
 		sWorld.SendServerMessage(SERVER_MSG_CUSTOM, "Lua reload finished");
 	}
 
@@ -286,6 +354,13 @@ void LuaAgentMgr::LogoutAllAgents()
 }
 
 
+void LuaAgentMgr::LogoutAllImmediately()
+{
+	LogoutAllAgents();
+	__RemoveAgents();
+}
+
+
 void LuaAgentMgr::ReviveAll(Player* owner, float hp, bool sickness)
 {
 	for (auto& itr : m_agents)
@@ -318,12 +393,16 @@ void LuaAgentMgr::GroupAll(Player* owner)
 			Player* master = ObjectAccessor::FindPlayer(agent->GetMasterGuid());
 
 			if (master && owner->GetObjectGuid() == agent->GetMasterGuid())
-				// already in my group?
+			{
+				// already grouped
+				if (player->IsInSameRaidWith(master))
+					continue;
+
+				// leave my group if any
+				player->GetSession()->HandleGroupDisbandOpcode(WorldPacket(CMSG_GROUP_DISBAND));
+
 				if (Group* group = master->GetGroup())
 				{
-					if (group->IsMember(player->GetObjectGuid()))
-						continue;
-
 					std::unique_ptr<WorldPacket> packet = std::make_unique<WorldPacket>(CMSG_GROUP_INVITE);
 					*packet << std::string(player->GetName());
 					master->GetSession()->QueuePacket(std::move(packet));
@@ -337,6 +416,7 @@ void LuaAgentMgr::GroupAll(Player* owner)
 					packet << std::string(player->GetName());
 					master->GetSession()->HandleGroupInviteOpcode(packet);
 				}
+			}
 		}
 	}
 	SetGroupAllInProgress(false);
