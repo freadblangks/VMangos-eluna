@@ -10,28 +10,17 @@ NierAction_Hunter::NierAction_Hunter(Player* pmMe) :NierAction_Base(pmMe)
 
     spell_ArcaneShot = 0;
     spell_SerpentSting = 0;
-    spell_ScorpidSting = 0;
     spell_RapidFire = 0;
-    spell_FeignDeath = 0;
     spell_HuntersMark = 0;
     spell_Volley = 0;
-    spell_SteadyShot = 0;
     spell_AspectOfTheHawk = 0;
-    spell_AspectOfTheViper = 0;
     spell_CallPet = 0;
     spell_DismissPet = 0;
     spell_RevivePet = 0;
-    spell_TameBeast = 0;
-    spell_MendPet = 0;
-    spell_AspectOfTheDragonhawk = 0;
     spell_ConcussiveShot = 0;
     spell_AutoShot = 0;
-    spell_Readiness = 0;
 
-    spell_ScatterShot = 0;
     spell_TrueshotAura = 0;
-    spell_SilencingShot = 0;
-    spell_ChimeraShot = 0;
 
     ammoEntry = 0;
 }
@@ -82,12 +71,10 @@ void NierAction_Hunter::InitializeCharacter(uint32 pmTargetLevel, uint32 pmSpeci
         spell_CallPet = 883;
         spell_DismissPet = 2641;
         spell_RevivePet = 982;
-        spell_TameBeast = 1515;
     }
     if (myLevel >= 12)
     {
         spell_ArcaneShot = 14281;
-        spell_MendPet = 136;
     }
     if (myLevel >= 18)
     {
@@ -97,13 +84,10 @@ void NierAction_Hunter::InitializeCharacter(uint32 pmTargetLevel, uint32 pmSpeci
     if (myLevel >= 20)
     {
         spell_ArcaneShot = 14282;
-        spell_MendPet = 3111;
-        spell_AspectOfTheViper = 34074;
         me->LearnSpell(200, true);
     }
     if (myLevel >= 22)
     {
-        spell_ScorpidSting = 3043;
         spell_HuntersMark = 14323;
     }
     if (myLevel >= 26)
@@ -119,11 +103,9 @@ void NierAction_Hunter::InitializeCharacter(uint32 pmTargetLevel, uint32 pmSpeci
     {
         spell_ArcaneShot = 14283;
         spell_AspectOfTheHawk = 14319;
-        spell_MendPet = 3661;
     }
     if (myLevel >= 30)
     {
-        spell_FeignDeath = 5384;
     }
     if (myLevel >= 34)
     {
@@ -132,11 +114,9 @@ void NierAction_Hunter::InitializeCharacter(uint32 pmTargetLevel, uint32 pmSpeci
     if (myLevel >= 36)
     {
         spell_ArcaneShot = 14284;
-        spell_MendPet = 3662;
     }
     if (myLevel >= 37)
     {
-        spell_Readiness = 23989;
     }
     if (myLevel >= 38)
     {
@@ -159,7 +139,6 @@ void NierAction_Hunter::InitializeCharacter(uint32 pmTargetLevel, uint32 pmSpeci
     if (myLevel >= 44)
     {
         spell_ArcaneShot = 14285;
-        spell_MendPet = 13542;
     }
     if (myLevel >= 48)
     {
@@ -169,13 +148,10 @@ void NierAction_Hunter::InitializeCharacter(uint32 pmTargetLevel, uint32 pmSpeci
     {
         spell_SerpentSting = 13554;
         spell_Volley = 14294;
-        spell_SteadyShot = 56641;
     }
     if (myLevel >= 52)
     {
         spell_ArcaneShot = 14286;
-        spell_MendPet = 13543;
-        spell_SilencingShot = 34490;
     }
     if (myLevel >= 55)
     {
@@ -193,70 +169,8 @@ void NierAction_Hunter::InitializeCharacter(uint32 pmTargetLevel, uint32 pmSpeci
         spell_ArcaneShot = 14287;
         spell_SerpentSting = 25295;
         spell_AspectOfTheHawk = 25296;
-        spell_MendPet = 13544;
-        spell_ChimeraShot = 53209;
     }
-    if (myLevel >= 62)
-    {
-        spell_SteadyShot = 34120;
-    }
-    if (myLevel >= 65)
-    {
-        ammoEntry = 28056;
-    }
-    if (myLevel >= 67)
-    {
-        spell_SerpentSting = 27016;
-        spell_Volley = 27022;
-    }
-    if (myLevel >= 68)
-    {
-        spell_AspectOfTheHawk = 27044;
-        spell_MendPet = 27046;
-    }
-    if (myLevel >= 69)
-    {
-        spell_ArcaneShot = 27019;
-    }
-    if (myLevel >= 71)
-    {
-        spell_SteadyShot = 49051;
-    }
-    if (myLevel >= 73)
-    {
-        spell_ArcaneShot = 49044;
-        spell_SerpentSting = 49000;
-    }
-    if (myLevel >= 74)
-    {
-        spell_Volley = 58431;
-        spell_AspectOfTheDragonhawk = 61846;
-        spell_MendPet = 48989;
-    }
-    if (myLevel >= 75)
-    {
-        ammoEntry = 41586;
-    }
-    if (myLevel >= 76)
-    {
-        spell_HuntersMark = 53338;
-    }
-    if (myLevel >= 77)
-    {
-        spell_SteadyShot = 49052;
-    }
-    if (myLevel >= 79)
-    {
-        spell_ArcaneShot = 49045;
-        spell_SerpentSting = 49001;
-    }
-    if (myLevel >= 80)
-    {
-        ammoEntry = 52021;
-        spell_Volley = 58434;
-        spell_AspectOfTheDragonhawk = 61847;
-        spell_MendPet = 48990;
-    }
+
     me->UpdateSkillsToMaxSkillsForLevel();
     std::ostringstream msgStream;
     msgStream << me->GetName() << " initialized";
@@ -648,48 +562,6 @@ bool NierAction_Hunter::DPS(Unit* pmTarget, bool pmRushing, float pmDistanceMax,
     {
         HealthPotion();
     }
-    float manaPCT = me->GetPowerPercent(Powers::POWER_MANA);
-    if (manaPCT < 30.0f)
-    {
-        if (!me->HasAura(spell_AspectOfTheViper))
-        {
-            if (CastSpell(me, spell_AspectOfTheViper))
-            {
-                return true;
-            }
-        }
-    }
-    else if (manaPCT > 70.0f)
-    {
-        if (me->HasAura(spell_AspectOfTheViper))
-        {
-            switch (aspectType)
-            {
-            case HunterAspectType::HunterAspectType_Hawk:
-            {
-                if (spell_AspectOfTheDragonhawk > 0)
-                {
-                    if (CastSpell(me, spell_AspectOfTheDragonhawk, true))
-                    {
-                        return true;
-                    }
-                }
-                else if (spell_AspectOfTheHawk > 0)
-                {
-                    if (CastSpell(me, spell_AspectOfTheHawk, true))
-                    {
-                        return true;
-                    }
-                }
-                break;
-            }
-            default:
-            {
-                break;
-            }
-            }
-        }
-    }
     if (pmTarget->IsMoving())
     {
         if (CastSpell(pmTarget, spell_ConcussiveShot, true))
@@ -707,18 +579,7 @@ bool NierAction_Hunter::DPS(Unit* pmTarget, bool pmRushing, float pmDistanceMax,
         {
             return true;
         }
-    }
-    if (CastSpell(pmTarget, spell_ChimeraShot))
-    {
-        return true;
-    }
-    if (CastSpell(pmTarget, spell_ArcaneShot))
-    {
-        return true;
-    }
-    if (!pmInstantOnly)
-    {
-        if (CastSpell(pmTarget, spell_SteadyShot))
+        if (CastSpell(pmTarget, spell_ArcaneShot))
         {
             return true;
         }
@@ -828,34 +689,19 @@ bool NierAction_Hunter::Buff(Unit* pmTarget)
     }
     if (me->GetObjectGuid() == pmTarget->GetObjectGuid())
     {
-        if (CastSpell(me, spell_TrueshotAura, true))
+        if (spell_TrueshotAura > 0)
         {
-            return true;
-        }
-        switch (aspectType)
-        {
-        case HunterAspectType::HunterAspectType_Hawk:
-        {
-            if (spell_AspectOfTheDragonhawk > 0)
+            if (CastSpell(me, spell_TrueshotAura, true))
             {
-                if (CastSpell(me, spell_AspectOfTheDragonhawk, true))
-                {
-                    return true;
-                }
+                return true;
             }
-            else if (spell_AspectOfTheHawk > 0)
-            {
-                if (CastSpell(me, spell_AspectOfTheHawk, true))
-                {
-                    return true;
-                }
-            }
-            break;
         }
-        default:
+        if (spell_AspectOfTheHawk > 0)
         {
-            break;
-        }
+            if (CastSpell(me, spell_AspectOfTheHawk, true))
+            {
+                return true;
+            }
         }
     }
 
@@ -872,7 +718,7 @@ bool NierAction_Hunter::Petting(bool pmSummon, bool pmReset)
     {
         return false;
     }
-    if (spell_CallPet > 0 && spell_DismissPet > 0 && spell_RevivePet > 0 && spell_TameBeast > 0)
+    if (spell_CallPet > 0)
     {
         if (pmReset)
         {
