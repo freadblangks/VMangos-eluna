@@ -10,6 +10,7 @@ bool is_uint64(const std::string& s)
 	return !s.empty() && it == s.end() && s.size() <= 20;
 }
 
+
 uint64 LuaBindsAI::GetRawGuidFromString(lua_State* L, int n) {
 	const char* guidStr = luaL_checkstring(L, n);
 	if (is_uint64(guidStr)) {
@@ -31,6 +32,7 @@ uint64 LuaBindsAI::GetRawGuidFromString(lua_State* L, int n) {
 		luaL_error(L, "Passed string is not a valid uint64 number - %s\n", guidStr);
 	return 0;
 }
+
 
 int LuaBindsAI::GetUnitByGuid(lua_State* L) {
 	Player* ai = *Player_GetPlayerObject(L);
@@ -124,7 +126,7 @@ int LuaBindsAI::Items_PrintItemsOfType(lua_State* L)
 			uint32 level = item->RequiredLevel;
 			if (!level)
 				level = item->SourceQuestLevel;
-			if (!level)
+			if (!level || level == -1)
 				level = item->ItemLevel;
 			return level;
 		}
@@ -176,5 +178,4 @@ int LuaBindsAI::Items_PrintItemsOfType(lua_State* L)
 	}
 	return 0;
 }
-
 

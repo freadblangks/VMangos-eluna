@@ -214,7 +214,6 @@ PartyIntelligence* LuaBindsAI::PartyInt_GetPIObject(lua_State* L)
 }
 
 
-
 void LuaBindsAI::BindPartyIntelligence(lua_State* L)
 {
 	PartyInt_CreateMetatable(L);

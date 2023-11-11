@@ -1,3 +1,4 @@
+
 #include "LuaAgentBindsCommon.h"
 #include "Goal/GoalManager.h"
 #include "Goal/LogicManager.h"
@@ -7,6 +8,7 @@
 #include "LuaAgentLibAux.h"
 #include "Hierarchy/LuaAgentPartyInt.h"
 #include "lua.hpp"
+
 
 void LuaBindsAI::BindAll(lua_State* L) {
 	BindGoalManager(L);
@@ -20,6 +22,7 @@ void LuaBindsAI::BindAll(lua_State* L) {
 	lua_register(L, "GetPlayerByGuid", GetPlayerByGuid);
 	lua_register(L, "Items_PrintItemsOfType", Items_PrintItemsOfType);
 }
+
 
 void LuaBindsAI::BindGlobalFunc(lua_State* L, const char* key, lua_CFunction func) {
 	lua_pushcfunction(L, func);
