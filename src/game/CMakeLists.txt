@@ -436,11 +436,13 @@ set (game_SRCS
     LuaAI/Goal/GoalManager.h
     LuaAI/Goal/LogicManager.cpp
     LuaAI/Goal/LogicManager.h
+    LuaAI/Hierarchy/LuaAgentPartyInt.cpp
+    LuaAI/Hierarchy/LuaAgentPartyInt.h
     LuaAI/LuaAgentBindsCommon.cpp
     LuaAI/LuaAgentBindsCommon.h
     LuaAI/LuaAgentUtils.cpp
     LuaAI/LuaAgentUtils.h
-	LuaAI/LuaAgentLibAux.cpp
+    LuaAI/LuaAgentLibAux.cpp
     LuaAI/LuaAgentLibAux.h
     LuaAI/LuaAgentLibAI.cpp
     LuaAI/LuaAgentLibAI.h
@@ -597,6 +599,10 @@ source_group("Anticheat"
 
 source_group("ProgressionExtras"
   REGULAR_EXPRESSION ProgressionExtras
+)
+
+source_group("LuaAI/Hierarchy"
+  REGULAR_EXPRESSION Hierarchy
 )
 
 source_group("LuaAI/Goal"

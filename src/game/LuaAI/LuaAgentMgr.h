@@ -3,6 +3,7 @@
 #define MANGOS_LUAAGENTMANAGER_H
 
 struct lua_State;
+class PartyIntelligence;
 
 typedef std::unordered_map<ObjectGuid, Player*> LuaAgentMap;
 
@@ -37,6 +38,7 @@ class LuaAgentMgr
 	bool m_bLuaCeaseUpdates;
 	bool m_bLuaReload;
 
+	std::vector<std::unique_ptr<PartyIntelligence>> m_parties;
 	LuaAgentMap m_agents;
 	std::set<ObjectGuid> m_toRemove;
 	std::map<ObjectGuid, LuaAgentInfoHolder> m_toAdd;
@@ -78,6 +80,7 @@ public:
 
 	Player* GetAgent(ObjectGuid guid);
 
+	void AddParty(std::string name, ObjectGuid owner);
 	CheckResult AddAgent(std::string charName, uint32 masterAccountId, int logicID, std::string spec);
 	CheckResult CheckAgentValid(std::string charName, uint32 masterAccountId);
 

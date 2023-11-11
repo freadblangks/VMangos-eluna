@@ -99,8 +99,6 @@ void LuaAgent::Update(uint32 diff)
 
 void LuaAgent::Reset(bool dropRefs) {
 
-	lua_State* L = sLuaAgentMgr.Lua();
-
 	// clear goals
 	m_topGoal = Goal(-1, 0, Goal::NOPARAMS, nullptr, nullptr);
 	m_topGoal.SetTerminated(true);
@@ -135,7 +133,7 @@ void LuaAgent::Reset(bool dropRefs) {
 		m_userDataRef = LUA_NOREF;
 		m_userDataRefPlayer = LUA_NOREF;
 	}
-	else {
+	else if (lua_State* L = sLuaAgentMgr.Lua()) {
 		// delete all refs
 		Unref(L);
 		UnrefPlayerUD(L);

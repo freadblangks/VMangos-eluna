@@ -1,4 +1,5 @@
 
+#include "Hierarchy/LuaAgentPartyInt.h"
 #include "LuaAgent.h"
 #include "LuaAgentMgr.h"
 #include "AccountMgr.h"
@@ -148,6 +149,12 @@ void LuaAgentMgr::Update(uint32 diff)
 		m_bLuaReload = false;
 		m_bLuaCeaseUpdates = false;
 
+		for (auto& party : m_parties)
+		{
+			party->Reset(L, true);
+			party->Init(L);
+		}
+
 		for (auto& it : m_agents)
 		{
 			// reset all
@@ -164,6 +171,11 @@ void LuaAgentMgr::Update(uint32 diff)
 	// lua error on initialization
 	if (m_bLuaCeaseUpdates)
 		return;
+
+	for (auto& party : m_parties)
+	{
+		party->Update(diff, L);
+	}
 
 	for (auto& it : m_agents)
 	{
@@ -205,6 +217,18 @@ void LuaAgentMgr::EraseLoginInfo(ObjectGuid guid)
 	auto it = m_toAdd.find(guid);
 	if (it != m_toAdd.end())
 		it->second.status = LuaAgentInfoHolder::TODELETE;
+}
+
+
+void LuaAgentMgr::AddParty(std::string name, ObjectGuid owner)
+{
+	for (auto& party : m_parties)
+		if (party->GetName() == name && party->GetOwnerGuid() == owner)
+			return;
+
+	std::unique_ptr<PartyIntelligence> party = std::make_unique<PartyIntelligence>(name, owner);
+	party->Init(L);
+	m_parties.push_back(std::move(party));
 }
 
 
@@ -351,6 +375,7 @@ void LuaAgentMgr::LogoutAllAgents()
 {
 	for (auto& itr : m_agents)
 		m_toRemove.insert(itr.first);
+	m_parties.clear();
 }
 
 

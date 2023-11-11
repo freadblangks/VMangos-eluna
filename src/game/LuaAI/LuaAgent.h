@@ -6,6 +6,7 @@
 #include "Goal/GoalManager.h"
 #include "Goal/LogicManager.h"
 
+class PartyIntelligence;
 
 enum class LuaAgentRoles {
 	Invalid = 0,
@@ -26,6 +27,7 @@ class LuaAgent
 	std::string m_spec;
 	LuaAgentRoles m_roleId;
 
+	PartyIntelligence* m_party;
 	Player* me;
 	ObjectGuid m_masterGuid;
 
@@ -83,7 +85,8 @@ public:
 
 	const ObjectGuid& GetMasterGuid() { return m_masterGuid; }
 	Player* GetPlayer() { return me; }
-
+	PartyIntelligence* GetPartyIntelligence() { return m_party; }
+	void SetPartyIntelligence(PartyIntelligence* party) { m_party = party; }
 
 };
 

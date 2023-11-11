@@ -6,7 +6,7 @@
 bool ChatHandler::HandleLuabAddCommand(char* args)
 {
 	// part from PartyBotMgr.cpp ChatHandler::HandlePartyBotLoadCommand
-	Player* pPlayer = m_session->GetPlayer();
+	Player* pPlayer = GetSession()->GetPlayer();
 	if (!pPlayer)
 		return false;
 
@@ -52,6 +52,28 @@ bool ChatHandler::HandleLuabAddCommand(char* args)
 		PSendSysMessage("Character %s added as a bot", name.c_str());
 		return true;
 	}
+	return true;
+}
+
+
+bool ChatHandler::HandleLuabAddPartyCommand(char* args)
+{
+	Player* owner = GetSession()->GetPlayer();
+	if (!owner)
+		return false;
+
+	std::string name;
+	if (char* nameCstr = ExtractArg(&args))
+		name = std::string(nameCstr);
+	else
+	{
+		SendSysMessage("Incorrect syntax. Expected name. Usage: .luab addparty name");
+		SetSentErrorMessage(true);
+		return false;
+	}
+
+	sLuaAgentMgr.AddParty(name, owner->GetObjectGuid());
+
 	return true;
 }
 

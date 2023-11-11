@@ -1157,6 +1157,7 @@ ChatCommand * ChatHandler::getCommandTable()
     static ChatCommand luabCommandTable[] =
     {
         { "add",            SEC_PLAYER,         false, &ChatHandler::HandleLuabAddCommand,             "", nullptr },
+        { "addparty",       SEC_PLAYER,         false, &ChatHandler::HandleLuabAddPartyCommand,        "", nullptr },
         { "reset",          SEC_PLAYER,         false, &ChatHandler::HandleLuabResetCommand,           "", nullptr },
         { "remove",         SEC_PLAYER,         false, &ChatHandler::HandleLuabRemoveCommand,          "", nullptr },
         { "removeall",      SEC_PLAYER,         false, &ChatHandler::HandleLuabRemoveAllCommand,       "", nullptr },

@@ -5,6 +5,7 @@
 #include "LuaAgentLibPlayer.h"
 #include "LuaAgentLibUnit.h"
 #include "LuaAgentLibAux.h"
+#include "Hierarchy/LuaAgentPartyInt.h"
 #include "lua.hpp"
 
 void LuaBindsAI::BindAll(lua_State* L) {
@@ -14,6 +15,7 @@ void LuaBindsAI::BindAll(lua_State* L) {
 	BindAI(L);
 	BindPlayer(L);
 	BindUnit(L);
+	BindPartyIntelligence(L);
 	lua_register(L, "GetUnitByGuid", GetUnitByGuid);
 	lua_register(L, "GetPlayerByGuid", GetPlayerByGuid);
 }
