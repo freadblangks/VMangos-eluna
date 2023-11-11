@@ -89,3 +89,92 @@ int LuaBindsAI::GetPlayerByGuid(lua_State* L) {
 	return 1;
 }
 
+
+int LuaBindsAI::Items_PrintItemsOfType(lua_State* L)
+{
+	lua_Integer subclass = luaL_checkinteger(L, 1);
+	std::vector<ItemPrototype const*> result;
+	for (auto const& itr : sObjectMgr.GetItemPrototypeMap())
+	{
+		ItemPrototype const* pProto = &itr.second;
+
+		// Only gear and weapons
+		if (pProto->Class != ITEM_CLASS_WEAPON && pProto->Class != ITEM_CLASS_ARMOR)
+			continue;
+
+		if (pProto->SubClass != subclass)
+			continue;
+
+		auto racemask = RACEMASK_ALL_PLAYABLE;
+		auto classmask = CLASSMASK_ALL_PLAYABLE;
+		auto race = pProto->AllowableRace & racemask;
+		auto cls = pProto->AllowableClass & classmask;
+		auto raceQ = pProto->SourceQuestRaces ? pProto->SourceQuestRaces & racemask : 1;
+		auto clsQ = pProto->SourceQuestClasses ? pProto->SourceQuestClasses & classmask : 1;
+
+		if (!race || !cls || !raceQ || !clsQ)
+			continue;
+
+		result.push_back(pProto);
+	}
+	struct customSort
+	{
+		uint32 GetLevelValue(ItemPrototype const* item) const
+		{
+			uint32 level = item->RequiredLevel;
+			if (!level)
+				level = item->SourceQuestLevel;
+			if (!level)
+				level = item->ItemLevel;
+			return level;
+		}
+		bool operator()(ItemPrototype const* a, ItemPrototype const* b) const
+		{
+			uint32 levelA = GetLevelValue(a);
+			uint32 levelB = GetLevelValue(b);
+			return levelA < levelB;
+		}
+	} sort;
+	std::sort(result.begin(), result.end(), sort);
+	for (auto& proto : result)
+	{
+		printf("%d, -- %d, %d, %d, %s, (", proto->ItemId, proto->RequiredLevel, proto->ItemLevel, proto->SourceQuestLevel, proto->Name1);
+		for (int i = 0; i < MAX_ITEM_PROTO_STATS; ++i)
+		{
+
+			auto stat = proto->ItemStat[i];
+			std::string stat_name = "Unk";
+			switch (stat.ItemStatType)
+			{
+			case ItemModType::ITEM_MOD_MANA:
+				stat_name = "Mana";
+				break;
+			case ItemModType::ITEM_MOD_HEALTH:
+				stat_name = "Hp";
+				break;
+			case ItemModType::ITEM_MOD_AGILITY:
+				stat_name = "Agil";
+				break;
+			case ItemModType::ITEM_MOD_STRENGTH:
+				stat_name = "Stre";
+				break;
+			case ItemModType::ITEM_MOD_INTELLECT:
+				stat_name = "Inte";
+				break;
+			case ItemModType::ITEM_MOD_SPIRIT:
+				stat_name = "Spir";
+				break;
+			case ItemModType::ITEM_MOD_STAMINA:
+				stat_name = "Stam";
+				break;
+			}
+			if (stat.ItemStatValue != 0)
+				printf("%s=%d; ", stat_name.c_str(), stat.ItemStatValue);
+
+		}
+		printf(")\n");
+	}
+	return 0;
+}
+
+

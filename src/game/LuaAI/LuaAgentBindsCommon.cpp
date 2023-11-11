@@ -18,6 +18,7 @@ void LuaBindsAI::BindAll(lua_State* L) {
 	BindPartyIntelligence(L);
 	lua_register(L, "GetUnitByGuid", GetUnitByGuid);
 	lua_register(L, "GetPlayerByGuid", GetPlayerByGuid);
+	lua_register(L, "Items_PrintItemsOfType", Items_PrintItemsOfType);
 }
 
 void LuaBindsAI::BindGlobalFunc(lua_State* L, const char* key, lua_CFunction func) {
