@@ -45,7 +45,7 @@ public:
 		std::string spec = lqh->spec;
 
 		// already logged in or master's gone
-		if (!sObjectMgr.GetPlayer(lqh->masterGuid) || sObjectMgr.GetPlayer(lqh->GetGuid()))
+		if (!ObjectAccessor::FindPlayerNotInWorld(lqh->masterGuid) || sObjectMgr.GetPlayer(lqh->GetGuid()))
 		{
 			delete holder;
 			return;
@@ -149,11 +149,7 @@ void LuaAgentMgr::Update(uint32 diff)
 		m_bLuaReload = false;
 		m_bLuaCeaseUpdates = false;
 
-		for (auto& party : m_parties)
-		{
-			party->Reset(L, true);
-			party->Init(L);
-		}
+		LuaLoadAll();
 
 		for (auto& it : m_agents)
 		{
@@ -164,7 +160,13 @@ void LuaAgentMgr::Update(uint32 diff)
 				agent->SetCeaseUpdates(false);
 			}
 		}
-		LuaLoadAll();
+
+		for (auto& party : m_parties)
+		{
+			party->Reset(L, true);
+			party->Init(L);
+		}
+
 		sWorld.SendServerMessage(SERVER_MSG_CUSTOM, "Lua reload finished");
 	}
 
@@ -173,9 +175,7 @@ void LuaAgentMgr::Update(uint32 diff)
 		return;
 
 	for (auto& party : m_parties)
-	{
 		party->Update(diff, L);
-	}
 
 	for (auto& it : m_agents)
 	{
@@ -220,6 +220,16 @@ void LuaAgentMgr::EraseLoginInfo(ObjectGuid guid)
 }
 
 
+void LuaAgentMgr::SetLoggedIn(ObjectGuid guid)
+{
+	static std::mutex m;
+	const std::lock_guard<std::mutex> lock(m);
+	auto it = m_toAdd.find(guid);
+	if (it != m_toAdd.end())
+		it->second.status = LuaAgentInfoHolder::LOGGEDIN;
+}
+
+
 void LuaAgentMgr::AddParty(std::string name, ObjectGuid owner)
 {
 	for (auto& party : m_parties)
@@ -232,15 +242,12 @@ void LuaAgentMgr::AddParty(std::string name, ObjectGuid owner)
 }
 
 
-LuaAgentMgr::CheckResult LuaAgentMgr::CheckAgentValid(std::string charName, uint32 masterAccountId)
+LuaAgentMgr::CheckResult LuaAgentMgr::CheckAgentValid(std::string charName, ObjectGuid masterGuid)
 {
 	ObjectGuid guid = sObjectMgr.GetPlayerGuidByName(charName);
 	// character with name doesn't exist
 	if (guid.IsEmpty())
 		return CHAR_DOESNT_EXIST;
-	// already logged in
-	if (sObjectAccessor.FindPlayerNotInWorld(guid))
-		return CHAR_ALREADY_LOGGED_IN;
 	// bot's account doesn't exist
 	if (sObjectMgr.GetPlayerAccountIdByGUID(guid) == 0)
 		return CHAR_ACCOUNT_DOESNT_EXIST;
@@ -250,22 +257,25 @@ LuaAgentMgr::CheckResult LuaAgentMgr::CheckAgentValid(std::string charName, uint
 	// already queued to add as bot
 	if (GetLoginInfo(guid))
 		return CHAR_ALREADY_IN_QUEUE;
-	// master logged out
-	WorldSession* masterSession = sWorld.FindSession(masterAccountId);
-	if (!masterSession)
-		return CHAR_MASTER_SESSION_NOT_FOUND;
-	// master on char select
-	if (!masterSession->GetPlayer())
-		return CHAR_MASTER_PLAYER_NOT_FOUND;
+	// already logged in
+	if (sObjectAccessor.FindPlayerNotInWorld(guid))
+		return CHAR_ALREADY_LOGGED_IN;
+	// not all bots need master
+	if (!masterGuid.IsEmpty())
+	{
+		// master player doesn't exist
+		if (!ObjectAccessor::FindPlayerNotInWorld(masterGuid))
+			return CHAR_MASTER_PLAYER_NOT_FOUND;
+	}
 	return CHAR_OK;
 }
 
 
-LuaAgentMgr::CheckResult LuaAgentMgr::AddAgent(std::string charName, uint32 masterAccountId, int logicID, std::string spec)
+LuaAgentMgr::CheckResult LuaAgentMgr::AddAgent(std::string charName, ObjectGuid masterGuid, int logicID, std::string spec)
 {
-	CheckResult check = CheckAgentValid(charName, masterAccountId);
+	CheckResult check = CheckAgentValid(charName, masterGuid);
 	if (check == CHAR_OK)
-		m_toAdd.emplace(sObjectMgr.GetPlayerGuidByName(charName), LuaAgentInfoHolder(charName, masterAccountId, logicID, spec));
+		m_toAdd.emplace(sObjectMgr.GetPlayerGuidByName(charName), LuaAgentInfoHolder(charName, masterGuid, logicID, spec));
 	return check;
 }
 
@@ -275,6 +285,13 @@ void LuaAgentMgr::__AddAgents()
 	for (std::map<ObjectGuid, LuaAgentInfoHolder>::iterator it = m_toAdd.begin(); it != m_toAdd.end();)
 	{
 		LuaAgentInfoHolder& info = it->second;
+		if (info.status == LuaAgentInfoHolder::LOGGEDIN)
+		{
+			if (Player* player = ObjectAccessor::FindPlayerByNameNotInWorld(info.name.c_str()))
+				m_agents[player->GetObjectGuid()] = player;
+			info.status = LuaAgentInfoHolder::TODELETE;
+		}
+
 		if (info.status == LuaAgentInfoHolder::TODELETE)
 		{
 			it = m_toAdd.erase(it);
@@ -287,17 +304,12 @@ void LuaAgentMgr::__AddAgents()
 			continue;
 		}
 
-		if (WorldSession* masterSession = sWorld.FindSession(info.masterAccountId))
+		// not all bots need to be owned
+		if (info.masterGuid.IsEmpty() || ObjectAccessor::FindPlayerNotInWorld(info.masterGuid))
 		{
-			if (!masterSession->GetPlayer())
-			{
-				it = m_toAdd.erase(it);
-				continue;
-			}
-
 			ObjectGuid guid = sObjectMgr.GetPlayerGuidByName(info.name);
 			uint32 accountId = sObjectMgr.GetPlayerAccountIdByGUID(guid);
-			LuaAgentLoginQueryHolder* holder = new LuaAgentLoginQueryHolder(accountId, guid, masterSession->GetPlayer()->GetObjectGuid(), info.logicID, info.spec);
+			LuaAgentLoginQueryHolder* holder = new LuaAgentLoginQueryHolder(accountId, guid, info.masterGuid, info.logicID, info.spec);
 			if (!holder->Initialize())
 			{
 				delete holder;                                      // delete all unprocessed queries
@@ -320,9 +332,6 @@ void LuaAgentMgr::__AddAgents()
 
 void LuaAgentMgr::OnAgentLogin(WorldSession* session, ObjectGuid guid, ObjectGuid masterGuid, int logicID, std::string spec)
 {
-	static std::mutex m;
-	const std::lock_guard<std::mutex> lock(m);
-	EraseLoginInfo(guid);
 	Player* player = session->GetPlayer();
 	if (!player)
 	{
@@ -331,9 +340,7 @@ void LuaAgentMgr::OnAgentLogin(WorldSession* session, ObjectGuid guid, ObjectGui
 		return;
 	}
 
-	m_agents[player->GetObjectGuid()] = player;
 	player->CreateLuaAI(player, masterGuid, logicID);
-
 	LuaAgent* ai = player->GetLuaAI();
 	if (!ai)
 	{
@@ -342,7 +349,7 @@ void LuaAgentMgr::OnAgentLogin(WorldSession* session, ObjectGuid guid, ObjectGui
 		return;
 	}
 	ai->SetSpec(spec);
-
+	SetLoggedIn(player->GetObjectGuid());
 }
 
 

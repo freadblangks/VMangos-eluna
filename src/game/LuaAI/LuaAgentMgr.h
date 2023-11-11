@@ -14,16 +14,17 @@ struct LuaAgentInfoHolder
 	{
 		OFFLINE,
 		LOADING,
+		LOGGEDIN,
 		TODELETE
 	};
 public:
 	std::string name;
-	uint32 masterAccountId;
+	const ObjectGuid masterGuid;
 	int logicID;
 	std::string spec;
 	LBIHStatus status;
-	LuaAgentInfoHolder(std::string name, uint32 masterAccountId, int logicID, std::string spec)
-		: name(name), masterAccountId(masterAccountId), logicID(logicID), spec(spec), status(OFFLINE) {}
+	LuaAgentInfoHolder(std::string name, const ObjectGuid& masterGuid, int logicID, std::string spec)
+		: name(name), masterGuid(masterGuid), logicID(logicID), spec(spec), status(OFFLINE) {}
 };
 
 
@@ -48,13 +49,13 @@ class LuaAgentMgr
 	void __AddAgents();
 	void __RemoveAgents();
 
-	const LuaAgentInfoHolder* GetLoginInfo(ObjectGuid guid);
-
 	void SetGroupAllInProgress(bool value) { m_bGroupAllInProgress = value; }
 
 	bool LuaDofile(const std::string& filename);
 	void LuaLoadAll();
 	void LuaLoadFiles(const std::string& fpath);
+
+	void SetLoggedIn(ObjectGuid guid);
 
 protected:
 	void EraseLoginInfo(ObjectGuid guid);
@@ -79,10 +80,11 @@ public:
 	void LuaReload() { m_bLuaReload = true; }
 
 	Player* GetAgent(ObjectGuid guid);
+	const LuaAgentInfoHolder* GetLoginInfo(ObjectGuid guid);
 
 	void AddParty(std::string name, ObjectGuid owner);
-	CheckResult AddAgent(std::string charName, uint32 masterAccountId, int logicID, std::string spec);
-	CheckResult CheckAgentValid(std::string charName, uint32 masterAccountId);
+	CheckResult AddAgent(std::string charName, ObjectGuid masterGuid, int logicID, std::string spec);
+	CheckResult CheckAgentValid(std::string charName, ObjectGuid masterGuid);
 
 	void OnAgentLogin(WorldSession* session, ObjectGuid guid, ObjectGuid masterGuid, int logicID, std::string spec);
 	void LogoutAgent(ObjectGuid guid);

@@ -30,7 +30,7 @@ bool ChatHandler::HandleLuabAddCommand(char* args)
 	if (char* specCstr = ExtractArg(&args))
 		spec = std::string(specCstr);
 
-	LuaAgentMgr::CheckResult result = sLuaAgentMgr.AddAgent(name, pPlayer->GetSession()->GetAccountId(), logicID, spec);
+	LuaAgentMgr::CheckResult result = sLuaAgentMgr.AddAgent(name, pPlayer->GetObjectGuid(), logicID, spec);
 	switch (result)
 	{
 	case LuaAgentMgr::CHAR_DOESNT_EXIST:
@@ -81,8 +81,15 @@ bool ChatHandler::HandleLuabAddPartyCommand(char* args)
 bool ChatHandler::HandleLuabRemoveCommand(char* args)
 {
 	if (Player* selection = GetSelectedPlayer())
-		if (selection->IsLuaAgent())
-			sLuaAgentMgr.LogoutAgent(selection->GetObjectGuid());
+		if (LuaAgent* agent = selection->GetLuaAI())
+			if (!agent->GetPartyIntelligence())
+				sLuaAgentMgr.LogoutAgent(selection->GetObjectGuid());
+			else
+			{
+				SendSysMessage("Unable to remove this bot. Use .luab remparty");
+				SetSentErrorMessage(true);
+				return false;
+			}
 	return true;
 }
 

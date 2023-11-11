@@ -7,14 +7,20 @@
 const char* PartyIntelligence::PI_MTNAME = "Object.PartyInt";
 
 
-PartyIntelligence::PartyIntelligence(std::string name, ObjectGuid owner) : m_name(name), m_userDataRef(LUA_NOREF), m_bCeaseUpdates(false), m_owner(owner)
+PartyIntelligence::PartyIntelligence(std::string name, ObjectGuid owner) :
+	m_name(name),
+	m_userDataRef(LUA_NOREF),
+	m_bCeaseUpdates(false),
+	m_owner(owner),
+	m_updateInterval(50)
 {
 	m_init = m_name + "_Init";
 	m_update = m_name + "_Update";
+	m_updateTimer.Reset(m_updateInterval);
 }
 
 
-PartyIntelligence::~PartyIntelligence()
+PartyIntelligence::~PartyIntelligence() noexcept
 {
 	if (lua_State* L = sLuaAgentMgr.Lua())
 		Unref(L);
@@ -39,9 +45,9 @@ void PartyIntelligence::Init(lua_State* L)
 void PartyIntelligence::Reset(lua_State* L, bool dropRefs)
 {
 	SetCeaseUpdates(false);
-	if (dropRefs)
+	if (!L || dropRefs)
 		m_userDataRef = LUA_NOREF;
-	else if (L)
+	else
 		Unref(L);
 	m_agentInfos.clear();
 	m_agents.clear();
@@ -50,11 +56,10 @@ void PartyIntelligence::Reset(lua_State* L, bool dropRefs)
 
 void PartyIntelligence::LoadInfoFromLuaTbl(lua_State* L)
 {
+	if (!m_agentInfos.empty())
+		luaL_error(L, "PartyIntelligence::LoadInfoFromLuaTbl attempt to reinitialize info");
 	if (!lua_istable(L, -1))
-	{
 		luaL_error(L, "PartyIntelligence::LoadInfoFromLuaTbl expected table at the top of the stack");
-		return;
-	}
 
 	lua_Integer length = luaL_len(L, -1);
 	for (lua_Integer i = 1; i <= length; ++i)
@@ -82,10 +87,91 @@ void PartyIntelligence::Update(uint32 diff, lua_State* L)
 	if (m_userDataRef == LUA_NOREF || m_bCeaseUpdates)
 		return;
 
+	m_updateTimer.Update(diff);
+	if (m_updateTimer.Passed())
+		m_updateTimer.Reset(m_updateInterval);
+	else
+		return;
+
 	// process login
 	if (m_agents.size() != m_agentInfos.size())
 	{
+		if (m_agents.size() > m_agentInfos.size())
+		{
+			sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "PartyIntelligence::Update m_agents = %d m_agentInfos = %d", m_agents.size(), m_agentInfos.size());
+			SetCeaseUpdates(true);
+			return;
+		}
+		LoadAgents();
 		return;
+	}
+
+	lua_getglobal(L, m_update.c_str());
+	PushUD(L);
+	if (lua_dopcall(L, 1, 0) != LUA_OK)
+	{
+		sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Error party update: %s", lua_tostring(L, -1));
+		lua_pop(L, 1);
+		SetCeaseUpdates(true);
+		return;
+	}
+}
+
+
+Player* PartyIntelligence::GetAgent(const ObjectGuid& guid)
+{
+	LuaAgentMap::const_iterator it = m_agents.find(guid);
+	return (it == m_agents.end()) ? nullptr : it->second;
+}
+
+
+void PartyIntelligence::LoadAgents()
+{
+	for (auto& info : m_agentInfos)
+	{
+		ObjectGuid& agentGuid = sObjectMgr.GetPlayerGuidByName(info.name);
+		if (agentGuid.IsEmpty())
+		{
+			sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "PartyIntelligence::LoadAgents player with name %s doesn't exist", info.name.c_str());
+			SetCeaseUpdates(true);
+			return;
+		}
+		if (GetAgent(agentGuid))
+			continue;
+		LuaAgentMgr::CheckResult result = sLuaAgentMgr.AddAgent(info.name, m_owner, info.logicId, info.spec);
+		switch (result)
+		{
+		case LuaAgentMgr::CHAR_OK:
+			break;
+		case LuaAgentMgr::CHAR_ALREADY_EXISTS:
+		{
+			// if is already a bot add as our own
+			Player* agent = sLuaAgentMgr.GetAgent(agentGuid);
+			LuaAgent* agentAI = agent->GetLuaAI();
+			if (!agentAI || agentAI->GetMasterGuid() != m_owner)
+			{
+				sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "PartyIntelligence::LoadAgents player with name %s is already owned", info.name.c_str());
+				SetCeaseUpdates(true);
+				return;
+			}
+			m_agents[agentGuid] = agent;
+			agentAI->SetPartyIntelligence(this);
+			break;
+		}
+		case LuaAgentMgr::CHAR_ALREADY_IN_QUEUE:
+		{
+			// if already queued as bot if owners match we can carry on
+			const LuaAgentInfoHolder* loginInfo = sLuaAgentMgr.GetLoginInfo(agentGuid);
+			if (loginInfo && loginInfo->masterGuid == m_owner)
+				break;
+		}
+		default:
+		{
+			sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "PartyIntelligence::LoadAgents player with name %s can not be added. Reason = %d", info.name.c_str(), result);
+			SetCeaseUpdates(true);
+			return;
+		}
+		}
 	}
 }
 
@@ -147,8 +233,27 @@ void LuaBindsAI::PartyInt_CreateMetatable(lua_State* L)
 
 int LuaBindsAI::PartyInt_LoadInfoFromLuaTbl(lua_State* L)
 {
-	PartyIntelligence* pi = PartyInt_GetPIObject(L);
-	pi->LoadInfoFromLuaTbl(L);
+	PartyIntelligence* intelligence = PartyInt_GetPIObject(L);
+	intelligence->LoadInfoFromLuaTbl(L);
 	return 0;
+}
+
+
+int LuaBindsAI::PartyInt_GetAgents(lua_State* L)
+{
+	PartyIntelligence* intelligence = PartyInt_GetPIObject(L);
+	lua_newtable(L);
+	lua_Integer idx = 1;
+	for (auto& it : intelligence->GetAgentMap())
+	{
+		Player* agent = it.second;
+		if (LuaAgent* agentAI = agent->GetLuaAI())
+		{
+			agentAI->PushUD(L);
+			lua_seti(L, -2, idx);
+			++idx;
+		}
+	}
+	return 1;
 }
 

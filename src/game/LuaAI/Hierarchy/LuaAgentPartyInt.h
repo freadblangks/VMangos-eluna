@@ -4,6 +4,7 @@
 
 #include "lua.hpp"
 
+typedef std::unordered_map<ObjectGuid, Player*> LuaAgentMap;
 class LuaAgent;
 
 class PartyIntelligence
@@ -20,7 +21,10 @@ public:
 	};
 
 	PartyIntelligence(std::string name, ObjectGuid owner);
-	~PartyIntelligence();
+	~PartyIntelligence() noexcept;
+
+	Player* GetAgent(const ObjectGuid& guid);
+	LuaAgentMap& GetAgentMap() { return m_agents; }
 
 	void LoadInfoFromLuaTbl(lua_State* L);
 	void LoadAgents();
@@ -42,8 +46,11 @@ private:
 	int m_userDataRef;
 	ObjectGuid m_owner;
 
+	int m_updateInterval;
+	ShortTimeTracker m_updateTimer;
+
 	std::vector<AgentInfo> m_agentInfos;
-	std::vector<LuaAgent*> m_agents;
+	LuaAgentMap m_agents;
 
 	std::string m_name;
 	std::string m_init;
@@ -56,10 +63,14 @@ namespace LuaBindsAI {
 	void BindPartyIntelligence(lua_State* L);
 	PartyIntelligence* PartyInt_GetPIObject(lua_State* L);
 	void PartyInt_CreateMetatable(lua_State* L);
+
 	int PartyInt_LoadInfoFromLuaTbl(lua_State* L);
+	int PartyInt_GetAgents(lua_State* L);
 
 	static const struct luaL_Reg PartyInt_BindLib[]{
 		{"LoadInfoFromLuaTbl", PartyInt_LoadInfoFromLuaTbl},
+
+		{"GetAgents", PartyInt_GetAgents},
 
 		{NULL, NULL}
 	};

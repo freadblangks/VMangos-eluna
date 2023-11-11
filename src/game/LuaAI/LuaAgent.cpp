@@ -128,12 +128,13 @@ void LuaAgent::Reset(bool dropRefs) {
 	// stop attacking
 	me->AttackStop();
 
-	if (dropRefs) {
+	lua_State* L = sLuaAgentMgr.Lua();
+	if (dropRefs || !L) {
 		m_userTblRef = LUA_NOREF;
 		m_userDataRef = LUA_NOREF;
 		m_userDataRefPlayer = LUA_NOREF;
 	}
-	else if (lua_State* L = sLuaAgentMgr.Lua()) {
+	else {
 		// delete all refs
 		Unref(L);
 		UnrefPlayerUD(L);
