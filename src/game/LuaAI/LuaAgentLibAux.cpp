@@ -94,18 +94,24 @@ int LuaBindsAI::GetPlayerByGuid(lua_State* L) {
 
 int LuaBindsAI::Items_PrintItemsOfType(lua_State* L)
 {
-	lua_Integer subclass = luaL_checkinteger(L, 1);
+	lua_Integer cls = luaL_checkinteger(L, 1);
+	lua_Integer subclass = luaL_checkinteger(L, 2);
+	lua_Integer invtype = luaL_checkinteger(L, 3);
 	std::vector<ItemPrototype const*> result;
 	for (auto const& itr : sObjectMgr.GetItemPrototypeMap())
 	{
 		ItemPrototype const* pProto = &itr.second;
 
 		// Only gear and weapons
-		if (pProto->Class != ITEM_CLASS_WEAPON && pProto->Class != ITEM_CLASS_ARMOR)
+		if (pProto->Class != cls)
 			continue;
 
-		if (pProto->SubClass != subclass)
+		if (subclass != -1 && pProto->SubClass != subclass)
 			continue;
+
+		if (invtype != -1 && pProto->InventoryType != invtype)
+			if (subclass != ItemSubclassArmor::ITEM_SUBCLASS_ARMOR_CLOTH || invtype != InventoryType::INVTYPE_CHEST || pProto->InventoryType != InventoryType::INVTYPE_ROBE)
+				continue;
 
 		auto racemask = RACEMASK_ALL_PLAYABLE;
 		auto classmask = CLASSMASK_ALL_PLAYABLE;
@@ -140,7 +146,12 @@ int LuaBindsAI::Items_PrintItemsOfType(lua_State* L)
 	std::sort(result.begin(), result.end(), sort);
 	for (auto& proto : result)
 	{
-		printf("%d, -- %d, %d, %d, %s, (", proto->ItemId, proto->RequiredLevel, proto->ItemLevel, proto->SourceQuestLevel, proto->Name1);
+		printf("%d, -- %d, %d, %d, ",	proto->ItemId, proto->RequiredLevel, proto->ItemLevel, proto->SourceQuestLevel);
+		if (proto->Class == ItemClass::ITEM_CLASS_WEAPON)
+			printf("D=[%.2f, %.2f], ", proto->Damage->DamageMin, proto->Damage->DamageMax);
+		else if (proto->Class == ItemClass::ITEM_CLASS_ARMOR)
+			printf("A=%d, ", proto->Armor);
+		printf("%s, (", proto->Name1);
 		for (int i = 0; i < MAX_ITEM_PROTO_STATS; ++i)
 		{
 
@@ -174,7 +185,26 @@ int LuaBindsAI::Items_PrintItemsOfType(lua_State* L)
 				printf("%s=%d; ", stat_name.c_str(), stat.ItemStatValue);
 
 		}
-		printf(")\n");
+		printf("), ");
+		if (proto->RandomProperty)
+			printf("RandomProperty, ");
+		for (int i = 0; i < MAX_ITEM_PROTO_SPELLS; ++i)
+			if (proto->Spells[i].SpellId)
+				if (const SpellEntry* spellInfo = sSpellMgr.GetSpellEntry(proto->Spells[i].SpellId))
+					printf("%s, ", spellInfo->SpellName[i].c_str());
+		if (proto->ArcaneRes != 0)
+			printf("ArcaneRes=%d, ", proto->ArcaneRes);
+		if (proto->FireRes != 0)
+			printf("FireRes=%d, ", proto->FireRes);
+		if (proto->FrostRes != 0)
+			printf("FrostRes=%d, ", proto->FrostRes);
+		if (proto->HolyRes != 0)
+			printf("HolyRes=%d, ", proto->HolyRes);
+		if (proto->NatureRes != 0)
+			printf("NatureRes=%d, ", proto->NatureRes);
+		if (proto->ShadowRes != 0)
+			printf("ShadowRes=%d, ", proto->ShadowRes);
+		printf("\n");
 	}
 	return 0;
 }
