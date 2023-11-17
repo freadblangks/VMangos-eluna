@@ -46,6 +46,35 @@ void LuaBindsAI::Unit_CreateMetatable(lua_State* L) {
 
 
 // ---------------------------------------------------------
+// --                General Info
+// ---------------------------------------------------------
+
+
+int LuaBindsAI::Unit_GetClass(lua_State* L)
+{
+	Unit* unit = *Unit_GetUnitObject(L);
+	lua_pushinteger(L, unit->GetClass());
+	return 1;
+}
+
+
+int LuaBindsAI::Unit_GetLevel(lua_State* L)
+{
+	Unit* unit = *Unit_GetUnitObject(L);
+	lua_pushinteger(L, unit->GetLevel());
+	return 1;
+}
+
+
+int LuaBindsAI::Unit_GetName(lua_State* L)
+{
+	Unit* unit = *Unit_GetUnitObject(L);
+	lua_pushstring(L, unit->GetName());
+	return 1;
+}
+
+
+// ---------------------------------------------------------
 // --                Movement Control
 // ---------------------------------------------------------
 

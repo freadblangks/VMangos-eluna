@@ -6,6 +6,8 @@
 #include "LuaAgentLibPlayer.h"
 #include "LuaAgentLibUnit.h"
 #include "LuaAgentLibAux.h"
+#include "LuaAgentLibItem.h"
+#include "LuaAgentLibSpell.h"
 #include "Hierarchy/LuaAgentPartyInt.h"
 #include "lua.hpp"
 
@@ -20,7 +22,10 @@ void LuaBindsAI::BindAll(lua_State* L) {
 	BindPartyIntelligence(L);
 	lua_register(L, "GetUnitByGuid", GetUnitByGuid);
 	lua_register(L, "GetPlayerByGuid", GetPlayerByGuid);
-	lua_register(L, "Items_PrintItemsOfType", Items_PrintItemsOfType);
+	BindItem(L);
+	BindSpell(L);
+	lua_pushnumber(L, SUPPORTED_CLIENT_BUILD);
+	lua_setglobal(L, "CVER");
 }
 
 

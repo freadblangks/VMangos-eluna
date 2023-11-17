@@ -9,6 +9,7 @@
 #include "Goal/GoalManager.h"
 #include "Goal/LogicManager.h"
 #include "LuaAgentBindsCommon.h"
+#include "LuaAgentUtils.h"
 #include <experimental/filesystem>
 
 
@@ -89,7 +90,7 @@ LuaAgentMgr::~LuaAgentMgr()
 
 
 bool LuaAgentMgr::LuaDofile(const std::string& filename) {
-	if (luaL_dofile(L, filename.c_str()) != LUA_OK) {
+	if ((luaL_loadfile(L, filename.c_str()) || lua_dopcall(L, 0, LUA_MULTRET)) != LUA_OK) {
 		m_bLuaCeaseUpdates = true;
 		sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "LuaAgentMgr: Lua error executing file %s: %s\n", filename.c_str(), lua_tostring(L, -1));
 		lua_pop(L, 1); // pop the error object
@@ -138,6 +139,8 @@ void LuaAgentMgr::LuaLoadAll() {
 // ********************************************************
 // **                  Bot Management                    **
 // ********************************************************
+
+
 void LuaAgentMgr::Update(uint32 diff)
 {
 

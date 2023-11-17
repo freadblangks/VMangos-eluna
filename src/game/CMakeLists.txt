@@ -438,6 +438,8 @@ set (game_SRCS
     LuaAI/Goal/LogicManager.h
     LuaAI/Hierarchy/LuaAgentPartyInt.cpp
     LuaAI/Hierarchy/LuaAgentPartyInt.h
+    LuaAI/Libs/Utility.cpp
+    LuaAI/Libs/Utility.h
     LuaAI/LuaAgentBindsCommon.cpp
     LuaAI/LuaAgentBindsCommon.h
     LuaAI/LuaAgentUtils.cpp
@@ -448,6 +450,10 @@ set (game_SRCS
     LuaAI/LuaAgentLibAI.h
     LuaAI/LuaAgentLibPlayer.cpp
     LuaAI/LuaAgentLibPlayer.h
+    LuaAI/LuaAgentLibItem.cpp
+    LuaAI/LuaAgentLibItem.h
+    LuaAI/LuaAgentLibSpell.cpp
+    LuaAI/LuaAgentLibSpell.h
     LuaAI/LuaAgentLibUnit.cpp
     LuaAI/LuaAgentLibUnit.h
     LuaAI/LuaAgentLibWorldObj.cpp
@@ -599,6 +605,10 @@ source_group("Anticheat"
 
 source_group("ProgressionExtras"
   REGULAR_EXPRESSION ProgressionExtras
+)
+
+source_group("LuaAI/Libs"
+  REGULAR_EXPRESSION LuaAI\/Libs
 )
 
 source_group("LuaAI/Hierarchy"
