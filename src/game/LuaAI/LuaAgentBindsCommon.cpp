@@ -24,7 +24,7 @@ void LuaBindsAI::BindAll(lua_State* L) {
 	lua_register(L, "GetPlayerByGuid", GetPlayerByGuid);
 	BindItem(L);
 	BindSpell(L);
-	lua_pushnumber(L, SUPPORTED_CLIENT_BUILD);
+	lua_pushinteger(L, SUPPORTED_CLIENT_BUILD);
 	lua_setglobal(L, "CVER");
 }
 

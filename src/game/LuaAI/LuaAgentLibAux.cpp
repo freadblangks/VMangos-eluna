@@ -35,7 +35,7 @@ uint64 LuaBindsAI::GetRawGuidFromString(lua_State* L, int n) {
 
 
 int LuaBindsAI::GetUnitByGuid(lua_State* L) {
-	Player* ai = *Player_GetPlayerObject(L);
+	Player* ai = Player_GetPlayerObject(L);
 	std::string guidStr = luaL_checkstring(L, 2);
 
 	if (is_uint64(guidStr)) {
