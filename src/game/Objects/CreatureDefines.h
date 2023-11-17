@@ -186,18 +186,18 @@ typedef std::vector<CreatureSpellsEntry> CreatureSpellsList;
 struct CreatureInfo
 {
     uint32  entry;
+    char*   name;
+    char*   subname;
+    uint32  level_min;
+    uint32  level_max;
+    uint32  faction;
+    uint32  npc_flags;
+    uint32  gossip_menu_id;
     uint32  display_id[MAX_DISPLAY_IDS_PER_CREATURE];
     float   display_scale[MAX_DISPLAY_IDS_PER_CREATURE];
     uint32  display_probability[MAX_DISPLAY_IDS_PER_CREATURE];
     uint32  display_total_probability;
     uint32  mount_display_id;
-    char*   name;
-    char*   subname;
-    uint32  gossip_menu_id;
-    uint32  level_min;
-    uint32  level_max;
-    uint32  faction;
-    uint32  npc_flags;
     float   speed_walk;
     float   speed_run;
     float   detection_range;                                // Detection Range for Line of Sight aggro
@@ -266,10 +266,37 @@ struct CreatureInfo
     }
 };
 
-struct EquipmentInfo
+struct EquipmentEntry
 {
-    uint32  entry;
-    uint32  equipentry[3];
+    uint32 probability = 0;
+    uint32 item[3] = { 0, 0, 0 };
+};
+
+struct EquipmentTemplate
+{
+    uint32 totalProbability = 0;
+    std::vector<EquipmentEntry> equipment;
+
+    EquipmentEntry const* ChooseEquipmentEntry() const
+    {
+        if (!totalProbability)
+            return nullptr;
+
+        uint32 const roll = urand(0, totalProbability - 1);
+        uint32 sum = 0;
+
+        for (auto const& itr : equipment)
+        {
+            if (!itr.probability)
+                continue;
+
+            sum += itr.probability;
+            if (roll < sum)
+                return &itr;
+        }
+
+        return nullptr;
+    }
 };
 
 #define MAX_CREATURE_IDS_PER_SPAWN 5
@@ -307,6 +334,10 @@ struct CreatureData
             creatureId = 1;
 
         return creatureId;
+    }
+    bool HasCreatureId(uint32 id) const
+    {
+        return std::find(creature_id.begin(), creature_id.end(), id) != creature_id.end();
     }
     uint32 GetCreatureIdCount() const
     {
@@ -406,7 +437,10 @@ enum ChatType
     CHAT_TYPE_BOSS_EMOTE        = 3,
     CHAT_TYPE_WHISPER           = 4,
     CHAT_TYPE_BOSS_WHISPER      = 5,
-    CHAT_TYPE_ZONE_YELL         = 6
+    CHAT_TYPE_ZONE_YELL         = 6,
+    CHAT_TYPE_ZONE_EMOTE        = 7,
+
+    CHAT_TYPE_MAX
 };
 
 // Selection method used by SelectAttackingTarget
@@ -517,7 +551,7 @@ enum VendorItemFlags
     VENDOR_ITEM_FLAG_DYNAMIC_RESTOCK  = 0x02,
 };
 
-typedef std::list<VendorItemCount> VendorItemCounts;
+typedef std::vector<VendorItemCount> VendorItemCounts;
 
 struct TrainerSpell
 {

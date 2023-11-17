@@ -38,7 +38,7 @@ pAuraProcHandler AuraProcHandler[TOTAL_AURAS] =
     &Unit::HandleDummyAuraProc,                             //  4 SPELL_AURA_DUMMY
     &Unit::HandleNULLProc,                                  //  5 SPELL_AURA_MOD_CONFUSE
     &Unit::HandleNULLProc,                                  //  6 SPELL_AURA_MOD_CHARM
-    &Unit::HandleNULLProc,                                  //  7 SPELL_AURA_MOD_FEAR
+    &Unit::HandleRemoveFearByDamageChanceProc,              //  7 SPELL_AURA_MOD_FEAR
     &Unit::HandleNULLProc,                                  //  8 SPELL_AURA_PERIODIC_HEAL
     &Unit::HandleNULLProc,                                  //  9 SPELL_AURA_MOD_ATTACKSPEED
     &Unit::HandleNULLProc,                                  // 10 SPELL_AURA_MOD_THREAT
@@ -250,22 +250,29 @@ SpellProcEventTriggerCheck Unit::IsTriggeredAtSpellProcEvent(Unit* pVictim, Spel
     if (spellProto->Id == 14076 || spellProto->Id == 14094 || spellProto->Id == 14095)
         return SPELL_PROC_TRIGGER_FAILED;
 
-    /// [TODO]
-    /// Delete all these spells, and manage it via the DB (spell_proc_event)
+    // [TODO]
+    // Delete all these spells, and manage it via the DB (spell_proc_event)
     if (procSpell && !(procExtra & PROC_EX_CAST_END))
     {
 #if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_8_4
         // Eye for an Eye
-#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_9_4
-        if (spellProto->SpellIconID == 1820)
-#else
-        if (spellProto->SpellIconID == 1799)
-#endif
+        if (spellProto->Id == 9799 || spellProto->Id == 25988)
         {
-            if (procFlag & PROC_FLAG_TAKE_HARMFUL_SPELL && procExtra & PROC_EX_CRITICAL_HIT)
-                return SPELL_PROC_TRIGGER_OK;
-            else
+#if SUPPORTED_CLIENT_BUILD <= CLIENT_BUILD_1_9_4
+            // World of Warcraft Client Patch 1.10.0 (2006-03-28)
+            // - Eye for an Eye - This talent can now trigger while you are mounted.
+            if (IsMounted())
                 return SPELL_PROC_TRIGGER_FAILED;
+
+            // World of Warcraft Client Patch 1.10.0 (2006-03-28)
+            // - If a paladin avoids damage with Divine Shield, Eye for an Eye will
+            //   not react.
+            if (!((procFlag & PROC_FLAG_TAKE_HARMFUL_SPELL) && (procExtra & (PROC_EX_CRITICAL_HIT | PROC_EX_IMMUNE))))
+                return SPELL_PROC_TRIGGER_FAILED;
+#else
+            if (!((procFlag & PROC_FLAG_TAKE_HARMFUL_SPELL) && (procExtra & PROC_EX_CRITICAL_HIT)))
+                return SPELL_PROC_TRIGGER_FAILED;
+#endif
         }
 #endif
         // Improved Lay on Hands
@@ -294,26 +301,6 @@ SpellProcEventTriggerCheck Unit::IsTriggeredAtSpellProcEvent(Unit* pVictim, Spel
         if ((procSpell->Id == 20424) && (spellProto->SpellIconID == 84))
             return SPELL_PROC_TRIGGER_FAILED;
 #endif
-        // Zandalarian Hero Charm - Unstable Power
-        if (spellProto->Id == 24658)
-        {
-            // World of Warcraft Client Patch 1.10.0 (2006-03-28)
-            // - The charges from the Zandalarian Hero Charm will now be consumed by
-            //   melee and ranged abilities and spells which do non - physical damage.
-            //   This includes : Hammer of Wrath, Judgement of Righteousness, Seal of
-            //   Command, Judgement of Command, Volley, and Arcane Shot.The trinket
-            //   will also now burn charges from each casting of a damage over time
-            //   spell, heal over time spell, and area aura spells such as Blizzard
-            //   and Consecration. Only one charge will be burned per area spell cast,
-            //   rather than multiple charges per target hit as was previously the case.  
-#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_9_4
-            if ((procFlag & (PROC_FLAG_DEAL_MELEE_ABILITY | PROC_FLAG_DEAL_RANGED_ABILITY)) && (procSpell->School != SPELL_SCHOOL_NORMAL))
-                return SPELL_PROC_TRIGGER_OK;
-#else
-            if ((procFlag & (PROC_FLAG_DEAL_HARMFUL_PERIODIC)) && (procSpell->School != SPELL_SCHOOL_NORMAL))
-                return SPELL_PROC_TRIGGER_OK;
-#endif
-        }
         // DRUID
         // Omen of Clarity
         if (spellProto->Id == 16864)
@@ -570,6 +557,13 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 damage, Aura
         {
             switch (dummySpell->Id)
             {
+                // Illusion Passive
+                case 7131:
+                {
+                    if (Creature* pCreature = ToCreature())
+                        pCreature->DespawnOrUnsummon(1);
+                    return SPELL_AURA_PROC_OK;
+                }
 #if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_8_4
                 // Eye for an Eye
                 case 9799:
@@ -660,9 +654,8 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 damage, Aura
                 case 24658:
                 {
                     // Need to remove one 24659 aura
-                    // Holy Nova both heals and damages, so check needed to avoid consuming 2 charges
-                    if (!procSpell->IsFitToFamilyMask<CF_PRIEST_HOLY_NOVA1>())
-                        RemoveAuraHolderFromStack(24659);
+                    // It does consume 2 charges on using Holy Nova, confirmed on classic era ptr.
+                    RemoveAuraHolderFromStack(24659);
                     return SPELL_AURA_PROC_OK;
                 }
                 // Restless Strength
@@ -1074,6 +1067,9 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 damage, Aura
             // Seal of Righteousness - melee proc dummy
             if ((dummySpell->IsFitToFamilyMask<CF_PALADIN_SEALS>()) && triggeredByAura->GetEffIndex() == EFFECT_INDEX_0)
             {
+                if (!pVictim || !pVictim->IsAlive())
+                    return SPELL_AURA_PROC_FAILED;
+
                 if (GetTypeId() != TYPEID_PLAYER)
                     return SPELL_AURA_PROC_FAILED;
 
@@ -1428,8 +1424,15 @@ SpellAuraProcResult Unit::HandleProcTriggerSpellAuraProc(Unit* pVictim, uint32 d
         case SPELLFAMILY_PALADIN:
         {
 #if SUPPORTED_CLIENT_BUILD <= CLIENT_BUILD_1_9_4
+            // Seal of Righteousness - melee proc dummy
             if (auraSpellInfo->IsFitToFamilyMask<CF_PALADIN_SEALS>())
             {
+                if (!pVictim || !pVictim->IsAlive())
+                    return SPELL_AURA_PROC_FAILED;
+
+                if (GetTypeId() != TYPEID_PLAYER)
+                    return SPELL_AURA_PROC_FAILED;
+
                 uint32 spellId = 0;
                 switch (auraSpellInfo->Id)
                 {
@@ -1691,6 +1694,9 @@ SpellAuraProcResult Unit::HandleProcTriggerDamageAuraProc(Unit* pVictim, uint32 
     DEBUG_FILTER_LOG(LOG_FILTER_SPELL_CAST, "ProcDamageAndSpell: doing %u damage from spell id %u (triggered by auratype %u of spell %u)",
                      triggeredByAura->GetModifier()->m_amount, spellInfo->Id, triggeredByAura->GetModifier()->m_auraname, triggeredByAura->GetId());
     
+    if (!pVictim || !pVictim->IsAlive())
+        return SPELL_AURA_PROC_FAILED;
+
     // Trigger damage can be resisted...
     if (SpellMissInfo missInfo = SpellHitResult(pVictim, spellInfo, triggeredByAura->GetEffIndex(), false))
     {
@@ -1919,8 +1925,67 @@ SpellAuraProcResult Unit::HandleModResistanceAuraProc(Unit* /*pVictim*/, uint32 
 SpellAuraProcResult Unit::HandleModDamageAuraProc(Unit* /*pVictim*/, uint32 /*damage*/, Aura* triggeredByAura, SpellEntry const* procSpell, uint32 /*procFlag*/, uint32 /*procEx*/, uint32 /*cooldown*/)
 {
     // the aura school mask must match the spell school
-    return (procSpell == nullptr || (GetSchoolMask(procSpell->School) & triggeredByAura->GetModifier()->m_miscvalue))
-        ? SPELL_AURA_PROC_OK : SPELL_AURA_PROC_FAILED;
+    uint32 const schoolMask = procSpell ? GetSchoolMask(procSpell->School) : SPELL_SCHOOL_MASK_NORMAL;
+    if (!(schoolMask & triggeredByAura->GetModifier()->m_miscvalue))
+        return SPELL_AURA_PROC_FAILED;
+
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_9_4
+    switch (triggeredByAura->GetId())
+    {
+        case 24659: // Zandalarian Hero Charm - Unstable Power
+        {
+            if (!procSpell)
+                return SPELL_AURA_PROC_FAILED;
+
+            /*
+            World of Warcraft Client Patch 1.11.0 (2006-06-20)
+            - Judgement of Command: Now consumes a charge of the Zandalarian Hero 
+              Charm. In addition, when this spell is resisted it will no longer 
+              erroneously still do damage.
+            - Judgement of Righteousness: Now consumes a charge of the Zandalarian 
+              Hero Charm.
+            - Shadowguard: This Troll Priest racial spell now works with Vampiric 
+              Embrace, Blackout, and Shadow Weaving. In addition, the damage from 
+              Shadowguard will now consume charges of the Zandalarian Hero Charm's 
+              Unstable Power aura.
+            - Zandalarian Hero Charm: The damage and healing on this item have been
+              reduced by 30%. Instead of granting 35 damage and 70 healing per 
+              charge, it now grants 25 damage and 50 healing per charge. Several 
+              Paladin spells, Starshards, and Lightning Shield were not consuming 
+              charges of this trinket. All those spells have been fixed. In 
+              addition, totems which now benefit from increased damage and healing 
+              will also consume charges (Healing Stream Totem, Searing Totem, Magma 
+              Totem, and Fire Nova Totem)
+            World of Warcraft Client Patch 1.10.0 (2006-03-28)
+            - The charges from the Zandalarian Hero Charm will now be consumed by
+              melee and ranged abilities and spells which do non-physical damage.
+              This includes: Hammer of Wrath, Judgement of Righteousness, Seal of
+              Command, Judgement of Command, Volley, and Arcane Shot. The trinket
+              will also now burn charges from each casting of a damage over time
+              spell, heal over time spell, and area aura spells such as Blizzard
+              and Consecration. Only one charge will be burned per area spell cast,
+              rather than multiple charges per target hit as was previously the
+              case.
+            */
+            if (!procSpell->IsDirectDamageSpell() &&
+                !procSpell->IsHealSpell() &&
+                !procSpell->HasAura(SPELL_AURA_PERIODIC_DAMAGE) &&
+                !procSpell->HasAura(SPELL_AURA_PERIODIC_LEECH) &&
+                !procSpell->HasAura(SPELL_AURA_PERIODIC_HEALTH_FUNNEL) &&
+                !(procSpell->SpellVisual == 319 && procSpell->SpellIconID == 1647) && // Healing Stream Totem
+                !(procSpell->SpellVisual == 221 && procSpell->SpellIconID == 680) &&  // Searing Totem
+                !(procSpell->SpellVisual == 369 && procSpell->SpellIconID == 37) &&   // Magma Totem
+                !(procSpell->SpellVisual == 221 && procSpell->SpellIconID == 33)      // Fire Nova Totem
+                )
+                return SPELL_AURA_PROC_FAILED;
+
+            RemoveAuraHolderFromStack(24659);
+            return SPELL_AURA_PROC_OK;
+        }
+    }
+#endif
+
+    return SPELL_AURA_PROC_OK;
 }
 
 SpellAuraProcResult Unit::HandleRemoveByDamageChanceProc(Unit* pVictim, uint32 damage, Aura* triggeredByAura, SpellEntry const *procSpell, uint32 procFlag, uint32 procEx, uint32 cooldown)
@@ -1928,6 +1993,74 @@ SpellAuraProcResult Unit::HandleRemoveByDamageChanceProc(Unit* pVictim, uint32 d
     // The chance to dispel an aura depends on the damage taken with respect to the casters level.
     uint32 max_dmg = GetLevel() > 8 ? 25 * GetLevel() - 150 : 50;
     float chance = float(damage) / max_dmg * 100.0f;
+    if (roll_chance_f(chance))
+    {
+        triggeredByAura->SetInUse(true);
+        RemoveAurasByCasterSpell(triggeredByAura->GetId(), triggeredByAura->GetCasterGuid());
+        triggeredByAura->SetInUse(false);
+        return SPELL_AURA_PROC_OK;
+    }
+
+    return SPELL_AURA_PROC_FAILED;
+}
+
+SpellAuraProcResult Unit::HandleRemoveFearByDamageChanceProc(Unit* pVictim, uint32 damage, Aura* triggeredByAura, SpellEntry const *procSpell, uint32 procFlag, uint32 procEx, uint32 cooldown)
+{
+    if (!damage)
+        return SPELL_AURA_PROC_FAILED;
+
+    switch (triggeredByAura->GetSpellProto()->Mechanic)
+    {
+        case MECHANIC_FEAR:
+        case MECHANIC_TURN:
+            break;
+        default:
+            return SPELL_AURA_PROC_FAILED;
+    }
+
+    // Formula derived from Youfie's post here:
+    // https://forum.nostalrius.org/viewtopic.php?f=5&t=17424#p119432
+
+    // The chance to dispel an aura depends on the damage taken with respect to the caster's level.
+    uint32 max_dmg = GetLevel() > 8 ? 25 * GetLevel() - 150 : 50;
+
+    // Players are 3x more likely to break fears
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_10_2
+    if (IsPlayer())
+#else
+    // World of Warcraft Client Patch 1.11.0 (2006-06-20)
+    // - Fear: The calculations to determine if Fear effects should break due
+    //   to receiving damage have been changed. In addition, Intimidating
+    //   Shout now follows that player versus non - player distinction, while
+    //   previously it did not.
+    if (IsPlayer() && !HasAura(5246))
+#endif
+        max_dmg *= 0.333f;
+
+    // World of Warcraft Client Patch 1.11.0 (2006-06-20)
+    // - Fear: The calculations to determine if Fear effects should break due
+    //   to receiving damage have been changed. In addition, the chance for a
+    //   damage over time spell to break Fear is now significantly lower.
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_10_2
+    // DOT spells are 3x less likely to break fears after 1.11
+    if (procFlag & PROC_FLAG_TAKE_HARMFUL_PERIODIC)
+        max_dmg *= 3;
+#endif
+
+    // for players, this means max_dmg = 450 at level 60, or 1350 if the damage source is a dot
+    // for mobs, this means max_dmg = 1350 at level 60, or 4050 if the damage source is a dot
+
+    // World of Warcraft Client Patch 1.11.0 (2006-06-20)
+    // - Fear: The calculations to determine if Fear effects should break due 
+    //   to receiving damage have been changed.The old calculation used the
+    //   base damage of the ability.The new calculation uses the final amount
+    //   of damage dealt, after all modifiers.
+#if SUPPORTED_CLIENT_BUILD <= CLIENT_BUILD_1_10_2
+    if (procSpell && pVictim)
+        damage = pVictim->CalculateSpellEffectValue(this, procSpell, EFFECT_INDEX_0);
+#endif
+
+    float chance = float(damage) / float(max_dmg) * 100.0f;
     if (roll_chance_f(chance))
     {
         triggeredByAura->SetInUse(true);

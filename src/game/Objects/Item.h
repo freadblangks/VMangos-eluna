@@ -159,7 +159,11 @@ enum EnchantmentSlot
     MAX_ENCHANTMENT_SLOT        = 7
 };
 
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_5_1
 #define MAX_VISIBLE_ITEM_OFFSET       12
+#else
+#define MAX_VISIBLE_ITEM_OFFSET       11
+#endif
 
 enum EnchantmentOffset
 {
@@ -267,6 +271,7 @@ class Item : public Object
         void DeleteFromInventoryDB();
         void LoadLootFromDB(Field* fields);
 
+        void DeleteAllFromDB();
         static void DeleteAllFromDB(uint32 guidLow);
 
         bool isWeapon() const{ return GetProto()->Class == ITEM_CLASS_WEAPON; }
