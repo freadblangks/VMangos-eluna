@@ -28,6 +28,7 @@
 #include "SpellCaster.h"
 #include "LootMgr.h"
 #include "Util.h"
+#include <shared_mutex>
 
 class Unit;
 class GameObjectAI;
@@ -249,6 +250,7 @@ class GameObject : public SpellCaster
         uint32 GetFactionTemplateId() const final { return GetGOInfo()->faction; }
         uint32 GetLevel() const final ;
 
+        float GetCollisionHeight() const final;
         bool IsAtInteractDistance(Position const& pos, float radius) const;
         bool IsAtInteractDistance(Player const* player, uint32 maxRange = 0) const;
 
@@ -272,7 +274,7 @@ class GameObject : public SpellCaster
         // collected only for GAMEOBJECT_TYPE_SUMMONING_RITUAL
         ObjectGuid m_firstUser;                             // first GO user, in most used cases owner, but in some cases no, for example non-summoned multi-use GAMEOBJECT_TYPE_SUMMONING_RITUAL
         GuidsSet m_UniqueUsers;                             // all players who use item, some items activated after specific amount unique uses
-        std::mutex m_UniqueUsers_lock;
+        std::shared_timed_mutex m_UniqueUsers_lock;
         ObjectGuid m_summonTarget;                          // The player who is being summoned
 
         uint64 m_rotation;

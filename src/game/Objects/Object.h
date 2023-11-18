@@ -723,6 +723,7 @@ class WorldObject : public Object
             // angle to face `obj` to `this` using distance includes size of `obj`
             GetNearPoint(obj, x, y, z, obj->GetObjectBoundingRadius(), distance2d, GetAngle(obj));
         }
+        virtual float GetCollisionHeight() const { return 1.0f; }
         virtual float GetObjectBoundingRadius() const { return DEFAULT_WORLD_OBJECT_SIZE; }
         virtual float GetCombatReach() const { return 0.f; }
 
@@ -906,6 +907,7 @@ class WorldObject : public Object
         virtual ReputationRank GetReactionTo(WorldObject const* target) const;
         ReputationRank static GetFactionReactionTo(FactionTemplateEntry const* factionTemplateEntry, WorldObject const* target);
         bool IsValidAttackTarget(Unit const* target, bool checkAlive = true) const;
+        bool IsValidHelpfulTarget(Unit const* target, bool checkAlive = true) const;
 
         virtual void SaveRespawnTime() {}
         void AddObjectToRemoveList();
