@@ -30,6 +30,7 @@ namespace LuaBindsAI {
 	int Item_GetDamage(lua_State* L);
 	int Item_GetArmor(lua_State* L);
 	int Item_GetName(lua_State* L);
+	int Item_GetId(lua_State* L);
 	int Item_IsUnique(lua_State* L);
 
 	int Item_GetUtility(lua_State* L);
@@ -47,6 +48,7 @@ namespace LuaBindsAI {
 		{"GetStat", Item_GetStat},
 		{"GetSpell", Item_GetSpell},
 		{"GetName", Item_GetName},
+		{"GetId", Item_GetId},
 		{"IsUnique", Item_IsUnique},
 
 		{"GetUtility", Item_GetUtility},

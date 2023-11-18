@@ -148,6 +148,14 @@ int LuaBindsAI::Item_GetName(lua_State* L)
 }
 
 
+int LuaBindsAI::Item_GetId(lua_State* L)
+{
+	LuaAI_Item* item = Item_GetItemObject(L, 1);
+	lua_pushinteger(L, item->proto->ItemId);
+	return 1;
+}
+
+
 int LuaBindsAI::Item_GetArmor(lua_State* L)
 {
 	LuaAI_Item* item = Item_GetItemObject(L, 1);
@@ -196,7 +204,7 @@ int LuaBindsAI::Item_GetSpell(lua_State* L)
 int LuaBindsAI::Item_IsUnique(lua_State* L)
 {
 	LuaAI_Item* item = Item_GetItemObject(L, 1);
-	lua_pushboolean(L, item->proto->HasItemFlag(ItemPrototypeFlags::ITEM_FLAG_UNIQUE_EQUIPPED));
+	lua_pushboolean(L, item->proto->HasItemFlag(ItemPrototypeFlags::ITEM_FLAG_UNIQUE_EQUIPPED) || item->proto->MaxCount == 1);
 	return 1;
 }
 

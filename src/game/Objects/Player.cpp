@@ -981,7 +981,7 @@ void Player::AddStartingItems()
     // all item positions resolved
 }
 
-bool Player::StoreNewItemInBestSlots(uint32 itemId, uint32 amount, uint32 enchantId)
+bool Player::StoreNewItemInBestSlots(uint32 itemId, uint32 amount, uint32 enchantId, int32 randomPropertyId)
 {
     sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "STORAGE: Creating initial item, itemId = %u, count = %u", itemId, amount);
 
@@ -1002,7 +1002,11 @@ bool Player::StoreNewItemInBestSlots(uint32 itemId, uint32 amount, uint32 enchan
                 pItem->SetEnchantment(PERM_ENCHANTMENT_SLOT, enchantId, 0, 0);
                 needReApplyItemMods = true;
             }
-            if (uint32 randomPropertyId = Item::GenerateItemRandomPropertyId(itemId))
+
+            if (!randomPropertyId)
+                randomPropertyId = Item::GenerateItemRandomPropertyId(itemId);
+
+            if (randomPropertyId)
             {
                 pItem->SetItemRandomProperties(randomPropertyId);
                 needReApplyItemMods = true;
@@ -1037,7 +1041,7 @@ bool Player::StoreNewItemInBestSlots(uint32 itemId, uint32 amount, uint32 enchan
     uint8 msg = CanStoreNewItem(INVENTORY_SLOT_BAG_0, NULL_SLOT, sDest, itemId, amount);
     if (msg == EQUIP_ERR_OK)
     {
-        if (Item* pItem = StoreNewItem(sDest, itemId, true, Item::GenerateItemRandomPropertyId(itemId)))
+        if (Item* pItem = StoreNewItem(sDest, itemId, true, randomPropertyId ? randomPropertyId : Item::GenerateItemRandomPropertyId(itemId)))
         {
             if (enchantId)
             {
@@ -10813,7 +10817,9 @@ void Player::SetVisibleItemSlot(uint8 slot, Item* pItem)
 
         // Use SetInt16Value to prevent set high part to FFFF for negative value
         SetInt16Value(PLAYER_VISIBLE_ITEM_1_PROPERTIES + (slot * MAX_VISIBLE_ITEM_OFFSET), 0, pItem->GetItemRandomPropertyId());
+#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_6_1
         SetUInt32Value(PLAYER_VISIBLE_ITEM_1_PROPERTIES + 1 + (slot * MAX_VISIBLE_ITEM_OFFSET), pItem->GetItemSuffixFactor());
+#endif
     }
     else
     {
@@ -10828,7 +10834,9 @@ void Player::SetVisibleItemSlot(uint8 slot, Item* pItem)
             SetUInt32Value(VisibleBase + 1 + i, 0);
 
         SetUInt32Value(PLAYER_VISIBLE_ITEM_1_PROPERTIES + 0 + (slot * MAX_VISIBLE_ITEM_OFFSET), 0);
+#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_6_1
         SetUInt32Value(PLAYER_VISIBLE_ITEM_1_PROPERTIES + 1 + (slot * MAX_VISIBLE_ITEM_OFFSET), 0);
+#endif
     }
 #endif
 }

@@ -16,12 +16,31 @@ namespace LuaBindsAI {
 
 	int AI_AddTopGoal(lua_State* L);
 
+	// equip
+
+	int AI_EquipCopyFromMaster(lua_State* L);
+	int AI_EquipItem(lua_State* L);
+	int AI_EquipDestroyAll(lua_State* L);
+	int AI_EquipGetEnchantId(lua_State* L);
+	int AI_EquipGetRandomProp(lua_State* L);
+	int AI_EquipPrint(lua_State* L);
+	int AI_UpdateVisibilityForMaster(lua_State* L);
+
 	int AI_GetSpec(lua_State* L);
 	int AI_GetPlayer(lua_State* L);
 	int AI_GetMaster(lua_State* L);
 
 	static const struct luaL_Reg AI_BindLib[]{
 		{"AddTopGoal", AI_AddTopGoal},
+
+		// equip
+		{"EquipCopyFromMaster", AI_EquipCopyFromMaster},
+		{"EquipItem", AI_EquipItem},
+		{"EquipDestroyAll", AI_EquipDestroyAll},
+		{"EquipGetEnchantId", AI_EquipGetEnchantId},
+		{"EquipGetRandomProp", AI_EquipGetRandomProp},
+		{"EquipPrint", AI_EquipPrint},
+		{"UpdateVisibilityForMaster", AI_UpdateVisibilityForMaster},
 
 		{"GetSpec", AI_GetSpec},
 		{"GetMaster", AI_GetMaster},

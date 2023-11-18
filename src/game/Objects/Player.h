@@ -1151,7 +1151,7 @@ class Player final: public Unit
         void AutoUnequipItemFromSlot(uint32 slot);
         void SatisfyItemRequirements(ItemPrototype const* pItem);
         void AddStartingItems();
-        bool StoreNewItemInBestSlots(uint32 itemId, uint32 amount, uint32 enchantId = 0);
+        bool StoreNewItemInBestSlots(uint32 itemId, uint32 amount, uint32 enchantId = 0, int32 randomPropertyId = 0);
         Item* StoreNewItemInInventorySlot(uint32 itemId, uint32 amount);
         void AutoStoreLoot(Loot& loot, bool broadcast = false, uint8 bag = NULL_BAG, uint8 slot = NULL_SLOT);
         void SetAmmo(uint32 item);

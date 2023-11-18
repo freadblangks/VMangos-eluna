@@ -86,7 +86,7 @@ namespace
 				if (max <= score)
 				{
 					max = score;
-					chosenId = enchantId;
+					chosenId = randomId;
 				}
 			}
 		}
@@ -109,7 +109,7 @@ void Utility::GetItemUtility(lua_State* L, LuaAI_Item* item, Player* agent)
 	if (agent->CanUseItem(item->proto) != InventoryResult::EQUIP_ERR_OK)
 	{
 		printf("item %d score=0\n", item->proto->ItemId);
-	 	lua_pushnil(L);
+	 	lua_pushinteger(L, 0);
 		lua_pushnumber(L, 0.f);
 		return;
 	}
@@ -145,7 +145,7 @@ void Utility::GetItemUtility(lua_State* L, LuaAI_Item* item, Player* agent)
 			if (stat.ItemStatValue < 0)
 			{
 				printf("\n");
-				lua_pushnil(L);
+				lua_pushinteger(L, 0);
 				lua_pushnumber(L, 0.f);
 				return;
 			}
@@ -180,14 +180,12 @@ void Utility::GetItemUtility(lua_State* L, LuaAI_Item* item, Player* agent)
 				}
 
 	lua_pop(L, 4);
+
 	if (rp.id != 0)
-	{
-		lua_pushinteger(L, rp.id);
 		score += rp.score;
-	}
-	else
-		lua_pushnil(L);
+
 	printf("] score=%f %d\n", score, lua_gettop(L));
+	lua_pushinteger(L, rp.id);
 	lua_pushnumber(L, score);
 }
 

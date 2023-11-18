@@ -7,6 +7,8 @@
 #include "Goal/LogicManager.h"
 
 class PartyIntelligence;
+enum EnchantmentSlot;
+enum EquipmentSlots;
 
 enum class LuaAgentRoles {
 	Invalid = 0,
@@ -73,6 +75,14 @@ public:
 	void CreateUserTbl();
 	bool GetCeaseUpdates() { return m_bCeaseUpdates; }
 	void SetCeaseUpdates(bool value = true) { m_bCeaseUpdates = value; }
+
+	bool EquipCopyFromMaster();
+	void EquipDestroyAll();
+	uint32 EquipGetEnchantId(EnchantmentSlot slot, EquipmentSlots itemSlot);
+	int32 EquipGetRandomProp(EquipmentSlots itemSlot);
+	bool EquipItem(uint32 itemId, uint32 enchantId = 0u, int32 randomPropertyId = 0);
+	void EquipPrint();
+	void UpdateVisibilityForMaster();
 
 	// lua bits
 	void CreateUD(lua_State* L);

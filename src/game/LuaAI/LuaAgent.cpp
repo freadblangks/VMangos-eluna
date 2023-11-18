@@ -3,6 +3,7 @@
 #include "LuaAgentMgr.h"
 #include "LuaAgentLibPlayer.h"
 #include "lua.hpp"
+#include "Bag.h"
 
 const char* LuaAgent::AI_MTNAME = "Object.AI";
 
@@ -53,7 +54,7 @@ void LuaAgent::Update(uint32 diff)
 		return;
 
 	// not safe to update
-	if (!me || me->IsTaxiFlying())
+	if (!me || !IsReady() || me->IsTaxiFlying())
 		return;
 
 	if (!IsInitialized())
@@ -61,9 +62,6 @@ void LuaAgent::Update(uint32 diff)
 		Init();
 		return;
 	}
-
-	if (!IsReady())
-		return;
 
 	// Not initialized
 	if (m_userDataRef == LUA_NOREF || m_userDataRefPlayer == LUA_NOREF || m_userTblRef == LUA_NOREF)
@@ -97,7 +95,8 @@ void LuaAgent::Update(uint32 diff)
 }
 
 
-void LuaAgent::Reset(bool dropRefs) {
+void LuaAgent::Reset(bool dropRefs)
+{
 
 	// clear goals
 	m_topGoal = Goal(-1, 0, Goal::NOPARAMS, nullptr, nullptr);
@@ -203,7 +202,7 @@ void LuaAgent::OnPacketReceived(const WorldPacket& pck)
 
 bool LuaAgent::IsReady()
 {
-	return IsInitialized() && me->IsInWorld() && !me->IsBeingTeleported() && !me->GetSession()->PlayerLoading();
+	return me->IsInWorld() && !me->IsBeingTeleported() && !me->GetSession()->PlayerLoading();
 }
 
 
@@ -213,6 +212,83 @@ Goal* LuaAgent::AddTopGoal(int goalId, double life, std::vector<GoalParamP>& goa
 	m_goalManager = GoalManager(); // top goal owns all of the goals, we could just nuke the entire manager
 	m_goalManager.PushGoalOnActivationStack(&m_topGoal);
 	return &m_topGoal;
+}
+
+
+bool LuaAgent::EquipItem(uint32 itemId, uint32 enchantId, int32 randomPropertyId)
+{
+	return me->StoreNewItemInBestSlots(itemId, 1u, enchantId, randomPropertyId);
+}
+
+
+bool LuaAgent::EquipCopyFromMaster()
+{
+	Player* owner = ObjectAccessor::FindPlayer(m_masterGuid);
+	if (!owner || owner->GetClass() != me->GetClass()) return false;
+
+	for (int i = EQUIPMENT_SLOT_START; i < EQUIPMENT_SLOT_END; ++i)
+	{
+		Item* item = owner->GetItemByPos(INVENTORY_SLOT_BAG_0, i);
+		if (!item || !item->GetProto()) continue;
+		me->DestroyItem(INVENTORY_SLOT_BAG_0, i, true);
+		EquipItem(item->GetEntry(), item->GetEnchantmentId(EnchantmentSlot::PERM_ENCHANTMENT_SLOT), item->GetItemRandomPropertyId());
+	}
+
+	return true;
+}
+
+
+void LuaAgent::EquipDestroyAll()
+{
+	for (int i = EQUIPMENT_SLOT_START; i < EQUIPMENT_SLOT_END; ++i)
+		me->DestroyItem(INVENTORY_SLOT_BAG_0, i, true);
+
+	for (uint8 i = EQUIPMENT_SLOT_START; i < INVENTORY_SLOT_ITEM_END; i++)
+		if (Item* pItem = me->GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+			me->DestroyItem(INVENTORY_SLOT_BAG_0, i, true);
+
+	for (uint8 i = KEYRING_SLOT_START; i < KEYRING_SLOT_END; ++i)
+		if (Item* pItem = me->GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+			me->DestroyItem(INVENTORY_SLOT_BAG_0, i, true);
+
+	for (uint8 i = INVENTORY_SLOT_BAG_START; i < INVENTORY_SLOT_BAG_END; ++i)
+		if (Bag* pBag = (Bag*) me->GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+			for (uint32 j = 0; j < pBag->GetBagSize(); ++j)
+				if (Item* pItem = pBag->GetItemByPos(j))
+					me->DestroyItem(i, j, true);
+}
+
+
+uint32 LuaAgent::EquipGetEnchantId(EnchantmentSlot slot, EquipmentSlots itemSlot)
+{
+	Item* item = me->GetItemByPos(INVENTORY_SLOT_BAG_0, itemSlot);
+	return item ? item->GetEnchantmentId(slot) : 0;
+}
+
+
+int32 LuaAgent::EquipGetRandomProp(EquipmentSlots itemSlot)
+{
+	Item* item = me->GetItemByPos(INVENTORY_SLOT_BAG_0, itemSlot);
+	return item ? item->GetItemRandomPropertyId() : 0;
+}
+
+
+void LuaAgent::EquipPrint()
+{
+	for (int i = EQUIPMENT_SLOT_START; i < EQUIPMENT_SLOT_END; ++i)
+		if (Item* item = me->GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+			printf("%d %s\n", item->GetEntry(), item->GetProto()->Name1);
+}
+
+
+void LuaAgent::UpdateVisibilityForMaster()
+{
+	if (Player* master = sObjectAccessor.FindPlayer(GetMasterGuid()))
+	{
+		me->SetVisibility(VISIBILITY_OFF);
+		master->UpdateVisibilityOf(master, me);
+		me->SetVisibility(VISIBILITY_ON);
+	}
 }
 
 

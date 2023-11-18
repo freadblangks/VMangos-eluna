@@ -60,6 +60,73 @@ int LuaBindsAI::AI_AddTopGoal(lua_State* L)
 }
 
 
+int LuaBindsAI::AI_EquipCopyFromMaster(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	lua_pushboolean(L, ai->EquipCopyFromMaster());
+	return 1;
+}
+
+
+int LuaBindsAI::AI_EquipItem(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	int itemID = luaL_checkinteger(L, 2);
+	int enchantId = 0;
+	int randomPropertyId = 0;
+	if (lua_gettop(L) > 2)
+	{
+		enchantId = luaL_checkinteger(L, 3);
+		if (lua_gettop(L) > 3)
+			randomPropertyId = luaL_checkinteger(L, 4);
+	}
+	lua_pushboolean(L, ai->EquipItem(itemID, enchantId, randomPropertyId));
+	return 1;
+}
+
+
+int LuaBindsAI::AI_EquipDestroyAll(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	ai->EquipDestroyAll();
+	return 0;
+}
+
+
+int LuaBindsAI::AI_EquipGetEnchantId(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	int islot = luaL_checkinteger(L, 2);
+	int iitemSlot = luaL_checkinteger(L, 3);
+	lua_pushinteger(L, ai->EquipGetEnchantId(EnchantmentSlot(islot), EquipmentSlots(iitemSlot)));
+	return 1;
+}
+
+
+int LuaBindsAI::AI_EquipGetRandomProp(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	int iitemSlot = luaL_checkinteger(L, 2);
+	lua_pushinteger(L, ai->EquipGetRandomProp(EquipmentSlots(iitemSlot)));
+	return 1;
+}
+
+
+int LuaBindsAI::AI_EquipPrint(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	ai->EquipPrint();
+	return 0;
+}
+
+
+int LuaBindsAI::AI_UpdateVisibilityForMaster(lua_State* L)
+{
+	AI_GetAIObject(L)->UpdateVisibilityForMaster();
+	return 0;
+}
+
+
 int LuaBindsAI::AI_GetSpec(lua_State* L)
 {
 	LuaAgent* agent = AI_GetAIObject(L);
