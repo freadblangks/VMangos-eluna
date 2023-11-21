@@ -1,4 +1,5 @@
 
+#include "LuaAgent.h"
 #include "LuaAgentMgr.h"
 #include "Language.h"
 #include "Chat.h"

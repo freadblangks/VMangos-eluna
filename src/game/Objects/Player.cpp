@@ -19,6 +19,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include "LuaAI/LuaAgent.h"
+
 #include <unordered_map>
 #include <cmath>
 #include <sstream>
@@ -22825,3 +22827,9 @@ void Player::ClearTemporaryWarWithFactions()
         m_temporaryAtWarFactions.clear();
     }
 }
+
+void Player::CreateLuaAI(Player* me, ObjectGuid masterGuid, int logicID) {
+    if (!m_luaAI)
+        m_luaAI = std::make_unique<LuaAgent>(me, masterGuid, logicID);
+}
+

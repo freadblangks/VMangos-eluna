@@ -5,6 +5,7 @@
 #include "Goal/Goal.h"
 #include "Goal/GoalManager.h"
 #include "Goal/LogicManager.h"
+#include "Hierarchy/LuaAgentCommandQ.h"
 
 class PartyIntelligence;
 enum EnchantmentSlot;
@@ -33,6 +34,7 @@ class LuaAgent
 	Player* me;
 	ObjectGuid m_masterGuid;
 
+	bool m_bCmdQueueMode;
 	bool m_bCeaseUpdates;
 	bool m_bInitialized;
 
@@ -43,13 +45,14 @@ class LuaAgent
 	Goal m_topGoal;
 	GoalManager m_goalManager;
 	LogicManager m_logicManager;
+	std::vector<std::unique_ptr<AgentCmd>> commands;
 
 public:
 
 	static const char* AI_MTNAME;
 
 	LuaAgent(Player* me, ObjectGuid masterGuid, int logicID);
-	~LuaAgent();
+	~LuaAgent() noexcept;
 
 	void Init();
 	void Update(uint32 diff);
@@ -76,6 +79,8 @@ public:
 	bool GetCeaseUpdates() { return m_bCeaseUpdates; }
 	void SetCeaseUpdates(bool value = true) { m_bCeaseUpdates = value; }
 
+	// equipment
+
 	bool EquipCopyFromMaster();
 	void EquipDestroyAll();
 	uint32 EquipGetEnchantId(EnchantmentSlot slot, EquipmentSlots itemSlot);
@@ -83,6 +88,23 @@ public:
 	bool EquipItem(uint32 itemId, uint32 enchantId = 0u, int32 randomPropertyId = 0);
 	void EquipPrint();
 	void UpdateVisibilityForMaster();
+
+	// commands
+
+	void CommandsSetQMode(bool set) { m_bCmdQueueMode = set; }
+	bool CommandsGetQMode() { return m_bCmdQueueMode; }
+	size_t CommandsAdd(AgentCmd* cmd)
+	{
+		std::unique_ptr<AgentCmd> ptr(cmd);
+		if (!m_bCmdQueueMode)
+			commands.clear();
+		commands.push_back(std::move(ptr));
+		return commands.size() - 1;
+	}
+	void CommandsClear() { commands.clear(); }
+	void CommandsPopFront() { if (commands.size()) commands.erase(commands.begin()); }
+	AgentCmd* CommandsGetFirst() { return commands.size() > 0 ? commands.front().get() : nullptr; };
+	void CommandsPrint();
 
 	// lua bits
 	void CreateUD(lua_State* L);

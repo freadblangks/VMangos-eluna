@@ -18,6 +18,7 @@ namespace LuaBindsAI {
 	// General info
 
 	int Unit_GetClass(lua_State* L);
+	int Unit_GetGuid(lua_State* L);
 	int Unit_GetLevel(lua_State* L);
 	int Unit_GetName(lua_State* L);
 
@@ -29,6 +30,7 @@ namespace LuaBindsAI {
 
 	static const struct luaL_Reg Unit_BindLib[]{
 		{"GetClass", Unit_GetClass},
+		{"GetGuid", Unit_GetGuid},
 		{"GetLevel", Unit_GetLevel},
 		{"GetName", Unit_GetName},
 

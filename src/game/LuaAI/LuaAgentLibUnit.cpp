@@ -58,6 +58,14 @@ int LuaBindsAI::Unit_GetClass(lua_State* L)
 }
 
 
+int LuaBindsAI::Unit_GetGuid(lua_State* L)
+{
+	Unit* unit = *Unit_GetUnitObject(L);
+	Guid_CreateUD(L, unit->GetObjectGuid());
+	return 1;
+}
+
+
 int LuaBindsAI::Unit_GetLevel(lua_State* L)
 {
 	Unit* unit = *Unit_GetUnitObject(L);

@@ -1,5 +1,6 @@
 
 #include "LuaAgentBindsCommon.h"
+#include "Goal/Goal.h"
 #include "Goal/GoalManager.h"
 #include "Goal/LogicManager.h"
 #include "LuaAgentLibAI.h"
@@ -8,6 +9,7 @@
 #include "LuaAgentLibAux.h"
 #include "LuaAgentLibItem.h"
 #include "LuaAgentLibSpell.h"
+#include "LuaAgentLibWorldObj.h"
 #include "Hierarchy/LuaAgentPartyInt.h"
 #include "lua.hpp"
 
@@ -19,6 +21,7 @@ void LuaBindsAI::BindAll(lua_State* L) {
 	BindAI(L);
 	BindPlayer(L);
 	BindUnit(L);
+	BindWorldObject(L);
 	BindPartyIntelligence(L);
 	lua_register(L, "GetUnitByGuid", GetUnitByGuid);
 	lua_register(L, "GetPlayerByGuid", GetPlayerByGuid);

@@ -3,6 +3,20 @@
 #include "LuaAgentLibAI.h"
 #include "LuaAgentUtils.h"
 #include "LuaAgent.h"
+#include "LuaAgentLibWorldObj.h"
+
+
+namespace
+{
+	void AI_CmdSetStateHelper(lua_State* L, LuaAgent* ai, AgentCmd::State state)
+	{
+		AgentCmd* cmd = ai->CommandsGetFirst();
+		if (!cmd)
+			luaL_error(L, "AI_CmdSetState: no commands in queue");
+		cmd->SetState(AgentCmd::State(state));
+	}
+}
+
 
 void LuaBindsAI::BindAI(lua_State* L)
 {
@@ -127,6 +141,81 @@ int LuaBindsAI::AI_UpdateVisibilityForMaster(lua_State* L)
 }
 
 
+// commands
+
+
+int LuaBindsAI::AI_CmdGetArgs(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	AgentCmd* cmd = ai->CommandsGetFirst();
+	if (!cmd)
+		luaL_error(L, "AI_CmdGetArgs: no commands in queue");
+	return cmd->Push(L);
+}
+
+
+int LuaBindsAI::AI_CmdGetState(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	AgentCmd* cmd = ai->CommandsGetFirst();
+	lua_pushinteger(L, cmd ? lua_Integer(cmd->GetState()) : -1);
+	return 1;
+}
+
+
+int LuaBindsAI::AI_CmdGetType(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	AgentCmd* cmd = ai->CommandsGetFirst();
+	lua_pushinteger(L, cmd ? lua_Integer(cmd->GetType()) : -1);
+	return 1;
+}
+
+
+int LuaBindsAI::AI_CmdGetQMode(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	lua_pushinteger(L, ai->CommandsGetQMode());
+	return 1;
+}
+
+
+int LuaBindsAI::AI_CmdComplete(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	if (!ai->CommandsGetFirst())
+		luaL_error(L, "AI_CmdComplete: no commands in queue");
+	ai->CommandsPopFront();
+	return 0;
+}
+
+
+int LuaBindsAI::AI_CmdFail(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	if (!ai->CommandsGetFirst())
+		luaL_error(L, "AI_CmdFail: no commands in queue");
+	ai->CommandsClear();
+	return 0;
+}
+
+
+int LuaBindsAI::AI_CmdSetInProgress(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	AI_CmdSetStateHelper(L, ai, AgentCmd::State::InProgress);
+	return 0;
+}
+
+
+int LuaBindsAI::AI_CmdPrintAll(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	ai->CommandsPrint();
+	return 0;
+}
+
+
 int LuaBindsAI::AI_GetSpec(lua_State* L)
 {
 	LuaAgent* agent = AI_GetAIObject(L);
@@ -142,6 +231,15 @@ int LuaBindsAI::AI_GetMaster(lua_State* L)
 	if (master && (!master->IsInWorld() || master->IsBeingTeleported()))
 		master = nullptr;
 	lua_pushplayerornil(L, master);
+	return 1;
+}
+
+
+int LuaBindsAI::AI_GetMasterGuid(lua_State* L)
+{
+	LuaAgent* agent = AI_GetAIObject(L);
+	const ObjectGuid& masterGuid = agent->GetMasterGuid();
+	masterGuid.IsEmpty() ? lua_pushnil(L) : Guid_CreateUD(L, masterGuid);
 	return 1;
 }
 

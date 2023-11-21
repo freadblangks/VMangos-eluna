@@ -2,6 +2,9 @@
 #include "LuaAgentPartyInt.h"
 #include "LuaAI/LuaAgentUtils.h"
 #include "LuaAI/LuaAgentMgr.h"
+#include "LuaAI/LuaAgent.h"
+#include "LuaAI/LuaAgentLibAI.h"
+#include "LuaAI/LuaAgentLibWorldObj.h"
 
 
 const char* PartyIntelligence::PI_MTNAME = "Object.PartyInt";
@@ -227,6 +230,24 @@ void LuaBindsAI::PartyInt_CreateMetatable(lua_State* L)
 	lua_setfield(L, -1, "__index"); // mt.__index = mt
 	luaL_setfuncs(L, PartyInt_BindLib, 0); // copy funcs
 	lua_pop(L, 1); // pop mt
+}
+
+
+int LuaBindsAI::PartyInt_CmdFollow(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L, 2);
+	LuaObjectGuid* guid = Guid_GetGuidObject(L, 3);
+	AgentCmdFollow* cmd = new AgentCmdFollow(guid->guid);
+	lua_pushinteger(L, ai->CommandsAdd(cmd));
+	return 1;
+}
+
+
+int LuaBindsAI::PartyInt_GetOwnerGuid(lua_State* L)
+{
+	PartyIntelligence* intelligence = PartyInt_GetPIObject(L);
+	Guid_CreateUD(L, intelligence->GetOwnerGuid());
+	return 1;
 }
 
 

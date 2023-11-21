@@ -1,5 +1,6 @@
 #include "Goal.h"
 #include "LuaAI/LuaAgentUtils.h"
+#include "GoalManager.h"
 
 std::vector<GoalParamP> Goal::NOPARAMS{};
 

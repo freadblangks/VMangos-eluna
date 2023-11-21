@@ -438,6 +438,8 @@ set (game_SRCS
     LuaAI/Goal/LogicManager.h
     LuaAI/Hierarchy/LuaAgentPartyInt.cpp
     LuaAI/Hierarchy/LuaAgentPartyInt.h
+    LuaAI/Hierarchy/LuaAgentCommandQ.cpp
+    LuaAI/Hierarchy/LuaAgentCommandQ.h
     LuaAI/Libs/Utility.cpp
     LuaAI/Libs/Utility.h
     LuaAI/LuaAgentBindsCommon.cpp

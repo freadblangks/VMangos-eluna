@@ -26,9 +26,21 @@ namespace LuaBindsAI {
 	int AI_EquipPrint(lua_State* L);
 	int AI_UpdateVisibilityForMaster(lua_State* L);
 
+	// commands
+
+	int AI_CmdGetArgs(lua_State* L);
+	int AI_CmdGetState(lua_State* L);
+	int AI_CmdGetType(lua_State* L);
+	int AI_CmdGetQMode(lua_State* L);
+	int AI_CmdComplete(lua_State* L);
+	int AI_CmdSetInProgress(lua_State* L);
+	int AI_CmdFail(lua_State* L);
+	int AI_CmdPrintAll(lua_State* L);
+
 	int AI_GetSpec(lua_State* L);
 	int AI_GetPlayer(lua_State* L);
 	int AI_GetMaster(lua_State* L);
+	int AI_GetMasterGuid(lua_State* L);
 
 	static const struct luaL_Reg AI_BindLib[]{
 		{"AddTopGoal", AI_AddTopGoal},
@@ -42,8 +54,19 @@ namespace LuaBindsAI {
 		{"EquipPrint", AI_EquipPrint},
 		{"UpdateVisibilityForMaster", AI_UpdateVisibilityForMaster},
 
+		// commands
+		{"CmdArgs", AI_CmdGetArgs},
+		{"CmdState", AI_CmdGetState},
+		{"CmdType", AI_CmdGetType},
+		{"CmdIsQMode", AI_CmdGetQMode},
+		{"CmdComplete", AI_CmdComplete},
+		{"CmdSetInProgress", AI_CmdSetInProgress},
+		{"CmdFail", AI_CmdFail},
+		{"CmdPrintAll", AI_CmdPrintAll},
+
 		{"GetSpec", AI_GetSpec},
 		{"GetMaster", AI_GetMaster},
+		{"GetMasterGuid", AI_GetMasterGuid},
 		{"GetPlayer", AI_GetPlayer},
 
 		{NULL, NULL}

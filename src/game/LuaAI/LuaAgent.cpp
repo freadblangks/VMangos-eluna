@@ -17,6 +17,7 @@ LuaAgent::LuaAgent(Player* me, ObjectGuid masterGuid, int logicID) :
 	m_updateInterval(50),
 	m_bCeaseUpdates(false),
 	m_bInitialized(false),
+	m_bCmdQueueMode(false),
 
 	m_userDataRef(LUA_NOREF),
 	m_userDataRefPlayer(LUA_NOREF),
@@ -24,13 +25,16 @@ LuaAgent::LuaAgent(Player* me, ObjectGuid masterGuid, int logicID) :
 
 	m_logicManager(logicID),
 	m_goalManager(),
-	m_topGoal(-1, 0, Goal::NOPARAMS, nullptr, nullptr)
+	m_topGoal(-1, 0, Goal::NOPARAMS, nullptr, nullptr),
+
+	m_party(nullptr)
 {
 	m_updateTimer.Reset(2000);
 	m_topGoal.SetTerminated(true);
 }
 
-LuaAgent::~LuaAgent()
+
+LuaAgent::~LuaAgent() noexcept
 {
 	if (lua_State* L = sLuaAgentMgr.Lua())
 	{
@@ -86,6 +90,9 @@ void LuaAgent::Update(uint32 diff)
 		m_goalManager.Update(L, this);
 		m_goalManager.Terminate(L, this);
 	}
+
+	if (m_bCmdQueueMode)
+		m_bCmdQueueMode = false;
 
 	// a manager called error state
 	if (GetCeaseUpdates()) {
@@ -148,6 +155,7 @@ void LuaAgent::Init()
 {
 	lua_State* L = sLuaAgentMgr.Lua();
 
+	commands.clear();
 	if (m_userDataRef == LUA_NOREF)
 		CreateUD(L);
 	if (m_userDataRefPlayer == LUA_NOREF)
@@ -288,6 +296,19 @@ void LuaAgent::UpdateVisibilityForMaster()
 		me->SetVisibility(VISIBILITY_OFF);
 		master->UpdateVisibilityOf(master, me);
 		me->SetVisibility(VISIBILITY_ON);
+	}
+}
+
+
+// Commands
+
+
+void LuaAgent::CommandsPrint()
+{
+	for (int i = 0; i < commands.size(); ++i)
+	{
+		auto& cmd = commands[i];
+		printf("%d - Type: %d, State: %d\n", i, (int) cmd->GetType(), (int) cmd->GetState());
 	}
 }
 
