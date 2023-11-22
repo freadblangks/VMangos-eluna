@@ -488,7 +488,7 @@ void PlayerMenu::SendQuestGiverQuestList(QEmote eEmote, std::string const& Title
             }
 
             data << uint32(questID);
-            data << QIconToClientQuestType(qmi.m_qIcon);
+            data << qmi.m_qIcon;
             data << uint32(pQuest->GetQuestLevel());
             data.append(title, titleLen + 1);
         }

@@ -12771,16 +12771,19 @@ void Player::PrepareQuestMenu(ObjectGuid guid, uint32 exceptQuestId)
 
         QuestStatus status = GetQuestStatus(quest_id);
 
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_2_4
         if (status == QUEST_STATUS_COMPLETE && !GetQuestRewardStatus(quest_id))
-#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_3_1
             qm.AddMenuItem(quest_id, DIALOG_STATUS_REWARD_REP);
-#else
-            qm.AddMenuItem(quest_id, DIALOG_STATUS_REWARD2);
-#endif
         else if (status == QUEST_STATUS_INCOMPLETE)
             qm.AddMenuItem(quest_id, DIALOG_STATUS_INCOMPLETE);
         else if (status == QUEST_STATUS_AVAILABLE)
             qm.AddMenuItem(quest_id, DIALOG_STATUS_CHAT);
+#else
+        if (status == QUEST_STATUS_COMPLETE && !GetQuestRewardStatus(quest_id))
+            qm.AddMenuItem(quest_id, 4);
+        else if (status == QUEST_STATUS_INCOMPLETE)
+            qm.AddMenuItem(quest_id, 4);
+#endif
     }
 
     for (QuestRelationsMap::const_iterator itr = rbounds.first; itr != rbounds.second; ++itr)
@@ -12796,17 +12799,19 @@ void Player::PrepareQuestMenu(ObjectGuid guid, uint32 exceptQuestId)
 
         QuestStatus status = GetQuestStatus(quest_id);
 
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_2_4
         if (pQuest->IsAutoComplete() && CanTakeQuest(pQuest, false))
-#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_3_1
             qm.AddMenuItem(quest_id, DIALOG_STATUS_REWARD_REP);
-#else
-            qm.AddMenuItem(quest_id, DIALOG_STATUS_REWARD2);
-#endif
         else if (status == QUEST_STATUS_NONE && CanTakeQuest(pQuest, false))
-#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_3_1
             qm.AddMenuItem(quest_id, DIALOG_STATUS_AVAILABLE);
 #else
-            qm.AddMenuItem(quest_id, DIALOG_STATUS_AVAILABLE);
+        if (CanTakeQuest(pQuest, false))
+            if (pQuest->IsAutoComplete() && !pQuest->IsRepeatable())
+                qm.AddMenuItem(quest_id, 0);
+            else if (pQuest->IsAutoComplete())
+                qm.AddMenuItem(quest_id, 4);
+            else if (status == QUEST_STATUS_NONE)
+                qm.AddMenuItem(quest_id, 2);
 #endif
     }
 }
@@ -12830,7 +12835,7 @@ void Player::SendPreparedQuest(ObjectGuid guid)
 
         if (pQuest)
         {
-#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_3_1
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_2_4
             if (status == DIALOG_STATUS_REWARD_REP && !GetQuestRewardStatus(quest_id))
                 PlayerTalkClass->SendQuestGiverRequestItems(pQuest, guid, CanRewardQuest(pQuest, false), true);
             else if (status == DIALOG_STATUS_INCOMPLETE)
@@ -12841,10 +12846,8 @@ void Player::SendPreparedQuest(ObjectGuid guid)
             else
                 PlayerTalkClass->SendQuestGiverQuestDetails(pQuest, guid, true);
 #else
-            if (status == DIALOG_STATUS_REWARD2 && !GetQuestRewardStatus(quest_id))
+            if (status == 4 && !GetQuestRewardStatus(quest_id))
                 PlayerTalkClass->SendQuestGiverRequestItems(pQuest, guid, CanRewardQuest(pQuest, false), true);
-            else if (status == DIALOG_STATUS_INCOMPLETE)
-                PlayerTalkClass->SendQuestGiverRequestItems(pQuest, guid, false, true);
             // Send completable on repeatable quest if player don't have quest
             else if (pQuest->IsRepeatable() && CanCompleteRepeatableQuest(pQuest))
                 PlayerTalkClass->SendQuestGiverRequestItems(pQuest, guid, true, true);

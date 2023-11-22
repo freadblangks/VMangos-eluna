@@ -115,7 +115,7 @@ inline char const* QuestStatusToString(QuestStatus status)
     return "UNKNOWN";
 }
 
-#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_3_1
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_2_4
 enum __QuestGiverStatus
 {
     DIALOG_STATUS_NONE                     = 0,
