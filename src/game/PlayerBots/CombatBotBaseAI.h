@@ -97,6 +97,7 @@ public:
     void EquipPremadeGearTemplate();
     void EquipRandomGearInEmptySlots();
     void AutoEquipGear(uint32 option);
+    void LearnRandomTalents();
     
     uint8 GetAttackersInRangeCount(float range) const;
     Unit* SelectAttackerDifferentFrom(Unit const* pExcept) const;
@@ -123,6 +124,8 @@ public:
     SpellCastResult DoCastSpell(Unit* pTarget, SpellEntry const* pSpellEntry);
     virtual bool CanTryToCastSpell(Unit const* pTarget, SpellEntry const* pSpellEntry) const;
     bool IsWearingShield(Player* pPlayer) const;
+    bool IsInDuel() const;
+    CombatBotRoles GetRole() const;
 
     void EquipOrUseNewItem();
     void AddItemToInventory(uint32 itemId, uint32 count = 1);
@@ -188,12 +191,12 @@ public:
     {
         switch (playerClass)
         {
-        case CLASS_WARRIOR:
-        case CLASS_PALADIN:
-        case CLASS_ROGUE:
-        case CLASS_SHAMAN:
-        case CLASS_DRUID:
-            return true;
+            case CLASS_WARRIOR:
+            case CLASS_PALADIN:
+            case CLASS_ROGUE:
+            case CLASS_SHAMAN:
+            case CLASS_DRUID:
+                return true;
         }
         return false;
     }
