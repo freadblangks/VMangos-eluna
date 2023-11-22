@@ -208,6 +208,7 @@ Player* LuaAgentMgr::GetAgent(ObjectGuid guid)
 
 const LuaAgentInfoHolder* LuaAgentMgr::GetLoginInfo(ObjectGuid guid)
 {
+	const std::lock_guard<std::mutex> lock(loginMutex);
 	auto it = m_toAdd.find(guid);
 	return (it == m_toAdd.end()) ? nullptr : &(it->second);
 }
@@ -215,8 +216,7 @@ const LuaAgentInfoHolder* LuaAgentMgr::GetLoginInfo(ObjectGuid guid)
 
 void LuaAgentMgr::EraseLoginInfo(ObjectGuid guid)
 {
-	static std::mutex m;
-	const std::lock_guard<std::mutex> lock(m);
+	const std::lock_guard<std::mutex> lock(loginMutex);
 	auto it = m_toAdd.find(guid);
 	if (it != m_toAdd.end())
 		it->second.status = LuaAgentInfoHolder::TODELETE;
@@ -225,8 +225,7 @@ void LuaAgentMgr::EraseLoginInfo(ObjectGuid guid)
 
 void LuaAgentMgr::SetLoggedIn(ObjectGuid guid)
 {
-	static std::mutex m;
-	const std::lock_guard<std::mutex> lock(m);
+	const std::lock_guard<std::mutex> lock(loginMutex);
 	auto it = m_toAdd.find(guid);
 	if (it != m_toAdd.end())
 		it->second.status = LuaAgentInfoHolder::LOGGEDIN;
@@ -278,13 +277,17 @@ LuaAgentMgr::CheckResult LuaAgentMgr::AddAgent(std::string charName, ObjectGuid 
 {
 	CheckResult check = CheckAgentValid(charName, masterGuid);
 	if (check == CHAR_OK)
+	{
+		const std::lock_guard<std::mutex> lock(loginMutex);
 		m_toAdd.emplace(sObjectMgr.GetPlayerGuidByName(charName), LuaAgentInfoHolder(charName, masterGuid, logicID, spec));
+	}
 	return check;
 }
 
 
 void LuaAgentMgr::__AddAgents()
 {
+	const std::lock_guard<std::mutex> lock(loginMutex);
 	for (std::map<ObjectGuid, LuaAgentInfoHolder>::iterator it = m_toAdd.begin(); it != m_toAdd.end();)
 	{
 		LuaAgentInfoHolder& info = it->second;

@@ -30,6 +30,8 @@ public:
 
 class LuaAgentMgr
 {
+	std::mutex loginMutex;
+
 	friend class LuaAgentCharacterHandler;
 
 	lua_State* L;
