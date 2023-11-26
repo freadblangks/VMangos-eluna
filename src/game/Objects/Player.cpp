@@ -1522,6 +1522,8 @@ void Player::Update(uint32 update_diff, uint32 p_time)
     if (!IsInWorld())
         return;
 
+    sScriptDevMgr.OnBeforePlayerUpdate(this, p_time);
+
     UpdateMirrorTimers(update_diff);
 
     //used to implement delayed far teleports
@@ -4281,7 +4283,11 @@ void Player::RemoveSpell(uint32 spellId, bool disabled, bool learn_low_rank)
     if (sSpellMgr.IsPrimaryProfessionFirstRankSpell(spellId))
     {
         uint32 freeProfs = GetFreePrimaryProfessionPoints() + 1;
-        if (freeProfs <= sWorld.getConfig(CONFIG_UINT32_MAX_PRIMARY_TRADE_SKILL))
+        uint32 MaxPrimaryTradeSkill = sWorld.getConfig(CONFIG_UINT32_MAX_PRIMARY_TRADE_SKILL);
+
+        sScriptDevMgr.MaxPrimaryTradeSkill(this, MaxPrimaryTradeSkill);
+
+        if (freeProfs <= MaxPrimaryTradeSkill)
             SetFreePrimaryProfessions(freeProfs);
     }
 
@@ -4486,6 +4492,8 @@ uint32 Player::GetResetTalentsCost() const
 
 bool Player::ResetTalents(bool no_cost)
 {
+    sScriptDevMgr.OnPlayerTalentsReset(this, no_cost);
+    
     // not need after this call
     if (HasAtLoginFlag(AT_LOGIN_RESET_TALENTS))
         RemoveAtLoginFlag(AT_LOGIN_RESET_TALENTS, true);
@@ -5751,6 +5759,8 @@ bool Player::UpdateCraftSkill(uint32 spellid)
 
             uint32 craft_skill_gain = sWorld.getConfig(CONFIG_UINT32_SKILL_GAIN_CRAFTING);
 
+            sScriptDevMgr.UpdateCraftingSkillAmount(this, craft_skill_gain);
+
             return UpdateSkillPro(_spell_idx->second->skillId, SkillGainChance(SkillValue,
                                   _spell_idx->second->max_value,
                                   (_spell_idx->second->max_value + _spell_idx->second->min_value) / 2,
@@ -5766,6 +5776,8 @@ bool Player::UpdateGatherSkill(uint32 SkillId, uint32 SkillValue, uint32 RedLeve
     sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "UpdateGatherSkill(SkillId %d SkillLevel %d RedLevel %d)", SkillId, SkillValue, RedLevel);
 
     uint32 gathering_skill_gain = sWorld.getConfig(CONFIG_UINT32_SKILL_GAIN_GATHERING);
+
+    sScriptDevMgr.UpdateGatheringSkillAmount(this, gathering_skill_gain);
 
     // For skinning and Mining chance decrease with level. 1-74 - no decrease, 75-149 - 2 times, 225-299 - 8 times
     switch (SkillId)
@@ -5796,6 +5808,8 @@ bool Player::UpdateFishingSkill()
     int32 chance = SkillValue < 75 ? 100 : 2500 / (SkillValue - 50);
 
     uint32 gathering_skill_gain = sWorld.getConfig(CONFIG_UINT32_SKILL_GAIN_GATHERING);
+
+    sScriptDevMgr.UpdateGatheringSkillAmount(this, gathering_skill_gain);
 
     return UpdateSkillPro(SKILL_FISHING, chance * 10, gathering_skill_gain);
 }
@@ -6929,6 +6943,8 @@ void Player::RewardReputation(Quest const* pQuest)
         {
             int32 rep = CalculateReputationGain(REPUTATION_SOURCE_QUEST,  pQuest->RewRepValue[i], pQuest->RewRepFaction[i], GetQuestLevelForPlayer(pQuest));
 
+            sScriptDevMgr.RewardReputationAmount(this, rep);
+
             if (FactionEntry const* factionEntry = sObjectMgr.GetFactionEntry(pQuest->RewRepFaction[i]))
                 GetReputationMgr().ModifyReputation(factionEntry, rep);
         }
@@ -7529,10 +7545,8 @@ void Player::_ApplyWeaponDependentAuraCritMod(Item* item, WeaponAttackType attac
     switch (attackType)
     {
         case BASE_ATTACK:
-            mod = CRIT_PERCENTAGE;
-            break;
         case OFF_ATTACK:
-            mod = OFFHAND_CRIT_PERCENTAGE;
+            mod = CRIT_PERCENTAGE;
             break;
         case RANGED_ATTACK:
             mod = RANGED_CRIT_PERCENTAGE;
@@ -7819,6 +7833,8 @@ void Player::CastItemUseSpell(Item* item, SpellCastTargets const& targets)
 
     // use triggered flag only for items with many spell casts and for not first cast
     int count = 0;
+
+    sScriptDevMgr.OnPlayerUseItem(this, item, targets);
 
     // item spells casted at use
     for (const auto& spellData : proto->Spells)
@@ -13231,6 +13247,7 @@ void Player::AddQuest(Quest const* pQuest, Object* questGiver)
         {
             case TYPEID_UNIT:
                 sScriptMgr.OnQuestAccept(this, (Creature*)questGiver, pQuest);
+                sScriptDevMgr.OnQuestAccept(this, (Creature*)questGiver, pQuest);
                 break;
             case TYPEID_GAMEOBJECT:
                 sScriptMgr.OnQuestAccept(this, (GameObject*)questGiver, pQuest);
@@ -13538,7 +13555,7 @@ void Player::RewardQuest(Quest const* pQuest, uint32 reward, WorldObject* questE
     switch (questEnder->GetTypeId())
     {
         case TYPEID_UNIT:
-            handled = sScriptMgr.OnQuestRewarded(this, (Creature*)questEnder, pQuest);
+            handled = sScriptMgr.OnQuestRewarded(this, (Creature*)questEnder, pQuest) || sScriptDevMgr.OnQuestReward(this, (Creature*)questEnder, pQuest);
             break;
         case TYPEID_GAMEOBJECT:
             handled = sScriptMgr.OnQuestRewarded(this, (GameObject*)questEnder, pQuest);
@@ -14685,6 +14702,9 @@ void Player::SendQuestCompleteEvent(uint32 quest_id) const
 void Player::SendQuestReward(Quest const* pQuest, uint32 XP) const
 {
     uint32 questid = pQuest->GetQuestId();
+
+    sScriptDevMgr.OnQuestComplete((Player*)this, pQuest);
+
     WorldPacket data(SMSG_QUESTGIVER_QUEST_COMPLETE, (4 + 4 + 4 + 4 + 4 + pQuest->GetRewItemsCount() * 8));
     data << questid;
     data << uint32(0x03);
@@ -18306,6 +18326,9 @@ bool Player::ActivateTaxiPathTo(std::vector<uint32> const& nodes, Creature* npc 
     if (GetPet())
         RemovePet(PET_SAVE_REAGENTS);
 
+    if (sScriptDevMgr.OnPlayerHandleTaxi(this, nodes[nodes.size() - 1]))
+        return false; 
+
     WorldPacket data(SMSG_ACTIVATETAXIREPLY, 4);
     data << uint32(ERR_TAXIOK);
     GetSession()->SendPacket(&data);
@@ -19208,7 +19231,11 @@ void Player::ScheduleCameraUpdate(ObjectGuid guid)
 
 void Player::InitPrimaryProfessions()
 {
-    SetFreePrimaryProfessions(sWorld.getConfig(CONFIG_UINT32_MAX_PRIMARY_TRADE_SKILL));
+    uint32 PrimaryPoffessions = sWorld.getConfig(CONFIG_UINT32_MAX_PRIMARY_TRADE_SKILL);
+
+    sScriptDevMgr.MaxPrimaryTradeSkill(this, PrimaryPoffessions);
+
+    SetFreePrimaryProfessions(PrimaryPoffessions);
 }
 
 void Player::SetComboPoints()

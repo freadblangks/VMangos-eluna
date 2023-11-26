@@ -495,6 +495,19 @@ int32 World::GetModuleIntConfig(std::string conf, uint32 value)
 
 }
 
+float World::GetModuleFloatConfig(std::string conf, float value)
+{
+    auto it = _moduleConfig.find(conf);
+
+    if (it == _moduleConfig.end())
+        return value;
+    else
+    {
+        ModuleConfig Mod = it->second;
+        return std::stof(Mod.value); // Use std::stof to convert string to float
+    }
+}
+
 // Initialize config values
 void World::LoadConfigSettings(bool reload)
 {

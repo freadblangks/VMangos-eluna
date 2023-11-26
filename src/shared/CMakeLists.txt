@@ -16,7 +16,9 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 # Glob only and not recurse, there are other libs for that
-set (shared_SRCS 
+set (shared_SRCS
+    DataMap.h
+    EventMap.h 
     ByteBuffer.h
     Common.h
     DelayExecutor.h
@@ -68,6 +70,7 @@ set (shared_SRCS
     nonstd/optional.hpp
     ByteBuffer.cpp
     Common.cpp
+    EventMap.cpp
     DelayExecutor.cpp
     Log.cpp
     PosixDaemon.cpp

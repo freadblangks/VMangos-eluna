@@ -8,6 +8,7 @@
 #include "World.h"
 #include "Guild.h"
 #include "GuildMgr.h"
+#include "ScriptedInstance.h"
 
 class Player;
 class BattlegroundScript;
@@ -27,6 +28,41 @@ struct ItemPrototype;
 class Spell;
 class ScriptMgr;
 class WorldSocket;
+
+// Utility macros to refer to the script registry.
+#define SCR_REG_MAP(T) ScriptRegistry<T>::ScriptMap
+#define SCR_REG_LST(T) ScriptRegistry<T>::ScriptPointerList
+
+// Utility macros for looping over scripts.
+#define FOR_SCRIPTS(T,C,E) \
+    if (SCR_REG_LST(T).empty()) \
+        return; \
+    for (SCR_REG_MAP(T)::iterator C = SCR_REG_LST(T).begin(); \
+        C != SCR_REG_LST(T).end(); ++C)
+#define FOR_SCRIPTS_RET(T,C,E,R) \
+    if (SCR_REG_LST(T).empty()) \
+        return R; \
+    for (SCR_REG_MAP(T)::iterator C = SCR_REG_LST(T).begin(); \
+        C != SCR_REG_LST(T).end(); ++C)
+#define FOREACH_SCRIPT(T) \
+    FOR_SCRIPTS(T, itr, end) \
+    itr->second
+#define CHECK_RETURN_BOOL(T, R) \
+    if (SCR_REG_LST(T).empty()) \
+        return R; \
+    for (SCR_REG_MAP(T)::iterator itr = SCR_REG_LST(T).begin(); \
+        itr != SCR_REG_LST(T).end(); ++itr)
+
+// Utility macros for finding specific scripts.
+#define GET_SCRIPT(T,I,V) \
+    T* V = ScriptRegistry<T>::GetScriptById(I); \
+    if (!V) \
+        return;
+#define GET_SCRIPT_RET(T,I,V,R) \
+    T* V = ScriptRegistry<T>::GetScriptById(I); \
+    if (!V) \
+        return R;
+
 
 class ScriptObject
 {
@@ -82,6 +118,58 @@ public:
 };
 
 /* #############################################
+   #                AllCreatureScript
+   #
+   #############################################*/
+class AllCreatureScript : public ScriptObject
+{
+protected:
+    AllCreatureScript(const char* name);
+
+public:
+    // Called from End of Creature Update.
+    virtual void OnAllCreatureUpdate(Creature* /*creature*/, uint32 /*diff*/) { }
+
+    // called when InitStats For creature
+    virtual void OnInitStatsForLevel(Creature* /*creature*/) { }
+};
+
+/* #############################################
+   #                ModuleScript
+   #
+   #############################################*/
+
+// this class can be used to be extended by Modules
+// creating their own custom hooks inside module itself
+class ModuleScript : public ScriptObject
+{
+protected:
+    ModuleScript(const char* name);
+};
+
+
+/* #############################################
+   #                UnitScript
+   #
+   #############################################*/
+
+class UnitScript : public ScriptObject
+{
+protected:
+    UnitScript(const char* name);
+public:
+
+    // Called when a unit deals damage to another unit
+    virtual void OnDamage(Unit* /*attacker*/, Unit* /*victim*/, uint32& /*damage*/) { }
+
+    // Called when a unit deals damage to another unit
+    virtual uint32 DealDamage(Unit* /*AttackerUnit*/, Unit* /*pVictim*/, uint32 damage, DamageEffectType /*damagetype*/) { return damage; }
+
+    // Called when a unit deals healing to another unit
+    virtual void OnHeal(Unit* /*healer*/, Unit* /*reciever*/, uint32& /*gain*/) { }
+};
+
+/* #############################################
    #                CreatureScript
    #
    #############################################*/
@@ -94,6 +182,12 @@ protected:
 public:
 
     bool IsDatabaseBound() const { return true; }
+
+    // Called when a player accepts a quest from the creature.
+    virtual bool OnQuestAccept(Player* player, Creature* creature, Quest const* quest) { return false; }
+
+    // Called when a player selects a quest reward.
+    virtual bool OnQuestReward(Player* player, Creature* creature, Quest const* quest) { return false; }
 
     // Called When a player Opens a gossip dialog with the creature
     virtual bool OnGossipHello(Player* player, Creature* creature) { return false; }
@@ -123,11 +217,18 @@ protected:
     PlayerScript(char const* name);
 
 public:
+
+    // Called when player want to use Taxi
+    virtual bool OnPlayerHandleTaxi(Player* /*player*/, uint32 /*sourcepath*/) { return false; }
+
     // Called when a player gains XP (before anything is given)
     virtual void OnGiveXP(Player* /*player*/, uint32& /*amount*/, Unit* /*victim*/) { }
 
     // Called when a player logs in.
     virtual void OnLogin(Player* /*player*/) { }
+
+    // Called when a player logs out.
+    virtual void OnLogout(Player* /*player*/) { }
 
     // Called when Player Changed Level
     virtual void OnLevelChanged(Player* /*player*/, uint8 /*oldLevel*/, uint8 /*newLevel*/) { }
@@ -139,7 +240,7 @@ public:
     virtual void OnCreatureKill(Player* /*killer*/, Creature* /*killed*/) { }
 
     // Called when a player is killed by a creature
-    virtual void OnPlayerKilledByCreature(Creature* /*killer*/, Player* /*killed*/) { }
+    virtual void OnPlayerKilledByCreature(Creature* /*killer*/, Player* /*killed*/, bool& /*durabilityLoss*/) { }
 
     // Called When a player Loots an item
     virtual void OnLootItem(Player* /*player*/, Item* /*item*/, uint32 /*count*/, uint64 /*itemGUID*/) { }
@@ -151,11 +252,45 @@ public:
     virtual void OnQuestRewardItem(Player* /*player*/, Item* /*item*/, uint32 /*count*/) { }
 
     // The following methods are called when a player sends a chat message.
-    virtual void OnChat(Player* /*player*/, uint32 /*type*/, uint32 /*lang*/, char*& /*msg*/) { }
+    virtual bool OnChat(Player* /*player*/, uint32 /*type*/, uint32 /*lang*/, char*& /*msg*/) { return false; }
     virtual void OnChat(Player* /*player*/, uint32 /*type*/, uint32 /*lang*/, char*& /*msg*/, Player* /*receiver*/) { }
     virtual void OnChat(Player* /*player*/, uint32 /*type*/, uint32 /*lang*/, char*& /*msg*/, Group* /*group*/) { }
     virtual void OnChat(Player* /*player*/, uint32 /*type*/, uint32 /*lang*/, char*& /*msg*/, Guild* /*guild*/) { }
     virtual void OnChat(Player* /*player*/, uint32 /*type*/, uint32 /*lang*/, char*& /*msg*/, Channel* /*channel*/) { }
+
+    // Called when a player's talent points are reset (right before the reset is done)
+    virtual void OnTalentsReset(Player* /*player*/, bool /*noCost*/) { }
+
+    // Called when a player completes a quest.
+    virtual void OnQuestComplete(Player* player, Quest const* quest) {}
+
+    // Called when player loots money
+    virtual void OnLootMoney(Player* /*player*/, uint32 /*amount*/) { }
+
+    // Called when player Requests to logout
+    virtual void OnPlayerLogoutRequest(Player* player) {}
+
+    // Called for player::update
+    virtual void OnBeforeUpdate(Player* /*player*/, uint32 /*p_time*/) { }
+
+    // Called when player uses an item
+    virtual void OnPlayerUseItem(Player* /*player*/, Item* /*item*/, SpellCastTargets const& /*targets*/) { }
+
+    // Called when a player changes to a new map (after moving to new map)
+    virtual void OnMapChanged(Player* /*player*/) { }
+
+    // Called when updating skill  for crafting
+    virtual uint32 UpdateCraftingSkillAmount(Player* /*player*/, uint32& UpdateAmount) { return UpdateAmount; }
+
+    // Called When updating gathering Skill
+    virtual uint32 UpdateGatheringSkillAmount(Player* /*player*/, uint32& UpdateAmount) { return UpdateAmount; }
+
+    // Called when giving player reputation
+    virtual int32 RewardReputationAmount(Player* /*plater*/, int32& rep) { return rep; }
+
+    // called for the amount of primary professions a player can have 
+    virtual uint32 MaxPrimaryTradeSkill(Player* /*player*/, uint32& maxSkillsAllowed) { return maxSkillsAllowed; }
+
 };
 
 
@@ -171,28 +306,54 @@ public:
     virtual ~ScriptDevMgr();
 
 public: /* PlayerScript */
+    bool OnPlayerHandleTaxi(Player* player, uint32 sourcepath);
     void OnGivePlayerXP(Player* player, uint32& amount, Unit* victim);
     void OnPlayerLogin(Player* player);
+    void OnPlayerLogout(Player* player);
     void OnPlayerLevelChanged(Player* player, uint8 oldLevel, uint8 newLevel);
     void OnPVPKill(Player* killer, Player* killed);
     void OnCreatureKill(Player* killer, Creature* killed);
-    void OnPlayerKilledByCreature(Creature* killer, Player* killed);
+    void OnPlayerKilledByCreature(Creature* killer, Player* killed, bool& durabilityLoss);
     void OnLootItem(Player* player, Item* item, uint32 count, uint64 lootGUID);
     void OnCreateItem(Player* player, Item* item, uint32 count);
     void OnQuestRewardItem(Player* player, Item* item, uint32 count);
-    void OnPlayerChat(Player* player, uint32 type, uint32 lang, char*& msg);
+    bool OnPlayerChat(Player* player, uint32 type, uint32 lang, char*& msg);
     void OnPlayerChat(Player* player, uint32 type, uint32 lang, char*& msg, Player* receiver);
     void OnPlayerChat(Player* player, uint32 type, uint32 lang, char*& msg, Group* group);
     void OnPlayerChat(Player* player, uint32 type, uint32 lang, char*& msg, Guild* guild);
     void OnPlayerChat(Player* player, uint32 type, uint32 lang, char*& msg, Channel* channel);
+    void OnPlayerTalentsReset(Player* player, bool noCost);
+    void OnQuestComplete(Player* player, Quest const* quest);
+    void OnLootMoney(Player* player, uint32 amount);
+    void OnPlayerLogoutRequest(Player* player);
+    void OnBeforePlayerUpdate(Player* player, uint32 p_time);
+    void OnPlayerUseItem(Player* player, Item* item, SpellCastTargets const& targets);
+    void OnMapChanged(Player* player);
+    void SendSpellCooldown(Player* player, uint32 spellId, uint32 cooldown, ObjectGuid target);
+    uint32 UpdateCraftingSkillAmount(Player* player, uint32& UpdateAmount);
+    uint32 UpdateGatheringSkillAmount(Player* player, uint32& UpdateAmount);
+    int32 RewardReputationAmount(Player* player, int32& rep);
+    uint32 MaxPrimaryTradeSkill(Player* player, uint32& maxSkillsAllowed);
+
 
 public : /* CreatureScript */
     bool OnGossipHello(Player* player, Creature*);
     bool OnGossipSelect(Player* player, Creature* creature, uint32 sender, uint32 action);
     bool OnGossipSelectCode(Player* player, Creature* creature, uint32 sender, uint32 action, const char* code);
     bool OnGossipSelect(Player* player, Creature* creature, uint32 sender, uint32 action, const char* code);
+    bool OnQuestAccept(Player* player, Creature* creature, Quest const* quest);
+    bool OnQuestReward(Player* player, Creature* creature, Quest const* quest);
     uint32 GetDialogStatus(Player* player, Creature* creature);
     CreatureAI* GetCreatureAI(Creature* creature);
+
+public : /* UnitScript */
+    uint32 DealDamage(Unit* AttackerUnit, Unit* pVictim, uint32 damage, DamageEffectType damagetype);
+    void OnHeal(Unit* healer, Unit* reciever, uint32& gain);
+    void OnDamage(Unit* attacker, Unit* victim, uint32& damage);
+
+public: /* AllCreatureScript */
+    void OnAllCreatureUpdate(Creature* creature, uint32 diff);
+    void OnInitStatsForLevel(Creature* creature);
 
 
 public: /* ScriptRegistry */

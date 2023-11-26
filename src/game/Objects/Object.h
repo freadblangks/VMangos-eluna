@@ -36,6 +36,7 @@
 #include "Camera.h"
 #include "Cell.h"
 #include <string>
+#include "DataMap.h"
 
 class WorldPacket;
 class UpdateData;
@@ -598,6 +599,8 @@ class Object
         bool IsPet() const;
         Pet* ToPet();
         Pet const* ToPet() const;
+
+        DataMap CustomData;
 
         virtual bool HasQuest(uint32 /* quest_id */) const { return false; }
         virtual bool HasInvolvedQuest(uint32 /* quest_id */) const { return false; }

@@ -38,6 +38,7 @@
 #include "SQLStorages.h"
 #include "ScriptCommands.h"
 #include "CreatureLinkingMgr.h"
+#include "DataMap.h"
 
 #include <bitset>
 #include <list>
@@ -597,6 +598,7 @@ class Map : public GridRefManager<NGridType>
         bool ShouldUpdateMap(uint32 now, uint32 inactiveTimeLimit);
         void RemoveBones(Corpse* corpse);
 
+        DataMap CustomData;
     private:
         void LoadMapAndVMap(int gx, int gy);
 

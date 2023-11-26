@@ -662,6 +662,13 @@ uint32 Unit::DealDamage(Unit* pVictim, uint32 damage, CleanDamage const* cleanDa
 #define SKIP_STEALTH (pVictim == this)
 #endif
 
+    sScriptDevMgr.OnDamage(this, pVictim, damage);
+
+    //Script Event damage Taken
+    if (Creature* pCreature = pVictim->ToCreature())
+        if (pCreature->AI())
+            pCreature->AI()->DamageTaken(this, damage);
+
     // remove affects from attacker at any non-DoT damage (including 0 damage)
     if (damagetype != DOT)
     {
@@ -799,20 +806,6 @@ uint32 Unit::DealDamage(Unit* pVictim, uint32 damage, CleanDamage const* cleanDa
                 return 0;
 
         DEBUG_FILTER_LOG(LOG_FILTER_DAMAGE, "DealDamage: victim just died");
-        Kill(pVictim, spellProto, durabilityLoss); // Function too long, we cut
-        // last damage from non duel opponent or opponent controlled creature
-        if (duel_hasEnded)
-        {
-            MANGOS_ASSERT(pVictim->IsPlayer());
-            Player* he = (Player*)pVictim;
-
-            MANGOS_ASSERT(he->duel);
-
-            he->duel->opponent->CombatStopWithPets(true);
-            he->CombatStopWithPets(true);
-
-            he->DuelComplete(DUEL_INTERRUPTED);
-        }
 
         // Hook for OnPvPKill Event
         if (this->GetTypeId() == TYPEID_PLAYER)
@@ -836,8 +829,23 @@ uint32 Unit::DealDamage(Unit* pVictim, uint32 damage, CleanDamage const* cleanDa
             {
                 Creature* killer = this->ToCreature();
                 Player* killed = pVictim->ToPlayer();
-                sScriptDevMgr.OnPlayerKilledByCreature(killer, killed);
+                sScriptDevMgr.OnPlayerKilledByCreature(killer, killed, durabilityLoss);
             }
+        }
+
+        Kill(pVictim, spellProto, durabilityLoss); // Function too long, we cut
+        // last damage from non duel opponent or opponent controlled creature
+        if (duel_hasEnded)
+        {
+            MANGOS_ASSERT(pVictim->IsPlayer());
+            Player* he = (Player*)pVictim;
+
+            MANGOS_ASSERT(he->duel);
+
+            he->duel->opponent->CombatStopWithPets(true);
+            he->CombatStopWithPets(true);
+
+            he->DuelComplete(DUEL_INTERRUPTED);
         }
         
     }

@@ -283,11 +283,15 @@ void WorldSession::HandleLootMoneyOpcode(WorldPacket& /*recv_data*/)
                 WorldPacket data(SMSG_LOOT_MONEY_NOTIFY, 4);
                 data << uint32(moneyPerPlayer);
                 i->GetSession()->SendPacket(&data);
+                sScriptDevMgr.OnLootMoney(player, pLoot->gold);
             }
         }
         else
+        {
             player->LootMoney(pLoot->gold, pLoot);
-
+            sScriptDevMgr.OnLootMoney(player, pLoot->gold);
+        }
+            
         pLoot->gold = 0;
 
         if (pItem)

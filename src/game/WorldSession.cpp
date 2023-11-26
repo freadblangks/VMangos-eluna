@@ -46,6 +46,7 @@
 #include "Auth/Sha1.h"
 #include "Chat.h"
 #include "MasterPlayer.h"
+#include "ScriptDevMgr.h"
 
 #include <openssl/md5.h>
 
@@ -715,6 +716,8 @@ void WorldSession::LogoutPlayer(bool Save)
 
         // No need to create any new maps
         sMapMgr.CancelInstanceCreationForPlayer(_player);
+
+        sScriptDevMgr.OnPlayerLogout(_player);
 
         // Remove the player from the world
         // the player may not be in the world when logging out

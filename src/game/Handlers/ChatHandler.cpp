@@ -392,7 +392,8 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recv_data)
             if (!GetPlayer()->IsAlive())
                 return;
 
-            sScriptDevMgr.OnPlayerChat(GetPlayer(), type, lang, msg);
+            if (sScriptDevMgr.OnPlayerChat(GetPlayer(), type, lang, msg))
+                return;
 
             GetPlayer()->Say(msg, lang);
 

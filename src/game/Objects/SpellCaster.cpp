@@ -1505,11 +1505,6 @@ void SpellCaster::DealDamageMods(Unit* victim, uint32& damage, uint32* absorb)
         if (pCreature->AI())
             pCreature->AI()->DamageDeal(victim, damage);
 
-    //Script Event damage taken
-    if (Creature* pCreature = victim->ToCreature())
-        if (pCreature->AI() && pUnit)
-            pCreature->AI()->DamageTaken(pUnit, damage);
-
     if (absorb && originalDamage > damage)
         *absorb += (originalDamage - damage);
 }

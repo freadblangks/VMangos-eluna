@@ -44,6 +44,7 @@
 #include "PathFinder.h"
 #include "CharacterDatabaseCache.h"
 #include "ZoneScript.h"
+#include "ScriptDevMgr.h"
 
 using namespace Spells;
 
@@ -1335,6 +1336,10 @@ void Spell::DoAllEffectOnTarget(TargetInfo *target)
     {
         bool crit = target->isCrit;
         uint32 addhealth = ditheru(m_healing);
+        
+        // Hook for OnHeal Event
+        sScriptDevMgr.OnHeal(m_casterUnit, m_targets.getUnitTarget(), (uint32&)addhealth);
+
         if (crit)
         {
             procEx |= PROC_EX_CRITICAL_HIT;

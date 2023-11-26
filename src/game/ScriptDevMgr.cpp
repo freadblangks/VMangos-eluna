@@ -16,35 +16,6 @@
 
 INSTANTIATE_SINGLETON_1(ScriptDevMgr);
 
-// Utility macros to refer to the script registry.
-#define SCR_REG_MAP(T) ScriptRegistry<T>::ScriptMap
-#define SCR_REG_LST(T) ScriptRegistry<T>::ScriptPointerList
-
-// Utility macros for looping over scripts.
-#define FOR_SCRIPTS(T,C,E) \
-    if (SCR_REG_LST(T).empty()) \
-        return; \
-    for (SCR_REG_MAP(T)::iterator C = SCR_REG_LST(T).begin(); \
-        C != SCR_REG_LST(T).end(); ++C)
-#define FOR_SCRIPTS_RET(T,C,E,R) \
-    if (SCR_REG_LST(T).empty()) \
-        return R; \
-    for (SCR_REG_MAP(T)::iterator C = SCR_REG_LST(T).begin(); \
-        C != SCR_REG_LST(T).end(); ++C)
-#define FOREACH_SCRIPT(T) \
-    FOR_SCRIPTS(T, itr, end) \
-    itr->second
-
-// Utility macros for finding specific scripts.
-#define GET_SCRIPT(T,I,V) \
-    T* V = ScriptRegistry<T>::GetScriptById(I); \
-    if (!V) \
-        return;
-#define GET_SCRIPT_RET(T,I,V,R) \
-    T* V = ScriptRegistry<T>::GetScriptById(I); \
-    if (!V) \
-        return R;
-
 ScriptDevMgr::ScriptDevMgr()
 {
 }
@@ -67,7 +38,6 @@ ScriptDevMgr::~ScriptDevMgr()
     SCR_CLEAR(InstanceMapScript);
     SCR_CLEAR(BattlegroundMapScript);
     SCR_CLEAR(ItemScript);
-    SCR_CLEAR(CreatureScript);
     SCR_CLEAR(GameObjectScript);
     SCR_CLEAR(AreaTriggerScript);
     SCR_CLEAR(BattlegroundScript);
@@ -78,16 +48,110 @@ ScriptDevMgr::~ScriptDevMgr()
     SCR_CLEAR(ConditionScript);
     SCR_CLEAR(DynamicObjectScript);
     SCR_CLEAR(TransportScript);*/
+    SCR_CLEAR(ModuleScript);
+    SCR_CLEAR(CreatureScript);
     SCR_CLEAR(PlayerScript);
+    SCR_CLEAR(AllCreatureScript);
 
 
 #undef SCR_CLEAR
+}
+
+
+/* #############################################
+   #                ModuleScript
+   #
+   ############################################# */
+
+
+ModuleScript::ModuleScript(const char* name)
+    : ScriptObject(name)
+{
+    ScriptDevMgr::ScriptRegistry<ModuleScript>::AddScript(this);
+}
+
+/* #############################################
+   #                AllCreatuteScript
+   #
+   ############################################# */
+
+void ScriptDevMgr::OnAllCreatureUpdate(Creature* creature, uint32 diff)
+{
+    ASSERT(creature);
+
+    FOREACH_SCRIPT(AllCreatureScript)->OnAllCreatureUpdate(creature, diff);
+}
+
+void ScriptDevMgr::OnInitStatsForLevel(Creature* creature)
+{
+    ASSERT(creature);
+
+    FOREACH_SCRIPT(AllCreatureScript)->OnInitStatsForLevel(creature);
+}
+
+AllCreatureScript::AllCreatureScript(const char* name)
+    : ScriptObject(name)
+{
+    ScriptDevMgr::ScriptRegistry<AllCreatureScript>::AddScript(this);
+}
+
+/* #############################################
+   #                UnitScript
+   #
+   ############################################# */
+
+uint32 ScriptDevMgr::DealDamage(Unit* AttackerUnit, Unit* pVictim, uint32 damage, DamageEffectType damagetype)
+{
+    FOR_SCRIPTS_RET(UnitScript, itr, end, damage)
+        damage = itr->second->DealDamage(AttackerUnit, pVictim, damage, damagetype);
+    return damage;
+}
+
+void ScriptDevMgr::OnDamage(Unit* attacker, Unit* victim, uint32& damage)
+{
+    FOREACH_SCRIPT(UnitScript)->OnDamage(attacker, victim, damage);
+}
+
+void ScriptDevMgr::OnHeal(Unit* healer, Unit* reciever, uint32& gain)
+{
+    FOREACH_SCRIPT(UnitScript)->OnHeal(healer, reciever, gain);
+}
+
+UnitScript::UnitScript(const char* name)
+    : ScriptObject(name)
+{
+    ScriptDevMgr::ScriptRegistry<UnitScript>::AddScript(this);
 }
 
 /* #############################################
    #                CreatureScript
    #
    ############################################# */
+
+bool ScriptDevMgr::OnQuestAccept(Player* player, Creature* creature, Quest const* quest)
+{
+    ASSERT(player);
+    ASSERT(creature);
+    ASSERT(quest);
+
+
+    GET_SCRIPT_RET(CreatureScript, creature->GetScriptId(), tmpscript, false);
+    player->PlayerTalkClass->ClearMenus();
+    return tmpscript->OnQuestAccept(player, creature, quest);
+}
+
+
+
+bool ScriptDevMgr::OnQuestReward(Player* player, Creature* creature, Quest const* quest)
+{
+    ASSERT(player);
+    ASSERT(creature);
+    ASSERT(quest);
+
+    GET_SCRIPT_RET(CreatureScript, creature->GetScriptId(), tmpscript, false);
+    player->PlayerTalkClass->ClearMenus();
+    return tmpscript->OnQuestReward(player, creature, quest);
+}
 
 uint32 ScriptDevMgr::GetDialogStatus(Player* player, Creature* creature)
 {
@@ -149,9 +213,80 @@ CreatureScript::CreatureScript(const char* name)
    #
    ############################################# */
 
+void ScriptDevMgr::OnPlayerUseItem(Player* player, Item* item, SpellCastTargets const& targets)
+{
+    FOREACH_SCRIPT(PlayerScript)->OnPlayerUseItem(player, item, targets);
+}
+
+uint32 ScriptDevMgr::MaxPrimaryTradeSkill(Player* player, uint32& maxSkillsAllowed)
+{
+    FOR_SCRIPTS_RET(PlayerScript, itr, end, maxSkillsAllowed)
+        maxSkillsAllowed = itr->second->UpdateCraftingSkillAmount(player, maxSkillsAllowed);
+    return maxSkillsAllowed;
+}
+
+uint32 ScriptDevMgr::UpdateCraftingSkillAmount(Player* player, uint32& UpdateAmount)
+{
+    FOR_SCRIPTS_RET(PlayerScript, itr, end, UpdateAmount)
+        UpdateAmount = itr->second->UpdateCraftingSkillAmount(player,UpdateAmount);
+    return UpdateAmount;
+}
+
+int32 ScriptDevMgr::RewardReputationAmount(Player* player, int32& rep)
+{
+    FOR_SCRIPTS_RET(PlayerScript, itr, end, rep)
+        rep = itr->second->RewardReputationAmount(player, rep);
+    return rep;
+}
+
+uint32 ScriptDevMgr::UpdateGatheringSkillAmount(Player* player, uint32& UpdateAmount)
+{
+    FOR_SCRIPTS_RET(PlayerScript, itr, end, UpdateAmount)
+        UpdateAmount = itr->second->UpdateGatheringSkillAmount(player, UpdateAmount);
+    return UpdateAmount;
+}
+
+bool ScriptDevMgr::OnPlayerHandleTaxi(Player* player, uint32 sourcepath)
+{
+    CHECK_RETURN_BOOL(PlayerScript, false); // Check if the script list is empty and return false if it is.
+
+    bool result = false;
+    FOR_SCRIPTS_RET(PlayerScript, itr, end, result)
+    {
+        if (itr->second->OnPlayerHandleTaxi(player, sourcepath))
+        {
+            result = true; // Set the result to true if any script returns true.
+        }
+    }
+
+    return result; // Return the final result.
+}
+
+void ScriptDevMgr::OnBeforePlayerUpdate(Player* player, uint32 p_time)
+{
+    FOREACH_SCRIPT(PlayerScript)->OnBeforeUpdate(player, p_time);
+}
+
+
+void ScriptDevMgr::OnLootMoney(Player* player, uint32 amount)
+{
+    FOREACH_SCRIPT(PlayerScript)->OnLootMoney(player, amount);
+}
+
+void ScriptDevMgr::OnPlayerLogoutRequest(Player* player)
+{
+    FOREACH_SCRIPT(PlayerScript)->OnPlayerLogoutRequest(player);
+}
+
 void ScriptDevMgr::OnPVPKill(Player* killer, Player* killed)
 {
     FOREACH_SCRIPT(PlayerScript)->OnPVPKill(killer, killed);
+}
+
+void ScriptDevMgr::OnQuestComplete(Player* player, Quest const* quest)
+{
+    player->PlayerTalkClass->ClearMenus();
+    FOREACH_SCRIPT(PlayerScript)->OnQuestComplete(player, quest);
 }
 
 void ScriptDevMgr::OnCreatureKill(Player* killer, Creature* killed)
@@ -159,14 +294,19 @@ void ScriptDevMgr::OnCreatureKill(Player* killer, Creature* killed)
     FOREACH_SCRIPT(PlayerScript)->OnCreatureKill(killer, killed);
 }
 
-void ScriptDevMgr::OnPlayerKilledByCreature(Creature* killer, Player* killed)
+void ScriptDevMgr::OnPlayerKilledByCreature(Creature* killer, Player* killed, bool& durabilityLoss)
 {
-    FOREACH_SCRIPT(PlayerScript)->OnPlayerKilledByCreature(killer, killed);
+    FOREACH_SCRIPT(PlayerScript)->OnPlayerKilledByCreature(killer, killed, durabilityLoss);
 }
 
 void ScriptDevMgr::OnPlayerLogin(Player* player)
 {
     FOREACH_SCRIPT(PlayerScript)->OnLogin(player);
+}
+
+void ScriptDevMgr::OnPlayerLogout(Player* player)
+{
+    FOREACH_SCRIPT(PlayerScript)->OnLogout(player);
 }
 
 void ScriptDevMgr::OnPlayerLevelChanged(Player* player, uint8 oldLevel, uint8 newLevel)
@@ -194,9 +334,20 @@ void ScriptDevMgr::OnQuestRewardItem(Player* player, Item* item, uint32 count)
     FOREACH_SCRIPT(PlayerScript)->OnQuestRewardItem(player, item, count);
 }
 
-void ScriptDevMgr::OnPlayerChat(Player* player, uint32 type, uint32 lang, char*& msg)
+bool ScriptDevMgr::OnPlayerChat(Player* player, uint32 type, uint32 lang, char*& msg)
 {
-    FOREACH_SCRIPT(PlayerScript)->OnChat(player, type, lang, msg);
+    CHECK_RETURN_BOOL(PlayerScript, false); // Check if the script list is empty and return false if it is.
+
+    bool result = false;
+    FOR_SCRIPTS_RET(PlayerScript, itr, end, result)
+    {
+        if (itr->second->OnChat(player, type, lang, msg))
+        {
+            result = true; // Set the result to true if any script returns true.
+        }
+    }
+
+    return result; // Return the final result.
 }
 
 void ScriptDevMgr::OnPlayerChat(Player* player, uint32 type, uint32 lang, char*& msg, Player* receiver)
@@ -219,11 +370,24 @@ void ScriptDevMgr::OnPlayerChat(Player* player, uint32 type, uint32 lang, char*&
     FOREACH_SCRIPT(PlayerScript)->OnChat(player, type, lang, msg, channel);
 }
 
+void ScriptDevMgr::OnPlayerTalentsReset(Player* player, bool noCost)
+{
+    FOREACH_SCRIPT(PlayerScript)->OnTalentsReset(player, noCost);
+}
+
+
+void ScriptDevMgr::OnMapChanged(Player* player)
+{
+    FOREACH_SCRIPT(PlayerScript)->OnMapChanged(player);
+}
+
+
 PlayerScript::PlayerScript(const char* name)
     : ScriptObject(name)
 {
     ScriptDevMgr::ScriptRegistry<PlayerScript>::AddScript(this);
 }
+
 
 template<class TScript>
 void ScriptDevMgr::ScriptRegistry<TScript>::AddScript(TScript* const script)
@@ -303,6 +467,9 @@ template class ScriptDevMgr::ScriptRegistry<ServerScript>;
 template class ScriptDevMgr::ScriptRegistry<WorldScript>;*/
 template class ScriptDevMgr::ScriptRegistry<PlayerScript>;
 template class ScriptDevMgr::ScriptRegistry<CreatureScript>;
+template class ScriptDevMgr::ScriptRegistry<UnitScript>;
+template class ScriptDevMgr::ScriptRegistry<AllCreatureScript>;
+template class ScriptDevMgr::ScriptRegistry<ModuleScript>;
 /*template class ScriptDevMgr::ScriptRegistry<GroupScript>;
 template class ScriptDevMgr::ScriptRegistry<FormulaScript>;
 template class ScriptDevMgr::ScriptRegistry<WorldMapScript>;
@@ -313,7 +480,6 @@ template class ScriptDevMgr::ScriptRegistry<GameObjectScript>;
 template class ScriptDevMgr::ScriptRegistry<AreaTriggerScript>;
 template class ScriptDevMgr::ScriptRegistry<BattlegroundScript>;
 template class ScriptDevMgr::ScriptRegistry<OutdoorPvPScript>;
-template class ScriptDevMgr::ScriptRegistry<CommandScript>;
 template class ScriptDevMgr::ScriptRegistry<WeatherScript>;
 template class ScriptDevMgr::ScriptRegistry<AuctionHouseScript>;
 template class ScriptDevMgr::ScriptRegistry<ConditionScript>;
