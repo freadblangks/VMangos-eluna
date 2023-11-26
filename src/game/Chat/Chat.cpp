@@ -123,6 +123,7 @@ ChatCommand * ChatHandler::getCommandTable()
     {
         { "add",          SEC_ADMINISTRATOR,    true, nullptr,            "Add a new bot", battleBotAddCommandTable },
         { "remove",       SEC_ADMINISTRATOR,    false, &ChatHandler::HandleBattleBotRemoveCommand,       "", nullptr },
+        { "removeall",    SEC_ADMINISTRATOR,    true,  &ChatHandler::HandleBattleBotRemoveAllCommand,    "", nullptr },
         { "showpath",     SEC_ADMINISTRATOR,    false, &ChatHandler::HandleBattleBotShowPathCommand,     "", nullptr },
         { "showallpaths", SEC_ADMINISTRATOR,    false, &ChatHandler::HandleBattleBotShowAllPathsCommand, "", nullptr },
         { nullptr,        0,                    false, nullptr,                                          "", nullptr },
@@ -492,6 +493,7 @@ ChatCommand * ChatHandler::getCommandTable()
         { "all_mytaxis",    SEC_TICKETMASTER,   false, &ChatHandler::HandleLearnAllMyTaxisCommand,     "", nullptr },
         { "all_recipes",    SEC_GAMEMASTER,     false, &ChatHandler::HandleLearnAllRecipesCommand,     "", nullptr },
         { "all_trainer",    SEC_GAMEMASTER,     false, &ChatHandler::HandleLearnAllTrainerCommand,     "", nullptr },
+        { "all_items",      SEC_GAMEMASTER,     false, &ChatHandler::HandleLearnAllItemsCommand,       "", nullptr },
         { "",               SEC_DEVELOPER,      false, &ChatHandler::HandleLearnCommand,               "", nullptr },
         { nullptr,          0,                  false, nullptr,                                        "", nullptr }
     };
@@ -1162,6 +1164,7 @@ ChatCommand * ChatHandler::getCommandTable()
         { "charge",         SEC_GAMEMASTER,     false, &ChatHandler::HandleChargeCommand,              "", nullptr },
         { "cheat",          SEC_GAMEMASTER,     false, nullptr,                                        "", cheatCommandTable    },
         { "debug",          SEC_TICKETMASTER,   true, nullptr,                                         "", debugCommandTable    },
+        { "deplenish",      SEC_GAMEMASTER,     false, &ChatHandler::HandleDeplenishCommand,           "", nullptr              },
         { "replenish",      SEC_GAMEMASTER,     false, &ChatHandler::HandleReplenishCommand,           "", nullptr              },
         { "event",          SEC_GAMEMASTER,     false, nullptr,                                        "", eventCommandTable    },
         { "gm",             SEC_PLAYER,         true, nullptr,                                         "", gmCommandTable       },
@@ -1711,8 +1714,6 @@ ChatCommandSearchResult ChatHandler::FindCommand(ChatCommand* table, char const*
  */
 void ChatHandler::ExecuteCommand(char const* text)
 {
-    std::string fullcmd = text;                             // original `text` can't be used. It content destroyed in command code processing.
-
     ChatCommand* command = nullptr;
     ChatCommand* parentCommand = nullptr;
 
@@ -1862,13 +1863,13 @@ bool ChatHandler::ParseCommands(char const* text)
     MANGOS_ASSERT(text);
     MANGOS_ASSERT(*text);
 
-    /// chat case (.command or !command format)
+    // chat case (.command or !command format)
     if (m_session)
     {
         if (text[0] != '!' && text[0] != '.')
             return false;
 
-        /// ignore single . and ! in line
+        // ignore single . and ! in line
         if (strlen(text) < 2)
             return false;
 
@@ -1876,15 +1877,32 @@ bool ChatHandler::ParseCommands(char const* text)
             return false;
     }
 
-    /// ignore messages staring from many dots.
+    // ignore messages staring from many dots.
     if ((text[0] == '.' && text[1] == '.') || (text[0] == '!' && text[1] == '!'))
         return false;
 
-    /// skip first . or ! (in console allowed use command with . and ! and without its)
+    // skip first . or ! (in console allowed use command with . and ! and without its)
     if (text[0] == '!' || text[0] == '.')
         ++text;
 
-    ExecuteCommand(text);
+    // we need to make sure commands are executed on the world thread,
+    // because the chat packet handler can run asynchronously
+    if (m_session)
+    {
+        sWorld.GetMessager().AddMessage([txt = std::string(text), accountId = m_session->GetAccountId(), sessionGuid = m_session->GetGUID()](World* world)
+        {
+            if (WorldSession* session = world->FindSession(accountId))
+            {
+                if (session->GetGUID() == sessionGuid)
+                {
+                    ChatHandler handler(session);
+                    handler.ExecuteCommand(txt.c_str());
+                }
+            }
+        });
+    }
+    else
+        ExecuteCommand(text);
 
     return true;
 }
@@ -2037,7 +2055,7 @@ bool ChatHandler::isValidChatMessage(char const* message)
     ItemPrototype const* linkedItem = nullptr;
     SpellEntry const* linkedSpell = nullptr;
 
-    std::list<int> properties;
+    std::vector<int> properties;
 
     while (!reader.eof())
     {
@@ -3588,7 +3606,7 @@ uint32 ChatHandler::ExtractAccountId(char** args, std::string* accountName /*= n
 {
     uint32 account_id = 0;
 
-    ///- Get the account name from the command line
+    // Get the account name from the command line
     char* account_str = ExtractLiteralArg(args);
 
     if (!account_str)
@@ -3596,7 +3614,7 @@ uint32 ChatHandler::ExtractAccountId(char** args, std::string* accountName /*= n
         if (!targetIfNullArg)
             return 0;
 
-        /// only target player different from self allowed (if targetPlayer!=nullptr then not console)
+        // only target player different from self allowed (if targetPlayer!=nullptr then not console)
         Player* targetPlayer = GetSelectedPlayer();
         if (!targetPlayer)
             return 0;

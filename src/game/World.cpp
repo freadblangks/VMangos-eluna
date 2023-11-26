@@ -118,7 +118,7 @@ World& GetSWorld()
     return sWorld;
 }
 
-/// World constructor
+// World constructor
 World::World():
     m_playerLimit(0),
     m_allowMovement(true),
@@ -128,7 +128,8 @@ World::World():
     m_startTime(m_gameTime),
     m_wowPatch(WOW_PATCH_102),
     m_defaultDbcLocale(LOCALE_enUS),
-    m_timeRate(1.0f)
+    m_timeRate(1.0f),
+    m_canProcessAsyncPackets(false)
 {
     m_ShutdownMask = 0;
     m_ShutdownTimer = 0;
@@ -156,10 +157,10 @@ World::World():
     m_charDbWorkerThread    = nullptr;
 }
 
-/// World destructor
+// World destructor
 World::~World()
 {
-    ///- Empty the kicked session set
+    // Empty the kicked session set
     while (!m_sessions.empty())
     {
         // not remove from queue, prevent loading new sessions
@@ -187,6 +188,13 @@ World::~World()
         m_lfgQueueThread.reset(nullptr);
     }
 
+    if (m_asyncPacketsThread)
+    {
+        if (m_asyncPacketsThread->joinable())
+            m_asyncPacketsThread->join();
+        m_asyncPacketsThread.reset(nullptr);
+    }
+
     //TODO free addSessQueue
 }
 
@@ -202,10 +210,13 @@ void World::Shutdown()
     if (m_lfgQueueThread && m_lfgQueueThread->joinable())
         m_lfgQueueThread->join();
 
+    if (m_asyncPacketsThread && m_asyncPacketsThread->joinable())
+        m_asyncPacketsThread->join();
+
     sAnticheatMgr->StopWardenUpdateThread();
 }
 
-/// Find a session by its id
+// Find a session by its id
 WorldSession* World::FindSession(uint32 id) const
 {
     SessionMap::const_iterator itr = m_sessions.find(id);
@@ -216,10 +227,10 @@ WorldSession* World::FindSession(uint32 id) const
         return nullptr;
 }
 
-/// Remove a given session
+// Remove a given session
 bool World::RemoveSession(uint32 id)
 {
-    ///- Find the session, kick the user, but we can't delete session at this moment to prevent iterator invalidation
+    // Find the session, kick the user, but we can't delete session at this moment to prevent iterator invalidation
     SessionMap::const_iterator itr = m_sessions.find(id);
 
     if (itr != m_sessions.end() && itr->second)
@@ -247,10 +258,10 @@ void World::AddSession_(WorldSession* s)
 {
     MANGOS_ASSERT(s);
 
-    //NOTE - Still there is race condition in WorldSession* being used in the Sockets
+    // NOTE - Still there is race condition in WorldSession* being used in the Sockets
 
-    ///- kick already loaded player with same account (if any) and remove session
-    ///- if player is in loading and want to load again, return
+    // kick already loaded player with same account (if any) and remove session
+    // if player is in loading and want to load again, return
     if (!RemoveSession(s->GetAccountId()))
     {
         s->KickPlayer();
@@ -320,6 +331,9 @@ void World::AddSession_(WorldSession* s)
     s->SendPacket(&packet);
 
     UpdateMaxSessionCounters();
+
+    // Only init warden after session has been added
+    s->InitWarden();
 
     // Updates the population
     if (playerLimit > 0)
@@ -406,6 +420,7 @@ bool World::RemoveQueuedSession(WorldSession* sess)
         pop_sess->SetInQueue(false);
         pop_sess->m_idleTime = WorldTimer::getMSTime();
         pop_sess->SendAuthWaitQue(0);
+        pop_sess->InitWarden();
         m_QueuedSessions.pop_front();
 
         // update iter to point first queued socket or end() if queue is empty now
@@ -421,7 +436,7 @@ bool World::RemoveQueuedSession(WorldSession* sess)
     return found;
 }
 
-/// Initialize config values
+// Initialize config values
 void World::LoadConfigSettings(bool reload)
 {
     if (reload)
@@ -433,7 +448,7 @@ void World::LoadConfigSettings(bool reload)
         }
     }
 
-    ///- Read the version of the configuration file and warn the user in case of emptiness or mismatch
+    // Read the version of the configuration file and warn the user in case of emptiness or mismatch
     uint32 confVersion = sConfig.GetIntDefault("ConfVersion", 0);
     if (!confVersion)
     {
@@ -462,11 +477,11 @@ void World::LoadConfigSettings(bool reload)
     if (m_wowPatch > MAX_CONTENT_PATCH)
         m_wowPatch = MAX_CONTENT_PATCH;
 
-    ///- Read the player limit and the Message of the day from the config file
+    // Read the player limit and the Message of the day from the config file
     SetPlayerLimit(sConfig.GetIntDefault("PlayerLimit", DEFAULT_PLAYER_LIMIT), true);
     SetMotd(sConfig.GetStringDefault("Motd", "Welcome to the Massive Network Game Object Server.") + std::string("\n") + std::string(GetPatchName()) + std::string(" is now live!"));
 
-    ///- Read all rates from the config file
+    // Read all rates from the config file
     setConfigPos(CONFIG_FLOAT_RATE_HEALTH,               "Rate.Health", 1.0f);
     setConfigPos(CONFIG_FLOAT_RATE_POWER_MANA,           "Rate.Mana", 1.0f);
     setConfig(CONFIG_FLOAT_RATE_POWER_RAGE_INCOME,       "Rate.Rage.Income", 1.0f);
@@ -546,7 +561,7 @@ void World::LoadConfigSettings(bool reload)
     setConfig(CONFIG_FLOAT_MAX_PLAYERS_STEALTH_DETECT_RANGE, "MaxPlayersStealthDetectRange", 30.0f);
     setConfig(CONFIG_FLOAT_MAX_CREATURES_STEALTH_DETECT_RANGE, "MaxCreaturesStealthDetectRange", 30.0f);
 
-    ///- Read other configuration items from the config file
+    // Read other configuration items from the config file
     setConfig(CONFIG_UINT32_LOGIN_PER_TICK, "LoginPerTick", 0);
     setConfig(CONFIG_UINT32_PLAYER_HARD_LIMIT, "PlayerHardLimit", 0);
     setConfig(CONFIG_UINT32_LOGIN_QUEUE_GRACE_PERIOD_SECS, "LoginQueue.GracePeriodSecs", 0);
@@ -634,6 +649,7 @@ void World::LoadConfigSettings(bool reload)
     setConfig(CONFIG_BOOL_INSTANCE_IGNORE_RAID,  "Instance.IgnoreRaid", false);
     setConfig(CONFIG_UINT32_INSTANCE_RESET_TIME_HOUR, "Instance.ResetTimeHour", 4);
     setConfig(CONFIG_UINT32_INSTANCE_UNLOAD_DELAY,    "Instance.UnloadDelay", 30 * MINUTE * IN_MILLISECONDS);
+    setConfig(CONFIG_UINT32_INSTANCE_PER_HOUR_LIMIT, "Instance.PerHourLimit", MAX_INSTANCE_PER_ACCOUNT_PER_HOUR);
 
     setConfig(CONFIG_UINT32_MAX_PRIMARY_TRADE_SKILL, "MaxPrimaryTradeSkill", 2);
     setConfigMinMax(CONFIG_UINT32_MIN_PETITION_SIGNS, "MinPetitionSigns", 9, 0, 9);
@@ -861,7 +877,7 @@ void World::LoadConfigSettings(bool reload)
         m_MaxVisibleDistanceInFlight = MAX_VISIBILITY_DISTANCE - m_VisibleObjectGreyDistance;
     }
 
-    ///- Load the CharDelete related config options
+    // Load the CharDelete related config options
     setConfigMinMax(CONFIG_UINT32_CHARDELETE_METHOD, "CharDelete.Method", 0, 0, 1);
     setConfigMinMax(CONFIG_UINT32_CHARDELETE_MIN_LEVEL, "CharDelete.MinLevel", 0, 0, getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL));
     setConfigPos(CONFIG_UINT32_CHARDELETE_KEEP_DAYS, "CharDelete.KeepDays", 30);
@@ -871,7 +887,7 @@ void World::LoadConfigSettings(bool reload)
     if (configNoReload(reload, CONFIG_UINT32_GUID_RESERVE_SIZE_GAMEOBJECT, "GuidReserveSize.GameObject", 100))
         setConfigPos(CONFIG_UINT32_GUID_RESERVE_SIZE_GAMEOBJECT, "GuidReserveSize.GameObject", 100);
 
-    ///- Read the "Honor" directory from the config file (basically these are PvP ranking logs)
+    // Read the "Honor" directory from the config file (basically these are PvP ranking logs)
     std::string honorPath = sConfig.GetStringDefault("HonorDir", "./");
 
     // for empty string use current dir as for absent case
@@ -892,7 +908,7 @@ void World::LoadConfigSettings(bool reload)
         sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Using HonorDir %s", m_honorPath.c_str());
     }
 
-    ///- Read the "Data" directory from the config file
+    // Read the "Data" directory from the config file
     std::string dataPath = sConfig.GetStringDefault("DataDir", "./");
 
     // for empty string use current dir as for absent case
@@ -1268,19 +1284,19 @@ char const* World::GetPatchName() const
     return "Invalid Patch!";
 }
 
-/// Initialize the World
+// Initialize the World
 void World::SetInitialWorldSettings()
 {
-    ///- Initialize the random number generator
+    // Initialize the random number generator
     srand((unsigned int)time(nullptr));
 
-    ///- Time server startup
+    // Time server startup
     uint32 uStartTime = WorldTimer::getMSTime();
 
-    ///- Initialize config settings
+    // Initialize config settings
     LoadConfigSettings();
 
-    ///- Check the existence of the map files for all races start areas.
+    // Check the existence of the map files for all races start areas.
     if (!MapManager::ExistMapAndVMap(0, -6240.32f, 331.033f) ||
             !MapManager::ExistMapAndVMap(0, -8949.95f, -132.493f) ||
             !MapManager::ExistMapAndVMap(1, -618.518f, -4251.67f) ||
@@ -1293,7 +1309,7 @@ void World::SetInitialWorldSettings()
         exit(1);
     }
 
-    ///- Loading strings. Getting no records means core load has to be canceled because no error message can be output.
+    // Loading strings. Getting no records means core load has to be canceled because no error message can be output.
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading MaNGOS strings...");
     if (!sObjectMgr.LoadMangosStrings())
@@ -1309,13 +1325,13 @@ void World::SetInitialWorldSettings()
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
     sInstanceStatistics.LoadFromDB();
 
-    ///- Chargements des variables (necessaire pour le OutdoorJcJ)
+    // Chargements des variables (necessaire pour le OutdoorJcJ)
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading saved variables ...");
     sObjectMgr.LoadSavedVariable();
 
 
-    ///- Update the realm entry in the database with the realm type from the config file
-    //No SQL injection as values are treated as integers
+    // Update the realm entry in the database with the realm type from the config file
+    // No SQL injection as values are treated as integers
 
     // not send custom type REALM_FFA_PVP to realm list
     uint32 server_type = IsFFAPvPRealm() ? REALM_TYPE_PVP : getConfig(CONFIG_UINT32_GAME_TYPE);
@@ -1325,7 +1341,7 @@ void World::SetInitialWorldSettings()
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading GM security access ...");
     sAccountMgr.Load();
 
-    ///- Remove the bones (they should not exist in DB though) and old corpses after a restart
+    // Remove the bones (they should not exist in DB though) and old corpses after a restart
     CharacterDatabase.PExecute("DELETE FROM `corpse` WHERE `corpse_type` = '0' OR `time` < (UNIX_TIMESTAMP()-'%u')", 3 * DAY);
 
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading spells ...");
@@ -1354,7 +1370,7 @@ void World::SetInitialWorldSettings()
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading world safe locs facing values ...");
     sObjectMgr.LoadWorldSafeLocsFacing();
 
-    ///- Load the DBC files
+    // Load the DBC files
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Initialize data stores...");
 
 #ifdef _WIN32
@@ -1386,7 +1402,7 @@ void World::SetInitialWorldSettings()
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading SkillRaceClassInfoMultiMap Data...");
     sSpellMgr.LoadSkillRaceClassInfoMap();
 
-    ///- Clean up and pack instances
+    // Clean up and pack instances
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Cleaning up instances...");
     sMapPersistentStateMgr.CleanupInstances();              // must be called before `creature_respawn`/`gameobject_respawn` tables
 
@@ -1399,7 +1415,7 @@ void World::SetInitialWorldSettings()
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Scheduling normal instance reset...");
     sMapPersistentStateMgr.ScheduleInstanceResets();        // Must be after cleanup and packing
 
-    ///- Init highest guids before any guid using table loading to prevent using not initialized guids in some code.
+    // Init highest guids before any guid using table loading to prevent using not initialized guids in some code.
     sObjectMgr.SetHighestGuids();                           // must be after packing instances
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
 
@@ -1642,7 +1658,7 @@ void World::SetInitialWorldSettings()
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
     sWaypointMgr.Load();
 
-    ///- Loading localization data
+    // Loading localization data
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Localization strings...");
     sObjectMgr.LoadBroadcastTextLocales();
     sObjectMgr.LoadCreatureLocales();                       // must be after CreatureInfo loading
@@ -1657,7 +1673,7 @@ void World::SetInitialWorldSettings()
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, ">>> Localization strings loaded");
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
 
-    ///- Load dynamic data tables from the database
+    // Load dynamic data tables from the database
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Auctions...");
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
     sAuctionMgr.LoadAuctionHouses();
@@ -1698,11 +1714,11 @@ void World::SetInitialWorldSettings()
     sTicketMgr->LoadTickets();
     sTicketMgr->LoadSurveys();
 
-    ///- Handle outdated emails (delete/return)
+    // Handle outdated emails (delete/return)
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Returning old mails...");
     sObjectMgr.ReturnOrDeleteOldMails(false);
 
-    ///- Load and initialize scripts
+    // Load and initialize scripts
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Scripts...");
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
     sScriptMgr.LoadQuestStartScripts();                     // must be after load Creature/Gameobject(Template/Data) and QuestTemplate
@@ -1730,7 +1746,7 @@ void World::SetInitialWorldSettings()
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading aura removal on map change definitions");
     sAuraRemovalMgr.LoadFromDB();
 
-    ///- Initialize game time and timers
+    // Initialize game time and timers
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "DEBUG:: Initialize game time and timers");
     m_gameTime = time(nullptr);
     m_startTime = m_gameTime;
@@ -1757,7 +1773,7 @@ void World::SetInitialWorldSettings()
     // Update groups with offline leader after delay in seconds
     m_timers[WUPDATE_GROUPS].SetInterval(IN_MILLISECONDS);
 
-    ///- Initialize static helper structures
+    // Initialize static helper structures
     AIRegistry::Initialize();
 
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading GameObject models ...");
@@ -1766,11 +1782,11 @@ void World::SetInitialWorldSettings()
     // loads GO data
     sTransportMgr.LoadTransportAnimationAndRotation();
 
-    ///- Initialize MapManager
+    // Initialize MapManager
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Starting Map System");
     sMapMgr.Initialize();
 
-    ///- Initialize Battlegrounds
+    // Initialize Battlegrounds
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Starting BattleGround System");
     sBattleGroundMgr.CreateInitialBattleGrounds();
     CheckLootTemplates_Reference(ids_set);
@@ -1857,6 +1873,7 @@ void World::SetInitialWorldSettings()
                                               std::chrono::milliseconds(getConfig(CONFIG_UINT32_PACKET_BCAST_FREQUENCY)));
 
     m_charDbWorkerThread.reset(new std::thread(&CharactersDatabaseWorkerThread));
+    m_asyncPacketsThread.reset(new std::thread(&World::ProcessAsyncPackets, this));
 
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "==========================================================");
@@ -1927,14 +1944,38 @@ void World::DetectDBCLang()
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
 }
 
-/// Update the World !
+// Only processes packets while session update, the messager, and cli commands processing are NOT running
+void World::ProcessAsyncPackets()
+{
+    while (!sWorld.IsStopped())
+    {
+        do
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
+        } while (!m_canProcessAsyncPackets);
+
+        for (auto const& itr : m_sessions)
+        {
+            WorldSession* pSession = itr.second;
+
+            MapSessionFilter updater(pSession);
+            updater.SetProcessType(PACKET_PROCESS_ASYNC);
+            pSession->ProcessPackets(updater);
+
+            if (!m_canProcessAsyncPackets)
+                break;
+        }
+    }
+}
+
+// Update the World !
 void World::Update(uint32 diff)
 {
     m_currentMSTime = WorldTimer::getMSTime();
     m_currentTime = std::chrono::time_point_cast<std::chrono::milliseconds>(Clock::now());
     m_currentDiff = diff;
     
-    ///- Update the different timers
+    // Update the different timers
     for (auto& timer : m_timers)
     {
         if (timer.GetCurrent() >= 0)
@@ -1943,32 +1984,36 @@ void World::Update(uint32 diff)
             timer.SetCurrent(0);
     }
 
-    ///- Update the game time and check for shutdown time
+    // Update the game time and check for shutdown time
     _UpdateGameTime();
 
-    GetMessager().Execute(this);
-
-    ///-Update mass mailer tasks if any
+    // Update mass mailer tasks if any
     sMassMailMgr.Update();
 
-    /// <ul><li> Handle auctions when the timer has passed
+    // <ul><li> Handle auctions when the timer has passed
     if (m_timers[WUPDATE_AUCTIONS].Passed())
     {
         m_timers[WUPDATE_AUCTIONS].Reset();
 
         sAuctionHouseBotMgr.Update();
-        ///- Handle expired auctions
+        // Handle expired auctions
         sAuctionMgr.Update();
     }
 
-    /// <li> Handle session updates
+    m_canProcessAsyncPackets = false;
+
+    GetMessager().Execute(this);
+
+    // <li> Handle session updates
     uint32 updateSessionsTime = WorldTimer::getMSTime();
     UpdateSessions(diff);
     updateSessionsTime = WorldTimer::getMSTimeDiffToNow(updateSessionsTime);
     if (getConfig(CONFIG_UINT32_PERFLOG_SLOW_SESSIONS_UPDATE) && updateSessionsTime > getConfig(CONFIG_UINT32_PERFLOG_SLOW_SESSIONS_UPDATE))
         sLog.Out(LOG_PERFORMANCE, LOG_LVL_MINIMAL, "Update sessions: %ums", updateSessionsTime);
 
-    /// <li> Update uptime table
+    m_canProcessAsyncPackets = true;
+
+    // <li> Update uptime table
     if (m_timers[WUPDATE_UPTIME].Passed())
     {
         uint32 tmpDiff = uint32(m_gameTime - m_startTime);
@@ -1979,10 +2024,10 @@ void World::Update(uint32 diff)
         LoginDatabase.PExecute("UPDATE `uptime` SET `uptime` = %u, `onlineplayers` = %u, `maxplayers` = %u WHERE `realmid` = %u AND `starttime` = " UI64FMTD, tmpDiff, onlineClientsNum, maxClientsNum, realmID, uint64(m_startTime));
     }
 
-    ///- Update objects (maps, transport, creatures,...)
+    // Update objects (maps, transport, creatures,...)
     uint32 updateMapSystemTime = WorldTimer::getMSTime();
     
-    //TODO: find a better place for this
+    // TODO: find a better place for this
     if (!m_updateThreads)
     {
         m_updateThreads = std::unique_ptr<ThreadPool>( new ThreadPool(
@@ -2002,7 +2047,7 @@ void World::Update(uint32 diff)
     sGuardMgr.Update(diff);
     sZoneScriptMgr.Update(diff);
 
-    ///- Update groups with offline leaders
+    // Update groups with offline leaders
     if (m_timers[WUPDATE_GROUPS].Passed())
     {
         m_timers[WUPDATE_GROUPS].Reset();
@@ -2022,7 +2067,7 @@ void World::Update(uint32 diff)
     if (getConfig(CONFIG_UINT32_PERFLOG_SLOW_MAPSYSTEM_UPDATE) && updateMapSystemTime > getConfig(CONFIG_UINT32_PERFLOG_SLOW_MAPSYSTEM_UPDATE))
         sLog.Out(LOG_PERFORMANCE, LOG_LVL_MINIMAL, "Update map system: %ums [%ums for async]", updateMapSystemTime, WorldTimer::getMSTimeDiffToNow(asyncWaitBegin));
 
-    ///- Sauvegarde des variables internes (table variables) : MaJ par rapport a la DB
+    // Sauvegarde des variables internes (table variables) : MaJ par rapport a la DB
     if (m_timers[WUPDATE_SAVE_VAR].Passed())
     {
         m_timers[WUPDATE_SAVE_VAR].Reset();
@@ -2036,7 +2081,7 @@ void World::Update(uint32 diff)
     if (getConfig(CONFIG_UINT32_PERFLOG_SLOW_ASYNC_QUERIES) && asyncQueriesTime > getConfig(CONFIG_UINT32_PERFLOG_SLOW_ASYNC_QUERIES))
         sLog.Out(LOG_PERFORMANCE, LOG_LVL_MINIMAL, "Update async queries: %ums", asyncQueriesTime);
 
-    ///- Erase old corpses
+    // Erase old corpses
     if (m_timers[WUPDATE_CORPSES].Passed())
     {
         m_timers[WUPDATE_CORPSES].Reset();
@@ -2044,7 +2089,7 @@ void World::Update(uint32 diff)
         sObjectAccessor.RemoveOldCorpses();
     }
 
-    ///- Process Game events when necessary
+    // Process Game events when necessary
     if (m_timers[WUPDATE_EVENTS].Passed())
     {
         m_timers[WUPDATE_EVENTS].Reset();                   // to give time for Update() to be processed
@@ -2053,14 +2098,14 @@ void World::Update(uint32 diff)
         m_timers[WUPDATE_EVENTS].Reset();
     }
 
-    /// </ul>
-    ///- Move all creatures with "delayed move" and remove and delete all objects with "delayed remove"
+    // </ul>
+    // Move all creatures with "delayed move" and remove and delete all objects with "delayed remove"
     sMapMgr.RemoveAllObjectsInRemoveList();
 
     // update the instance reset times
     sMapPersistentStateMgr.Update();
 
-    /// Maintenance checker
+    // Maintenance checker
     if (m_MaintenanceTimeChecker < diff)
     {
         sHonorMaintenancer.CheckMaintenanceDay();
@@ -2069,15 +2114,19 @@ void World::Update(uint32 diff)
     else
         m_MaintenanceTimeChecker -= diff;
 
-    //Update PlayerBotMgr
+    // Update PlayerBotMgr
     sPlayerBotMgr.Update(diff);
     // Update AutoBroadcast
     sAutoBroadCastMgr.Update(diff);
-    // Update liste des ban si besoin
+    // Update ban list if necessary
     sAccountMgr.Update(diff);
+
+    m_canProcessAsyncPackets = false;
 
     // And last, but not least handle the issued cli commands
     ProcessCliCommands();
+
+    m_canProcessAsyncPackets = true;
 
     //cleanup unused GridMap objects as well as VMaps
     if (getConfig(CONFIG_BOOL_CLEANUP_TERRAIN))
@@ -2091,7 +2140,7 @@ void World::Update(uint32 diff)
     sMingManager->UpdateMing(diff);
 }
 
-/// Send a packet to all players (except self if mentioned)
+// Send a packet to all players (except self if mentioned)
 void World::SendGlobalMessage(WorldPacket* packet, WorldSession* self, uint32 team)
 {
     for (const auto& itr : m_sessions)
@@ -2193,7 +2242,7 @@ private:
 };
 }                                                           // namespace MaNGOS
 
-/// Send a System Message to all players (except self if mentioned)
+// Send a System Message to all players (except self if mentioned)
 void World::SendWorldText(int32 string_id, ...)
 {
     va_list ap;
@@ -2295,7 +2344,7 @@ void World::SendGMText(int32 string_id, ...)
     va_end(ap);
 }
 
-/// DEPRICATED, only for debug purpose. Send a System Message to all players (except self if mentioned)
+// DEPRICATED, only for debug purpose. Send a System Message to all players (except self if mentioned)
 void World::SendGlobalText(char const* text, WorldSession* self)
 {
     WorldPacket data;
@@ -2313,7 +2362,7 @@ void World::SendGlobalText(char const* text, WorldSession* self)
     delete [] buf;
 }
 
-/// Send a packet to all players (or players selected team) in the zone (except self if mentioned)
+// Send a packet to all players (or players selected team) in the zone (except self if mentioned)
 void World::SendZoneMessage(uint32 zone, WorldPacket* packet, WorldSession* self, uint32 team)
 {
     for (const auto& itr : m_sessions)
@@ -2334,7 +2383,7 @@ void World::SendZoneMessage(uint32 zone, WorldPacket* packet, WorldSession* self
     }
 }
 
-/// Send a System Message to all players in the zone (except self if mentioned)
+// Send a System Message to all players in the zone (except self if mentioned)
 void World::SendZoneText(uint32 zone, char const* text, WorldSession* self, uint32 team)
 {
     WorldPacket data;
@@ -2342,7 +2391,7 @@ void World::SendZoneText(uint32 zone, char const* text, WorldSession* self, uint
     SendZoneMessage(zone, &data, self, team);
 }
 
-/// Kick (and save) all players
+// Kick (and save) all players
 void World::KickAll()
 {
     m_QueuedSessions.clear();                               // prevent send queue update packet and login queued sessions
@@ -2354,7 +2403,7 @@ void World::KickAll()
         (*itr).KickPlayer();
 }
 
-/// Kick (and save) all players with security level less `sec`
+// Kick (and save) all players with security level less `sec`
 void World::KickAllLess(AccountTypes sec)
 {
     // session not removed at kick and will removed in next update tick
@@ -2450,7 +2499,7 @@ public:
             return;
         }
 
-        ///- Disconnect all affected players (for IP it can be several)
+        // Disconnect all affected players (for IP it can be several)
         do
         {
             Field* fieldsAccount = result->Fetch();
@@ -2489,7 +2538,7 @@ public:
     }
 } banHandler;
 
-/// Ban an account or ban an IP address, duration_secs if it is positive used, otherwise permban
+// Ban an account or ban an IP address, duration_secs if it is positive used, otherwise permban
 BanReturn World::BanAccount(BanMode mode, std::string nameOrIP, uint32 duration_secs, std::string reason, std::string author)
 {
     LoginDatabase.escape_string(nameOrIP);
@@ -2505,7 +2554,7 @@ BanReturn World::BanAccount(BanMode mode, std::string nameOrIP, uint32 duration_
     holder->SetSize(1);
 
     DatabaseType* db = nullptr;
-    ///- Update the database with ban information
+    // Update the database with ban information
     switch (mode)
     {
         case BAN_IP:
@@ -2541,7 +2590,7 @@ BanReturn World::BanAccount(BanMode mode, std::string nameOrIP, uint32 duration_
     return BAN_INPROGRESS;
 }
 
-/// Remove a ban from an account or IP address
+// Remove a ban from an account or IP address
 bool World::RemoveBanAccount(BanMode mode, std::string const& source, std::string const& message, std::string nameOrIP)
 {
     if (mode == BAN_IP)
@@ -2569,19 +2618,19 @@ bool World::RemoveBanAccount(BanMode mode, std::string const& source, std::strin
     return true;
 }
 
-/// Update the game time
+// Update the game time
 void World::_UpdateGameTime()
 {
-    ///- update the time
+    // update the time
     time_t thisTime = time(nullptr);
     uint32 elapsed = uint32(thisTime - m_gameTime);
     m_gameTime = thisTime;
     m_gameDay = (m_gameTime + m_timeZoneOffset) / DAY;
 
-    ///- if there is a shutdown timer
+    // if there is a shutdown timer
     if (!m_stopEvent && m_ShutdownTimer > 0 && elapsed > 0)
     {
-        ///- ... and it is overdue, stop the world (set m_stopEvent)
+        // ... and it is overdue, stop the world (set m_stopEvent)
         if (m_ShutdownTimer <= elapsed)
         {
             if (!(m_ShutdownMask & SHUTDOWN_MASK_IDLE) || GetActiveAndQueuedSessionCount() == 0)
@@ -2589,7 +2638,7 @@ void World::_UpdateGameTime()
             else
                 m_ShutdownTimer = 1;                        // minimum timer value to wait idle state
         }
-        ///- ... else decrease it and if necessary display a shutdown countdown to the users
+        // ... else decrease it and if necessary display a shutdown countdown to the users
         else
         {
             m_ShutdownTimer -= elapsed;
@@ -2599,7 +2648,7 @@ void World::_UpdateGameTime()
     }
 }
 
-/// Shutdown the server
+// Shutdown the server
 void World::ShutdownServ(uint32 time, uint32 options, uint8 exitcode)
 {
     // ignore if server shutdown at next tick
@@ -2613,6 +2662,7 @@ void World::ShutdownServ(uint32 time, uint32 options, uint8 exitcode)
     m_ShutdownMask = options;
     m_ExitCode = exitcode;
 
+    // If the shutdown time is 0, set m_stopEvent (except if shutdown is 'idle' with remaining sessions)
     // lfm shutdown time will not be less than 5 seconds 
     uint32 shutdownTimeSeconds = time;
     if (shutdownTimeSeconds < 5)
@@ -2620,7 +2670,6 @@ void World::ShutdownServ(uint32 time, uint32 options, uint8 exitcode)
         shutdownTimeSeconds = 5;
     }
 
-    ///- If the shutdown time is 0, set m_stopEvent (except if shutdown is 'idle' with remaining sessions)
     if (shutdownTimeSeconds == 0)
     {
         if (!(options & SHUTDOWN_MASK_IDLE) || GetActiveAndQueuedSessionCount() == 0)
@@ -2628,7 +2677,7 @@ void World::ShutdownServ(uint32 time, uint32 options, uint8 exitcode)
         else
             m_ShutdownTimer = 1;                            //So that the session count is re-evaluated at next world tick
     }
-    ///- Else set the shutdown timer and warn users
+    // Else set the shutdown timer and warn users
     else
     {
         m_ShutdownTimer = shutdownTimeSeconds;
@@ -2636,14 +2685,14 @@ void World::ShutdownServ(uint32 time, uint32 options, uint8 exitcode)
     }
 }
 
-/// Display a shutdown message to the user(s)
+// Display a shutdown message to the user(s)
 void World::ShutdownMsg(bool show, Player* player)
 {
     // not show messages for idle shutdown mode
     if (m_ShutdownMask & SHUTDOWN_MASK_IDLE)
         return;
 
-    ///- Display a message every 12 hours, hours, 5 minutes, minute, 5 seconds and finally seconds
+    // Display a message every 12 hours, hours, 5 minutes, minute, 5 seconds and finally seconds
     if (show ||
             (m_ShutdownTimer < 10) ||
             // < 30 sec; every 5 sec
@@ -2666,7 +2715,7 @@ void World::ShutdownMsg(bool show, Player* player)
     }
 }
 
-/// Cancel a planned server shutdown
+// Cancel a planned server shutdown
 void World::ShutdownCancel()
 {
     // nothing cancel or too later
@@ -2683,7 +2732,7 @@ void World::ShutdownCancel()
     sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "Server %s cancelled.", (m_ShutdownMask & SHUTDOWN_MASK_RESTART ? "restart" : "shutdown"));
 }
 
-/// Send a server message to the user(s)
+// Send a server message to the user(s)
 void World::SendServerMessage(ServerMessageType type, char const* text, Player* player)
 {
     WorldPacket data(SMSG_SERVER_MESSAGE, 50);              // guess size
@@ -2698,7 +2747,7 @@ void World::SendServerMessage(ServerMessageType type, char const* text, Player* 
 
 void World::UpdateSessions(uint32 diff)
 {
-    ///- Update player limit if needed
+    // Update player limit if needed
     int32 hardPlayerLimit = getConfig(CONFIG_UINT32_PLAYER_HARD_LIMIT);
     if (hardPlayerLimit)
         m_playerLimit = std::min(hardPlayerLimit, m_playerLimit);
@@ -2719,6 +2768,7 @@ void World::UpdateSessions(uint32 diff)
                 pop_sess->SetInQueue(false);
                 pop_sess->m_idleTime = WorldTimer::getMSTime();
                 pop_sess->SendAuthWaitQue(0);
+                pop_sess->InitWarden();
                 m_QueuedSessions.pop_front();
             }
 
@@ -2729,18 +2779,18 @@ void World::UpdateSessions(uint32 diff)
                 (*iter)->SendAuthWaitQue(position);
         }
 
-    ///- Add new sessions
+    // Add new sessions
     WorldSession* sess;
     while (addSessQueue.next(sess))
         AddSession_(sess);
 
-    ///- Then send an update signal to remaining ones
+    // Then send an update signal to remaining ones
     time_t timeNow = time(nullptr);
     for (SessionMap::iterator itr = m_sessions.begin(), next; itr != m_sessions.end(); itr = next)
     {
         next = itr;
         ++next;
-        ///- and remove not active sessions from the list
+        // and remove not active sessions from the list
         WorldSession* pSession = itr->second;
         WorldSessionFilter updater(pSession);
 
@@ -2758,7 +2808,7 @@ void World::UpdateSessions(uint32 diff)
             delete pSession;
         }
     }
-    ///- Update disconnected sessions
+    // Update disconnected sessions
     for (SessionSet::iterator itr = m_disconnectedSessions.begin(), next; itr != m_disconnectedSessions.end(); itr = next)
     {
         next = itr;
