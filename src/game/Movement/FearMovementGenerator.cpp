@@ -131,6 +131,10 @@ void FearMovementGenerator<Player>::Finalize(Player &owner)
     owner.ClearUnitState(UNIT_STAT_FLEEING | UNIT_STAT_FLEEING_MOVE);
     owner.StopMoving();
     owner.UpdateControl();
+#if SUPPORTED_CLIENT_BUILD <= CLIENT_BUILD_1_2_4
+    // hackfix: client desync on fear end
+    owner.SetSplineDonePending(false);
+#endif
 }
 
 template<>

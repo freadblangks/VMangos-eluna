@@ -38,9 +38,13 @@ namespace LuaBindsAI {
 	int AI_CmdPrintAll(lua_State* L);
 
 	int AI_GetSpec(lua_State* L);
+	int AI_GetRole(lua_State* L);
+	int AI_GetPartyIntelligence(lua_State* L);
 	int AI_GetPlayer(lua_State* L);
 	int AI_GetMaster(lua_State* L);
 	int AI_GetMasterGuid(lua_State* L);
+
+	int AI_SetRole(lua_State* L);
 
 	static const struct luaL_Reg AI_BindLib[]{
 		{"AddTopGoal", AI_AddTopGoal},
@@ -64,10 +68,14 @@ namespace LuaBindsAI {
 		{"CmdFail", AI_CmdFail},
 		{"CmdPrintAll", AI_CmdPrintAll},
 
+		{"GetPartyIntelligence", AI_GetPartyIntelligence},
+		{"GetRole", AI_GetRole},
 		{"GetSpec", AI_GetSpec},
 		{"GetMaster", AI_GetMaster},
 		{"GetMasterGuid", AI_GetMasterGuid},
 		{"GetPlayer", AI_GetPlayer},
+
+		{"SetRole", AI_SetRole},
 
 		{NULL, NULL}
 	};

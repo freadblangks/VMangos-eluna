@@ -22,6 +22,10 @@ namespace LuaBindsAI {
 	int Player_LearnTalent(lua_State* L);
 	int Player_ResetTalents(lua_State* L);
 
+	// packets
+
+	int Player_SendCastSpellUnit(lua_State* L);
+
 	static const struct luaL_Reg Player_BindLib[]{
 		// talents
 		{"GetTalentTbl", Player_GetTalentTbl},
@@ -29,6 +33,9 @@ namespace LuaBindsAI {
 		{"HasTalent", Player_HasTalent},
 		{"LearnTalent", Player_LearnTalent},
 		{"ResetTalents", Player_ResetTalents},
+
+		// packets
+		{"SendCastSpellUnit", Player_SendCastSpellUnit},
 
 		{NULL, NULL}
 	};

@@ -8,7 +8,8 @@ enum class AgentCmdType : uint8
 {
 	Move,
 	Follow,
-	Chase,
+	Engage,
+	Tank,
 	Max,
 };
 
@@ -52,9 +53,31 @@ public:
 class AgentCmdFollow : public AgentCmd
 {
 	ObjectGuid targetGuid;
+	float angle;
+	float dist;
 
 public:
-	AgentCmdFollow(ObjectGuid targetGuid) : targetGuid(targetGuid), AgentCmd(AgentCmdType::Follow) {}
+	AgentCmdFollow(const ObjectGuid& targetGuid, float dist, float angle) : targetGuid(targetGuid), AgentCmd(AgentCmdType::Follow), angle(angle), dist(dist) {}
+	int Push(lua_State* L) override;
+};
+
+
+class AgentCmdEngage : public AgentCmd
+{
+	float angle;
+
+public:
+	AgentCmdEngage(float angle) : AgentCmd(AgentCmdType::Engage), angle(angle) {}
+	int Push(lua_State* L) override;
+};
+
+
+class AgentCmdTank : public AgentCmd
+{
+	ObjectGuid targetGuid;
+
+public:
+	AgentCmdTank(const ObjectGuid& targetGuid) : AgentCmd(AgentCmdType::Tank), targetGuid(targetGuid) {}
 	int Push(lua_State* L) override;
 };
 
@@ -71,6 +94,5 @@ public:
 	size_t size() { return commands.size(); }
 	AgentCmd& operator[](int i) { return commands[i]; }
 };
-
 
 #endif

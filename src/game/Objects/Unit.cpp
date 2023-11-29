@@ -1139,8 +1139,10 @@ void Unit::Kill(Unit* pVictim, SpellEntry const* spellProto, bool durabilityLoss
             sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "We are dead, loosing 10 percents durability");
             pPlayerVictim->DurabilityLossAll(0.10f, false);
             // durability lost message
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_2_4        
             WorldPacket data(SMSG_DURABILITY_DAMAGE_DEATH, 0);
             pPlayerVictim->GetSession()->SendPacket(&data);
+#endif
         }
     }
     else                                                // creature died

@@ -4,6 +4,7 @@
 #include "LuaAgentUtils.h"
 #include "LuaAgent.h"
 #include "LuaAgentLibWorldObj.h"
+#include "Hierarchy/LuaAgentPartyInt.h"
 
 
 namespace
@@ -216,6 +217,25 @@ int LuaBindsAI::AI_CmdPrintAll(lua_State* L)
 }
 
 
+int LuaBindsAI::AI_GetPartyIntelligence(lua_State* L)
+{
+	LuaAgent* agent = AI_GetAIObject(L);
+	if (PartyIntelligence* pi = agent->GetPartyIntelligence())
+		pi->PushUD(L);
+	else
+		lua_pushnil(L);
+	return 1;
+}
+
+
+int LuaBindsAI::AI_GetRole(lua_State* L)
+{
+	LuaAgent* agent = AI_GetAIObject(L);
+	lua_pushinteger(L, int(agent->GetRole()));
+	return 1;
+}
+
+
 int LuaBindsAI::AI_GetSpec(lua_State* L)
 {
 	LuaAgent* agent = AI_GetAIObject(L);
@@ -251,3 +271,13 @@ int LuaBindsAI::AI_GetPlayer(lua_State* L)
 	return 1;
 }
 
+
+int LuaBindsAI::AI_SetRole(lua_State* L)
+{
+	LuaAgent* agent = AI_GetAIObject(L);
+	lua_Integer role = luaL_checkinteger(L, 2);
+	if (role < 0 || role > lua_Integer(LuaAgentRoles::Max))
+		luaL_error(L, "AI_SetRole: role %d doesn't exist. Allowed values [0, %d]", role, LuaAgentRoles::Max);
+	agent->SetRole(LuaAgentRoles(role));
+	return 0;
+}

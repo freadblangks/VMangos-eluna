@@ -67,6 +67,8 @@ void LuaAgent::Update(uint32 diff)
 		return;
 	}
 
+	me->SetUInt32Value(PLAYER_XP, 0);
+
 	// Not initialized
 	if (m_userDataRef == LUA_NOREF || m_userDataRefPlayer == LUA_NOREF || m_userTblRef == LUA_NOREF)
 	{

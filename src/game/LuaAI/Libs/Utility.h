@@ -8,8 +8,8 @@ class Player;
 
 namespace Utility
 {
-	constexpr float MAX_ITEM_DPS = 150.f;
-	constexpr float MAX_ITEM_ARMOR = 3500.f;
+	constexpr float MAX_ITEM_DPS = 100.f;
+	constexpr float MAX_ITEM_ARMOR = 100.f;
 	constexpr float MAX_ITEM_STAT = 100.f;
 	constexpr float MAX_ITEM_AURA_VAL = 100.f;
 

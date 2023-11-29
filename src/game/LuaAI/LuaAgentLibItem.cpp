@@ -4,6 +4,7 @@
 #include "LuaAgent.h"
 #include "LuaAgentLibAI.h"
 #include "ItemEnchantmentMgr.h"
+#include "LuaAgentUtils.h"
 
 
 namespace
@@ -222,6 +223,17 @@ int LuaBindsAI::Item_GetContextualLevel(lua_State* L)
 }
 
 
+int LuaBindsAI::Item_GetSlots(lua_State* L)
+{
+	LuaAI_Item* item = Item_GetItemObject(L, 1);
+	uint8 slots[4];
+	item->proto->GetAllowedEquipSlots(slots, luaL_checkinteger(L, 2), luaL_checkboolean(L, 3));
+	for (auto& slot : slots)
+		lua_pushinteger(L, slot);
+	return 4;
+}
+
+
 int LuaBindsAI::Item_Print(lua_State* L)
 {
 	LuaAI_Item* item = Item_GetItemObject(L, 1);
@@ -330,4 +342,3 @@ int LuaBindsAI::Item_PrintRandomEnchants(lua_State* L)
 	}
 	return 0;
 }
-

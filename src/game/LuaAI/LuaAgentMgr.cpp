@@ -459,4 +459,3 @@ void LuaAgentMgr::GroupAll(Player* owner)
 	}
 	SetGroupAllInProgress(false);
 }
-

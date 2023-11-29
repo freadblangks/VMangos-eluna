@@ -5,9 +5,25 @@
 #include "LuaAI/LuaAgent.h"
 #include "LuaAI/LuaAgentLibAI.h"
 #include "LuaAI/LuaAgentLibWorldObj.h"
+#include "LuaAI/LuaAgentLibUnit.h"
 
 
 const char* PartyIntelligence::PI_MTNAME = "Object.PartyInt";
+
+
+namespace
+{
+	void AddAttackersFrom(lua_State* L, Unit* unit, lua_Integer& idx)
+	{
+		for (const auto pAttacker : unit->GetAttackers())
+		{
+			//printf("Additing target to tbl %s attacking %s\n", pAttacker->GetName(), pMember->GetName());
+			LuaBindsAI::Unit_CreateUD(pAttacker, L); // pushes pAttacker userdata on top of stack
+			lua_seti(L, -2, idx); // stack[-2][tblIdx] = stack[-1], pops pAttacker
+			++idx;
+		}
+	}
+}
 
 
 PartyIntelligence::PartyIntelligence(std::string name, ObjectGuid owner) :
@@ -182,9 +198,11 @@ void PartyIntelligence::LoadAgents()
 void PartyIntelligence::CreateUD(lua_State* L)
 {
 	// create userdata on top of the stack pointing to a pointer of a PI object
-	PartyIntelligence** piud = static_cast<PartyIntelligence**>(lua_newuserdatauv(L, sizeof(PartyIntelligence*), 0));
+	PartyIntelligence** piud = static_cast<PartyIntelligence**>(lua_newuserdatauv(L, sizeof(PartyIntelligence*), 1));
 	*piud = this; // swap the PI object being pointed to to the current instance
 	luaL_setmetatable(L, PI_MTNAME);
+	lua_newtable(L);
+	lua_setiuservalue(L, -2, 1);
 	// save this userdata in the registry table.
 	m_userDataRef = luaL_ref(L, LUA_REGISTRYINDEX); // pops
 }
@@ -233,11 +251,34 @@ void LuaBindsAI::PartyInt_CreateMetatable(lua_State* L)
 }
 
 
+int LuaBindsAI::PartyInt_CmdEngage(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L, 2);
+	//LuaObjectGuid* guid = Guid_GetGuidObject(L, 3);
+	lua_Number angle = luaL_checknumber(L, 3);
+	AgentCmdEngage* cmd = new AgentCmdEngage(angle);
+	lua_pushinteger(L, ai->CommandsAdd(cmd));
+	return 1;
+}
+
+
 int LuaBindsAI::PartyInt_CmdFollow(lua_State* L)
 {
 	LuaAgent* ai = AI_GetAIObject(L, 2);
 	LuaObjectGuid* guid = Guid_GetGuidObject(L, 3);
-	AgentCmdFollow* cmd = new AgentCmdFollow(guid->guid);
+	lua_Number dist = luaL_checknumber(L, 4);
+	lua_Number angle = luaL_checknumber(L, 5);
+	AgentCmdFollow* cmd = new AgentCmdFollow(guid->guid, dist, angle);
+	lua_pushinteger(L, ai->CommandsAdd(cmd));
+	return 1;
+}
+
+
+int LuaBindsAI::PartyInt_CmdTank(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L, 2);
+	LuaObjectGuid* guid = Guid_GetGuidObject(L, 3);
+	AgentCmdTank* cmd = new AgentCmdTank(guid->guid);
 	lua_pushinteger(L, ai->CommandsAdd(cmd));
 	return 1;
 }
@@ -247,6 +288,14 @@ int LuaBindsAI::PartyInt_GetOwnerGuid(lua_State* L)
 {
 	PartyIntelligence* intelligence = PartyInt_GetPIObject(L);
 	Guid_CreateUD(L, intelligence->GetOwnerGuid());
+	return 1;
+}
+
+
+int LuaBindsAI::PartyInt_GetData(lua_State* L)
+{
+	PartyIntelligence* intelligence = PartyInt_GetPIObject(L);
+	lua_getiuservalue(L, -1, 1);
 	return 1;
 }
 
@@ -274,6 +323,21 @@ int LuaBindsAI::PartyInt_GetAgents(lua_State* L)
 			++idx;
 		}
 	}
+	return 1;
+}
+
+
+int LuaBindsAI::PartyInt_GetAttackers(lua_State* L)
+{
+	PartyIntelligence* intelligence = PartyInt_GetPIObject(L);
+	lua_newtable(L);
+	lua_Integer idx = 1;
+	for (auto& it : intelligence->GetAgentMap())
+		AddAttackersFrom(L, it.second->ToUnit(), idx);
+
+	if (Player* owner = sObjectAccessor.FindPlayer(intelligence->GetOwnerGuid()))
+		AddAttackersFrom(L, owner->ToUnit(), idx);
+
 	return 1;
 }
 

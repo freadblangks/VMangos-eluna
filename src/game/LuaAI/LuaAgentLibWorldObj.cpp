@@ -76,4 +76,3 @@ int LuaBindsAI::Guid_Print(lua_State* L)
 	printf("%llu\n", guid->guid.GetRawValue());
 	return 0;
 }
-

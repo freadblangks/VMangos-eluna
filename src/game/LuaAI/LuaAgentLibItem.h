@@ -24,13 +24,14 @@ namespace LuaBindsAI {
 
 	int Item_GetItemFromId(lua_State* L);
 
-	int Item_GetContextualLevel(lua_State* L);
-	int Item_GetStat(lua_State* L);
-	int Item_GetSpell(lua_State* L);
-	int Item_GetDamage(lua_State* L);
 	int Item_GetArmor(lua_State* L);
-	int Item_GetName(lua_State* L);
+	int Item_GetContextualLevel(lua_State* L);
+	int Item_GetDamage(lua_State* L);
 	int Item_GetId(lua_State* L);
+	int Item_GetName(lua_State* L);
+	int Item_GetSlots(lua_State* L);
+	int Item_GetSpell(lua_State* L);
+	int Item_GetStat(lua_State* L);
 	int Item_IsUnique(lua_State* L);
 
 	int Item_GetUtility(lua_State* L);
@@ -42,13 +43,14 @@ namespace LuaBindsAI {
 	int Item_PrintItemsOfType(lua_State* L);
 
 	static const struct luaL_Reg Item_BindLib[]{
-		{"GetContextualLevel", Item_GetContextualLevel},
 		{"GetArmor", Item_GetArmor},
+		{"GetContextualLevel", Item_GetContextualLevel},
 		{"GetDamage", Item_GetDamage},
-		{"GetStat", Item_GetStat},
-		{"GetSpell", Item_GetSpell},
-		{"GetName", Item_GetName},
 		{"GetId", Item_GetId},
+		{"GetName", Item_GetName},
+		{"GetSlots", Item_GetSlots},
+		{"GetSpell", Item_GetSpell},
+		{"GetStat", Item_GetStat},
 		{"IsUnique", Item_IsUnique},
 
 		{"GetUtility", Item_GetUtility},

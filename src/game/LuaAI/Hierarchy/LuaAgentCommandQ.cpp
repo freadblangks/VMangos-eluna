@@ -23,5 +23,21 @@ int AgentCmdMove::Push(lua_State* L)
 int AgentCmdFollow::Push(lua_State* L)
 {
 	LuaBindsAI::Guid_CreateUD(L, targetGuid);
+	lua_pushnumber(L, dist);
+	lua_pushnumber(L, angle);
+	return 3;
+}
+
+
+int AgentCmdEngage::Push(lua_State* L)
+{
+	lua_pushnumber(L, angle);
+	return 1;
+}
+
+
+int AgentCmdTank::Push(lua_State* L)
+{
+	LuaBindsAI::Guid_CreateUD(L, targetGuid);
 	return 1;
 }

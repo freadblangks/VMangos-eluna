@@ -65,4 +65,3 @@ int LuaBindsAI::Spell_GetEffectSimpleValue(lua_State* L)
 	lua_pushinteger(L, spell->proto->CalculateSimpleValue(SpellEffectIndex(i)));
 	return 1;
 }
-

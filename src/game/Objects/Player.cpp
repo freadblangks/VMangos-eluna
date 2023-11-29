@@ -1176,8 +1176,10 @@ uint32 Player::EnvironmentalDamage(EnvironmentalDamageType type, uint32 damage)
         sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "We are fall to death, loosing 10 percents durability");
         DurabilityLossAll(0.10f, false);
         // durability lost message
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_2_4        
         WorldPacket data2(SMSG_DURABILITY_DAMAGE_DEATH, 0);
         GetSession()->SendPacket(&data2);
+#endif
     }
 
     return damage;
@@ -19811,6 +19813,11 @@ float Player::GetReputationPriceDiscount(Creature const* pCreature, bool taxi) c
  */
 bool Player::IsSpellFitByClassAndRace(uint32 spellId, uint32* pReqlevel /*= nullptr*/) const
 {
+    // ABILITY_SKILL_NONTRAINABLE missing from dbc on old clients for shaman 2h maces/axes
+    if (GetClass() == Classes::CLASS_SHAMAN)
+        if (spellId == 199 || spellId == 197)
+            return false;
+
     uint32 racemask  = GetRaceMask();
     uint32 classmask = GetClassMask();
 

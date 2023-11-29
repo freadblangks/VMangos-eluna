@@ -1,6 +1,9 @@
+
 #include "LuaAgentLibPlayer.h"
 #include "LuaAgentLibWorldObj.h"
 #include "LuaAgentLibUnit.h"
+#include "LuaAgentUtils.h"
+#include "Spell.h"
 
 
 namespace
@@ -26,16 +29,16 @@ namespace
 	inline uint32 Player_TalentGetRankSpellId(lua_State* L, Player* me, const TalentEntry* talentInfo, uint32 talentID, uint32 rank)
 	{
 		if (rank >= MAX_TALENT_RANK)
-			luaL_error(L, "Player_TalentCommonCheck: talent rank cannot exceed %d", MAX_TALENT_RANK - 1);
+			luaL_error(L, "Player_TalentGetRankSpellId: talent rank cannot exceed %d", MAX_TALENT_RANK - 1);
 
 		// search specified rank
 		uint32 spellid = talentInfo->RankID[rank];
 		if (!spellid)                                       // ??? none spells in talent
-			luaL_error(L, "Player_HasTalent: talent %d rank %d not found", talentID, rank);
+			luaL_error(L, "Player_TalentGetRankSpellId: talent %d rank %d not found", talentID, rank);
 
 		SpellEntry const* spellInfo = sSpellMgr.GetSpellEntry(spellid);
 		if (!spellInfo || !SpellMgr::IsSpellValid(spellInfo, me, false))
-			luaL_error(L, "Player_HasTalent: talent %d spell %d is not valid for player or doesn't exist", talentID, spellid);
+			luaL_error(L, "Player_TalentGetRankSpellId: talent %d spell %d is not valid for player or doesn't exist", talentID, spellid);
 
 		return spellid;
 	}
@@ -224,3 +227,21 @@ int LuaBindsAI::Player_ResetTalents(lua_State* L)
 }
 
 
+int LuaBindsAI::Player_SendCastSpellUnit(lua_State* L)
+{
+	Player* me = Player_GetPlayerObject(L);
+	Unit* target = Unit_GetUnitObject(L, 2);
+	lua_Integer spellId = luaL_checkinteger(L, 3);
+	if (const SpellEntry* spell = sSpellMgr.GetSpellEntry(spellId))
+	{
+		std::unique_ptr<WorldPacket> packet = std::make_unique<WorldPacket>(CMSG_CAST_SPELL);
+		*packet << spell->Id;
+		SpellCastTargets targets;
+		targets.setUnitTarget(target);
+		*packet << targets;
+		me->GetSession()->QueuePacket(std::move(packet));
+	}
+	else
+		luaL_error(L, "Player_SendCastSpellUnit: spell %d doesn't exist", spellId);
+	return 0;
+}

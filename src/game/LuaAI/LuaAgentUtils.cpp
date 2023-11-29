@@ -3,6 +3,22 @@
 #include "LuaAgentLibUnit.h"
 
 
+namespace
+{
+	// message function for lua_pcall to add stacktrace
+	int lua_errormsghandler(lua_State* L) {
+		const char* msg = lua_tostring(L, 1);
+		if (msg == NULL)
+			if (luaL_callmeta(L, 1, "__tostring") && lua_type(L, -1) == LUA_TSTRING)
+				return 1;
+			else
+				msg = lua_pushfstring(L, "(error object is a %s value)", luaL_typename(L, 1));
+		luaL_traceback(L, L, msg, 1);
+		return 1;
+	}
+}
+
+
 // lua_pcall wrapper that adds stack traceback to error msg
 int lua_dopcall(lua_State* L, int narg, int nres) {
 	int status;
@@ -15,26 +31,9 @@ int lua_dopcall(lua_State* L, int narg, int nres) {
 }
 
 
-// message function for lua_pcall to add stacktrace
-int lua_errormsghandler(lua_State* L) {
-	const char* msg = lua_tostring(L, 1);
-	if (msg == NULL)
-		if (luaL_callmeta(L, 1, "__tostring") && lua_type(L, -1) == LUA_TSTRING)
-			return 1;
-		else
-			msg = lua_pushfstring(L, "(error object is a %s value)", luaL_typename(L, 1));
-	luaL_traceback(L, L, msg, 1);
-	return 1;
-}
-
-
 bool luaL_checkboolean(lua_State* L, int idx) {
-	bool result = false;
-	if (lua_isboolean(L, idx))
-		result = lua_toboolean(L, idx);
-	else
-		luaL_error(L, "Invalid argument %d type. Boolean expected, got %s", idx, lua_typename(L, lua_type(L, idx)));
-	return result;
+	luaL_checktype(L, idx, LUA_TBOOLEAN);
+	return lua_toboolean(L, idx);
 }
 
 
@@ -66,5 +65,6 @@ void* luaL_checkudwithfield(lua_State* L, int idx, const char* fieldName) {
 			lua_pop(L, 2);  /* remove metatable and field value */
 		}
 	luaL_error(L, "Invalid argument type. Userdata expected, got %s", lua_typename(L, lua_type(L, idx)));
+	// unreachable, just to silence the warning
+	return nullptr; 
 }
-

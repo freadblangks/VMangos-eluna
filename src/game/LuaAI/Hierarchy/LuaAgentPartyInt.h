@@ -64,21 +64,30 @@ namespace LuaBindsAI {
 	PartyIntelligence* PartyInt_GetPIObject(lua_State* L);
 	void PartyInt_CreateMetatable(lua_State* L);
 
+	int PartyInt_CmdEngage(lua_State* L);
 	int PartyInt_CmdFollow(lua_State* L);
+	int PartyInt_CmdTank(lua_State* L);
 
+	int PartyInt_GetData(lua_State* L);
 	int PartyInt_GetOwnerGuid(lua_State* L);
 
 	int PartyInt_LoadInfoFromLuaTbl(lua_State* L);
+
 	int PartyInt_GetAgents(lua_State* L);
+	int PartyInt_GetAttackers(lua_State* L);
 
 	static const struct luaL_Reg PartyInt_BindLib[]{
+		{"CmdEngage", PartyInt_CmdEngage},
 		{"CmdFollow", PartyInt_CmdFollow},
-		
+		{"CmdTank", PartyInt_CmdTank},
+
+		{"GetData", PartyInt_GetData},
 		{"GetOwnerGuid", PartyInt_GetOwnerGuid},
 
 		{"LoadInfoFromLuaTbl", PartyInt_LoadInfoFromLuaTbl},
 
 		{"GetAgents", PartyInt_GetAgents},
+		{"GetAttackers", PartyInt_GetAttackers},
 
 		{NULL, NULL}
 	};
