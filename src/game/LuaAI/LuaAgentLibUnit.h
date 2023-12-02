@@ -21,6 +21,7 @@ namespace LuaBindsAI {
 	int Unit_AttackStop(lua_State* L);
 	int Unit_CastSpell(lua_State* L);
 	int Unit_GetCurrentSpellId(lua_State* L);
+	int Unit_GetPowerCost(lua_State* L);
 	/**
 	 * @brief Calculates spell effect value. Only accounts for spell mods for healing spells.
 	 * Does not check if spell is a healing spell. If spell is a healing spell threat is divided among all hostiles.
@@ -87,6 +88,7 @@ namespace LuaBindsAI {
 		{"AttackStop", Unit_AttackStop},
 		{"CastSpell", Unit_CastSpell},
 		{"GetCurrentSpellId", Unit_GetCurrentSpellId},
+		{"GetPowerCost", Unit_GetPowerCost},
 		{"GetSpellDamageAndThreat", Unit_GetSpellDamageAndThreat},
 		{"GetSpellCastLeft", Unit_GetSpellCastLeft},
 		{"InterruptSpell", Unit_InterruptSpell},

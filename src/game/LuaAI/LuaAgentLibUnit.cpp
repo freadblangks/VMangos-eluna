@@ -94,6 +94,21 @@ int LuaBindsAI::Unit_GetCurrentSpellId(lua_State* L)
 }
 
 
+int LuaBindsAI::Unit_GetPowerCost(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_Integer spellId = luaL_checkinteger(L, 2);
+	if (const SpellEntry* spell = sSpellMgr.GetSpellEntry(spellId))
+	{
+		Spell s(unit, spell, false);
+		lua_pushnumber(L, Spell::CalculatePowerCost(spell, unit, &s));
+	}
+	else
+		luaL_error(L, "Unit_CastSpell: spell %d doesn't exist", spellId);
+	return 1;
+}
+
+
 int LuaBindsAI::Unit_GetSpellDamageAndThreat(lua_State* L)
 {
 	Unit* unit = Unit_GetUnitObject(L);
