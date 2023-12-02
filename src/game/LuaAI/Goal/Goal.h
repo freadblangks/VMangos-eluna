@@ -166,7 +166,7 @@ namespace LuaBindsAI {
 		{"GetParam", Goal_GetParam},
 		{"GetSubGoalNum", Goal_GetSubGoalNum},
 		{"GetTimer", Goal_GetTimer},
-		{"GetUserTbl", Goal_GetUserTbl},
+		{"GetData", Goal_GetUserTbl},
 		{"IsFinishTimer", Goal_IsFinishTimer},
 		{"SetLifeEndSuccess", Goal_SetLifeEndSuccess},
 		{"SetNumber", Goal_SetNumber},

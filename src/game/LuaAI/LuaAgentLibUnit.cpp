@@ -3,6 +3,7 @@
 #include "LuaAgentUtils.h"
 #include "LuaAgentLibUnit.h"
 #include "LuaAgentLibWorldObj.h"
+#include "Spell.h"
 
 
 void LuaBindsAI::BindUnit(lua_State* L) {
@@ -82,9 +83,188 @@ int LuaBindsAI::Unit_CastSpell(lua_State* L)
 }
 
 
+int LuaBindsAI::Unit_GetCurrentSpellId(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	if (Spell* spell = unit->GetCurrentSpell(CurrentSpellTypes::CURRENT_GENERIC_SPELL))
+		lua_pushinteger(L, spell->m_spellInfo->Id);
+	else
+		lua_pushinteger(L, 0ll);
+	return 1;
+}
+
+
+int LuaBindsAI::Unit_GetSpellDamageAndThreat(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	Unit* unitTarget = Unit_GetUnitObject(L, 2);
+	lua_Integer spellId = luaL_checkinteger(L, 3);
+	bool isHealSpell = luaL_checkboolean(L, 4);
+	bool forceCalc = luaL_checkboolean(L, 5);
+	int effIdx = SpellEffectIndex::EFFECT_INDEX_0;
+	if (lua_gettop(L) == 6)
+	{
+		effIdx = luaL_checkinteger(L, 6);
+		if (effIdx < 0 || effIdx > SpellEffectIndex::EFFECT_INDEX_2)
+			luaL_error(L, "Unit_GetSpellDamageAndThreat: invalid effect index. Allowed [0, %d], got %d", SpellEffectIndex::EFFECT_INDEX_2, effIdx);
+	}
+	if (const SpellEntry* spellProto = sSpellMgr.GetSpellEntry(spellId))
+	{
+		Spell s(unit, spellProto, true);
+		float damage = s.CalculateDamage(SpellEffectIndex(effIdx), unitTarget);
+		float threat = 0.f;
+		if (forceCalc || unitTarget->CanHaveThreatList())
+		{
+			if (isHealSpell)
+			{
+				damage = unit->SpellHealingBonusDone(unitTarget, spellProto, SpellEffectIndex(effIdx), damage, DamageEffectType::HEAL, 1, &s);
+				damage = unitTarget->SpellHealingBonusTaken(unit, spellProto, SpellEffectIndex(effIdx), damage, DamageEffectType::HEAL, 1, &s);
+				threat = damage * unit->GetClass() == Classes::CLASS_PALADIN ? 0.25f : 0.5f;
+				uint32 size = unitTarget->GetHostileRefManager().getSize();
+				threat /= size ? 1 : size;
+			}
+			else if (spellProto->IsDirectDamageSpell())
+				threat = damage;
+
+			SpellThreatEntry const* entry = sSpellMgr.GetSpellThreatEntry(spellProto->Id);
+			if (entry)
+			{
+				threat *= entry->multiplier;
+				threat += entry->threat;
+			}
+
+			threat = unit->ApplyTotalThreatModifier(threat, s.m_spellSchoolMask);
+		}
+		lua_pushnumber(L, damage);
+		lua_pushnumber(L, threat);
+	}
+	else
+		luaL_error(L, "Unit_GetSpellDamageAndThreat: spell %d doesn't exist", spellId);
+	return 2;
+}
+
+
+int LuaBindsAI::Unit_GetSpellCastLeft(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	if (Spell* spell = unit->GetCurrentSpell(CurrentSpellTypes::CURRENT_GENERIC_SPELL))
+		lua_pushinteger(L, spell->GetCastTime() ? lua_Integer(spell->GetCastTime()) - lua_Integer(spell->GetCastedTime()) : 0ll);
+	else
+		lua_pushinteger(L, 0ll);
+	return 1;
+}
+
+
+int LuaBindsAI::Unit_InterruptSpell(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_Integer tp = luaL_checkinteger(L, 2);
+	if (tp < 0 || tp > CurrentSpellTypes::CURRENT_CHANNELED_SPELL)
+		luaL_error(L, "Unit_InterruptSpell: invalid spell type. Allowed values [0, %d], got %d", CurrentSpellTypes::CURRENT_CHANNELED_SPELL, tp);
+	unit->InterruptSpell(CurrentSpellTypes(tp));
+	return 0;
+}
+
+
+int LuaBindsAI::Unit_IsCastingHeal(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	if (Spell* spell = unit->GetCurrentSpell(CurrentSpellTypes::CURRENT_GENERIC_SPELL))
+		lua_pushboolean(L, spell->m_spellInfo->IsHealSpell());
+	else
+		lua_pushboolean(L, false);
+	return 1;
+}
+
+
+int LuaBindsAI::Unit_IsInPositionToCast(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	Unit* target = Unit_GetUnitObject(L, 2);
+	lua_Integer spellId = luaL_checkinteger(L, 3);
+	lua_Number dist = luaL_checknumber(L, 4);
+	if (const SpellEntry* spell = sSpellMgr.GetSpellEntry(spellId))
+	{
+		// Spell::CheckTarget and Spell:CheckRange bits
+		if (!(spell->AttributesEx2 & SpellAttributesEx2::SPELL_ATTR_EX2_IGNORE_LINE_OF_SIGHT) && !unit->IsWithinLOSInMap(target))
+			lua_pushinteger(L, SpellCastResult::SPELL_FAILED_LINE_OF_SIGHT);
+		else
+		{
+			SpellCastResult result = SpellCastResult::SPELL_CAST_OK;
+			SpellRangeEntry const* srange = sSpellRangeStore.LookupEntry(spell->rangeIndex);
+			float max_range = srange ? srange->maxRange : 0.f;
+			float min_range = srange ? srange->minRange : 0.f;
+
+			if (Player* modOwner = unit->ToPlayer())
+				modOwner->ApplySpellMod(spell->Id, SpellModOp::SPELLMOD_RANGE, max_range, nullptr);
+
+			if (target && target != unit)
+			{
+				float const dist = unit->GetCombatDistance(target);
+
+				if (dist > max_range - dist)
+					result = SpellCastResult::SPELL_FAILED_OUT_OF_RANGE;
+				else if (min_range && dist < min_range)
+					result = SpellCastResult::SPELL_FAILED_TOO_CLOSE;
+			}
+			lua_pushinteger(L, result);
+		}
+	}
+	else
+		luaL_error(L, "Unit_IsInPositionToCast: spell %d doesn't exist", spellId);
+	return 1;
+}
+
+
 // ---------------------------------------------------------
 // --                     Info
 // ---------------------------------------------------------
+
+
+int LuaBindsAI::Unit_IsAlive(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_pushboolean(L, unit->IsAlive());
+	return 1;
+}
+
+
+int LuaBindsAI::Unit_IsInCombat(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_pushboolean(L, unit->IsInCombat());
+	return 1;
+}
+
+
+int LuaBindsAI::Unit_IsNonMeleeSpellCasted(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_pushboolean(L, unit->IsNonMeleeSpellCasted(false, false, true));
+	return 1;
+}
+
+
+int LuaBindsAI::Unit_IsTanking(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	if (Player* player = unit->ToPlayer())
+		if (LuaAgent* agentAI = player->GetLuaAI())
+		{
+			lua_pushboolean(L, agentAI->CommandsGetFirstType() == AgentCmdType::Tank);
+			return 1;
+		}
+	lua_pushboolean(L, false);
+	return 1;
+}
+
+
+int LuaBindsAI::Unit_GetAttackersNum(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_pushinteger(L, unit->GetAttackers().size());
+	return 1;
+}
 
 
 int LuaBindsAI::Unit_GetDistance(lua_State* L)

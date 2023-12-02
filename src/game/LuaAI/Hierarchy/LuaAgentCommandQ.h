@@ -2,14 +2,16 @@
 #ifndef MANGOS_LUAAGENTCOMMANDQUEUE_H
 #define MANGOS_LUAAGENTCOMMANDQUEUE_H
 
-struct lua_State;
+#include "lua.hpp"
 
 enum class AgentCmdType : uint8
 {
+	None,
 	Move,
 	Follow,
 	Engage,
 	Tank,
+	Heal,
 	Max,
 };
 
@@ -37,6 +39,10 @@ public:
 	AgentCmdType GetType() { return tp; }
 	State GetState() { return state; }
 	void SetState(State state) { this->state = state; }
+	virtual bool MinReqMet() { return true; }
+	virtual void MinReqProgress(lua_State* L, int idx) {}
+	virtual int AddProgress(lua_State* L, int idx) { return 0; }
+	virtual int GetProgress(lua_State* L) { return 0; }
 };
 
 
@@ -75,10 +81,33 @@ public:
 class AgentCmdTank : public AgentCmd
 {
 	ObjectGuid targetGuid;
+	lua_Number desiredThreat;
+	lua_Number doneThreat;
 
 public:
-	AgentCmdTank(const ObjectGuid& targetGuid) : AgentCmd(AgentCmdType::Tank), targetGuid(targetGuid) {}
+	AgentCmdTank(const ObjectGuid& targetGuid, lua_Number desiredThreat) :
+		AgentCmd(AgentCmdType::Tank), targetGuid(targetGuid), desiredThreat(desiredThreat), doneThreat(0.0) {}
 	int Push(lua_State* L) override;
+	bool MinReqMet() override { return doneThreat >= desiredThreat; }
+	void MinReqProgress(lua_State* L, int idx) override { doneThreat = luaL_checknumber(L, idx); }
+	int GetProgress(lua_State* L) override { lua_pushnumber(L, doneThreat); return 1; }
+};
+
+
+class AgentCmdHeal : public AgentCmd
+{
+	ObjectGuid targetGuid;
+	lua_Integer numHeals;
+	lua_Integer curHeals;
+
+public:
+	AgentCmdHeal(float angle, const ObjectGuid& targetGuid, lua_Integer numHeals)
+		: AgentCmd(AgentCmdType::Heal), targetGuid(targetGuid), numHeals(numHeals), curHeals(0ll) {}
+	int Push(lua_State* L) override;
+	int AddProgress(lua_State* L, int idx) override { curHeals++; return 0; }
+	bool MinReqMet() override { return curHeals >= numHeals; }
+	void MinReqProgress(lua_State* L, int idx) override { curHeals = luaL_checkinteger(L, idx); }
+	int GetProgress(lua_State* L) override { lua_pushinteger(L, numHeals - curHeals); return 1; }
 };
 
 

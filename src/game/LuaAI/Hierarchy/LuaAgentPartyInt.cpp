@@ -278,7 +278,8 @@ int LuaBindsAI::PartyInt_CmdTank(lua_State* L)
 {
 	LuaAgent* ai = AI_GetAIObject(L, 2);
 	LuaObjectGuid* guid = Guid_GetGuidObject(L, 3);
-	AgentCmdTank* cmd = new AgentCmdTank(guid->guid);
+	lua_Number desiredThreat = luaL_checknumber(L, 4);
+	AgentCmdTank* cmd = new AgentCmdTank(guid->guid, desiredThreat);
 	lua_pushinteger(L, ai->CommandsAdd(cmd));
 	return 1;
 }

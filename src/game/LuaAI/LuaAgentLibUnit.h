@@ -15,14 +15,32 @@ namespace LuaBindsAI {
 	Unit* Unit_GetUnitObject(lua_State* L, int idx = 1);
 	void Unit_CreateUD(Unit* unit, lua_State* L);
 
-	// Auto attacking
+	// Attacking
 
 	int Unit_Attack(lua_State* L);
 	int Unit_AttackStop(lua_State* L);
 	int Unit_CastSpell(lua_State* L);
+	int Unit_GetCurrentSpellId(lua_State* L);
+	/**
+	 * @brief Calculates spell effect value. Only accounts for spell mods for healing spells.
+	 * Does not check if spell is a healing spell. If spell is a healing spell threat is divided among all hostiles.
+	 * @param L 
+	 * @return 
+	*/
+	int Unit_GetSpellDamageAndThreat(lua_State* L);
+	int Unit_GetSpellCastLeft(lua_State* L);
+	int Unit_InterruptSpell(lua_State* L);
+	int Unit_IsCastingHeal(lua_State* L);
+	int Unit_IsInPositionToCast(lua_State* L);
 
 	// Info
 
+	int Unit_IsAlive(lua_State* L);
+	int Unit_IsInCombat(lua_State* L);
+	int Unit_IsNonMeleeSpellCasted(lua_State* L);
+	int Unit_IsTanking(lua_State* L);
+
+	int Unit_GetAttackersNum(lua_State* L);
 	int Unit_GetDistance(lua_State* L);
 	int Unit_GetHealth(lua_State* L);
 	int Unit_GetHealthPct(lua_State* L);
@@ -64,12 +82,24 @@ namespace LuaBindsAI {
 	int Unit_MoveChase(lua_State* L);
 
 	static const struct luaL_Reg Unit_BindLib[]{
-		// Auto attacking
+		// Attacking
 		{"Attack", Unit_Attack},
 		{"AttackStop", Unit_AttackStop},
 		{"CastSpell", Unit_CastSpell},
+		{"GetCurrentSpellId", Unit_GetCurrentSpellId},
+		{"GetSpellDamageAndThreat", Unit_GetSpellDamageAndThreat},
+		{"GetSpellCastLeft", Unit_GetSpellCastLeft},
+		{"InterruptSpell", Unit_InterruptSpell},
+		{"IsCastingHeal", Unit_IsCastingHeal},
+		{"IsInPositionToCast", Unit_IsInPositionToCast},
 
 		// Info
+		{"IsAlive", Unit_IsAlive},
+		{"IsInCombat", Unit_IsInCombat},
+		{"IsNonMeleeSpellCasted", Unit_IsNonMeleeSpellCasted},
+		{"IsTanking", Unit_IsTanking},
+
+		{"GetAttackersNum", Unit_GetAttackersNum},
 		{"GetDistance", Unit_GetDistance},
 		{"GetHealth", Unit_GetHealth},
 		{"GetHealthPct", Unit_GetHealthPct},

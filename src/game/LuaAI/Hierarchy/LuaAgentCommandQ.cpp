@@ -39,5 +39,13 @@ int AgentCmdEngage::Push(lua_State* L)
 int AgentCmdTank::Push(lua_State* L)
 {
 	LuaBindsAI::Guid_CreateUD(L, targetGuid);
+	lua_pushnumber(L, desiredThreat);
+	return 2;
+}
+
+
+int AgentCmdHeal::Push(lua_State* L)
+{
+	LuaBindsAI::Guid_CreateUD(L, targetGuid);
 	return 1;
 }

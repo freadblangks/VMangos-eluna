@@ -23,6 +23,9 @@ enum class LuaAgentRoles {
 
 class LuaAgent
 {
+	float m_stdThreat;
+	ObjectGuid m_healTarget;
+
 	ShortTimeTracker m_updateTimer;
 	uint32 m_updateInterval;
 
@@ -79,6 +82,12 @@ public:
 	bool GetCeaseUpdates() { return m_bCeaseUpdates; }
 	void SetCeaseUpdates(bool value = true) { m_bCeaseUpdates = value; }
 
+	float GetStdThreat() { return m_stdThreat; }
+	void SetStdThreat(float value) { m_stdThreat = value; }
+
+	ObjectGuid& GetHealTarget() { return m_healTarget; }
+	void SetHealTarget(const ObjectGuid& guid) { m_healTarget = guid; }
+
 	// equipment
 
 	bool EquipCopyFromMaster();
@@ -104,6 +113,7 @@ public:
 	void CommandsClear() { commands.clear(); }
 	void CommandsPopFront() { if (commands.size()) commands.erase(commands.begin()); }
 	AgentCmd* CommandsGetFirst() { return commands.size() > 0 ? commands.front().get() : nullptr; };
+	AgentCmdType CommandsGetFirstType() { return commands.size() > 0 ? commands.front()->GetType() : AgentCmdType::None; }
 	void CommandsPrint();
 
 	// lua bits
@@ -114,6 +124,17 @@ public:
 	void Unref(lua_State* L);
 	void UnrefPlayerUD(lua_State* L);
 	void UnrefUserTbl(lua_State* L);
+
+	// spells
+
+	uint32 GetSpellChainFirst(uint32 spellID);
+	uint32 GetSpellChainPrev(uint32 spellID);
+	uint32 GetSpellRank(uint32 spellID);
+	uint32 GetSpellMaxRankForMe(uint32 lastSpell);
+	uint32 GetSpellMaxRankForLevel(uint32 lastSpell, uint32 level);
+	uint32 GetSpellOfRank(uint32 lastSpell, uint32 rank);
+	std::string GetSpellName(uint32 spellID);
+	uint32 GetSpellLevel(uint32 spellID);
 
 	const ObjectGuid& GetMasterGuid() { return m_masterGuid; }
 	Player* GetPlayer() { return me; }

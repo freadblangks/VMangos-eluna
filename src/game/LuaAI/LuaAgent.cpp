@@ -27,7 +27,10 @@ LuaAgent::LuaAgent(Player* me, ObjectGuid masterGuid, int logicID) :
 	m_goalManager(),
 	m_topGoal(-1, 0, Goal::NOPARAMS, nullptr, nullptr),
 
-	m_party(nullptr)
+	m_party(nullptr),
+
+	m_stdThreat(10.f),
+	m_healTarget()
 {
 	m_updateTimer.Reset(2000);
 	m_topGoal.SetTerminated(true);
@@ -388,3 +391,210 @@ void LuaAgent::UnrefUserTbl(lua_State* L)
 	}
 }
 
+// ========================================================================
+// Spells Chains
+// ========================================================================
+
+
+uint32 LuaAgent::GetSpellChainFirst(uint32 spellID)
+{
+
+	auto info_orig = sSpellMgr.GetSpellEntry(spellID);
+	// spell not found
+	if (!info_orig)
+	{
+		sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "GetSpellChainFirst: spell %d not found.", spellID);
+		return 0;
+	}
+
+	auto info_first = sSpellMgr.GetFirstSpellInChain(spellID);
+	if (!info_first)
+		return spellID;
+
+	return info_first;
+
+}
+
+
+uint32 LuaAgent::GetSpellChainPrev(uint32 spellID)
+{
+
+	auto info_orig = sSpellMgr.GetSpellEntry(spellID);
+	// spell not found
+	if (!info_orig)
+	{
+		sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "GetSpellChainPrev: spell %d not found.", spellID);
+		return 0;
+	}
+
+	auto info_prev = sSpellMgr.GetPrevSpellInChain(spellID);
+	if (!info_prev)
+		return spellID;
+
+	return info_prev;
+
+}
+
+
+uint32 LuaAgent::GetSpellLevel(uint32 spellID)
+{
+	auto info_orig = sSpellMgr.GetSpellEntry(spellID);
+	// spell not found
+	if (!info_orig)
+	{
+		sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "GetSpellName: spell %d not found.", spellID);
+		return 0;
+	}
+
+	return info_orig->spellLevel;
+}
+
+
+std::string LuaAgent::GetSpellName(uint32 spellID)
+{
+
+	auto info_orig = sSpellMgr.GetSpellEntry(spellID);
+	// spell not found
+	if (!info_orig) {
+		sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "GetSpellName: spell %d not found.", spellID);
+		return "";
+	}
+
+	return info_orig->SpellName[0];
+
+}
+
+
+uint32 LuaAgent::GetSpellRank(uint32 spellID)
+{
+	auto info_orig = sSpellMgr.GetSpellEntry(spellID);
+	// spell not found
+	if (!info_orig)
+	{
+		sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "GetSpellRank: spell %d not found.", spellID);
+		return 0;
+	}
+
+	auto chain = sSpellMgr.GetSpellChainNode(spellID);
+	if (!chain)
+		return 1;
+
+	return chain->rank;
+}
+
+
+uint32 LuaAgent::GetSpellMaxRankForLevel(uint32 spellID, uint32 level)
+{
+
+	auto info_orig = sSpellMgr.GetSpellEntry(spellID);
+	// spell not found
+	if (!info_orig)
+	{
+		sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "GetSpellMaxRankForLevel: spell %d not found.", spellID);
+		return 0;
+	}
+
+	auto chain = sSpellMgr.GetSpellChainNode(spellID);
+	// looks like there is only one rank
+	if (!chain)
+		return spellID;
+
+	auto info_last = chain->first;
+	auto info_final = info_orig;
+	auto info_next = info_orig;
+	while (level < info_next->spellLevel)
+	{
+
+		// we've ran out of ranks
+		if (info_next->Id == info_last)
+			return info_last;
+
+		// update result
+		info_final = info_next;
+
+		info_next = sSpellMgr.GetSpellEntry(sSpellMgr.GetPrevSpellInChain(info_next->Id));
+		// weird error?
+		if (!info_next)
+		{
+			sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "GetSpellMaxRankForLevel: spell %d failed to find spell of next rank.", spellID);
+			return 0;
+		}
+
+		if (info_next->Id == info_final->Id)
+			return info_next->Id;
+
+	}
+
+	return info_next->Id;
+
+}
+
+
+uint32 LuaAgent::GetSpellMaxRankForMe(uint32 spellID)
+{
+	return GetSpellMaxRankForLevel(spellID, me->GetLevel());
+}
+
+
+uint32 LuaAgent::GetSpellOfRank(uint32 spellID, uint32 rank)
+{
+
+	auto info_orig = sSpellMgr.GetSpellEntry(spellID);
+	// spell not found
+	if (!info_orig)
+	{
+		sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "GetSpellOfRank: spell %d not found.", spellID);
+		return 0;
+	}
+
+	auto chain = sSpellMgr.GetSpellChainNode(spellID);
+	// looks like there is only one rank
+	if (!chain)
+	{
+		sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "GetSpellOfRank: spell %d has no spell chain.", spellID);
+		return 0;
+	}
+
+	auto info_last = chain->first;
+	auto info_final = info_orig;
+	auto info_next = info_orig;
+	while (true)
+	{
+
+		// update result
+		info_final = info_next;
+
+		auto chain = sSpellMgr.GetSpellChainNode(info_final->Id);
+		if (!chain)
+		{
+			sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "GetSpellOfRank: spell %d has no spell chain.", spellID);
+			return 0;
+		}
+
+		// found
+		if (chain->rank == rank)
+			return info_final->Id;
+
+		// we've ran out of ranks
+		if (info_next->Id == info_last)
+		{
+			sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "GetSpellOfRank: spell %d ran out of ranks. Requested rank %d", spellID, rank);
+			return 0;
+		}
+
+		info_next = sSpellMgr.GetSpellEntry(chain->prev);
+		// weird error?
+		if (!info_next)
+		{
+			sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "GetSpellOfRank: spell %d failed to find spell of next rank.", spellID);
+			return 0;
+		}
+
+		if (info_next->Id == info_final->Id)
+			return info_next->Id;
+
+	}
+
+	return info_next->Id;
+
+}

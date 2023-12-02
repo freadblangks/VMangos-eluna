@@ -133,7 +133,7 @@ void LuaAITargetedMovementGeneratorMedium<T, D>::_setTargetLocation(T &owner)
     }
 
     PathFinder path(&owner);
-
+    
     // allow pets following their master to cheat while generating paths
     bool petFollowing = owner.HasUnitState(UNIT_STAT_FOLLOW);
     Movement::MoveSplineInit init(owner, "TargetedMovementGenerator");

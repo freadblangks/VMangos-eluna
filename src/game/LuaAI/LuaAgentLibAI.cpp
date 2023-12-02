@@ -1,9 +1,11 @@
 
 #include "LuaAgentLibPlayer.h"
+#include "LuaAgentLibUnit.h"
 #include "LuaAgentLibAI.h"
 #include "LuaAgentUtils.h"
 #include "LuaAgent.h"
 #include "LuaAgentLibWorldObj.h"
+#include "LuaAgentMovementGenerator.h"
 #include "Hierarchy/LuaAgentPartyInt.h"
 
 
@@ -75,6 +77,77 @@ int LuaBindsAI::AI_AddTopGoal(lua_State* L)
 }
 
 
+int LuaBindsAI::AI_GetUserTbl(lua_State* L) {
+	LuaAgent* ai = AI_GetAIObject(L);
+	lua_rawgeti(L, LUA_REGISTRYINDEX, ai->GetUserTblRef());
+	return 1;
+}
+
+
+int LuaBindsAI::AI_GetStdThreat(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	lua_pushnumber(L, ai->GetStdThreat());
+	return 1;
+}
+
+
+int LuaBindsAI::AI_SetStdThreat(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	lua_Number value = luaL_checknumber(L, 2);
+	if (value < 0)
+		luaL_error(L, "AI_SetStdThreat: value must be > 0, got %f", value);
+	ai->SetStdThreat(value);
+	return 0;
+}
+
+
+int LuaBindsAI::AI_GetHealTarget(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	lua_pushunitornil(L, ai->GetPlayer()->GetMap()->GetUnit(ai->GetHealTarget()));
+	return 1;
+}
+
+
+int LuaBindsAI::AI_SetHealTarget(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	if (lua_isnil(L, 2))
+		ai->SetHealTarget(ObjectGuid());
+	else
+	{
+		LuaObjectGuid* guid = Guid_GetGuidObject(L, 2);
+		ai->SetHealTarget(guid->guid);
+	}
+	return 0;
+}
+
+
+int LuaBindsAI::AI_IsFollowing(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	Unit* target = Unit_GetUnitObject(L, 2);
+	Player* agent = ai->GetPlayer();
+
+	if (agent->GetMotionMaster()->GetCurrentMovementGeneratorType() != MovementGeneratorType::FOLLOW_MOTION_TYPE)
+		lua_pushboolean(L, false);
+	else
+		if (auto constFollowGen = dynamic_cast<const LuaAIFollowMovementGenerator<Player>*>(agent->GetMotionMaster()->GetCurrent()))
+			lua_pushboolean(L, constFollowGen->GetTarget() && constFollowGen->GetTarget()->GetObjectGuid() == target->GetObjectGuid());
+		else
+			lua_pushboolean(L, false);
+
+	return 1;
+}
+
+
+// -----------------------------------------------------------
+//                      Equipment
+// -----------------------------------------------------------
+
+
 int LuaBindsAI::AI_EquipCopyFromMaster(lua_State* L)
 {
 	LuaAgent* ai = AI_GetAIObject(L);
@@ -142,7 +215,40 @@ int LuaBindsAI::AI_UpdateVisibilityForMaster(lua_State* L)
 }
 
 
-// commands
+// -----------------------------------------------------------
+//                      Commands
+// -----------------------------------------------------------
+
+
+int LuaBindsAI::AI_CmdAddProgress(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	AgentCmd* cmd = ai->CommandsGetFirst();
+	if (!cmd)
+		luaL_error(L, "AI_CmdAddProgress: no commands in queue");
+	return cmd->AddProgress(L, 2);
+}
+
+
+int LuaBindsAI::AI_CmdGetProgress(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	AgentCmd* cmd = ai->CommandsGetFirst();
+	if (!cmd)
+		luaL_error(L, "AI_CmdGetProgress: no commands in queue");
+	return cmd->GetProgress(L);
+}
+
+
+int LuaBindsAI::AI_CmdSetProgress(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	AgentCmd* cmd = ai->CommandsGetFirst();
+	if (!cmd)
+		luaL_error(L, "AI_CmdSetProgress: no commands in queue");
+	cmd->MinReqProgress(L, 2);
+	return 0;
+}
 
 
 int LuaBindsAI::AI_CmdGetArgs(lua_State* L)
@@ -201,6 +307,15 @@ int LuaBindsAI::AI_CmdFail(lua_State* L)
 }
 
 
+int LuaBindsAI::AI_CmdIsRequirementMet(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	AgentCmd* cmd = ai->CommandsGetFirst();
+	lua_pushboolean(L, cmd ? cmd->MinReqMet() : true);
+	return 1;
+}
+
+
 int LuaBindsAI::AI_CmdSetInProgress(lua_State* L)
 {
 	LuaAgent* ai = AI_GetAIObject(L);
@@ -215,6 +330,116 @@ int LuaBindsAI::AI_CmdPrintAll(lua_State* L)
 	ai->CommandsPrint();
 	return 0;
 }
+
+
+// -----------------------------------------------------------
+//                      Spells Chains
+// -----------------------------------------------------------
+
+
+int LuaBindsAI::AI_GetSpellChainFirst(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	int spellID = luaL_checkinteger(L, 2);
+	uint32 result = ai->GetSpellChainFirst(spellID);
+	if (result == 0)
+		luaL_error(L, "AI.GetSpellChainFirst: spell not found. %d", spellID);
+	lua_pushinteger(L, result);
+	return 1;
+}
+
+
+int LuaBindsAI::AI_GetSpellChainPrev(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	int spellID = luaL_checkinteger(L, 2);
+	uint32 result = ai->GetSpellChainPrev(spellID);
+	if (result == 0)
+		luaL_error(L, "AI.GetSpellChainPrev: spell not found. %d", spellID);
+	lua_pushinteger(L, result);
+	return 1;
+}
+
+
+int LuaBindsAI::AI_GetSpellMaxRankForLevel(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	int spellID = luaL_checkinteger(L, 2);
+	int level = luaL_checkinteger(L, 3);
+	uint32 result = ai->GetSpellMaxRankForLevel(spellID, level);
+	// this could be an error
+	if (result == 0 && !sSpellMgr.GetSpellEntry(spellID))
+		luaL_error(L, "AI.GetSpellMaxRankForLevel: spell doesn't exist. %d", spellID);
+	lua_pushinteger(L, result);
+	return 1;
+}
+
+
+int LuaBindsAI::AI_GetSpellMaxRankForMe(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	int spellID = luaL_checkinteger(L, 2);
+	uint32 result = ai->GetSpellMaxRankForMe(spellID);
+	// this could be an error
+	if (result == 0 && !sSpellMgr.GetSpellEntry(spellID))
+		luaL_error(L, "AI.GetSpellMaxRankForMe: spell doesn't exist. %d", spellID);
+	lua_pushinteger(L, result);
+	return 1;
+}
+
+
+int LuaBindsAI::AI_GetSpellName(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	int spellID = luaL_checkinteger(L, 2);
+	std::string result = ai->GetSpellName(spellID);
+	if (result.size() == 0)
+		luaL_error(L, "AI.GetSpellName: spell not found. %d", spellID);
+	lua_pushstring(L, result.c_str());
+	return 1;
+}
+
+
+int LuaBindsAI::AI_GetSpellLevel(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	int spellID = luaL_checkinteger(L, 2);
+	uint32 result = ai->GetSpellLevel(spellID);
+	if (result == 0)
+		luaL_error(L, "AI.GetSpellLevel: spell not found. %d", spellID);
+	lua_pushinteger(L, result);
+	return 1;
+}
+
+
+int LuaBindsAI::AI_GetSpellOfRank(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	int spellID = luaL_checkinteger(L, 2);
+	int rank = luaL_checkinteger(L, 3);
+	uint32 result = ai->GetSpellOfRank(spellID, rank);
+	if (result == 0)
+		luaL_error(L, "AI.GetSpellOfRank: error, check logs. %d", spellID);
+	lua_pushinteger(L, result);
+	return 1;
+}
+
+
+int LuaBindsAI::AI_GetSpellRank(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	int spellID = luaL_checkinteger(L, 2);
+	uint32 result = ai->GetSpellRank(spellID);
+	if (result == 0)
+		luaL_error(L, "AI.GetSpellRank: spell not found. %d", spellID);
+	lua_pushinteger(L, result);
+	return 1;
+}
+
+
+// -----------------------------------------------------------
+//                      Internals
+// -----------------------------------------------------------
 
 
 int LuaBindsAI::AI_GetPartyIntelligence(lua_State* L)
