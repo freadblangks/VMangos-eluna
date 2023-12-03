@@ -196,7 +196,7 @@ void GoalManager::PushGoalOnTerminationQueue( Goal* goal ) {
 }
 
 void GoalManager::PrintRegistered() {
-	for ( auto v : goalInfoData )
+	for ( auto& v : goalInfoData )
 	{
 		printf( "ID: %d\n", v.first );
 		printf( "Name: %s\n", v.second.name.c_str() );
