@@ -1,4 +1,5 @@
 #include "GoalParam.h"
+#include "LuaAI/LuaAgentLibWorldObj.h"
 
 // debug
 GoalParam::~GoalParam() {
@@ -76,3 +77,16 @@ void GoalParamNil::PushToLuaStack( lua_State* L ) {
 	lua_pushnil( L );
 }
 
+//-----------------------------------------------
+// Guid param
+//-----------------------------------------------
+
+// Returns a string representation of a number stored inside by calling std::to_string.
+std::string GoalParamGuid::ToString() {
+	return std::to_string(guid);
+}
+
+// Calls lua_pushnumber on the value stored.
+void GoalParamGuid::PushToLuaStack(lua_State* L) {
+	LuaBindsAI::Guid_CreateUD(L, ObjectGuid(guid));
+}

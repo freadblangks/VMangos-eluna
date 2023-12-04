@@ -26,9 +26,9 @@ public:
 	// Constructs a GoalParamBoolean object with passed value.
 	GoalParamBoolean( bool value );
 	// Returns a string representation of the value stored inside the object. (false or true)
-	std::string ToString();
+	std::string ToString() override;
 	// Calls lua_pushboolean on the value stored.
-	void PushToLuaStack( lua_State* L );
+	void PushToLuaStack( lua_State* L ) override;
 
 };
 
@@ -44,9 +44,9 @@ public:
 	// Constructs a GoalParamString object with passed value.
 	GoalParamString( const char* value );
 	// Returns a copy of the string stored inside the object.
-	std::string ToString();
+	std::string ToString() override;
 	// Calls lua_pushstring on the value stored.
-	void PushToLuaStack( lua_State* L );
+	void PushToLuaStack( lua_State* L ) override;
 
 };
 
@@ -62,9 +62,9 @@ public:
 	// Constructs a GoalParamNumber object with passed value.
 	GoalParamNumber( lua_Number value );
 	// Returns a string representation of a number stored inside by calling std::to_string.
-	std::string ToString();
+	std::string ToString() override;
 	// Calls lua_pushnumber on the value stored.
-	void PushToLuaStack( lua_State* L );
+	void PushToLuaStack( lua_State* L ) override;
 
 };
 
@@ -78,8 +78,25 @@ public:
 	// Constructs a GoalParamNil.
 	GoalParamNil();
 	// Returns a string "nil".
-	std::string ToString();
+	std::string ToString() override;
 	// Calls lua_pushnil.
-	void PushToLuaStack( lua_State* L );
+	void PushToLuaStack( lua_State* L ) override;
+
+};
+
+//-----------------------------------------------
+// Guid param
+//-----------------------------------------------
+
+class GoalParamGuid : public GoalParam {
+	uint64_t guid;
+
+public:
+	// Constructs a GoalParamGuid.
+	GoalParamGuid(uint64_t guid) : guid(guid) {}
+	// Returns a string representation of a guid stored inside by calling std::to_string.
+	std::string ToString() override;
+	// Calls Guid_CreateUD.
+	void PushToLuaStack(lua_State* L) override;
 
 };

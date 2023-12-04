@@ -1,5 +1,6 @@
 #include "Goal.h"
 #include "LuaAI/LuaAgentUtils.h"
+#include "LuaAI/LuaAgentLibWorldObj.h"
 #include "GoalManager.h"
 
 std::vector<GoalParamP> Goal::NOPARAMS{};
@@ -244,6 +245,8 @@ void LuaBindsAI::Goal_GrabParams(lua_State* L, int nArgs, std::vector<GoalParamP
 			else if (lua_type(L, i) == LUA_TSTRING)
 				// GoalParamString takes care of making a copy
 				params.push_back(std::make_shared<GoalParamString>(lua_tostring(L, i)));
+			else if (void* ud = luaL_testudata(L, i, LuaBindsAI::GuidMtName))
+				params.push_back(std::make_shared<GoalParamGuid>(static_cast<LuaObjectGuid*>(ud)->guid.GetRawValue()));
 			else
 				luaL_error(L, "Goal.AddSubGoal - unknown argument type at position %d", i);
 }
