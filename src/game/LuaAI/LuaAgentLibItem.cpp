@@ -131,6 +131,29 @@ int LuaBindsAI::Item_GetItemFromId(lua_State* L)
 }
 
 
+int LuaBindsAI::Item_CanEquipToSlot(lua_State* L)
+{
+	LuaAI_Item* item = Item_GetItemObject(L, 1);
+	lua_Integer slot = luaL_checkinteger(L, 2);
+	lua_Integer cls = luaL_checkinteger(L, 3);
+	if (slot < 0 || slot >= EQUIPMENT_SLOT_END)
+		luaL_error(L, "Item_CanEquipToSlot: incorrect slot value, allowed [0, %d], got %d", EQUIPMENT_SLOT_END, slot);
+	if (cls < 0 || cls > CLASS_DRUID)
+		luaL_error(L, "Item_CanEquipToSlot: incorrect class value, allowed [0, %d], got %d", CLASS_DRUID, cls);
+	const ItemPrototype* proto = item->proto;
+	uint8 slots[4] = {};
+	proto->GetAllowedEquipSlots(slots, cls, true);
+	for (auto& possibleSlot : slots)
+		if (slot == possibleSlot)
+		{
+			lua_pushboolean(L, true);
+			return 1;
+		}
+	lua_pushboolean(L, false);
+	return 1;
+}
+
+
 int LuaBindsAI::Item_GetUtility(lua_State* L)
 {
 	luaL_checktype(L, 3, LUA_TTABLE);

@@ -66,6 +66,7 @@ namespace LuaBindsAI {
 
 	int PartyInt_CmdEngage(lua_State* L);
 	int PartyInt_CmdFollow(lua_State* L);
+	int PartyInt_CmdHeal(lua_State* L);
 	int PartyInt_CmdTank(lua_State* L);
 
 	int PartyInt_GetData(lua_State* L);
@@ -79,6 +80,7 @@ namespace LuaBindsAI {
 	static const struct luaL_Reg PartyInt_BindLib[]{
 		{"CmdEngage", PartyInt_CmdEngage},
 		{"CmdFollow", PartyInt_CmdFollow},
+		{"CmdHeal", PartyInt_CmdHeal},
 		{"CmdTank", PartyInt_CmdTank},
 
 		{"GetData", PartyInt_GetData},

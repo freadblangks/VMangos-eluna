@@ -4,6 +4,7 @@
 #include "LuaAgentLibPlayer.h"
 #include "lua.hpp"
 #include "Bag.h"
+#include "Chat.h"
 
 const char* LuaAgent::AI_MTNAME = "Object.AI";
 
@@ -30,7 +31,10 @@ LuaAgent::LuaAgent(Player* me, ObjectGuid masterGuid, int logicID) :
 	m_party(nullptr),
 
 	m_stdThreat(10.f),
-	m_healTarget()
+	m_healTarget(),
+
+	m_queueGoname(false),
+	m_queueGonameName("")
 {
 	m_updateTimer.Reset(2000);
 	m_topGoal.SetTerminated(true);
@@ -59,6 +63,14 @@ void LuaAgent::Update(uint32 diff)
 		m_updateTimer.Reset(m_updateInterval);
 	else
 		return;
+
+	// catch up was queued
+	if (m_queueGoname) {
+		m_queueGoname = false;
+		GonameCommand(m_queueGonameName);
+		m_queueGonameName = "";
+		return;
+	}
 
 	// not safe to update
 	if (!me || !IsReady() || me->IsTaxiFlying())
@@ -109,6 +121,7 @@ void LuaAgent::Update(uint32 diff)
 
 void LuaAgent::Reset(bool dropRefs)
 {
+	SetHealTarget(ObjectGuid());
 
 	// clear goals
 	m_topGoal = Goal(-1, 0, Goal::NOPARAMS, nullptr, nullptr);
@@ -152,6 +165,10 @@ void LuaAgent::Reset(bool dropRefs)
 		UnrefUserTbl(L);
 	}
 	m_bInitialized = false;
+	m_queueGoname = false;
+	m_queueGonameName = "";
+	m_bCmdQueueMode = false;
+	m_stdThreat = 10.f;
 
 }
 
@@ -175,6 +192,24 @@ void LuaAgent::Init()
 
 void LuaAgent::UpdateSession(uint32 diff)
 {
+	if (me->IsBeingTeleported())
+		if (me->IsBeingTeleportedNear())
+		{
+			WorldPacket p = WorldPacket(MSG_MOVE_TELEPORT_ACK);
+			p << me->GetObjectGuid();
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_9_4
+			p << me->GetLastCounterForMovementChangeType(TELEPORT);
+#endif
+			p << (uint32) time(nullptr); // time - not currently used
+			me->GetSession()->HandleMoveTeleportAckOpcode(p);
+			m_updateTimer.Reset(2000);
+		}
+		else if (me->IsBeingTeleportedFar())
+		{
+			me->GetSession()->HandleMoveWorldportAckOpcode();
+			m_updateTimer.Reset(2000);
+		}
+
 	WorldSession* session = me->GetSession();
 	for (int i = 0; i < PACKET_PROCESS_MAX_TYPE; i++)
 	{
@@ -193,7 +228,7 @@ void LuaAgent::OnPacketReceived(const WorldPacket& pck)
 	switch (pck.GetOpcode())
 	{
 	case SMSG_GROUP_INVITE:
-
+	{
 		WorldPacket pck(pck);
 		std::string name;
 		pck >> name;
@@ -209,6 +244,7 @@ void LuaAgent::OnPacketReceived(const WorldPacket& pck)
 			me->GetSession()->QueuePacket(std::move(std::make_unique<WorldPacket>(CMSG_GROUP_ACCEPT)));
 
 		break;
+	}
 	}
 }
 
@@ -450,21 +486,6 @@ uint32 LuaAgent::GetSpellLevel(uint32 spellID)
 }
 
 
-std::string LuaAgent::GetSpellName(uint32 spellID)
-{
-
-	auto info_orig = sSpellMgr.GetSpellEntry(spellID);
-	// spell not found
-	if (!info_orig) {
-		sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "GetSpellName: spell %d not found.", spellID);
-		return "";
-	}
-
-	return info_orig->SpellName[0];
-
-}
-
-
 uint32 LuaAgent::GetSpellRank(uint32 spellID)
 {
 	auto info_orig = sSpellMgr.GetSpellEntry(spellID);
@@ -597,4 +618,25 @@ uint32 LuaAgent::GetSpellOfRank(uint32 spellID, uint32 rank)
 
 	return info_next->Id;
 
+}
+
+
+void LuaAgent::GonameCommandQueue(std::string name) {
+	m_queueGoname = true;
+	m_queueGonameName = name;
+}
+
+
+void LuaAgent::GonameCommand(std::string name) {
+	// will crash if moving
+	if (!me->IsStopped())
+		me->StopMoving();
+	me->GetMotionMaster()->Clear(false, true);
+	me->GetMotionMaster()->MoveIdle();
+	me->ClearTarget();
+	//m_topGoal = Goal(0, 0, Goal::NOPARAMS, nullptr, nullptr);
+	//m_topGoal.SetTerminated(true);
+	char namecopy[128] = {};
+	strcpy(namecopy, name.c_str());
+	ChatHandler(me).HandleGonameCommand(namecopy);
 }

@@ -23,6 +23,9 @@ enum class LuaAgentRoles {
 
 class LuaAgent
 {
+	bool m_queueGoname;
+	std::string m_queueGonameName;
+
 	float m_stdThreat;
 	ObjectGuid m_healTarget;
 
@@ -88,6 +91,9 @@ public:
 	ObjectGuid& GetHealTarget() { return m_healTarget; }
 	void SetHealTarget(const ObjectGuid& guid) { m_healTarget = guid; }
 
+	void GonameCommand(std::string name);
+	void GonameCommandQueue(std::string name);
+
 	// equipment
 
 	bool EquipCopyFromMaster();
@@ -133,7 +139,6 @@ public:
 	uint32 GetSpellMaxRankForMe(uint32 lastSpell);
 	uint32 GetSpellMaxRankForLevel(uint32 lastSpell, uint32 level);
 	uint32 GetSpellOfRank(uint32 lastSpell, uint32 rank);
-	std::string GetSpellName(uint32 spellID);
 	uint32 GetSpellLevel(uint32 spellID);
 
 	const ObjectGuid& GetMasterGuid() { return m_masterGuid; }

@@ -6,6 +6,7 @@ struct lua_State;
 namespace LuaBindsAI {
 	int GetUnitByGuid(lua_State* L);
 	int GetPlayerByGuid(lua_State* L);
+	int GetSpellName(lua_State* L);
 }
 
 #endif

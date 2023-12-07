@@ -87,6 +87,29 @@ void LuaBindsAI::Player_CreateMetatable(lua_State* L) {
 }
 
 
+int LuaBindsAI::Player_HasSpell(lua_State* L)
+{
+	Player* me = Player_GetPlayerObject(L);
+	lua_Integer spellID = luaL_checkinteger(L, 2);
+	if (!sSpellMgr.GetSpellEntry(spellID))
+		luaL_error(L, "Player_HasSpell: spell %d not found", spellID);
+	lua_pushboolean(L, me->HasSpell(spellID));
+	return 1;
+}
+
+
+int LuaBindsAI::Player_LearnSpell(lua_State* L)
+{
+	Player* me = Player_GetPlayerObject(L);
+	lua_Integer spellID = luaL_checkinteger(L, 2);
+	if (!sSpellMgr.GetSpellEntry(spellID))
+		luaL_error(L, "Player_LearnSpell: spell %d not found", spellID);
+	if (!me->HasSpell(spellID))
+		me->LearnSpell(spellID, false);
+	return 0;
+}
+
+
 int LuaBindsAI::Player_GetTalentTbl(lua_State* L) {
 	Player* me = Player_GetPlayerObject(L);
 

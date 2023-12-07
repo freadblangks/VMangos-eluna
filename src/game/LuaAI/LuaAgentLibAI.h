@@ -15,6 +15,7 @@ namespace LuaBindsAI {
 	LuaAgent* AI_GetAIObject(lua_State* L, int idx = 1);
 
 	int AI_AddTopGoal(lua_State* L);
+	int AI_HasTopGoal(lua_State* L);
 	int AI_GetUserTbl(lua_State* L);
 
 	int AI_GetStdThreat(lua_State* L);
@@ -23,6 +24,8 @@ namespace LuaBindsAI {
 	int AI_SetHealTarget(lua_State* L);
 
 	int AI_IsFollowing(lua_State* L);
+
+	int AI_GoName(lua_State* L);
 
 	// equip
 
@@ -62,7 +65,6 @@ namespace LuaBindsAI {
 
 	int AI_GetSpellChainFirst(lua_State* L);
 	int AI_GetSpellChainPrev(lua_State* L);
-	int AI_GetSpellName(lua_State* L);
 	int AI_GetSpellLevel(lua_State* L);
 	int AI_GetSpellRank(lua_State* L);
 	int AI_GetSpellOfRank(lua_State* L);
@@ -71,6 +73,7 @@ namespace LuaBindsAI {
 
 	static const struct luaL_Reg AI_BindLib[]{
 		{"AddTopGoal", AI_AddTopGoal},
+		{"HasTopGoal", AI_HasTopGoal},
 		{"GetData", AI_GetUserTbl},
 
 		{"GetStdThreat", AI_GetStdThreat},
@@ -79,6 +82,8 @@ namespace LuaBindsAI {
 		{"SetHealTarget", AI_SetHealTarget},
 
 		{"IsFollowing", AI_IsFollowing},
+
+		{"GoName", AI_GoName},
 
 		// equip
 		{"EquipCopyFromMaster", AI_EquipCopyFromMaster},
@@ -111,6 +116,15 @@ namespace LuaBindsAI {
 		{"GetPlayer", AI_GetPlayer},
 
 		{"SetRole", AI_SetRole},
+
+		// spell
+		{"GetSpellChainFirst", AI_GetSpellChainFirst},
+		{"GetSpellChainPrev", AI_GetSpellChainPrev},
+		{"GetSpellLevel", AI_GetSpellLevel},
+		{"GetSpellRank", AI_GetSpellRank},
+		{"GetSpellOfRank", AI_GetSpellOfRank},
+		{"GetSpellMaxRankForLevel", AI_GetSpellMaxRankForLevel},
+		{"GetSpellMaxRankForMe", AI_GetSpellMaxRankForMe},
 
 		{NULL, NULL}
 	};

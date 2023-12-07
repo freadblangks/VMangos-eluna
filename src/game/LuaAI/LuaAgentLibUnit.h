@@ -33,6 +33,7 @@ namespace LuaBindsAI {
 	int Unit_InterruptSpell(lua_State* L);
 	int Unit_IsCastingHeal(lua_State* L);
 	int Unit_IsInPositionToCast(lua_State* L);
+	int Unit_IsInLOS(lua_State* L);
 
 	// Info
 
@@ -73,6 +74,7 @@ namespace LuaBindsAI {
 	int Unit_GetGuid(lua_State* L);
 	int Unit_GetLevel(lua_State* L);
 	int Unit_GetName(lua_State* L);
+	int Unit_GetRace(lua_State* L);
 	int Unit_GetRole(lua_State* L);
 
 	// Motion control
@@ -94,6 +96,7 @@ namespace LuaBindsAI {
 		{"InterruptSpell", Unit_InterruptSpell},
 		{"IsCastingHeal", Unit_IsCastingHeal},
 		{"IsInPositionToCast", Unit_IsInPositionToCast},
+		{"IsInLOS", Unit_IsInLOS},
 
 		// Info
 		{"IsAlive", Unit_IsAlive},
@@ -132,6 +135,7 @@ namespace LuaBindsAI {
 		{"GetGuid", Unit_GetGuid},
 		{"GetLevel", Unit_GetLevel},
 		{"GetName", Unit_GetName},
+		{"GetRace", Unit_GetRace},
 		{"GetRole", Unit_GetRole},
 
 		// motion

@@ -76,7 +76,11 @@ int LuaBindsAI::Unit_CastSpell(lua_State* L)
 	lua_Integer spellId = luaL_checkinteger(L, 3);
 	bool triggered = luaL_checkboolean(L, 4);
 	if (const SpellEntry* spell = sSpellMgr.GetSpellEntry(spellId))
+	{
+		if ((spell->InterruptFlags & SpellInterruptFlags::SPELL_INTERRUPT_FLAG_MOVEMENT) && !unit->IsStopped())
+			unit->StopMoving();
 		lua_pushinteger(L, unit->CastSpell(target, spell, triggered));
+	}
 	else
 		luaL_error(L, "Unit_CastSpell: spell %d doesn't exist", spellId);
 	return 1;
@@ -104,7 +108,7 @@ int LuaBindsAI::Unit_GetPowerCost(lua_State* L)
 		lua_pushnumber(L, Spell::CalculatePowerCost(spell, unit, &s));
 	}
 	else
-		luaL_error(L, "Unit_CastSpell: spell %d doesn't exist", spellId);
+		luaL_error(L, "Unit_GetPowerCost: spell %d doesn't exist", spellId);
 	return 1;
 }
 
@@ -128,15 +132,15 @@ int LuaBindsAI::Unit_GetSpellDamageAndThreat(lua_State* L)
 		Spell s(unit, spellProto, true);
 		float damage = s.CalculateDamage(SpellEffectIndex(effIdx), unitTarget);
 		float threat = 0.f;
-		if (forceCalc || unitTarget->CanHaveThreatList())
+		if (forceCalc || isHealSpell || unitTarget->CanHaveThreatList())
 		{
 			if (isHealSpell)
 			{
 				damage = unit->SpellHealingBonusDone(unitTarget, spellProto, SpellEffectIndex(effIdx), damage, DamageEffectType::HEAL, 1, &s);
 				damage = unitTarget->SpellHealingBonusTaken(unit, spellProto, SpellEffectIndex(effIdx), damage, DamageEffectType::HEAL, 1, &s);
-				threat = damage * unit->GetClass() == Classes::CLASS_PALADIN ? 0.25f : 0.5f;
+				threat = damage * (unit->GetClass() == Classes::CLASS_PALADIN ? 0.25f : 0.5f);
 				uint32 size = unitTarget->GetHostileRefManager().getSize();
-				threat /= size ? 1 : size;
+				threat /= size ? size : 1;
 			}
 			else if (spellProto->IsDirectDamageSpell())
 				threat = damage;
@@ -163,7 +167,7 @@ int LuaBindsAI::Unit_GetSpellCastLeft(lua_State* L)
 {
 	Unit* unit = Unit_GetUnitObject(L);
 	if (Spell* spell = unit->GetCurrentSpell(CurrentSpellTypes::CURRENT_GENERIC_SPELL))
-		lua_pushinteger(L, spell->GetCastTime() ? lua_Integer(spell->GetCastTime()) - lua_Integer(spell->GetCastedTime()) : 0ll);
+		lua_pushinteger(L, spell->GetCastedTime());
 	else
 		lua_pushinteger(L, 0ll);
 	return 1;
@@ -176,7 +180,7 @@ int LuaBindsAI::Unit_InterruptSpell(lua_State* L)
 	lua_Integer tp = luaL_checkinteger(L, 2);
 	if (tp < 0 || tp > CurrentSpellTypes::CURRENT_CHANNELED_SPELL)
 		luaL_error(L, "Unit_InterruptSpell: invalid spell type. Allowed values [0, %d], got %d", CurrentSpellTypes::CURRENT_CHANNELED_SPELL, tp);
-	unit->InterruptSpell(CurrentSpellTypes(tp));
+	unit->InterruptSpell(CurrentSpellTypes(tp), false);
 	return 0;
 }
 
@@ -197,7 +201,7 @@ int LuaBindsAI::Unit_IsInPositionToCast(lua_State* L)
 	Unit* unit = Unit_GetUnitObject(L);
 	Unit* target = Unit_GetUnitObject(L, 2);
 	lua_Integer spellId = luaL_checkinteger(L, 3);
-	lua_Number dist = luaL_checknumber(L, 4);
+	lua_Number bufferDist = luaL_checknumber(L, 4);
 	if (const SpellEntry* spell = sSpellMgr.GetSpellEntry(spellId))
 	{
 		// Spell::CheckTarget and Spell:CheckRange bits
@@ -217,7 +221,7 @@ int LuaBindsAI::Unit_IsInPositionToCast(lua_State* L)
 			{
 				float const dist = unit->GetCombatDistance(target);
 
-				if (dist > max_range - dist)
+				if (dist > max_range - bufferDist)
 					result = SpellCastResult::SPELL_FAILED_OUT_OF_RANGE;
 				else if (min_range && dist < min_range)
 					result = SpellCastResult::SPELL_FAILED_TOO_CLOSE;
@@ -227,6 +231,15 @@ int LuaBindsAI::Unit_IsInPositionToCast(lua_State* L)
 	}
 	else
 		luaL_error(L, "Unit_IsInPositionToCast: spell %d doesn't exist", spellId);
+	return 1;
+}
+
+
+int LuaBindsAI::Unit_IsInLOS(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	Unit* target = Unit_GetUnitObject(L, 2);
+	lua_pushboolean(L, unit->IsWithinLOSInMap(target));
 	return 1;
 }
 
@@ -561,6 +574,14 @@ int LuaBindsAI::Unit_GetName(lua_State* L)
 {
 	Unit* unit = Unit_GetUnitObject(L);
 	lua_pushstring(L, unit->GetName());
+	return 1;
+}
+
+
+int LuaBindsAI::Unit_GetRace(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_pushinteger(L, unit->GetRace());
 	return 1;
 }
 

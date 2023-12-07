@@ -14,6 +14,11 @@ namespace LuaBindsAI {
 	Player* Player_GetPlayerObject(lua_State* L, int idx = 1);
 	void Player_CreateUD(Player* player, lua_State* L);
 
+	// spells
+
+	int Player_HasSpell(lua_State* L);
+	int Player_LearnSpell(lua_State* L);
+
 	// talents
 
 	int Player_GetTalentTbl(lua_State* L);
@@ -27,6 +32,10 @@ namespace LuaBindsAI {
 	int Player_SendCastSpellUnit(lua_State* L);
 
 	static const struct luaL_Reg Player_BindLib[]{
+		// spells
+		{"HasSpell", Player_HasSpell},
+		{"LearnSpell", Player_LearnSpell},
+
 		// talents
 		{"GetTalentTbl", Player_GetTalentTbl},
 		{"GetTalentRank", Player_GetTalentRank},

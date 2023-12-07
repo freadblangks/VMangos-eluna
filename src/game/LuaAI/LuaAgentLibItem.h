@@ -11,7 +11,7 @@ struct LuaAI_Item
 	Item* item;
 	const ItemPrototype* proto;
 	LuaAI_Item() : item(nullptr), proto(nullptr) {}
-	float GetDps() { return proto->Damage[0].DamageMax / proto->Delay / 1000.f; }
+	float GetDps() { return proto->Damage[0].DamageMax / (proto->Delay / 1000.f); }
 };
 
 namespace LuaBindsAI {
@@ -24,6 +24,7 @@ namespace LuaBindsAI {
 
 	int Item_GetItemFromId(lua_State* L);
 
+	int Item_CanEquipToSlot(lua_State* L);
 	int Item_GetArmor(lua_State* L);
 	int Item_GetContextualLevel(lua_State* L);
 	int Item_GetDamage(lua_State* L);
@@ -43,6 +44,7 @@ namespace LuaBindsAI {
 	int Item_PrintItemsOfType(lua_State* L);
 
 	static const struct luaL_Reg Item_BindLib[]{
+		{"CanEquipToSlot", Item_CanEquipToSlot},
 		{"GetArmor", Item_GetArmor},
 		{"GetContextualLevel", Item_GetContextualLevel},
 		{"GetDamage", Item_GetDamage},

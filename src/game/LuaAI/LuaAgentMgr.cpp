@@ -76,11 +76,9 @@ LuaAgentMgr::LuaAgentMgr() : m_bLuaCeaseUpdates(false), m_bLuaReload(false), L(n
 }
 
 
-LuaAgentMgr::~LuaAgentMgr()
+LuaAgentMgr::~LuaAgentMgr() noexcept
 {
-	m_agents = LuaAgentMap();
 	if (L) lua_close(L);
-	L = nullptr;
 }
 
 
@@ -375,6 +373,10 @@ void LuaAgentMgr::__RemoveAgents()
 			m_agents.erase(guid);
 		}
 	m_toRemove.clear();
+
+	for (auto itr = m_toRemoveParties.rbegin(); itr != m_toRemoveParties.rend(); ++itr)
+		m_parties.erase(m_parties.begin() + *itr);
+	m_toRemoveParties.clear();
 }
 
 
@@ -388,7 +390,8 @@ void LuaAgentMgr::LogoutAllAgents()
 {
 	for (auto& itr : m_agents)
 		m_toRemove.insert(itr.first);
-	m_parties.clear();
+	for (size_t i = 0; i < m_parties.size(); ++i)
+		m_toRemoveParties.insert(i);
 }
 
 

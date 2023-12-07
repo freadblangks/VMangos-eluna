@@ -41,6 +41,7 @@ class LuaAgentMgr
 	bool m_bLuaCeaseUpdates;
 	bool m_bLuaReload;
 
+	std::set<uint32> m_toRemoveParties;
 	std::vector<std::unique_ptr<PartyIntelligence>> m_parties;
 	LuaAgentMap m_agents;
 	std::set<ObjectGuid> m_toRemove;
@@ -75,7 +76,7 @@ public:
 		CHAR_OK,
 	};
 
-	~LuaAgentMgr();
+	~LuaAgentMgr() noexcept;
 
 	lua_State* Lua() { return L; }
 

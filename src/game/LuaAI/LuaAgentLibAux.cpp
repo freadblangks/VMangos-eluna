@@ -22,3 +22,14 @@ int LuaBindsAI::GetPlayerByGuid(lua_State* L) {
 	lua_pushplayerornil(L, sObjectAccessor.FindPlayer(guid));
 	return 1;
 }
+
+
+int LuaBindsAI::GetSpellName(lua_State* L) {
+	lua_Integer spellID = luaL_checkinteger(L, 1);
+	auto info_orig = sSpellMgr.GetSpellEntry(spellID);
+	// spell not found
+	if (!info_orig)
+		luaL_error(L, "GetSpellName: spell %d not found", spellID);
+	lua_pushstring(L, info_orig->SpellName[0].c_str());
+	return 1;
+}

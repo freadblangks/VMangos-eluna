@@ -77,6 +77,19 @@ int LuaBindsAI::AI_AddTopGoal(lua_State* L)
 }
 
 
+int LuaBindsAI::AI_HasTopGoal(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	lua_Integer id = luaL_checkinteger(L, 2);
+	bool result = false;
+	if (Goal* goal = ai->GetTopGoal())
+		if (!goal->GetTerminated() && goal->GetGoalId() == id)
+			result = true;
+	lua_pushboolean(L, result);
+	return 1;
+}
+
+
 int LuaBindsAI::AI_GetUserTbl(lua_State* L) {
 	LuaAgent* ai = AI_GetAIObject(L);
 	lua_rawgeti(L, LUA_REGISTRYINDEX, ai->GetUserTblRef());
@@ -141,6 +154,16 @@ int LuaBindsAI::AI_IsFollowing(lua_State* L)
 
 	return 1;
 }
+
+
+int LuaBindsAI::AI_GoName(lua_State* L) {
+	LuaAgent* ai = AI_GetAIObject(L);
+	char name[128] = {};
+	strcpy(name, luaL_checkstring(L, 2));
+	ai->GonameCommandQueue(name);
+	return 0;
+}
+
 
 
 // -----------------------------------------------------------
@@ -384,18 +407,6 @@ int LuaBindsAI::AI_GetSpellMaxRankForMe(lua_State* L)
 	if (result == 0 && !sSpellMgr.GetSpellEntry(spellID))
 		luaL_error(L, "AI.GetSpellMaxRankForMe: spell doesn't exist. %d", spellID);
 	lua_pushinteger(L, result);
-	return 1;
-}
-
-
-int LuaBindsAI::AI_GetSpellName(lua_State* L)
-{
-	LuaAgent* ai = AI_GetAIObject(L);
-	int spellID = luaL_checkinteger(L, 2);
-	std::string result = ai->GetSpellName(spellID);
-	if (result.size() == 0)
-		luaL_error(L, "AI.GetSpellName: spell not found. %d", spellID);
-	lua_pushstring(L, result.c_str());
 	return 1;
 }
 

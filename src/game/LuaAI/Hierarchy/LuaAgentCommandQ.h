@@ -101,7 +101,7 @@ class AgentCmdHeal : public AgentCmd
 	lua_Integer curHeals;
 
 public:
-	AgentCmdHeal(float angle, const ObjectGuid& targetGuid, lua_Integer numHeals)
+	AgentCmdHeal(const ObjectGuid& targetGuid, lua_Integer numHeals)
 		: AgentCmd(AgentCmdType::Heal), targetGuid(targetGuid), numHeals(numHeals), curHeals(0ll) {}
 	int Push(lua_State* L) override;
 	int AddProgress(lua_State* L, int idx) override { curHeals++; return 0; }

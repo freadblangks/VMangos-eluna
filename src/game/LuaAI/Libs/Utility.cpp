@@ -184,7 +184,7 @@ void Utility::GetItemUtility(lua_State* L, LuaAI_Item* item, Player* agent)
 	if (rp.id != 0)
 		score += rp.score;
 
-	printf("] score=%f %d\n", score, lua_gettop(L));
+	printf("] score=%f %d %s\n", score, lua_gettop(L), proto->Name1);
 	lua_pushinteger(L, rp.id);
 	lua_pushnumber(L, score);
 }

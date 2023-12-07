@@ -798,6 +798,7 @@ void LuaAIFollowMovementGenerator<T>::Finalize(T &owner)
 {
     owner.ClearUnitState(UNIT_STAT_FOLLOW | UNIT_STAT_FOLLOW_MOVE);
     _updateSpeed(owner);
+    owner.StopMoving();
     //MovementInform(owner);
 }
 

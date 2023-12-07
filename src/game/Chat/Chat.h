@@ -93,6 +93,7 @@ class ChatHandler
     friend class CombatBotBaseAI;
     friend class PartyBotAI;
     friend class BattleBotAI;
+    friend class LuaAgent;
     public:
         explicit ChatHandler(WorldSession* session);
         explicit ChatHandler(Player* player);
