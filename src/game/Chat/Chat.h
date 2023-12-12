@@ -263,6 +263,7 @@ class ChatHandler
         bool HandlePartyBotSetRoleCommand(char * args);
         bool HandlePartyBotAttackStartCommand(char * args);
         bool HandlePartyBotAttackStopCommand(char * args);
+        bool HandlePartyBotPullCommand(char * args);
         bool HandlePartyBotAoECommand(char * args);
         bool HandlePartyBotControlMarkCommand(char * args);
         bool HandlePartyBotFocusMarkCommand(char * args);
@@ -278,6 +279,7 @@ class ChatHandler
         bool HandleBattleBotAddArathiCommand(char* args);
         bool HandleBattleBotAddWarsongCommand(char* args);
         bool HandleBattleBotRemoveCommand(char* args);
+        bool HandleBattleBotRemoveAllCommand(char* args);
         bool HandleBattleBotShowPathCommand(char* args);
         bool HandleBattleBotShowAllPathsCommand(char* args);
 
