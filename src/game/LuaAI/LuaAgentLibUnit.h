@@ -44,6 +44,8 @@ namespace LuaBindsAI {
 
 	int Unit_GetAttackersNum(lua_State* L);
 	int Unit_GetDistance(lua_State* L);
+	int Unit_GetPosition(lua_State* L);
+
 	int Unit_GetHealth(lua_State* L);
 	int Unit_GetHealthPct(lua_State* L);
 	int Unit_GetMaxHealth(lua_State* L);
@@ -81,8 +83,11 @@ namespace LuaBindsAI {
 
 	int Unit_ClearMotion(lua_State* L);
 	int Unit_GetMotionType(lua_State* L);
+	int Unit_IsMoving(lua_State* L);
 	int Unit_MoveFollow(lua_State* L);
 	int Unit_MoveChase(lua_State* L);
+	int Unit_MovePoint(lua_State* L);
+	int Unit_StopMoving(lua_State* L);
 
 	static const struct luaL_Reg Unit_BindLib[]{
 		// Attacking
@@ -106,6 +111,8 @@ namespace LuaBindsAI {
 
 		{"GetAttackersNum", Unit_GetAttackersNum},
 		{"GetDistance", Unit_GetDistance},
+		{"GetPosition", Unit_GetPosition},
+
 		{"GetHealth", Unit_GetHealth},
 		{"GetHealthPct", Unit_GetHealthPct},
 		{"GetMaxHealth", Unit_GetMaxHealth},
@@ -141,8 +148,11 @@ namespace LuaBindsAI {
 		// motion
 		{"ClearMotion", Unit_ClearMotion},
 		{"GetMotionType", Unit_GetMotionType},
+		{"IsMoving", Unit_IsMoving},
 		{"MoveFollow", Unit_MoveFollow},
 		{"MoveChase", Unit_MoveChase},
+		{"MovePoint", Unit_MovePoint},
+		{"StopMoving", Unit_StopMoving},
 
 		{NULL, NULL}
 	};

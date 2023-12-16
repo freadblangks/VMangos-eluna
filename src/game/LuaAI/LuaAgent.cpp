@@ -32,6 +32,7 @@ LuaAgent::LuaAgent(Player* me, ObjectGuid masterGuid, int logicID) :
 
 	m_stdThreat(10.f),
 	m_healTarget(),
+	m_ammo(0u),
 
 	m_queueGoname(false),
 	m_queueGonameName("")

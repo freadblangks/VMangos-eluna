@@ -12,6 +12,7 @@ enum class AgentCmdType : uint8
 	Engage,
 	Tank,
 	Heal,
+	Pull,
 	Max,
 };
 
@@ -108,6 +109,16 @@ public:
 	bool MinReqMet() override { return curHeals >= numHeals; }
 	void MinReqProgress(lua_State* L, int idx) override { curHeals = luaL_checkinteger(L, idx); }
 	int GetProgress(lua_State* L) override { lua_pushinteger(L, numHeals - curHeals); return 1; }
+};
+
+
+class AgentCmdPull : public AgentCmd
+{
+	ObjectGuid targetGuid;
+
+public:
+	AgentCmdPull(const ObjectGuid& targetGuid) : AgentCmd(AgentCmdType::Pull), targetGuid(targetGuid) {}
+	int Push(lua_State* L) override;
 };
 
 

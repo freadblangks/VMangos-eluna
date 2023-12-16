@@ -294,6 +294,15 @@ class ChatHandler
         bool HandleLuabGroupAllCommand(char* args);
         bool HandleLuabReviveAllCommand(char* args);
 
+        bool HandleLuabCLinePointCommand(char* args);
+        bool HandleLuabCLineMoveCommand(char* args);
+        bool HandleLuabCLineRemoveCommand(char* args);
+        bool HandleLuabCLineRemoveLastCommand(char* args);
+        bool HandleLuabCLineWriteCommand(char* args);
+        bool HandleLuabCLineFinishCommand(char* args);
+        bool HandleLuabCLineNewLineCommand(char* args);
+        bool HandleLuabCLineLoadFromCommand(char* args);
+
         // spell_disabled
         bool HandleReloadSpellDisabledCommand(char *args);
         // AutoBroadCast

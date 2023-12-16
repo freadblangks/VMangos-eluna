@@ -443,6 +443,8 @@ set (game_SRCS
     LuaAI/Hierarchy/LuaAgentCommandQ.h
     LuaAI/Libs/Utility.cpp
     LuaAI/Libs/Utility.h
+    LuaAI/Libs/CLine.cpp
+    LuaAI/Libs/CLine.h
     LuaAI/LuaAgentBindsCommon.cpp
     LuaAI/LuaAgentBindsCommon.h
     LuaAI/LuaAgentUtils.cpp

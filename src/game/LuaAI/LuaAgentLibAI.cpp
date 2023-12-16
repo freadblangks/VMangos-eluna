@@ -6,6 +6,7 @@
 #include "LuaAgent.h"
 #include "LuaAgentLibWorldObj.h"
 #include "LuaAgentMovementGenerator.h"
+#include "PointMovementGenerator.h"
 #include "Hierarchy/LuaAgentPartyInt.h"
 
 
@@ -138,6 +139,17 @@ int LuaBindsAI::AI_SetHealTarget(lua_State* L)
 }
 
 
+int LuaBindsAI::AI_IsCLineAvailable(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	if (PartyIntelligence* pi = ai->GetPartyIntelligence())
+		lua_pushboolean(L, pi->HasCLineFor(ai->GetPlayer()));
+	else
+		lua_pushboolean(L, false);
+	return 1;
+}
+
+
 int LuaBindsAI::AI_IsFollowing(lua_State* L)
 {
 	LuaAgent* ai = AI_GetAIObject(L);
@@ -156,6 +168,31 @@ int LuaBindsAI::AI_IsFollowing(lua_State* L)
 }
 
 
+int LuaBindsAI::AI_IsMovingTo(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	lua_Number x = luaL_checknumber(L, 2);
+	lua_Number y = luaL_checknumber(L, 3);
+	lua_Number z = luaL_checknumber(L, 4);
+	Player* agent = ai->GetPlayer();
+
+	if (agent->GetMotionMaster()->GetCurrentMovementGeneratorType() != MovementGeneratorType::POINT_MOTION_TYPE)
+		lua_pushboolean(L, false);
+	else
+		if (auto constFollowGen = dynamic_cast<const PointMovementGenerator<Player>*>(agent->GetMotionMaster()->GetCurrent()))
+		{
+			float dx, dy, dz;
+			constFollowGen->GetDestination(dx, dy, dz);
+			float d2 = (dx - x) * (dx - x) + (dy - y) * (dy - y) + (dz - z) * (dz - z);
+			lua_pushboolean(L, d2 < 1);
+		}
+		else
+			lua_pushboolean(L, false);
+
+	return 1;
+}
+
+
 int LuaBindsAI::AI_GoName(lua_State* L) {
 	LuaAgent* ai = AI_GetAIObject(L);
 	char name[128] = {};
@@ -163,7 +200,6 @@ int LuaBindsAI::AI_GoName(lua_State* L) {
 	ai->GonameCommandQueue(name);
 	return 0;
 }
-
 
 
 // -----------------------------------------------------------
@@ -234,6 +270,25 @@ int LuaBindsAI::AI_EquipPrint(lua_State* L)
 int LuaBindsAI::AI_UpdateVisibilityForMaster(lua_State* L)
 {
 	AI_GetAIObject(L)->UpdateVisibilityForMaster();
+	return 0;
+}
+
+
+int LuaBindsAI::AI_GetAmmo(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	lua_pushinteger(L, ai->GetAmmo());
+	return 1;
+}
+
+
+int LuaBindsAI::AI_SetAmmo(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	lua_Integer ammo = luaL_checkinteger(L, 2);
+	if (!sObjectMgr.GetItemPrototype(ammo))
+		luaL_error(L, "AI_SetAmmo: item %d doesn't exist", ammo);
+	ai->SetAmmo(ammo);
 	return 0;
 }
 

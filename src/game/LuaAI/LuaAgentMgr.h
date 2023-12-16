@@ -3,6 +3,7 @@
 #define MANGOS_LUAAGENTMANAGER_H
 
 struct lua_State;
+struct CLineNet;
 class PartyIntelligence;
 
 typedef std::unordered_map<ObjectGuid, Player*> LuaAgentMap;
@@ -30,9 +31,9 @@ public:
 
 class LuaAgentMgr
 {
-	std::mutex loginMutex;
-
 	friend class LuaAgentCharacterHandler;
+
+	std::mutex loginMutex;
 
 	lua_State* L;
 
@@ -46,6 +47,8 @@ class LuaAgentMgr
 	LuaAgentMap m_agents;
 	std::set<ObjectGuid> m_toRemove;
 	std::map<ObjectGuid, LuaAgentInfoHolder> m_toAdd;
+
+	std::unordered_map<uint32, std::unique_ptr<CLineNet>> m_clines;
 
 	LuaAgentMgr();
 
@@ -99,6 +102,16 @@ public:
 	void GroupAll(Player* owner);
 	void ReviveAll(Player* owner, float hp = 1.0, bool sickness = false);
 	bool IsGroupAllInProgress() { return m_bGroupAllInProgress; }
+
+	void CLineNewLine();
+	void CLineSaveSeg(G3D::Vector3& point, Player* gm);
+	void CLineMoveSeg(G3D::Vector3& newpos, Player* gm, const ObjectGuid& helper);
+	void CLineDelLastSeg(Player* gm);
+	void CLineWrite();
+	void CLineLoadFrom(const std::string& fname, Player* gm);
+	void CLineLoad(const std::string& fname);
+	void CLineFinish(Player* gm);
+	CLineNet* CLineGet(uint32 key);
 
 	static LuaAgentMgr& getInstance()
 	{

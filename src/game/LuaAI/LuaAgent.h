@@ -26,6 +26,7 @@ class LuaAgent
 	bool m_queueGoname;
 	std::string m_queueGonameName;
 
+	uint32 m_ammo;
 	float m_stdThreat;
 	ObjectGuid m_healTarget;
 
@@ -103,6 +104,8 @@ public:
 	bool EquipItem(uint32 itemId, uint32 enchantId = 0u, int32 randomPropertyId = 0);
 	void EquipPrint();
 	void UpdateVisibilityForMaster();
+	void SetAmmo(uint32 ammo) { m_ammo = ammo; }
+	uint32 GetAmmo() { return m_ammo; }
 
 	// commands
 

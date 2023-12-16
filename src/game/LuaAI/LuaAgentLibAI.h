@@ -23,7 +23,9 @@ namespace LuaBindsAI {
 	int AI_GetHealTarget(lua_State* L);
 	int AI_SetHealTarget(lua_State* L);
 
+	int AI_IsCLineAvailable(lua_State* L);
 	int AI_IsFollowing(lua_State* L);
+	int AI_IsMovingTo(lua_State* L);
 
 	int AI_GoName(lua_State* L);
 
@@ -36,6 +38,8 @@ namespace LuaBindsAI {
 	int AI_EquipGetRandomProp(lua_State* L);
 	int AI_EquipPrint(lua_State* L);
 	int AI_UpdateVisibilityForMaster(lua_State* L);
+	int AI_SetAmmo(lua_State* L);
+	int AI_GetAmmo(lua_State* L);
 
 	// commands
 
@@ -81,7 +85,9 @@ namespace LuaBindsAI {
 		{"GetHealTarget", AI_GetHealTarget},
 		{"SetHealTarget", AI_SetHealTarget},
 
+		{"IsCLineAvailable", AI_IsCLineAvailable},
 		{"IsFollowing", AI_IsFollowing},
+		{"IsMovingTo", AI_IsMovingTo},
 
 		{"GoName", AI_GoName},
 
@@ -93,6 +99,8 @@ namespace LuaBindsAI {
 		{"EquipGetRandomProp", AI_EquipGetRandomProp},
 		{"EquipPrint", AI_EquipPrint},
 		{"UpdateVisibilityForMaster", AI_UpdateVisibilityForMaster},
+		{"GetAmmo", AI_GetAmmo},
+		{"SetAmmo", AI_SetAmmo},
 
 		// commands
 		{"CmdAddProgress", AI_CmdAddProgress},

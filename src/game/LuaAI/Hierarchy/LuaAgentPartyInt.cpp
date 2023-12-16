@@ -6,6 +6,7 @@
 #include "LuaAI/LuaAgentLibAI.h"
 #include "LuaAI/LuaAgentLibWorldObj.h"
 #include "LuaAI/LuaAgentLibUnit.h"
+#include "LuaAI/Libs/CLine.h"
 
 
 const char* PartyIntelligence::PI_MTNAME = "Object.PartyInt";
@@ -31,7 +32,8 @@ PartyIntelligence::PartyIntelligence(std::string name, ObjectGuid owner) :
 	m_userDataRef(LUA_NOREF),
 	m_bCeaseUpdates(false),
 	m_owner(owner),
-	m_updateInterval(50)
+	m_updateInterval(50),
+	m_cline(nullptr)
 {
 	m_init = m_name + "_Init";
 	m_update = m_name + "_Update";
@@ -134,6 +136,13 @@ void PartyIntelligence::Update(uint32 diff, lua_State* L)
 		SetCeaseUpdates(true);
 		return;
 	}
+
+	if (Player* owner = sObjectAccessor.FindPlayer(m_owner))
+		if (!m_cline || m_cline->mapId != owner->GetMapId())
+			if (CLineNet* cline = sLuaAgentMgr.CLineGet(owner->GetMapId()))
+				m_cline = cline;
+			else
+				m_cline = nullptr;
 }
 
 
@@ -224,6 +233,12 @@ void PartyIntelligence::Unref(lua_State* L)
 }
 
 
+bool PartyIntelligence::HasCLineFor(Unit* agent)
+{
+	return m_cline ? m_cline->mapId == agent->GetMapId() : false;
+}
+
+
 // ---------------------------------------------------------
 //    LUA BINDS
 // ---------------------------------------------------------
@@ -296,6 +311,16 @@ int LuaBindsAI::PartyInt_CmdTank(lua_State* L)
 }
 
 
+int LuaBindsAI::PartyInt_CmdPull(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L, 2);
+	LuaObjectGuid* guid = Guid_GetGuidObject(L, 3);
+	AgentCmdPull* cmd = new AgentCmdPull(guid->guid);
+	lua_pushinteger(L, ai->CommandsAdd(cmd));
+	return 1;
+}
+
+
 int LuaBindsAI::PartyInt_GetOwnerGuid(lua_State* L)
 {
 	PartyIntelligence* intelligence = PartyInt_GetPIObject(L);
@@ -353,3 +378,76 @@ int LuaBindsAI::PartyInt_GetAttackers(lua_State* L)
 	return 1;
 }
 
+
+int LuaBindsAI::PartyInt_HasCLineFor(lua_State* L)
+{
+	PartyIntelligence* intelligence = PartyInt_GetPIObject(L);
+	Unit* unit = Unit_GetUnitObject(L, 2);
+	lua_pushboolean(L, intelligence->HasCLineFor(unit));
+	return 1;
+}
+
+
+int LuaBindsAI::PartyInt_GetNearestCLineP(lua_State* L)
+{
+	PartyIntelligence* intelligence = PartyInt_GetPIObject(L);
+	Unit* unit = Unit_GetUnitObject(L, 2);
+	CLineNet* cline = intelligence->GetCLine();
+	if (!cline)
+		luaL_error(L, "PartyInt_GetNearestCLineP: cline doesn't exist");
+	if (cline->mapId != unit->GetMapId())
+		luaL_error(L, "PartyInt_GetNearestCLineP: cline map mismatch");
+	G3D::Vector3 P;
+	float D;
+	int S;
+	int line = cline->ClosestP(G3D::Vector3(unit->GetPositionX(), unit->GetPositionY(), unit->GetPositionZ()), P, D, S);
+	lua_pushnumber(L, P.x);
+	lua_pushnumber(L, P.y);
+	lua_pushnumber(L, P.z);
+	lua_pushnumber(L, D);
+	lua_pushinteger(L, S);
+	lua_pushinteger(L, line);
+	return 6;
+}
+
+
+int LuaBindsAI::PartyInt_GetPrevCLineS(lua_State* L)
+{
+	PartyIntelligence* intelligence = PartyInt_GetPIObject(L);
+	Unit* unit = Unit_GetUnitObject(L, 2);
+	lua_Integer lineIdx = luaL_checkinteger(L, 3);
+	lua_Integer S = luaL_checkinteger(L, 4);
+	CLineNet* cline = intelligence->GetCLine();
+	if (!cline)
+		luaL_error(L, "PartyInt_GetPrevCLineS: cline doesn't exist");
+	if (cline->mapId != unit->GetMapId())
+		luaL_error(L, "PartyInt_GetPrevCLineS: cline map mismatch");
+	if (cline->lines.size() <= lineIdx || lineIdx < 0)
+		luaL_error(L, "PartyInt_GetPrevCLineS: cline only has %d lines, got %d", cline->lines.size(), lineIdx);
+	if (cline->lines[lineIdx].pts.size() <= S + 1 || S < 0)
+		luaL_error(L, "PartyInt_GetPrevCLineS: cline %d only has %d pts, got %d", lineIdx, cline->lines[lineIdx].pts.size(), S);
+	G3D::Vector3* P = &cline->lines[lineIdx].pts[0].pos;
+	if (S == 0 && lineIdx == 0);
+	else
+	{
+		CLine& line = cline->lines[lineIdx];
+		//if (S == 0)
+		//{
+		//	--lineIdx;
+		//	line = cline->lines[lineIdx];
+		//	S = line.pts.size() - 1;
+		//	P = &line.pts.back().pos;
+		//}
+		//else
+		{
+			if (S > 0) --S;
+			P = &line.pts[S].pos;
+		}
+	}
+	lua_pushnumber(L, P->x);
+	lua_pushnumber(L, P->y);
+	lua_pushnumber(L, P->z);
+	lua_pushinteger(L, S);
+	lua_pushinteger(L, lineIdx);
+	return 5;
+}

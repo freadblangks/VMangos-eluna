@@ -6,6 +6,8 @@
 
 typedef std::unordered_map<ObjectGuid, Player*> LuaAgentMap;
 class LuaAgent;
+class Unit;
+struct CLineNet;
 
 class PartyIntelligence
 {
@@ -25,6 +27,9 @@ public:
 
 	Player* GetAgent(const ObjectGuid& guid);
 	LuaAgentMap& GetAgentMap() { return m_agents; }
+
+	CLineNet* GetCLine() { return m_cline; }
+	bool HasCLineFor(Unit* agent);
 
 	void LoadInfoFromLuaTbl(lua_State* L);
 	void LoadAgents();
@@ -49,6 +54,8 @@ private:
 	int m_updateInterval;
 	ShortTimeTracker m_updateTimer;
 
+	CLineNet* m_cline;
+
 	std::vector<AgentInfo> m_agentInfos;
 	LuaAgentMap m_agents;
 
@@ -68,9 +75,16 @@ namespace LuaBindsAI {
 	int PartyInt_CmdFollow(lua_State* L);
 	int PartyInt_CmdHeal(lua_State* L);
 	int PartyInt_CmdTank(lua_State* L);
+	int PartyInt_CmdPull(lua_State* L);
 
 	int PartyInt_GetData(lua_State* L);
 	int PartyInt_GetOwnerGuid(lua_State* L);
+
+	// cline
+
+	int PartyInt_HasCLineFor(lua_State* L);
+	int PartyInt_GetNearestCLineP(lua_State* L);
+	int PartyInt_GetPrevCLineS(lua_State* L);
 
 	int PartyInt_LoadInfoFromLuaTbl(lua_State* L);
 
@@ -82,9 +96,15 @@ namespace LuaBindsAI {
 		{"CmdFollow", PartyInt_CmdFollow},
 		{"CmdHeal", PartyInt_CmdHeal},
 		{"CmdTank", PartyInt_CmdTank},
+		{"CmdPull", PartyInt_CmdPull},
 
 		{"GetData", PartyInt_GetData},
 		{"GetOwnerGuid", PartyInt_GetOwnerGuid},
+
+		// cline
+		{"HasCLineFor", PartyInt_HasCLineFor},
+		{"GetNearestCLineP", PartyInt_GetNearestCLineP},
+		{"GetPrevCLineS", PartyInt_GetPrevCLineS},
 
 		{"LoadInfoFromLuaTbl", PartyInt_LoadInfoFromLuaTbl},
 

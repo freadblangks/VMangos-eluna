@@ -79,7 +79,18 @@ int LuaBindsAI::Unit_CastSpell(lua_State* L)
 	{
 		if ((spell->InterruptFlags & SpellInterruptFlags::SPELL_INTERRUPT_FLAG_MOVEMENT) && !unit->IsStopped())
 			unit->StopMoving();
-		lua_pushinteger(L, unit->CastSpell(target, spell, triggered));
+		SpellCastResult result = unit->CastSpell(target, spell, triggered);
+		if (result == SpellCastResult::SPELL_FAILED_NO_AMMO)
+			if (Player* player = unit->ToPlayer())
+				if (LuaAgent* ai = player->GetLuaAI())
+					if (uint32 ammo = ai->GetAmmo())
+						if (!player->HasItemCount(ammo))
+						{
+							player->StoreNewItemInBestSlots(ammo, 200u);
+							player->SetAmmo(ammo);
+							result = unit->CastSpell(target, spell, triggered);
+						}
+		lua_pushinteger(L, result);
 	}
 	else
 		luaL_error(L, "Unit_CastSpell: spell %d doesn't exist", spellId);
@@ -298,9 +309,29 @@ int LuaBindsAI::Unit_GetAttackersNum(lua_State* L)
 int LuaBindsAI::Unit_GetDistance(lua_State* L)
 {
 	Unit* unit = Unit_GetUnitObject(L);
-	Unit* target = Unit_GetUnitObject(L, 2);
-	lua_pushnumber(L, unit->GetDistance(target));
+	if (lua_gettop(L) == 2)
+	{
+		Unit* target = Unit_GetUnitObject(L, 2);
+		lua_pushnumber(L, unit->GetDistance(target));
+	}
+	else
+	{
+		lua_Number x = luaL_checknumber(L, 2);
+		lua_Number y = luaL_checknumber(L, 3);
+		lua_Number z = luaL_checknumber(L, 4);
+		lua_pushnumber(L, unit->GetDistance(x, y, z));
+	}
 	return 1;
+}
+
+
+int LuaBindsAI::Unit_GetPosition(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_pushnumber(L, unit->GetPositionX());
+	lua_pushnumber(L, unit->GetPositionY());
+	lua_pushnumber(L, unit->GetPositionZ());
+	return 3;
 }
 
 
@@ -609,6 +640,7 @@ int LuaBindsAI::Unit_ClearMotion(lua_State* L)
 {
 	Unit* unit = Unit_GetUnitObject(L);
 	unit->GetMotionMaster()->Clear();
+	unit->StopMoving();
 	return 0;
 }
 
@@ -617,6 +649,14 @@ int LuaBindsAI::Unit_GetMotionType(lua_State* L)
 {
 	Unit* unit = Unit_GetUnitObject(L);
 	lua_pushnumber(L, unit->GetMotionMaster()->GetCurrentMovementGeneratorType());
+	return 1;
+}
+
+
+int LuaBindsAI::Unit_IsMoving(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_pushboolean(L, unit->IsMoving());
 	return 1;
 }
 
@@ -646,3 +686,25 @@ int LuaBindsAI::Unit_MoveChase(lua_State* L)
 	return 0;
 }
 
+
+int LuaBindsAI::Unit_MovePoint(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_Number x = luaL_checknumber(L, 2);
+	lua_Number y = luaL_checknumber(L, 3);
+	lua_Number z = luaL_checknumber(L, 4);
+	bool force = luaL_checkboolean(L, 5);
+	uint32 options = MoveOptions::MOVE_PATHFINDING;
+	if (force)
+		options |= MoveOptions::MOVE_FORCE_DESTINATION;
+	unit->GetMotionMaster()->MovePoint(2048, x, y, z, options);
+	return 0;
+}
+
+
+int LuaBindsAI::Unit_StopMoving(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	unit->StopMoving();
+	return 0;
+}

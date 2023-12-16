@@ -1156,10 +1156,24 @@ ChatCommand * ChatHandler::getCommandTable()
         { nullptr,              0,                  false, nullptr,                                       "", nullptr }
     };
 
+    static ChatCommand luabCLineCommandTable[] =
+    {
+        { "finish",         SEC_PLAYER,         false, &ChatHandler::HandleLuabCLineFinishCommand,     "", nullptr },
+        { "load",           SEC_PLAYER,         false, &ChatHandler::HandleLuabCLineLoadFromCommand,   "", nullptr },
+        { "move",           SEC_PLAYER,         false, &ChatHandler::HandleLuabCLineMoveCommand,       "", nullptr },
+        { "newline",        SEC_PLAYER,         false, &ChatHandler::HandleLuabCLineNewLineCommand,    "", nullptr },
+        { "point",          SEC_PLAYER,         false, &ChatHandler::HandleLuabCLinePointCommand,      "", nullptr },
+        { "remove",         SEC_PLAYER,         false, &ChatHandler::HandleLuabCLineRemoveCommand,     "", nullptr },
+        { "removelast",     SEC_PLAYER,         false, &ChatHandler::HandleLuabCLineRemoveLastCommand, "", nullptr },
+        { "write",          SEC_PLAYER,         false, &ChatHandler::HandleLuabCLineWriteCommand,      "", nullptr },
+        { nullptr,          0,                  false, nullptr,                                        "", nullptr }
+    };
+
     static ChatCommand luabCommandTable[] =
     {
         { "add",            SEC_PLAYER,         false, &ChatHandler::HandleLuabAddCommand,             "", nullptr },
         { "addparty",       SEC_PLAYER,         false, &ChatHandler::HandleLuabAddPartyCommand,        "", nullptr },
+        { "cline",          SEC_PLAYER,         false, nullptr,                                        "", luabCLineCommandTable },
         { "reset",          SEC_PLAYER,         false, &ChatHandler::HandleLuabResetCommand,           "", nullptr },
         { "remove",         SEC_PLAYER,         false, &ChatHandler::HandleLuabRemoveCommand,          "", nullptr },
         { "removeall",      SEC_PLAYER,         false, &ChatHandler::HandleLuabRemoveAllCommand,       "", nullptr },

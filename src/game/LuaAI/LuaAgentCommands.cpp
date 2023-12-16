@@ -129,3 +129,85 @@ bool ChatHandler::HandleLuabReviveAllCommand(char* args)
 	sLuaAgentMgr.ReviveAll(GetSession()->GetPlayer(), health, sickness == 1);
 	return true;
 }
+
+
+bool ChatHandler::HandleLuabCLinePointCommand(char* args)
+{
+	Player* plyr = GetSession()->GetPlayer();
+	sLuaAgentMgr.CLineSaveSeg(G3D::Vector3(plyr->GetPositionX(), plyr->GetPositionY(), plyr->GetPositionZ()), plyr);
+	return true;
+}
+
+
+bool ChatHandler::HandleLuabCLineMoveCommand(char* args)
+{
+	Creature* go = GetSelectedCreature();
+	if (!go)
+	{
+		SendSysMessage("No point selected.");
+		SetSentErrorMessage(true);
+		return false;
+	}
+	Player* plyr = GetSession()->GetPlayer();
+	sLuaAgentMgr.CLineMoveSeg(G3D::Vector3(plyr->GetPositionX(), plyr->GetPositionY(), plyr->GetPositionZ()), plyr, go->GetObjectGuid());
+	return true;
+}
+
+
+bool ChatHandler::HandleLuabCLineRemoveLastCommand(char* args)
+{
+	Player* plyr = GetSession()->GetPlayer();
+	sLuaAgentMgr.CLineDelLastSeg(plyr);
+	return true;
+}
+
+
+bool ChatHandler::HandleLuabCLineRemoveCommand(char* args)
+{
+	Player* plyr = GetSession()->GetPlayer();
+	Creature* go = GetSelectedCreature();
+	if (!go)
+	{
+		SendSysMessage("No point selected.");
+		SetSentErrorMessage(true);
+		return false;
+	}
+	return true;
+}
+
+
+bool ChatHandler::HandleLuabCLineWriteCommand(char* args)
+{
+	sLuaAgentMgr.CLineWrite();
+	return true;
+}
+
+
+bool ChatHandler::HandleLuabCLineFinishCommand(char* args)
+{
+	sLuaAgentMgr.CLineFinish(GetSession()->GetPlayer());
+	return true;
+}
+
+
+bool ChatHandler::HandleLuabCLineNewLineCommand(char* args)
+{
+	sLuaAgentMgr.CLineNewLine();
+	return true;
+}
+
+
+bool ChatHandler::HandleLuabCLineLoadFromCommand(char* args)
+{
+	std::string name;
+	if (char* nameCstr = ExtractArg(&args))
+		name = std::string(nameCstr);
+	else
+	{
+		SendSysMessage("Incorrect syntax. Expected filename.");
+		SetSentErrorMessage(true);
+		return false;
+	}
+	sLuaAgentMgr.CLineLoadFrom(name, GetSession()->GetPlayer());
+	return true;
+}

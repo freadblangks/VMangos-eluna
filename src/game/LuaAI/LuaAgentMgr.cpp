@@ -11,7 +11,8 @@
 #include "LuaAgentBindsCommon.h"
 #include "LuaAgentUtils.h"
 #include <experimental/filesystem>
-
+#include <fstream>
+#include "Libs/CLine.h"
 
 class LuaAgentLoginQueryHolder : public LoginQueryHolder
 {
@@ -114,6 +115,11 @@ void LuaAgentMgr::LuaLoadFiles(const std::string& fpath) {
 		if (entry.path().extension().generic_string() == ".lua")
 			if (!LuaDofile(entry.path().generic_string()))
 				return;
+
+	for (const auto& entry : std::experimental::filesystem::recursive_directory_iterator(fpath + "/data"))
+		if (entry.path().extension().generic_string() == ".txt")
+			CLineLoad(entry.path().generic_string());
+
 }
 
 
@@ -461,4 +467,121 @@ void LuaAgentMgr::GroupAll(Player* owner)
 		}
 	}
 	SetGroupAllInProgress(false);
+}
+
+// ********************************************************
+// **                       CLINE                        **
+// ********************************************************
+
+namespace
+{
+	CLineNet currentLines;
+	uint32 helperId = VISUAL_WAYPOINT;
+}
+
+
+void LuaAgentMgr::CLineSaveSeg(G3D::Vector3& point, Player* gm)
+{
+	int mapId = gm->GetMap()->GetId();
+	if (currentLines.mapId == -1)
+		currentLines.mapId = mapId;
+
+	if (currentLines.lines.empty())
+		currentLines.lines.emplace_back();
+	CLine& currentCLine = currentLines.lines.back();
+
+	if (mapId != currentLines.mapId)
+	{
+		sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "LuaAgentMgr::CLineSaveSeg: attempt to start a new cline before current is finished");
+		return;
+	}
+
+	currentCLine.Point(point, ObjectGuid());
+	currentCLine.pts.back().SummonHelper(gm, helperId);
+}
+
+
+void LuaAgentMgr::CLineMoveSeg(G3D::Vector3& newpos, Player* gm, const ObjectGuid& helper)
+{
+	int mapId = gm->GetMap()->GetId();
+	if (mapId != currentLines.mapId)
+	{
+		sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "LuaAgentMgr::CLineMoveSeg: attempt to edit cline from a different map");
+		return;
+	}
+
+	if (CLinePoint* point = currentLines.FindPoint(helper))
+		point->Move(newpos, gm, helperId);
+	else
+		sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "LuaAgentMgr::CLineMoveSeg: point not found");
+}
+
+
+void LuaAgentMgr::CLineDelLastSeg(Player* gm)
+{
+	if (currentLines.lines.size())
+	{
+		CLine& line = currentLines.lines.back();
+		if (line.pts.size())
+		{
+			CLinePoint& cpt = line.pts.back();
+			if (!cpt.helper.IsEmpty())
+				if (Creature* c = gm->GetMap()->GetCreature(cpt.helper))
+					c->Kill(c, nullptr, false);
+			line.pts.pop_back();
+		}
+	}
+}
+
+
+void LuaAgentMgr::CLineWrite()
+{
+	currentLines.Write("out_cline.txt");
+}
+
+
+void LuaAgentMgr::CLineFinish(Player* gm)
+{
+	while (currentLines.lines.size())
+	{
+		CLine& line = currentLines.lines.back();
+		while (line.pts.size())
+			CLineDelLastSeg(gm);
+		currentLines.lines.pop_back();
+	}
+	currentLines = CLineNet();
+}
+
+
+void LuaAgentMgr::CLineNewLine()
+{
+	if (currentLines.lines.empty())
+		currentLines.lines.emplace_back();
+	else if (currentLines.lines.back().pts.empty())
+		sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "LuaAgentMgr::CLineNewLine: latest line has no points");
+	else
+		currentLines.lines.emplace_back();
+}
+
+
+void LuaAgentMgr::CLineLoadFrom(const std::string& fname, Player* gm)
+{
+	CLineFinish(gm);
+	currentLines.Load(fname, gm, helperId);
+}
+
+
+void LuaAgentMgr::CLineLoad(const std::string& fname)
+{
+	std::unique_ptr<CLineNet> net = std::make_unique<CLineNet>();
+	net->Load(fname, nullptr, 0u);
+	if (net->mapId)
+		m_clines.emplace(net->mapId, std::move(net));
+}
+
+
+CLineNet* LuaAgentMgr::CLineGet(uint32 key)
+{
+	auto it = m_clines.find(key);
+	return (it == m_clines.end()) ? nullptr : it->second.get();
 }
