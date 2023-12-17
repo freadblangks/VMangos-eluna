@@ -63,12 +63,12 @@ int LuaBindsAI::AI_AddTopGoal(lua_State* L)
 		std::vector<GoalParamP> params;
 		Goal_GrabParams(L, nArgs, params);
 
-		Goal** goalUserdata = Goal_CreateGoalUD(L, ai->AddTopGoal(goalId, life, params, L)); // ud on top of the stack
+		Goal* goalUserdata = Goal_CreateGoalUD(L, ai->AddTopGoal(goalId, life, params, L)); // ud on top of the stack
 		// duplicate userdata for return result
 		lua_pushvalue(L, -1);
 		// save userdata
-		(*goalUserdata)->SetRef(luaL_ref(L, LUA_REGISTRYINDEX)); // pops the object as well
-		(*goalUserdata)->CreateUsertable();
+		goalUserdata->SetRef(luaL_ref(L, LUA_REGISTRYINDEX)); // pops the object as well
+		goalUserdata->CreateUsertable();
 	}
 	else
 		// leave topgoal's userdata as return result for lua
@@ -139,6 +139,19 @@ int LuaBindsAI::AI_SetHealTarget(lua_State* L)
 }
 
 
+int LuaBindsAI::AI_GetAngleForTanking(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	Unit* target = Unit_GetUnitObject(L, 2);
+	bool allowFlip = luaL_checkboolean(L, 3);
+	if (PartyIntelligence* pi = ai->GetPartyIntelligence())
+		lua_pushnumber(L, pi->GetAngleForTank(ai, target, allowFlip));
+	else
+		lua_pushnumber(L, ai->GetPlayer()->GetOrientation());
+	return 1;
+}
+
+
 int LuaBindsAI::AI_IsCLineAvailable(lua_State* L)
 {
 	LuaAgent* ai = AI_GetAIObject(L);
@@ -190,6 +203,62 @@ int LuaBindsAI::AI_IsMovingTo(lua_State* L)
 			lua_pushboolean(L, false);
 
 	return 1;
+}
+
+
+int LuaBindsAI::AI_IsUsingAbsAngle(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	Player* agent = ai->GetPlayer();
+
+	if (agent->GetMotionMaster()->GetCurrentMovementGeneratorType() == MovementGeneratorType::CHASE_MOTION_TYPE)
+		if (auto constGen = dynamic_cast<const LuaAIChaseMovementGenerator<Player>*>(agent->GetMotionMaster()->GetCurrent()))
+		{
+			auto gen = const_cast<LuaAIChaseMovementGenerator<Player>*>(constGen);
+			lua_pushboolean(L, true);
+			return 1;
+		}
+
+	lua_pushboolean(L, false);
+	return 1;
+}
+
+
+int LuaBindsAI::AI_SetAbsAngle(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	lua_Number A = luaL_checknumber(L, 2);
+	Player* agent = ai->GetPlayer();
+
+	if (agent->GetMotionMaster()->GetCurrentMovementGeneratorType() != MovementGeneratorType::CHASE_MOTION_TYPE)
+		return 0;
+	else
+		if (auto constGen = dynamic_cast<const LuaAIChaseMovementGenerator<Player>*>(agent->GetMotionMaster()->GetCurrent()))
+		{
+			auto gen = const_cast<LuaAIChaseMovementGenerator<Player>*>(constGen);
+			gen->UseAbsAngle(A);
+		}
+
+
+	return 0;
+}
+
+
+int LuaBindsAI::AI_UnsetAbsAngle(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	Player* agent = ai->GetPlayer();
+
+	if (agent->GetMotionMaster()->GetCurrentMovementGeneratorType() != MovementGeneratorType::CHASE_MOTION_TYPE)
+		return 0;
+	else
+		if (auto constGen = dynamic_cast<const LuaAIChaseMovementGenerator<Player>*>(agent->GetMotionMaster()->GetCurrent()))
+		{
+			auto gen = const_cast<LuaAIChaseMovementGenerator<Player>*>(constGen);
+			gen->RemoveAbsAngle();
+		}
+
+	return 0;
 }
 
 

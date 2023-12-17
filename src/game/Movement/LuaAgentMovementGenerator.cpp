@@ -118,8 +118,8 @@ void LuaAITargetedMovementGeneratorMedium<T, D>::_setTargetLocation(T &owner)
             
             if (GetMovementGeneratorType() == CHASE_MOTION_TYPE)
             {
-                float angle = i_target->GetOrientation();
-                if (i_target->GetVictim() && i_target->GetVictim()->GetObjectGuid() != owner.GetObjectGuid())
+                float angle = m_bUseAbsAngle ? m_fAbsAngle : i_target->GetOrientation();
+                if (!m_bUseAbsAngle && i_target->GetVictim() && i_target->GetVictim()->GetObjectGuid() != owner.GetObjectGuid())
                     angle += m_fAngle;
                 i_target->GetNearPointAroundPosition(&owner, x, y, z, owner.GetObjectBoundingRadius(), m_fOffset, angle);
             }
@@ -294,9 +294,12 @@ bool LuaAIChaseMovementGenerator<T>::IsAngleBad(T& owner, bool mutualChase)
     if (mutualChase)
         return false;
 
+    if (m_bUseAbsAngle)
+        return std::abs(i_target->GetAngle(&owner) - m_fAbsAngle) > .2f;
+
     float relAngle = MapManager::NormalizeOrientation(i_target->GetAngle(&owner) - i_target->GetOrientation());
     float angleDiff = std::abs(relAngle - m_fAngle);
-    return std::min(angleDiff, M_PI_F * 2 - angleDiff) > m_angleT;
+    return std::min(angleDiff, M_PI_F * 2.f - angleDiff) > m_angleT;
 }
 
 template<class T>

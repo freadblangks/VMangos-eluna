@@ -157,7 +157,7 @@ struct CLineNet
 	int mapId{-1};
 	std::vector<CLine> lines;
 
-	int ClosestP(G3D::Vector3& from, G3D::Vector3& resultPoint, float& resultDistance, int& resultSegment)
+	int ClosestP(const G3D::Vector3& from, G3D::Vector3& resultPoint, float& resultDistance, int& resultSegment)
 	{
 		assert(lines.size() > 0);
 

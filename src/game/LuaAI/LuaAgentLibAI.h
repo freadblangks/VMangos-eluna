@@ -23,9 +23,13 @@ namespace LuaBindsAI {
 	int AI_GetHealTarget(lua_State* L);
 	int AI_SetHealTarget(lua_State* L);
 
+	int AI_GetAngleForTanking(lua_State* L);
 	int AI_IsCLineAvailable(lua_State* L);
 	int AI_IsFollowing(lua_State* L);
 	int AI_IsMovingTo(lua_State* L);
+	int AI_IsUsingAbsAngle(lua_State* L);
+	int AI_SetAbsAngle(lua_State* L);
+	int AI_UnsetAbsAngle(lua_State* L);
 
 	int AI_GoName(lua_State* L);
 
@@ -85,9 +89,13 @@ namespace LuaBindsAI {
 		{"GetHealTarget", AI_GetHealTarget},
 		{"SetHealTarget", AI_SetHealTarget},
 
+		{"GetAngleForTanking", AI_GetAngleForTanking},
 		{"IsCLineAvailable", AI_IsCLineAvailable},
 		{"IsFollowing", AI_IsFollowing},
 		{"IsMovingTo", AI_IsMovingTo},
+		{"IsUsingAbsAngle", AI_IsUsingAbsAngle},
+		{"SetAbsAngle", AI_SetAbsAngle},
+		{"UnsetAbsAngle", AI_UnsetAbsAngle},
 
 		{"GoName", AI_GoName},
 

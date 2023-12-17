@@ -44,6 +44,7 @@ namespace LuaBindsAI {
 
 	int Unit_GetAttackersNum(lua_State* L);
 	int Unit_GetDistance(lua_State* L);
+	int Unit_GetOrientation(lua_State* L);
 	int Unit_GetPosition(lua_State* L);
 
 	int Unit_GetHealth(lua_State* L);
@@ -52,6 +53,7 @@ namespace LuaBindsAI {
 	int Unit_GetPower(lua_State* L);
 	int Unit_GetPowerPct(lua_State* L);
 	int Unit_GetMaxPower(lua_State* L);
+	int Unit_GetPowerType(lua_State* L);
 
 	int Unit_SetHealth(lua_State* L);
 	int Unit_SetMaxHealth(lua_State* L);
@@ -68,7 +70,10 @@ namespace LuaBindsAI {
 	int Unit_GetThreatTbl(lua_State* L);
 	int Unit_GetVictim(lua_State* L);
 
+	int Unit_GetAuraStacks(lua_State* L);
+	int Unit_GetAuraTimeLeft(lua_State* L);
 	int Unit_HasAura(lua_State* L);
+	int Unit_HasAuraType(lua_State* L);
 
 	// General info
 
@@ -88,6 +93,7 @@ namespace LuaBindsAI {
 	int Unit_MoveChase(lua_State* L);
 	int Unit_MovePoint(lua_State* L);
 	int Unit_StopMoving(lua_State* L);
+	int Unit_SetStandState(lua_State* L);
 
 	static const struct luaL_Reg Unit_BindLib[]{
 		// Attacking
@@ -111,6 +117,7 @@ namespace LuaBindsAI {
 
 		{"GetAttackersNum", Unit_GetAttackersNum},
 		{"GetDistance", Unit_GetDistance},
+		{"GetOrientation", Unit_GetOrientation},
 		{"GetPosition", Unit_GetPosition},
 
 		{"GetHealth", Unit_GetHealth},
@@ -119,6 +126,7 @@ namespace LuaBindsAI {
 		{"GetPower", Unit_GetPower},
 		{"GetPowerPct", Unit_GetPowerPct},
 		{"GetMaxPower", Unit_GetMaxPower},
+		{"GetPowerType", Unit_GetPowerType},
 
 		{"SetHealth", Unit_SetHealth},
 		{"SetHealthPct", Unit_SetHealthPct},
@@ -134,8 +142,11 @@ namespace LuaBindsAI {
 		{"GetHighestThreat", Unit_GetHighestThreat},
 		{"GetShapeshiftForm", Unit_GetShapeshiftForm},
 		{"GetVictim", Unit_GetVictim},
-
+		
+		{"GetAuraStacks", Unit_GetAuraStacks},
+		{"GetAuraTimeLeft", Unit_GetAuraTimeLeft},
 		{"HasAura", Unit_HasAura},
+		{"HasAuraType", Unit_HasAuraType},
 
 		// General info
 		{"GetClass", Unit_GetClass},
@@ -153,6 +164,7 @@ namespace LuaBindsAI {
 		{"MoveChase", Unit_MoveChase},
 		{"MovePoint", Unit_MovePoint},
 		{"StopMoving", Unit_StopMoving},
+		{"SetStandState", Unit_SetStandState},
 
 		{NULL, NULL}
 	};

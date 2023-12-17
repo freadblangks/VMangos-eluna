@@ -221,16 +221,16 @@ void LuaBindsAI::Goal_CreateMetatable(lua_State* L) {
 }
 
 // Leaves userdata on top of the stack.
-Goal** LuaBindsAI::Goal_CreateGoalUD(lua_State* L, Goal* goal) {
+Goal* LuaBindsAI::Goal_CreateGoalUD(lua_State* L, Goal* goal) {
 	Goal** goalPointer = static_cast<Goal**>(lua_newuserdatauv(L, sizeof(Goal*), 0));
 	*goalPointer = goal;
 	luaL_getmetatable(L, "Object.Goal"); // push mt on top of the stack
 	lua_setmetatable(L, -2); // goalPointer was pushed down to 2nd position from the top
-	return goalPointer;
+	return *goalPointer;
 }
 
-Goal** LuaBindsAI::Goal_GetGoalObject(lua_State* L) {
-	return (Goal**) luaL_checkudata(L, 1, "Object.Goal");
+Goal* LuaBindsAI::Goal_GetGoalObject(lua_State* L) {
+	return *((Goal**) luaL_checkudata(L, 1, "Object.Goal"));
 }
 
 void LuaBindsAI::Goal_GrabParams(lua_State* L, int nArgs, std::vector<GoalParamP>& params) {
@@ -260,7 +260,7 @@ int LuaBindsAI::Goal_AddSubGoal(lua_State* L) {
 		//return 0;
 	}
 
-	Goal** goal = Goal_GetGoalObject(L);
+	Goal* goal = Goal_GetGoalObject(L);
 	int goalId = luaL_checknumber(L, 2);
 	double life = luaL_checknumber(L, 3);
 
@@ -270,30 +270,30 @@ int LuaBindsAI::Goal_AddSubGoal(lua_State* L) {
 	Goal_GrabParams(L, nArgs, params);
 	// printf( "%d\n", params.size() );
 
-	Goal** goalUserdata = Goal_CreateGoalUD(L, (*goal)->AddSubGoal(goalId, life, params)); // ud on top of the stack
+	Goal* goalUserdata = Goal_CreateGoalUD(L, goal->AddSubGoal(goalId, life, params)); // ud on top of the stack
 	// duplicate userdata for return result
 	lua_pushvalue(L, -1);
 	// save userdata
-	(*goalUserdata)->SetRef(luaL_ref(L, LUA_REGISTRYINDEX)); // pops the object as well
-	(*goalUserdata)->CreateUsertable();
+	goalUserdata->SetRef(luaL_ref(L, LUA_REGISTRYINDEX)); // pops the object as well
+	goalUserdata->CreateUsertable();
 	return 1;
 
 }
 
 int LuaBindsAI::Goal_ClearSubGoal(lua_State* L) {
-	Goal* goal = *Goal_GetGoalObject(L);
+	Goal* goal = Goal_GetGoalObject(L);
 	goal->ClearSubGoal();
 	return 0;
 }
 
 int LuaBindsAI::Goal_GetLife(lua_State* L) {
-	Goal* goal = *Goal_GetGoalObject(L);
+	Goal* goal = Goal_GetGoalObject(L);
 	lua_pushnumber(L, goal->GetLife());
 	return 1;
 }
 
 int LuaBindsAI::Goal_GetNumber(lua_State* L) {
-	Goal* goal = *Goal_GetGoalObject(L);
+	Goal* goal = Goal_GetGoalObject(L);
 	int i = luaL_checkinteger(L, 2);
 	if (i > -1 && i < GOAL_NUMBER_COUNT_MAX)
 		lua_pushnumber(L, goal->GetNumber(i));
@@ -303,7 +303,7 @@ int LuaBindsAI::Goal_GetNumber(lua_State* L) {
 }
 
 int LuaBindsAI::Goal_GetParam(lua_State* L) {
-	Goal* goal = *Goal_GetGoalObject(L);
+	Goal* goal = Goal_GetGoalObject(L);
 	int paramIdx = luaL_checknumber(L, 2);
 	if (GoalParam* param = goal->GetParam(paramIdx))
 		param->PushToLuaStack(L);
@@ -313,13 +313,13 @@ int LuaBindsAI::Goal_GetParam(lua_State* L) {
 }
 
 int LuaBindsAI::Goal_GetSubGoalNum(lua_State* L) {
-	Goal* goal = *Goal_GetGoalObject(L);
+	Goal* goal = Goal_GetGoalObject(L);
 	lua_pushinteger(L, goal->GetSubGoalNum());
 	return 1;
 }
 
 int LuaBindsAI::Goal_GetTimer(lua_State* L) {
-	Goal* goal = *Goal_GetGoalObject(L);
+	Goal* goal = Goal_GetGoalObject(L);
 	int i = luaL_checkinteger(L, 2);
 	if (i > -1 && i < GOAL_TIMER_COUNT_MAX)
 		lua_pushnumber(L, goal->GetTimer(i));
@@ -329,13 +329,13 @@ int LuaBindsAI::Goal_GetTimer(lua_State* L) {
 }
 
 int LuaBindsAI::Goal_GetUserTbl(lua_State* L) {
-	Goal* goal = *Goal_GetGoalObject(L);
+	Goal* goal = Goal_GetGoalObject(L);
 	lua_rawgeti(L, LUA_REGISTRYINDEX, goal->GetUserTblRef());
 	return 1;
 }
 
 int LuaBindsAI::Goal_IsFinishTimer(lua_State* L) {
-	Goal* goal = *Goal_GetGoalObject(L);
+	Goal* goal = Goal_GetGoalObject(L);
 	int i = luaL_checkinteger(L, 2);
 	if (i > -1 && i < GOAL_TIMER_COUNT_MAX)
 		lua_pushboolean(L, goal->HasTimerFinished(i));
@@ -345,14 +345,14 @@ int LuaBindsAI::Goal_IsFinishTimer(lua_State* L) {
 }
 
 int LuaBindsAI::Goal_SetLifeEndSuccess(lua_State* L) {
-	Goal* goal = *Goal_GetGoalObject(L);
+	Goal* goal = Goal_GetGoalObject(L);
 	bool b = luaL_checkboolean(L, 2);
 	goal->SetSuccessOnLifeEnd(b);
 	return 0;
 }
 
 int LuaBindsAI::Goal_SetNumber(lua_State* L) {
-	Goal* goal = *Goal_GetGoalObject(L);
+	Goal* goal = Goal_GetGoalObject(L);
 	int i = luaL_checkinteger(L, 2);
 	double n = luaL_checknumber(L, 3);
 	if (i > -1 && i < GOAL_NUMBER_COUNT_MAX)
@@ -363,7 +363,7 @@ int LuaBindsAI::Goal_SetNumber(lua_State* L) {
 }
 
 int LuaBindsAI::Goal_SetTimer(lua_State* L) {
-	Goal* goal = *Goal_GetGoalObject(L);
+	Goal* goal = Goal_GetGoalObject(L);
 	int i = luaL_checkinteger(L, 2);
 	double n = luaL_checknumber(L, 3);
 	if (i > -1 && i < GOAL_TIMER_COUNT_MAX)
@@ -373,6 +373,14 @@ int LuaBindsAI::Goal_SetTimer(lua_State* L) {
 	return 0;
 }
 
-
-
-
+int LuaBindsAI::Goal_GetActiveSubGoalId(lua_State* L) {
+	Goal* goal = Goal_GetGoalObject(L);
+	if (Goal* subgoal = goal->GetActiveSubGoal())
+		if (!subgoal->GetTerminated())
+		{
+			lua_pushinteger(L, subgoal->GetGoalId());
+			return 1;
+		}
+	lua_pushinteger(L, -1);
+	return 1;
+}

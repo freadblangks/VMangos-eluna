@@ -153,10 +153,12 @@ namespace LuaBindsAI {
 	int Goal_SetNumber(lua_State* L);
 	int Goal_SetTimer(lua_State* L);
 
+	int Goal_GetActiveSubGoalId(lua_State* L);
+
 	void Goal_CreateMetatable(lua_State* L);
-	Goal** Goal_CreateGoalUD(lua_State* L, Goal* goal);
+	Goal* Goal_CreateGoalUD(lua_State* L, Goal* goal);
 	void Goal_GrabParams(lua_State* L, int nArgs, std::vector<GoalParamP>& params);
-	Goal** Goal_GetGoalObject(lua_State* L);
+	Goal* Goal_GetGoalObject(lua_State* L);
 	void BindGoal(lua_State* L);
 	static const struct luaL_Reg Goal_BindLib[]{
 		{"AddSubGoal", Goal_AddSubGoal},
@@ -171,6 +173,9 @@ namespace LuaBindsAI {
 		{"SetLifeEndSuccess", Goal_SetLifeEndSuccess},
 		{"SetNumber", Goal_SetNumber},
 		{"SetTimer", Goal_SetTimer},
+
+		{"GetActiveSubGoalId", Goal_GetActiveSubGoalId},
+
 		{NULL, NULL}
 	};
 

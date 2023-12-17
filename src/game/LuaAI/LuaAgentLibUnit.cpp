@@ -4,6 +4,7 @@
 #include "LuaAgentLibUnit.h"
 #include "LuaAgentLibWorldObj.h"
 #include "Spell.h"
+#include "SpellAuras.h"
 
 
 void LuaBindsAI::BindUnit(lua_State* L) {
@@ -325,6 +326,14 @@ int LuaBindsAI::Unit_GetDistance(lua_State* L)
 }
 
 
+int LuaBindsAI::Unit_GetOrientation(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_pushnumber(L, unit->GetOrientation());
+	return 1;
+}
+
+
 int LuaBindsAI::Unit_GetPosition(lua_State* L)
 {
 	Unit* unit = Unit_GetUnitObject(L);
@@ -388,6 +397,14 @@ int LuaBindsAI::Unit_GetMaxPower(lua_State* L)
 	if (powerType < 0 || powerType > Powers::POWER_HAPPINESS)
 		luaL_error(L, "Unit_GetMaxPower: allowed power types [0, %d], got %d", Powers::POWER_HAPPINESS, powerType);
 	lua_pushinteger(L, unit->GetMaxPower(Powers(powerType)));
+	return 1;
+}
+
+
+int LuaBindsAI::Unit_GetPowerType(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_pushinteger(L, unit->GetPowerType());
 	return 1;
 }
 
@@ -572,6 +589,42 @@ int LuaBindsAI::Unit_HasAura(lua_State* L)
 }
 
 
+int LuaBindsAI::Unit_HasAuraType(lua_State* L) {
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_Integer auraId = luaL_checkinteger(L, 2);
+	if (auraId < SPELL_AURA_NONE || auraId >= TOTAL_AURAS)
+		luaL_error(L, "Unit_HasAuraType: invalid aura type id, expected value in range [0, %d], got %d", SPELL_AURA_NONE, TOTAL_AURAS - 1, auraId);
+	lua_pushboolean(L, unit->HasAuraType((AuraType) auraId));
+	return 1;
+}
+
+
+int LuaBindsAI::Unit_GetAuraStacks(lua_State* L) {
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_Integer spellId = luaL_checkinteger(L, 2);
+	if (spellId < 0 || !sSpellMgr.GetSpellEntry(spellId))
+		luaL_error(L, "Unit_GetAuraStacks: spell %d doesn't exist", spellId);
+	if (SpellAuraHolder* sah = unit->GetSpellAuraHolder(spellId))
+		lua_pushinteger(L, sah->GetStackAmount());
+	else
+		lua_pushinteger(L, -1);
+	return 1;
+}
+
+
+int LuaBindsAI::Unit_GetAuraTimeLeft(lua_State* L) {
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_Integer spellId = luaL_checkinteger(L, 2);
+	if (spellId < 0 || !sSpellMgr.GetSpellEntry(spellId))
+		luaL_error(L, "Unit_GetAuraTimeLeft: spell %d doesn't exist", spellId);
+	if (SpellAuraHolder* sah = unit->GetSpellAuraHolder(spellId))
+		lua_pushinteger(L, sah->GetAuraDuration());
+	else
+		lua_pushinteger(L, -1);
+	return 1;
+}
+
+
 // ---------------------------------------------------------
 // --                General Info
 // ---------------------------------------------------------
@@ -706,5 +759,16 @@ int LuaBindsAI::Unit_StopMoving(lua_State* L)
 {
 	Unit* unit = Unit_GetUnitObject(L);
 	unit->StopMoving();
+	return 0;
+}
+
+
+int LuaBindsAI::Unit_SetStandState(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_Integer state = luaL_checkinteger(L, 2);
+	if (state < 0 || state > UnitStandStateType::UNIT_STAND_STATE_KNEEL)
+		luaL_error(L, "Unit_SetStandState: invalid state. Allowed values [0, %d], got %d", UnitStandStateType::UNIT_STAND_STATE_KNEEL, state);
+	unit->SetStandState(state);
 	return 0;
 }

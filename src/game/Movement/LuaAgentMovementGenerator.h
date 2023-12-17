@@ -57,6 +57,8 @@ class LuaAITargetedMovementGeneratorMedium
 
         ShortTimeTracker m_checkDistanceTimer;
 
+        bool m_bUseAbsAngle{false};
+        float m_fAbsAngle{0.f};
         float m_fOffset;
         float m_fAngle;
         bool m_bRecalculateTravel : 1;
@@ -77,7 +79,11 @@ class LuaAIChaseMovementGenerator : public LuaAITargetedMovementGeneratorMedium<
             : LuaAITargetedMovementGeneratorMedium<T, LuaAIChaseMovementGenerator<T> >(target, offset, angle),
             m_offsetMin(offsetMin != 0.f ? offsetMin : .2f), m_offsetMax(offsetMax != .0f ? offsetMax : .2f),
             m_angleT(angleT), m_noMinOffsetIfMutual(noMinOffsetIfMutual) {}
-        ~LuaAIChaseMovementGenerator() {}
+        ~LuaAIChaseMovementGenerator() noexcept {}
+
+        bool IsUsingAbsAngle() { return m_bUseAbsAngle; }
+        void UseAbsAngle(float A) { m_fAbsAngle = A; m_bUseAbsAngle = true; }
+        void RemoveAbsAngle() { m_bUseAbsAngle = false; }
 
         MovementGeneratorType GetMovementGeneratorType() const { return CHASE_MOTION_TYPE; }
 
@@ -124,6 +130,8 @@ class LuaAIChaseMovementGenerator : public LuaAITargetedMovementGeneratorMedium<
         using LuaAITargetedMovementGeneratorMedium<T, LuaAIChaseMovementGenerator<T> >::m_bTargetOnTransport;
         using LuaAITargetedMovementGeneratorMedium<T, LuaAIChaseMovementGenerator<T> >::m_bRecalculateTravel;
         using LuaAITargetedMovementGeneratorMedium<T, LuaAIChaseMovementGenerator<T> >::m_bTargetReached;
+        using LuaAITargetedMovementGeneratorMedium<T, LuaAIChaseMovementGenerator<T> >::m_bUseAbsAngle;
+        using LuaAITargetedMovementGeneratorMedium<T, LuaAIChaseMovementGenerator<T> >::m_fAbsAngle;
 };
 
 template<class T>

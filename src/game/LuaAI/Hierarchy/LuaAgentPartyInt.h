@@ -28,6 +28,7 @@ public:
 	Player* GetAgent(const ObjectGuid& guid);
 	LuaAgentMap& GetAgentMap() { return m_agents; }
 
+	float GetAngleForTank(LuaAgent* tank, Unit* target, bool allowFlip);
 	CLineNet* GetCLine() { return m_cline; }
 	bool HasCLineFor(Unit* agent);
 
@@ -83,6 +84,7 @@ namespace LuaBindsAI {
 	// cline
 
 	int PartyInt_HasCLineFor(lua_State* L);
+	int PartyInt_GetAngleForTank(lua_State* L);
 	int PartyInt_GetNearestCLineP(lua_State* L);
 	int PartyInt_GetPrevCLineS(lua_State* L);
 
@@ -103,6 +105,7 @@ namespace LuaBindsAI {
 
 		// cline
 		{"HasCLineFor", PartyInt_HasCLineFor},
+		{"GetAngleForTank", PartyInt_GetAngleForTank},
 		{"GetNearestCLineP", PartyInt_GetNearestCLineP},
 		{"GetPrevCLineS", PartyInt_GetPrevCLineS},
 

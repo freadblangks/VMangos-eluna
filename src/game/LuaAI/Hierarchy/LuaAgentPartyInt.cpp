@@ -204,6 +204,39 @@ void PartyIntelligence::LoadAgents()
 }
 
 
+float PartyIntelligence::GetAngleForTank(LuaAgent* ai, Unit* target, bool allowFlip)
+{
+	Player* agent = ai->GetPlayer();
+	if (!HasCLineFor(agent))
+		return agent->GetOrientation();
+
+	int resultS;
+	float resultD;
+	G3D::Vector3 result;
+	G3D::Vector3 from(agent->GetPositionX(), agent->GetPositionY(), agent->GetPositionZ());
+
+	CLine& line = m_cline->lines[m_cline->ClosestP(from, result, resultD, resultS)];
+
+	G3D::Vector3& AB = line.pts[resultS + 1].pos - line.pts[resultS].pos;
+
+	float a = std::atan2(AB.y, AB.x);
+	a = (a >= 0.f) ? a : (2.f * M_PI_F + a); // 0 .. 360
+
+	if (allowFlip && !m_owner.IsEmpty())
+		if (Player* owner = sObjectAccessor.FindPlayer(m_owner))
+		{
+			G3D::Vector3 ownerPos(owner->GetPositionX(), owner->GetPositionY(), owner->GetPositionZ());
+			G3D::Vector3 targetPos(target->GetPositionX(), target->GetPositionY(), target->GetPositionZ());
+			G3D::Vector3& ownerToTarget = targetPos - ownerPos;
+			// flip direction if owner is opposite side
+			if (AB.dot(ownerToTarget) < 0.f)
+				a = (a < M_PI_F) ? (a + M_PI_F) : (a - M_PI_F);
+		}
+
+	return a;
+}
+
+
 void PartyIntelligence::CreateUD(lua_State* L)
 {
 	// create userdata on top of the stack pointing to a pointer of a PI object
@@ -375,6 +408,17 @@ int LuaBindsAI::PartyInt_GetAttackers(lua_State* L)
 	if (Player* owner = sObjectAccessor.FindPlayer(intelligence->GetOwnerGuid()))
 		AddAttackersFrom(L, owner->ToUnit(), idx);
 
+	return 1;
+}
+
+
+int LuaBindsAI::PartyInt_GetAngleForTank(lua_State* L)
+{
+	PartyIntelligence* intelligence = PartyInt_GetPIObject(L);
+	LuaAgent* ai = AI_GetAIObject(L, 2);
+	Unit* target = Unit_GetUnitObject(L, 3);
+	bool allowFlip = luaL_checkboolean(L, 4);
+	lua_pushnumber(L, intelligence->GetAngleForTank(ai, target, allowFlip));
 	return 1;
 }
 
