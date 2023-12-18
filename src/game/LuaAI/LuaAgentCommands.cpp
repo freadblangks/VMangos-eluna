@@ -199,15 +199,7 @@ bool ChatHandler::HandleLuabCLineNewLineCommand(char* args)
 
 bool ChatHandler::HandleLuabCLineLoadFromCommand(char* args)
 {
-	std::string name;
-	if (char* nameCstr = ExtractArg(&args))
-		name = std::string(nameCstr);
-	else
-	{
-		SendSysMessage("Incorrect syntax. Expected filename.");
-		SetSentErrorMessage(true);
-		return false;
-	}
-	sLuaAgentMgr.CLineLoadFrom(name, GetSession()->GetPlayer());
+	Player* player = GetSession()->GetPlayer();
+	sLuaAgentMgr.CLineLoadForEdit(player, player->GetMapId());
 	return true;
 }

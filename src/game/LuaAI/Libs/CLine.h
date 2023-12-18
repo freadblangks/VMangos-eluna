@@ -4,6 +4,8 @@
 
 #include <fstream>
 
+struct lua_State;
+
 struct CLinePoint
 {
 	ObjectGuid helper;
@@ -30,6 +32,16 @@ struct CLinePoint
 		if (helperId)
 			if (Creature* go = gm->SummonCreature(helperId, pos.x, pos.y, pos.z, 0.f, TEMPSUMMON_DEAD_DESPAWN, 1))
 				helper = go->GetObjectGuid();
+	}
+
+	void UnsummonHelper(Player* gm)
+	{
+		if (gm && !helper.IsEmpty())
+			if (Creature* go = gm->GetMap()->GetCreature(helper))
+			{
+				helper = ObjectGuid();
+				go->Kill(go, nullptr, false);
+			}
 	}
 };
 
@@ -150,9 +162,30 @@ struct CLine
 			out.write(reinterpret_cast<const char*>(&it.R),     sizeof it.R);
 		}
 	}
+
+	void WriteAsTable(const std::string& name)
+	{
+		std::ofstream out(name, std::ofstream::trunc);
+		WriteAsTable(out);
+		out.close();
+	}
+
+	void WriteAsTable(std::ofstream& out, const std::string& prefix = "\t\t")
+	{
+		if (!pts.size())
+		{
+			sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "CLine::WriteAsTable: attempt to write empty cline");
+			return;
+		}
+		for (int i = 0; i < pts.size(); ++i)
+		{
+			auto& it = pts[i];
+			out << prefix << "{" << it.pos.x << ", " << it.pos.y << ", " << it.pos.z << ", " << it.minz << ", " << it.R << "}," << " -- " << i + 1 << '\n';
+		}
+	}
 };
 
-struct CLineNet
+struct DungeonData
 {
 	int mapId{-1};
 	std::vector<CLine> lines;
@@ -196,17 +229,33 @@ struct CLineNet
 		return nullptr;
 	}
 
+	void SummonHelpers(Player* gm, uint32 helperId)
+	{
+		if (!gm || !helperId || gm->GetMapId() != mapId) return;
+		for (auto& line : lines)
+			for (auto& point : line.pts)
+				point.SummonHelper(gm, helperId);
+	}
+
+	void UnsummonHelpers(Player* gm)
+	{
+		if (!gm) return;
+		for (auto& line : lines)
+			for (auto& point : line.pts)
+				point.UnsummonHelper(gm);
+	}
+
 	void Write(const std::string& name)
 	{
 		if (!lines.size())
 		{
-			sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "CLineNet::Write lines vector is empty");
+			sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "DungeonData::Write lines vector is empty");
 			return;
 		}
 		std::ofstream out(name, std::ofstream::trunc | std::ofstream::binary);
 		if (!out.is_open())
 		{
-			sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "CLineNet::Write could not open file for writing %s", name.c_str());
+			sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "DungeonData::Write could not open file for writing %s", name.c_str());
 			return;
 		}
 		// don't save trailing empty line
@@ -224,17 +273,45 @@ struct CLineNet
 		out.close();
 	}
 
+	void WriteAsTable(const std::string& name)
+	{
+		if (!lines.size())
+		{
+			sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "DungeonData::Write lines vector is empty");
+			return;
+		}
+		std::ofstream out(name, std::ofstream::trunc);
+		if (!out.is_open())
+		{
+			sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "DungeonData::Write could not open file for writing %s", name.c_str());
+			return;
+		}
+		// don't save trailing empty line
+		if (lines.size() && lines.back().pts.empty())
+			lines.pop_back();
+		out << '[' << mapId << "] = {\n";
+		for (int i = 0; i < lines.size(); ++i)
+		{
+			auto& line = lines[i];
+			out << "\t-- Line " << i + 1 << "\n\t{\n";
+			line.WriteAsTable(out, "\t\t");
+			out << "\t},\n";
+		}
+		out << "};\n";
+		out.close();
+	}
+
 	void Load(const std::string& name, Player* gm, uint32 helper)
 	{
 		if (lines.size())
 		{
-			sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "CLineNet::Load lines vector is not empty");
+			sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "DungeonData::Load lines vector is not empty");
 			return;
 		}
 		std::ifstream in(name, std::ifstream::binary);
 		if (!in.is_open())
 		{
-			sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "CLineNet::Load could not open file for reading %s", name.c_str());
+			sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "DungeonData::Load could not open file for reading %s", name.c_str());
 			return;
 		}
 		uint32 nlines;
@@ -262,6 +339,8 @@ struct CLineNet
 
 		in.close();
 	}
+
+	void LoadFromTable(lua_State* L, uint32 mapId, Player* gm = nullptr, uint32 helperId = 0u);
 };
 
 #endif

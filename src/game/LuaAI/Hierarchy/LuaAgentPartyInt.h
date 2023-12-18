@@ -7,7 +7,7 @@
 typedef std::unordered_map<ObjectGuid, Player*> LuaAgentMap;
 class LuaAgent;
 class Unit;
-struct CLineNet;
+struct DungeonData;
 
 class PartyIntelligence
 {
@@ -29,7 +29,7 @@ public:
 	LuaAgentMap& GetAgentMap() { return m_agents; }
 
 	float GetAngleForTank(LuaAgent* tank, Unit* target, bool allowFlip);
-	CLineNet* GetCLine() { return m_cline; }
+	DungeonData* GetDungeonData() { return m_dungeon; }
 	bool HasCLineFor(Unit* agent);
 
 	void LoadInfoFromLuaTbl(lua_State* L);
@@ -55,7 +55,7 @@ private:
 	int m_updateInterval;
 	ShortTimeTracker m_updateTimer;
 
-	CLineNet* m_cline;
+	DungeonData* m_dungeon;
 
 	std::vector<AgentInfo> m_agentInfos;
 	LuaAgentMap m_agents;

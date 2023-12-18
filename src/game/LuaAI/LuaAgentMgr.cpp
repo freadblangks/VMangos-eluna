@@ -14,6 +14,7 @@
 #include <fstream>
 #include "Libs/CLine.h"
 
+
 class LuaAgentLoginQueryHolder : public LoginQueryHolder
 {
 public:
@@ -71,7 +72,7 @@ public:
 } luaChrHandler;
 
 
-LuaAgentMgr::LuaAgentMgr() : m_bLuaCeaseUpdates(false), m_bLuaReload(false), L(nullptr), m_bGroupAllInProgress(false)
+LuaAgentMgr::LuaAgentMgr() : m_bLuaCeaseUpdates(false), m_bLuaReload(false), L(nullptr), m_bGroupAllInProgress(false), m_dungeons()
 {
 	LuaLoadAll();
 }
@@ -116,9 +117,18 @@ void LuaAgentMgr::LuaLoadFiles(const std::string& fpath) {
 			if (!LuaDofile(entry.path().generic_string()))
 				return;
 
-	for (const auto& entry : std::experimental::filesystem::recursive_directory_iterator(fpath + "/data"))
-		if (entry.path().extension().generic_string() == ".txt")
-			CLineLoad(entry.path().generic_string());
+	//for (const auto& entry : std::experimental::filesystem::recursive_directory_iterator(fpath + "/data"))
+	//	if (entry.path().extension().generic_string() == ".txt")
+	//		CLineLoad(entry.path().generic_string());
+
+	m_dungeons.clear();
+	if (!LoadDungeonData())
+		return;
+
+	//for (auto& it : m_dungeons)
+	//{
+	//	it.second->WriteAsTable(std::to_string(it.first) + ".lua");
+	//}
 
 }
 
@@ -475,7 +485,7 @@ void LuaAgentMgr::GroupAll(Player* owner)
 
 namespace
 {
-	CLineNet currentLines;
+	DungeonData currentLines;
 	uint32 helperId = VISUAL_WAYPOINT;
 }
 
@@ -536,7 +546,7 @@ void LuaAgentMgr::CLineDelLastSeg(Player* gm)
 
 void LuaAgentMgr::CLineWrite()
 {
-	currentLines.Write("out_cline.txt");
+	currentLines.WriteAsTable("out_cline.lua");
 }
 
 
@@ -549,7 +559,7 @@ void LuaAgentMgr::CLineFinish(Player* gm)
 			CLineDelLastSeg(gm);
 		currentLines.lines.pop_back();
 	}
-	currentLines = CLineNet();
+	currentLines = DungeonData();
 }
 
 
@@ -564,24 +574,123 @@ void LuaAgentMgr::CLineNewLine()
 }
 
 
-void LuaAgentMgr::CLineLoadFrom(const std::string& fname, Player* gm)
+void LuaAgentMgr::CLineLoadForEdit(Player* gm, uint32 mapId)
 {
 	CLineFinish(gm);
-	currentLines.Load(fname, gm, helperId);
+	if (DungeonData* data = GetDungeonData(mapId))
+	{
+		currentLines = *data;
+		currentLines.SummonHelpers(gm, helperId);
+	}
+	else
+	{
+		sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "LuaAgentMgr::CLineLoadForEdit: can't find data for map %d", mapId);
+		return;
+	}
 }
 
 
 void LuaAgentMgr::CLineLoad(const std::string& fname)
 {
-	std::unique_ptr<CLineNet> net = std::make_unique<CLineNet>();
+	std::unique_ptr<DungeonData> net = std::make_unique<DungeonData>();
 	net->Load(fname, nullptr, 0u);
 	if (net->mapId)
-		m_clines.emplace(net->mapId, std::move(net));
+		m_dungeons.emplace(net->mapId, std::move(net));
 }
 
 
-CLineNet* LuaAgentMgr::CLineGet(uint32 key)
+DungeonData* LuaAgentMgr::GetDungeonData(uint32 key)
 {
-	auto it = m_clines.find(key);
-	return (it == m_clines.end()) ? nullptr : it->second.get();
+	auto it = m_dungeons.find(key);
+	return (it == m_dungeons.end()) ? nullptr : it->second.get();
+}
+
+
+void DungeonData::LoadFromTable(lua_State* L, uint32 mapId, Player* gm, uint32 helperId)
+{
+	if (lines.size())
+	{
+		sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "DungeonData::LoadFromTable lines vector is not empty");
+		return;
+	}
+
+	this->mapId = mapId;
+	lua_Integer nLines = luaL_len(L, -1);
+	for (lua_Integer i = 1; i <= nLines; ++i)
+	{
+		if (lua_geti(L, -1, i) == LUA_TTABLE)
+		{
+			lines.emplace_back();
+			CLine& line = lines.back();
+			lua_Integer nPoints = luaL_len(L, -1);
+			for (lua_Integer j = 1; j <= nPoints; ++j)
+			{
+				if (lua_geti(L, -1, j) == LUA_TTABLE)
+				{
+					line.pts.emplace_back();
+					CLinePoint& P = line.pts.back();
+					lua_geti(L, -1, 1);
+					lua_geti(L, -2, 2);
+					lua_geti(L, -3, 3);
+					lua_geti(L, -4, 4);
+					lua_geti(L, -5, 5);
+					P.R     = luaL_checknumber(L, -1);
+					P.minz  = luaL_checknumber(L, -2);
+					P.pos.z = luaL_checknumber(L, -3);
+					P.pos.y = luaL_checknumber(L, -4);
+					P.pos.x = luaL_checknumber(L, -5);
+					lua_pop(L, 5);
+					if (gm)
+						P.SummonHelper(gm, helperId);
+				}
+				else
+					luaL_error(L, "DungeonData::LoadFromTable point at idx %d of line %d is not a table for map %d - type %s", j, i, mapId, luaL_typename(L, -1));
+				lua_pop(L, 1);
+			}
+		}
+		else
+			luaL_error(L, "DungeonData::LoadFromTable line at idx %d is not a table for map %d - type %s", i, mapId, luaL_typename(L, -1));
+		lua_pop(L, 1);
+	}
+}
+
+
+bool LuaAgentMgr::LoadDungeonData()
+{
+	if (m_dungeons.empty())
+	{
+		lua_pushcfunction(L, __LoadDungeonData);
+		lua_pushlightuserdata(L, &m_dungeons);
+		if (lua_dopcall(L, 1, 0) != LUA_OK)
+		{
+			m_bLuaCeaseUpdates = true;
+			sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "LuaAgentMgr: Lua error loading dungeon data: %s", lua_tostring(L, -1));
+			lua_pop(L, 1); // pop the error object
+			return false;
+		}
+	}
+	return true;
+}
+
+
+int LuaAgentMgr::__LoadDungeonData(lua_State* L)
+{
+	luaL_checktype(L, -1, LUA_TLIGHTUSERDATA);
+	auto m_dungeons = static_cast<std::unordered_map<uint32, std::unique_ptr<DungeonData>>*>(lua_touserdata(L, -1));
+	lua_getglobal(L, "t_dungeons");
+	luaL_checktype(L, -1, LUA_TTABLE);
+	lua_pushnil(L);
+	while (lua_next(L, -2))
+	{
+		luaL_checktype(L, -1, LUA_TTABLE);
+		lua_Integer mapId = luaL_checknumber(L, -2);
+		if (!sMapMgr.IsValidMAP(mapId))
+			luaL_error(L, "LuaAgentMgr::LoadDungeonData: map %d does not exist", mapId);
+		std::unique_ptr<DungeonData> data = std::make_unique<DungeonData>();
+		data->LoadFromTable(L, mapId);
+		m_dungeons->emplace(data->mapId, std::move(data));
+		lua_pop(L, 1);
+	}
+	lua_pop(L, 1);
+	return 0;
 }

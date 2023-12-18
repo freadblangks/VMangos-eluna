@@ -33,7 +33,7 @@ PartyIntelligence::PartyIntelligence(std::string name, ObjectGuid owner) :
 	m_bCeaseUpdates(false),
 	m_owner(owner),
 	m_updateInterval(50),
-	m_cline(nullptr)
+	m_dungeon(nullptr)
 {
 	m_init = m_name + "_Init";
 	m_update = m_name + "_Update";
@@ -138,11 +138,11 @@ void PartyIntelligence::Update(uint32 diff, lua_State* L)
 	}
 
 	if (Player* owner = sObjectAccessor.FindPlayer(m_owner))
-		if (!m_cline || m_cline->mapId != owner->GetMapId())
-			if (CLineNet* cline = sLuaAgentMgr.CLineGet(owner->GetMapId()))
-				m_cline = cline;
+		if (!m_dungeon || m_dungeon->mapId != owner->GetMapId())
+			if (DungeonData* data = sLuaAgentMgr.GetDungeonData(owner->GetMapId()))
+				m_dungeon = data;
 			else
-				m_cline = nullptr;
+				m_dungeon = nullptr;
 }
 
 
@@ -215,7 +215,7 @@ float PartyIntelligence::GetAngleForTank(LuaAgent* ai, Unit* target, bool allowF
 	G3D::Vector3 result;
 	G3D::Vector3 from(agent->GetPositionX(), agent->GetPositionY(), agent->GetPositionZ());
 
-	CLine& line = m_cline->lines[m_cline->ClosestP(from, result, resultD, resultS)];
+	CLine& line = m_dungeon->lines[m_dungeon->ClosestP(from, result, resultD, resultS)];
 
 	G3D::Vector3& AB = line.pts[resultS + 1].pos - line.pts[resultS].pos;
 
@@ -268,7 +268,7 @@ void PartyIntelligence::Unref(lua_State* L)
 
 bool PartyIntelligence::HasCLineFor(Unit* agent)
 {
-	return m_cline ? m_cline->mapId == agent->GetMapId() : false;
+	return m_dungeon ? m_dungeon->mapId == agent->GetMapId() : false;
 }
 
 
@@ -436,7 +436,7 @@ int LuaBindsAI::PartyInt_GetNearestCLineP(lua_State* L)
 {
 	PartyIntelligence* intelligence = PartyInt_GetPIObject(L);
 	Unit* unit = Unit_GetUnitObject(L, 2);
-	CLineNet* cline = intelligence->GetCLine();
+	DungeonData* cline = intelligence->GetDungeonData();
 	if (!cline)
 		luaL_error(L, "PartyInt_GetNearestCLineP: cline doesn't exist");
 	if (cline->mapId != unit->GetMapId())
@@ -461,7 +461,7 @@ int LuaBindsAI::PartyInt_GetPrevCLineS(lua_State* L)
 	Unit* unit = Unit_GetUnitObject(L, 2);
 	lua_Integer lineIdx = luaL_checkinteger(L, 3);
 	lua_Integer S = luaL_checkinteger(L, 4);
-	CLineNet* cline = intelligence->GetCLine();
+	DungeonData* cline = intelligence->GetDungeonData();
 	if (!cline)
 		luaL_error(L, "PartyInt_GetPrevCLineS: cline doesn't exist");
 	if (cline->mapId != unit->GetMapId())

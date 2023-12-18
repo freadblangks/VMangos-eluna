@@ -3,7 +3,7 @@
 #define MANGOS_LUAAGENTMANAGER_H
 
 struct lua_State;
-struct CLineNet;
+struct DungeonData;
 class PartyIntelligence;
 
 typedef std::unordered_map<ObjectGuid, Player*> LuaAgentMap;
@@ -48,7 +48,7 @@ class LuaAgentMgr
 	std::set<ObjectGuid> m_toRemove;
 	std::map<ObjectGuid, LuaAgentInfoHolder> m_toAdd;
 
-	std::unordered_map<uint32, std::unique_ptr<CLineNet>> m_clines;
+	std::unordered_map<uint32, std::unique_ptr<DungeonData>> m_dungeons;
 
 	LuaAgentMgr();
 
@@ -60,6 +60,8 @@ class LuaAgentMgr
 	bool LuaDofile(const std::string& filename);
 	void LuaLoadAll();
 	void LuaLoadFiles(const std::string& fpath);
+	bool LoadDungeonData();
+	static int __LoadDungeonData(lua_State* L);
 
 	void SetLoggedIn(ObjectGuid guid);
 
@@ -109,10 +111,10 @@ public:
 	void CLineMoveSeg(G3D::Vector3& newpos, Player* gm, const ObjectGuid& helper);
 	void CLineDelLastSeg(Player* gm);
 	void CLineWrite();
-	void CLineLoadFrom(const std::string& fname, Player* gm);
+	void CLineLoadForEdit(Player* gm, uint32 mapId);
 	void CLineLoad(const std::string& fname);
 	void CLineFinish(Player* gm);
-	CLineNet* CLineGet(uint32 key);
+	DungeonData* GetDungeonData(uint32 key);
 
 	static LuaAgentMgr& getInstance()
 	{
