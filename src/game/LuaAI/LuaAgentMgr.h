@@ -84,6 +84,7 @@ public:
 	lua_State* Lua() { return L; }
 
 	void LuaReload() { m_bLuaReload = true; }
+	bool IsReloading() { return m_bLuaReload; }
 
 	Player* GetAgent(ObjectGuid guid);
 	const LuaAgentInfoHolder* GetLoginInfo(ObjectGuid guid);

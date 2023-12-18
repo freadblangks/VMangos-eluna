@@ -2,6 +2,7 @@
 #include "LuaAI/LuaAgentUtils.h"
 #include "LuaAI/LuaAgentLibWorldObj.h"
 #include "GoalManager.h"
+#include "LuaAI/LuaAgentMgr.h"
 
 std::vector<GoalParamP> Goal::NOPARAMS{};
 
@@ -23,11 +24,14 @@ Goal::Goal(int goalId, double life, std::vector<GoalParamP>& goalParams,
 
 Goal::~Goal() {
 	//printf( "Goal %d destroyed\n", goalId );
-	if (L) {
+	// none of the refs are valid anymore
+	if (sLuaAgentMgr.IsReloading())
+		return;
+	if (lua_State* Lua = sLuaAgentMgr.Lua()) {
 		if (userDataRef != LUA_NOREF && userDataRef != LUA_REFNIL)
-			luaL_unref(L, LUA_REGISTRYINDEX, userDataRef);
+			luaL_unref(Lua, LUA_REGISTRYINDEX, userDataRef);
 		if (userTblRef != LUA_NOREF && userTblRef != LUA_REFNIL)
-			luaL_unref(L, LUA_REGISTRYINDEX, userTblRef);
+			luaL_unref(Lua, LUA_REGISTRYINDEX, userTblRef);
 	}
 }
 

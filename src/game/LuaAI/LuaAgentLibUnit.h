@@ -69,6 +69,7 @@ namespace LuaBindsAI {
 	int Unit_GetThreat(lua_State* L);
 	int Unit_GetThreatTbl(lua_State* L);
 	int Unit_GetVictim(lua_State* L);
+	int Unit_IsRanged(lua_State* L);
 
 	int Unit_GetAuraStacks(lua_State* L);
 	int Unit_GetAuraTimeLeft(lua_State* L);
@@ -142,7 +143,8 @@ namespace LuaBindsAI {
 		{"GetHighestThreat", Unit_GetHighestThreat},
 		{"GetShapeshiftForm", Unit_GetShapeshiftForm},
 		{"GetVictim", Unit_GetVictim},
-		
+		{"IsRanged", Unit_IsRanged},
+
 		{"GetAuraStacks", Unit_GetAuraStacks},
 		{"GetAuraTimeLeft", Unit_GetAuraTimeLeft},
 		{"HasAura", Unit_HasAura},

@@ -153,9 +153,6 @@ void LuaAgentMgr::Update(uint32 diff)
 	{
 		sWorld.SendServerMessage(SERVER_MSG_CUSTOM, "Lua reload started");
 
-		m_bLuaReload = false;
-		m_bLuaCeaseUpdates = false;
-
 		LuaLoadAll();
 
 		for (auto& it : m_agents)
@@ -173,6 +170,9 @@ void LuaAgentMgr::Update(uint32 diff)
 			party->Reset(L, true);
 			party->Init(L);
 		}
+
+		m_bLuaReload = false;
+		m_bLuaCeaseUpdates = false;
 
 		sWorld.SendServerMessage(SERVER_MSG_CUSTOM, "Lua reload finished");
 	}

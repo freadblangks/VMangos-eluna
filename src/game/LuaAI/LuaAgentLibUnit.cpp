@@ -578,6 +578,14 @@ int LuaBindsAI::Unit_GetShapeshiftForm(lua_State* L)
 }
 
 
+int LuaBindsAI::Unit_IsRanged(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_pushboolean(L, unit->HasDistanceCasterMovement());
+	return 1;
+}
+
+
 int LuaBindsAI::Unit_HasAura(lua_State* L)
 {
 	Unit* unit = Unit_GetUnitObject(L);

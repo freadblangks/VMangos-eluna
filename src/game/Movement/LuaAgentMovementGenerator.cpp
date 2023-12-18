@@ -291,11 +291,11 @@ void LuaAITargetedMovementGeneratorMedium<T, D>::UpdateAsync(T &owner, uint32 /*
 template<class T>
 bool LuaAIChaseMovementGenerator<T>::IsAngleBad(T& owner, bool mutualChase)
 {
-    if (mutualChase)
-        return false;
-
     if (m_bUseAbsAngle)
         return std::abs(i_target->GetAngle(&owner) - m_fAbsAngle) > .2f;
+
+    if (mutualChase)
+        return false;
 
     float relAngle = MapManager::NormalizeOrientation(i_target->GetAngle(&owner) - i_target->GetOrientation());
     float angleDiff = std::abs(relAngle - m_fAngle);

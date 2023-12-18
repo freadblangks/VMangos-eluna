@@ -215,7 +215,7 @@ int LuaBindsAI::AI_IsUsingAbsAngle(lua_State* L)
 		if (auto constGen = dynamic_cast<const LuaAIChaseMovementGenerator<Player>*>(agent->GetMotionMaster()->GetCurrent()))
 		{
 			auto gen = const_cast<LuaAIChaseMovementGenerator<Player>*>(constGen);
-			lua_pushboolean(L, true);
+			lua_pushboolean(L, gen->IsUsingAbsAngle());
 			return 1;
 		}
 
