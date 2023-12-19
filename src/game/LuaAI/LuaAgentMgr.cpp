@@ -370,6 +370,7 @@ void LuaAgentMgr::OnAgentLogin(WorldSession* session, ObjectGuid guid, ObjectGui
 	}
 	ai->SetSpec(spec);
 	SetLoggedIn(player->GetObjectGuid());
+	ai->OnLoggedIn();
 }
 
 

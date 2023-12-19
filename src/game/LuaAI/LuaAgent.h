@@ -66,6 +66,7 @@ public:
 	void UpdateSession(uint32 diff);
 	void Reset(bool droprefs);
 
+	void OnLoggedIn();
 	void OnPacketReceived(const WorldPacket& pck);
 
 	std::string GetSpec() { return m_spec; }

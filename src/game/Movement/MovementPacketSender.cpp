@@ -246,7 +246,7 @@ void MovementPacketSender::SendKnockBackToController(Unit* unit, float vcos, flo
 
 #if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_8_4
     data << unit->GetPackGUID();
-#else
+#elif SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_2_4
     data << unit->GetGUID();
 #endif
 

@@ -87,7 +87,7 @@ void MovementInfo::Read(ByteBuffer &data)
     if (HasMovementFlag(MOVEFLAG_JUMPING))
     {
 #if SUPPORTED_CLIENT_BUILD <= CLIENT_BUILD_1_3_1
-        data << fallTime;
+        data >> fallTime;
 #endif
         data >> jump.zspeed;
         data >> jump.cosAngle;

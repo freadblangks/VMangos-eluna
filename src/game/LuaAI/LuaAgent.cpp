@@ -246,7 +246,21 @@ void LuaAgent::OnPacketReceived(const WorldPacket& pck)
 
 		break;
 	}
+	case SMSG_NEW_WORLD:
+	{
+		std::unique_ptr<WorldPacket> send = std::make_unique<WorldPacket>(MSG_MOVE_WORLDPORT_ACK);
+		me->GetSession()->QueuePacket(std::move(send));
+		break;
 	}
+	}
+}
+
+
+void LuaAgent::OnLoggedIn()
+{
+	std::unique_ptr<WorldPacket> send = std::make_unique<WorldPacket>(CMSG_SET_ACTIVE_MOVER);
+	*send << me->GetObjectGuid();
+	me->GetSession()->QueuePacket(std::move(send));
 }
 
 
