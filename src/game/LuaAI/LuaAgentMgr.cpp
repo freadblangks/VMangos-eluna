@@ -652,6 +652,39 @@ void DungeonData::LoadFromTable(lua_State* L, uint32 mapId, Player* gm, uint32 h
 			luaL_error(L, "DungeonData::LoadFromTable line at idx %d is not a table for map %d - type %s", i, mapId, luaL_typename(L, -1));
 		lua_pop(L, 1);
 	}
+
+	if (lua_getfield(L, -1, "encounters") == LUA_TTABLE)
+	{
+		lua_Integer n = luaL_len(L, -1);
+		for (int i = 1; i <= n; ++i)
+		{
+			if (lua_geti(L, -1, i) == LUA_TTABLE)
+			{
+				lua_getfield(L, -1, "name");
+				std::string name = luaL_checkstring(L, -1);
+				G3D::Vector3 pos;
+				bool forcePos = false;
+				if (lua_getfield(L, -2, "tpos") == LUA_TTABLE)
+				{
+					forcePos = true;
+					lua_geti(L, -1, 1);
+					lua_geti(L, -2, 2);
+					lua_geti(L, -3, 3);
+					pos.x = luaL_checknumber(L, -3);
+					pos.y = luaL_checknumber(L, -2);
+					pos.z = luaL_checknumber(L, -1);
+					lua_pop(L, 3);
+				}
+				EncounterData encounterData(ObjectGuid(), name, pos, forcePos);
+				encounters.emplace(name, std::move(encounterData));
+				lua_pop(L, 2);
+			}
+			else
+				luaL_error(L, "DungeonData::LoadFromTable encounter at idx %d is not a table for map %d - type %s", i, mapId, luaL_typename(L, -1));
+			lua_pop(L, 1);
+		}
+	}
+	lua_pop(L, 1);
 }
 
 

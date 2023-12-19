@@ -299,6 +299,21 @@ void LuaBindsAI::PartyInt_CreateMetatable(lua_State* L)
 }
 
 
+int LuaBindsAI::PartyInt_CanPullTarget(lua_State* L)
+{
+	PartyIntelligence* intelligence = PartyInt_GetPIObject(L);
+	Unit* target = Unit_GetUnitObject(L, 2);
+	if (DungeonData* data = intelligence->GetDungeonData())
+		if (auto encounter = data->GetEncounter(target->GetName()))
+		{
+			lua_pushboolean(L, false);
+			return 1;
+		}
+	lua_pushboolean(L, true);
+	return 1;
+}
+
+
 int LuaBindsAI::PartyInt_CmdEngage(lua_State* L)
 {
 	LuaAgent* ai = AI_GetAIObject(L, 2);

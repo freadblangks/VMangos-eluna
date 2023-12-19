@@ -72,6 +72,8 @@ namespace LuaBindsAI {
 	PartyIntelligence* PartyInt_GetPIObject(lua_State* L);
 	void PartyInt_CreateMetatable(lua_State* L);
 
+	int PartyInt_CanPullTarget(lua_State* L);
+
 	int PartyInt_CmdEngage(lua_State* L);
 	int PartyInt_CmdFollow(lua_State* L);
 	int PartyInt_CmdHeal(lua_State* L);
@@ -94,6 +96,8 @@ namespace LuaBindsAI {
 	int PartyInt_GetAttackers(lua_State* L);
 
 	static const struct luaL_Reg PartyInt_BindLib[]{
+		{"CanPullTarget", PartyInt_CanPullTarget},
+
 		{"CmdEngage", PartyInt_CmdEngage},
 		{"CmdFollow", PartyInt_CmdFollow},
 		{"CmdHeal", PartyInt_CmdHeal},

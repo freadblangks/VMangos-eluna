@@ -187,6 +187,17 @@ struct CLine
 
 struct DungeonData
 {
+	struct EncounterData
+	{
+		ObjectGuid guid{};
+		std::string name{};
+		G3D::Vector3 tankPos{};
+		bool forceTankPos{false};
+		EncounterData(const ObjectGuid& guid, const std::string& name, const G3D::Vector3& tankPos, bool forceTankPos)
+			: guid(guid), name(name), tankPos(tankPos), forceTankPos(forceTankPos) {}
+	};
+
+	std::unordered_map<std::string, EncounterData> encounters;
 	int mapId{-1};
 	std::vector<CLine> lines;
 
@@ -243,6 +254,12 @@ struct DungeonData
 		for (auto& line : lines)
 			for (auto& point : line.pts)
 				point.UnsummonHelper(gm);
+	}
+
+	EncounterData* GetEncounter(const std::string& name)
+	{
+		auto& it = encounters.find(name);
+		return it != encounters.end() ? &it->second : nullptr;
 	}
 
 	void Write(const std::string& name)

@@ -8,6 +8,7 @@
 #include "LuaAgentMovementGenerator.h"
 #include "PointMovementGenerator.h"
 #include "Hierarchy/LuaAgentPartyInt.h"
+#include "Libs/CLine.h"
 
 
 namespace
@@ -134,6 +135,26 @@ int LuaBindsAI::AI_SetHealTarget(lua_State* L)
 	{
 		LuaObjectGuid* guid = Guid_GetGuidObject(L, 2);
 		ai->SetHealTarget(guid->guid);
+	}
+	return 0;
+}
+
+
+int LuaBindsAI::AI_GetPosForTanking(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	Unit* target = Unit_GetUnitObject(L, 2);
+	if (PartyIntelligence* pi = ai->GetPartyIntelligence())
+	{
+		if (!pi->HasCLineFor(ai->GetPlayer()))
+			return 0;
+		DungeonData::EncounterData* encounter = pi->GetDungeonData()->GetEncounter(target->GetName());
+		if (!encounter || !encounter->forceTankPos)
+			return 0;
+		lua_pushnumber(L, encounter->tankPos.x);
+		lua_pushnumber(L, encounter->tankPos.y);
+		lua_pushnumber(L, encounter->tankPos.z);
+		return 3;
 	}
 	return 0;
 }
