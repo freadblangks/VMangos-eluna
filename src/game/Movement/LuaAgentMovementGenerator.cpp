@@ -30,6 +30,15 @@
 #include "TemporarySummon.h"
 #include "GameObjectAI.h"
 #include "Geometry.h"
+#include "LuaAI/LuaAgent.h"
+
+namespace
+{
+    bool IsFalling(Player* owner)
+    {
+        return owner && owner->IsLuaAgent() && owner->GetLuaAI() && owner->GetLuaAI()->IsFalling();
+    }
+}
 
 //-----------------------------------------------//
 template<class T, typename D>
@@ -40,7 +49,7 @@ void LuaAITargetedMovementGeneratorMedium<T, D>::_setTargetLocation(T &owner)
     if (!i_target.isValid() || !i_target->IsInWorld())
         return;
 
-    if (owner.HasUnitState(UNIT_STAT_CAN_NOT_MOVE | UNIT_STAT_POSSESSED))
+    if (owner.HasUnitState(UNIT_STAT_NO_FREE_MOVE | UNIT_STAT_POSSESSED) || IsFalling(owner.ToPlayer()))
         return;
 
     float x, y, z;
@@ -278,9 +287,10 @@ void LuaAITargetedMovementGeneratorMedium<T, D>::UpdateAsync(T &owner, uint32 /*
     if (!m_bRecalculateTravel)
         return;
     // All these cases will be handled at next sync update
-    if (!i_target.isValid() || !i_target->IsInWorld() || !owner.IsAlive() || owner.HasUnitState(UNIT_STAT_CAN_NOT_MOVE | UNIT_STAT_POSSESSED)
+    if (!i_target.isValid() || !i_target->IsInWorld() || !owner.IsAlive() || owner.HasUnitState(UNIT_STAT_NO_FREE_MOVE | UNIT_STAT_POSSESSED)
             || static_cast<D*>(this)->_lostTarget(owner)
-            || owner.IsNoMovementSpellCasted())
+            || owner.IsNoMovementSpellCasted()
+            || IsFalling(owner.ToPlayer()))
         return;
 
     // Lock async updates for safety, see Unit::asyncMovesplineLock doc
@@ -339,7 +349,7 @@ bool LuaAIChaseMovementGenerator<T>::Update(T &owner, uint32 const&  time_diff)
     if (owner.movespline->IsUninterruptible() && !owner.movespline->Finalized())
         return true;
 
-    if (owner.HasUnitState(UNIT_STAT_CAN_NOT_MOVE | UNIT_STAT_POSSESSED))
+    if (owner.HasUnitState(UNIT_STAT_NO_FREE_MOVE | UNIT_STAT_POSSESSED) || IsFalling(owner.ToPlayer()))
     {
         _clearUnitStateMove(owner);
         return true;
@@ -658,7 +668,7 @@ bool LuaAIFollowMovementGenerator<T>::Update(T &owner, uint32 const&  time_diff)
     if (!owner.IsAlive())
         return true;
 
-    if (owner.HasUnitState(UNIT_STAT_CAN_NOT_MOVE | UNIT_STAT_POSSESSED))
+    if (owner.HasUnitState(UNIT_STAT_NO_FREE_MOVE | UNIT_STAT_POSSESSED) || IsFalling(owner.ToPlayer()))
     {
         _clearUnitStateMove(owner);
         return true;

@@ -77,6 +77,8 @@ void LuaAgent::Update(uint32 diff)
 	if (!me || !IsReady() || me->IsTaxiFlying())
 		return;
 
+	Fall();
+
 	if (!IsInitialized())
 	{
 		Init();
@@ -244,6 +246,44 @@ void LuaAgent::OnPacketReceived(const WorldPacket& pck)
 		else
 			me->GetSession()->QueuePacket(std::move(std::make_unique<WorldPacket>(CMSG_GROUP_ACCEPT)));
 
+		break;
+	}
+	case SMSG_MOVE_KNOCK_BACK:
+	{
+		if (IsFalling())
+			return;
+		WorldPacket pck(pck);
+		ObjectGuid guid;
+		uint32 mCounter = 0u;
+		float vcos, vsin, speedxy, speedz;
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_8_4
+		guid = pck.readPackGUID();
+#elif SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_2_4
+		pck >> guid;
+#endif
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_9_4
+		pck >> mCounter;
+#endif
+		pck >> vcos >> vsin >> speedxy >> speedz;
+		MovementInfo movementInfo(me->m_movementInfo);
+		movementInfo.moveFlags = 40961u;
+		movementInfo.jump.cosAngle = vcos;
+		movementInfo.jump.sinAngle = vsin;
+		movementInfo.jump.xyspeed = speedxy;
+		movementInfo.jump.zspeed = speedz;
+		movementInfo.jump.startClientTime = WorldTimer::getMSTime();
+		std::unique_ptr<WorldPacket>send = std::make_unique<WorldPacket>(CMSG_MOVE_KNOCK_BACK_ACK);
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_8_4
+		*send << guid.WriteAsPacked();
+#elif SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_2_4
+		*send << guid;
+#endif
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_9_4
+		send << mCounter;
+#endif
+		*send << movementInfo;
+		FallBegin(vcos, vsin, speedxy, speedz, WorldTimer::getMSTime());
+		me->GetSession()->QueuePacket(std::move(send));
 		break;
 	}
 	case SMSG_NEW_WORLD:
@@ -649,9 +689,182 @@ void LuaAgent::GonameCommand(std::string name) {
 	me->GetMotionMaster()->Clear(false, true);
 	me->GetMotionMaster()->MoveIdle();
 	me->ClearTarget();
+	m_fall = FallInfo();
 	//m_topGoal = Goal(0, 0, Goal::NOPARAMS, nullptr, nullptr);
 	//m_topGoal.SetTerminated(true);
 	char namecopy[128] = {};
 	strcpy(namecopy, name.c_str());
 	ChatHandler(me).HandleGonameCommand(namecopy);
+}
+
+
+// ========================================================================
+// Fall
+// ========================================================================
+
+
+namespace
+{
+	double gravity = 19.29110527038574;
+
+	// Velocity bounds that makes fall speed limited
+	float terminalVelocity = 60.148003f;
+	float terminalSavefallVelocity = 7.f;
+
+	float const terminal_length = float(terminalVelocity * terminalVelocity) / (2.f * gravity);
+	float const terminal_savefall_length = (terminalSavefallVelocity * terminalSavefallVelocity) / (2.f * gravity);
+	float const terminalFallTime = float(terminalVelocity / gravity); // the time that needed to reach terminalVelocity
+
+	float computeFallElevation(float t_passed, bool isSafeFall, float start_velocity)
+	{
+		float termVel;
+		float result;
+		double g = -gravity;
+
+		if (isSafeFall)
+			termVel = terminalSavefallVelocity;
+		else
+			termVel = terminalVelocity;
+
+		if (start_velocity > termVel)
+			start_velocity = termVel;
+
+		float terminal_time = terminalFallTime - start_velocity / gravity; // the time that needed to reach terminalVelocity
+
+		if (t_passed > terminal_time)
+		{
+			result = terminalVelocity * (t_passed - terminal_time) +
+				start_velocity * terminal_time + g * terminal_time * terminal_time * 0.5f;
+		}
+		else
+			result = t_passed * (start_velocity + t_passed * g * 0.5f);
+
+		return result;
+	}
+}
+
+
+void LuaAgent::FallBegin(float vcos, float vsin, float speedxy, float speedz, uint32 beginT)
+{
+	if (IsFalling())
+		return;
+	m_fall.vcos = vcos;
+	m_fall.vsin = vsin;
+	m_fall.speedxy = speedxy;
+	m_fall.speedz = speedz;
+	m_fall.falling = true;
+	m_fall.lastT = beginT;
+	m_fall.beginT = beginT;
+	m_fall.startX = me->GetPositionX();
+	m_fall.startY = me->GetPositionY();
+	m_fall.startZ = me->GetPositionZ();
+
+	m_fall.lastX = m_fall.startX;
+	m_fall.lastY = m_fall.startY;
+	m_fall.lastZ = m_fall.startZ;
+	// printf("Fall start at (%f %f %f)\n", m_fall.startX, m_fall.startY, m_fall.startZ);
+	me->StopMoving();
+}
+
+void LuaAgent::Fall()
+{
+	if (!IsFalling())
+		return;
+
+	float x, y, z;
+	float diffT = WorldTimer::getMSTimeDiffToNow(m_fall.beginT) / 1000.0f;
+
+	if (diffT < 0.05)
+		return;
+
+	x = m_fall.startX;
+	y = m_fall.startY;
+	z = m_fall.startZ;
+	if (!x || !y || !z || diffT > 10000.0f)
+		FallEnd(me->GetPositionX(), me->GetPositionY(), me->GetPositionZ());
+	x += m_fall.vcos * m_fall.speedxy * diffT;
+	y += m_fall.vsin * m_fall.speedxy * diffT;
+	float groundZ = me->GetMap()->GetHeight(x, y, me->GetPositionZ());
+	z += computeFallElevation(diffT, me->m_movementInfo.moveFlags & MOVEFLAG_SAFE_FALL, -m_fall.speedz);
+
+	if (z <= groundZ)
+		z = groundZ;
+
+	bool mm_fail;
+	{
+		float wasX = m_fall.lastX, wasY = m_fall.lastY, wasZ = m_fall.lastZ;
+		float x2 = x, y2 = y, z2 = z;
+		mm_fail = !me->IsWithinLOSAtPosition(wasX, wasY, wasZ, x, y, z);
+		if (mm_fail)
+		{
+			x = wasX;
+			y = wasY;
+			float wasGroundZ = me->GetMap()->GetHeight(wasX, wasY, wasZ);
+			if (z == groundZ)
+				z = wasGroundZ;
+			else if (z <= wasGroundZ)
+				z = wasGroundZ;
+			groundZ = wasGroundZ;
+		}
+	}
+
+	m_fall.lastX = x;
+	m_fall.lastY = y;
+	m_fall.lastZ = z;
+
+	//printf("%d (%f %f %f) (%f %f %f)\n", mm_fail, m_fall.startX, m_fall.startY, m_fall.startZ, x, y, z);
+	//printf("%f %f %f %f\n", m_fall.vcos * m_fall.speedxy * diffT, m_fall.vcos, m_fall.speedxy, diffT);
+	//printf("%f %f %f %f\n", m_fall.vsin * m_fall.speedxy * diffT, m_fall.vsin, m_fall.speedxy, diffT);
+
+	if (z == groundZ) {
+		FallEnd(x, y, z);
+		return;
+	}
+
+	//if (WorldTimer::getMSTime() - m_fall.lastT < 400u)
+	//	return;
+	//m_fall.lastT = WorldTimer::getMSTime();
+
+	//MovementInfo movementInfo(me->m_movementInfo);
+	//movementInfo.moveFlags = 40961u;
+	//movementInfo.ctime = WorldTimer::getMSTime();
+	//movementInfo.jump.cosAngle = m_fall.vcos;
+	//movementInfo.jump.sinAngle = m_fall.vsin;
+	//movementInfo.jump.xyspeed = m_fall.speedxy;
+	//movementInfo.jump.zspeed = m_fall.speedz;
+	//movementInfo.jump.startClientTime = m_fall.beginT;
+	//movementInfo.pos.x = x;
+	//movementInfo.pos.y = y;
+	//movementInfo.pos.z = z;
+	//std::unique_ptr<WorldPacket>send = std::make_unique<WorldPacket>(MSG_MOVE_HEARTBEAT);
+	//*send << movementInfo;
+	//send->FillPacketTime(movementInfo.ctime);
+	//me->GetSession()->HandleMovementOpcodes(*send);
+}
+
+
+void LuaAgent::FallEnd(float x, float y, float z)
+{
+	if (!IsFalling())
+		return;
+	MovementInfo movementInfo(me->m_movementInfo);
+	movementInfo.moveFlags = 0u;
+	movementInfo.ctime = WorldTimer::getMSTime();
+	movementInfo.pos.x = x;
+	movementInfo.pos.y = y;
+	movementInfo.pos.z = z;
+	//printf("Fall stop at (%f %f %f)\n", x, y, z);
+	{
+		std::unique_ptr<WorldPacket>send = std::make_unique<WorldPacket>(MSG_MOVE_STOP);
+		*send << movementInfo;
+		send->FillPacketTime(movementInfo.ctime);
+		me->GetSession()->HandleMovementOpcodes(*send);
+	}
+	{
+		std::unique_ptr<WorldPacket>send = std::make_unique<WorldPacket>(MSG_MOVE_FALL_LAND);
+		*send << movementInfo;
+		send->FillPacketTime(movementInfo.ctime);
+		me->GetSession()->QueuePacket(std::move(send));
+	}
+	m_fall = FallInfo();
 }

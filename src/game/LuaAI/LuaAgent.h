@@ -23,6 +23,24 @@ enum class LuaAgentRoles {
 
 class LuaAgent
 {
+	struct FallInfo
+	{
+		float startX{0.f};
+		float startY{0.f};
+		float startZ{0.f};
+		float lastX{0.f};
+		float lastY{0.f};
+		float lastZ{0.f};
+		float vcos{0.f};
+		float vsin{0.f};
+		float speedxy{0.f};
+		float speedz{0.f};
+		float endT{0.f};
+		uint32 lastT{0u};
+		uint32 beginT{0u};
+		bool falling{false};
+	} m_fall;
+
 	bool m_queueGoname;
 	std::string m_queueGonameName;
 
@@ -53,6 +71,10 @@ class LuaAgent
 	GoalManager m_goalManager;
 	LogicManager m_logicManager;
 	std::vector<std::unique_ptr<AgentCmd>> commands;
+
+	void FallBegin(float vcos, float vsin, float speedxy, float speedz, uint32 beginT);
+	void Fall();
+	void FallEnd(float x, float y, float z);
 
 public:
 
@@ -144,6 +166,8 @@ public:
 	uint32 GetSpellMaxRankForLevel(uint32 lastSpell, uint32 level);
 	uint32 GetSpellOfRank(uint32 lastSpell, uint32 rank);
 	uint32 GetSpellLevel(uint32 spellID);
+
+	bool IsFalling() { return m_fall.falling; }
 
 	const ObjectGuid& GetMasterGuid() { return m_masterGuid; }
 	Player* GetPlayer() { return me; }
