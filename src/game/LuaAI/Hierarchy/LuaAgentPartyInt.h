@@ -28,7 +28,7 @@ public:
 	Player* GetAgent(const ObjectGuid& guid);
 	LuaAgentMap& GetAgentMap() { return m_agents; }
 
-	float GetAngleForTank(LuaAgent* tank, Unit* target, bool allowFlip);
+	float GetAngleForTank(LuaAgent* tank, Unit* target, bool& flipped, bool allowFlip, bool forceFlip = false);
 	DungeonData* GetDungeonData() { return m_dungeon; }
 	bool HasCLineFor(Unit* agent);
 

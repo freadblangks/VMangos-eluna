@@ -165,11 +165,19 @@ int LuaBindsAI::AI_GetAngleForTanking(lua_State* L)
 	LuaAgent* ai = AI_GetAIObject(L);
 	Unit* target = Unit_GetUnitObject(L, 2);
 	bool allowFlip = luaL_checkboolean(L, 3);
+	bool forceFlip = luaL_checkboolean(L, 4);
 	if (PartyIntelligence* pi = ai->GetPartyIntelligence())
-		lua_pushnumber(L, pi->GetAngleForTank(ai, target, allowFlip));
+	{
+		bool flipped;
+		lua_pushnumber(L, pi->GetAngleForTank(ai, target, flipped, allowFlip, forceFlip));
+		lua_pushboolean(L, flipped);
+	}
 	else
+	{
 		lua_pushnumber(L, ai->GetPlayer()->GetOrientation());
-	return 1;
+		lua_pushboolean(L, false);
+	}
+	return 2;
 }
 
 

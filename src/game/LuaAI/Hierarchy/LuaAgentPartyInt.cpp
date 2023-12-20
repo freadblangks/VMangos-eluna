@@ -204,8 +204,9 @@ void PartyIntelligence::LoadAgents()
 }
 
 
-float PartyIntelligence::GetAngleForTank(LuaAgent* ai, Unit* target, bool allowFlip)
+float PartyIntelligence::GetAngleForTank(LuaAgent* ai, Unit* target, bool& flipped, bool allowFlip, bool forceFlip)
 {
+	flipped = false;
 	Player* agent = ai->GetPlayer();
 	if (!HasCLineFor(agent))
 		return agent->GetOrientation();
@@ -222,7 +223,8 @@ float PartyIntelligence::GetAngleForTank(LuaAgent* ai, Unit* target, bool allowF
 	float a = std::atan2(AB.y, AB.x);
 	a = (a >= 0.f) ? a : (2.f * M_PI_F + a); // 0 .. 360
 
-	if (allowFlip && !m_owner.IsEmpty())
+	bool shouldFlip = forceFlip;
+	if (!shouldFlip && allowFlip && !m_owner.IsEmpty())
 		if (Player* owner = sObjectAccessor.FindPlayer(m_owner))
 		{
 			G3D::Vector3 ownerPos(owner->GetPositionX(), owner->GetPositionY(), owner->GetPositionZ());
@@ -230,8 +232,15 @@ float PartyIntelligence::GetAngleForTank(LuaAgent* ai, Unit* target, bool allowF
 			G3D::Vector3& ownerToTarget = targetPos - ownerPos;
 			// flip direction if owner is opposite side
 			if (AB.dot(ownerToTarget) < 0.f)
-				a = (a < M_PI_F) ? (a + M_PI_F) : (a - M_PI_F);
+				shouldFlip = true;
 		}
+
+	if (shouldFlip)
+	{
+		a = (a < M_PI_F) ? (a + M_PI_F) : (a - M_PI_F);
+		flipped = true;
+	}
+		
 
 	return a;
 }
@@ -433,8 +442,11 @@ int LuaBindsAI::PartyInt_GetAngleForTank(lua_State* L)
 	LuaAgent* ai = AI_GetAIObject(L, 2);
 	Unit* target = Unit_GetUnitObject(L, 3);
 	bool allowFlip = luaL_checkboolean(L, 4);
-	lua_pushnumber(L, intelligence->GetAngleForTank(ai, target, allowFlip));
-	return 1;
+	bool forceFlip = luaL_checkboolean(L, 5);
+	bool flipped;
+	lua_pushnumber(L, intelligence->GetAngleForTank(ai, target, flipped, allowFlip, forceFlip));
+	lua_pushboolean(L, flipped);
+	return 2;
 }
 
 
