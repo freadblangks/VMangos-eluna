@@ -47,6 +47,7 @@ class LuaAgent
 	uint32 m_ammo;
 	float m_stdThreat;
 	ObjectGuid m_healTarget;
+	ObjectGuid m_ccTarget;
 
 	ShortTimeTracker m_updateTimer;
 	uint32 m_updateInterval;
@@ -112,6 +113,8 @@ public:
 	float GetStdThreat() { return m_stdThreat; }
 	void SetStdThreat(float value) { m_stdThreat = value; }
 
+	ObjectGuid& GetCCTarget() { return m_ccTarget; }
+	void SetCCTarget(const ObjectGuid& guid) { m_ccTarget = guid; }
 	ObjectGuid& GetHealTarget() { return m_healTarget; }
 	void SetHealTarget(const ObjectGuid& guid) { m_healTarget = guid; }
 

@@ -127,10 +127,32 @@ void LuaAITargetedMovementGeneratorMedium<T, D>::_setTargetLocation(T &owner)
             
             if (GetMovementGeneratorType() == CHASE_MOTION_TYPE)
             {
-                float angle = m_bUseAbsAngle ? m_fAbsAngle : i_target->GetOrientation();
-                if (!m_bUseAbsAngle && i_target->GetVictim() && i_target->GetVictim()->GetObjectGuid() != owner.GetObjectGuid())
-                    angle += m_fAngle;
-                i_target->GetNearPointAroundPosition(&owner, x, y, z, owner.GetObjectBoundingRadius(), m_fOffset, angle);
+                float angle;
+                if (m_bUseAngle)
+                {
+                    angle = m_bUseAbsAngle ? m_fAbsAngle : i_target->GetOrientation();
+                    if (!m_bUseAbsAngle && i_target->GetVictim() && i_target->GetVictim()->GetObjectGuid() != owner.GetObjectGuid())
+                        angle += m_fAngle;
+                }
+                else
+                    angle = i_target->GetAngle(&owner);
+                float offset;
+                float combinedBoundingRadius = i_target->GetObjectBoundingRadius() + owner.GetObjectBoundingRadius();
+                float D = i_target->GetDistance(&owner, SizeFactor::None);
+
+                float dMin = m_fOffset + combinedBoundingRadius - m_offsetMin;
+                float dMax = m_fOffset + combinedBoundingRadius + m_offsetMax;
+
+                if (dMin < 0.00001f)
+                    dMin = 0.00001f;
+                // closest allowed if too close, offset if too far, and same distance if correcting angle only
+                if (D < dMin)
+                    offset = dMin + .1f;
+                else if (D > dMax)
+                    offset = m_fOffset;
+                else
+                    offset = D;
+                i_target->GetNearPointAroundPosition(&owner, x, y, z, owner.GetObjectBoundingRadius(), offset, angle);
             }
             else
                 i_target->GetNearPointAroundPosition(&owner, x, y, z, owner.GetObjectBoundingRadius(), m_fOffset, o + m_fAngle);
@@ -168,15 +190,6 @@ void LuaAITargetedMovementGeneratorMedium<T, D>::_setTargetLocation(T &owner)
 
     if (!m_bReachable && !!(pathType & PATHFIND_INCOMPLETE) && owner.HasUnitState(UNIT_STAT_ALLOW_INCOMPLETE_PATH))
         m_bReachable = true;
-
-    // Enforce stricter checking inside dungeons
-    if (m_bReachable && owner.GetMap() && owner.GetMap()->IsDungeon())
-    {
-        // Check dest coords to ensure reachability
-        G3D::Vector3 dest = path.getActualEndPosition();
-        if (!owner.CanReachWithMeleeAutoAttackAtPosition(i_target.getTarget(), dest[0], dest[1], dest[2]))
-            m_bReachable = false;
-    }
 
     m_bRecalculateTravel = false;
     if (this->GetMovementGeneratorType() == CHASE_MOTION_TYPE && !transport && owner.HasDistanceCasterMovement())
@@ -304,7 +317,7 @@ bool LuaAIChaseMovementGenerator<T>::IsAngleBad(T& owner, bool mutualChase)
     if (m_bUseAbsAngle)
         return std::abs(i_target->GetAngle(&owner) - m_fAbsAngle) > .2f;
 
-    if (mutualChase)
+    if (mutualChase || !m_bUseAngle)
         return false;
 
     float relAngle = MapManager::NormalizeOrientation(i_target->GetAngle(&owner) - i_target->GetOrientation());
@@ -407,9 +420,6 @@ bool LuaAIChaseMovementGenerator<T>::Update(T &owner, uint32 const&  time_diff)
                 else if (m_bTargetOnTransport)
                     targetMoved = true;
 
-                if (!targetMoved)
-                    targetMoved = !i_target->IsWithinDist3d(dest.x, dest.y, dest.z, 0.5f);
-
                 bool mutualChase = false;
                 if (Unit* victim = i_target->GetVictim())
                     if (victim->GetObjectGuid() == owner.GetObjectGuid())
@@ -460,7 +470,7 @@ bool LuaAIChaseMovementGenerator<T>::Update(T &owner, uint32 const&  time_diff)
         if (interrupted)
             owner.StopMoving();
 
-        if (interrupted || owner.IsPlayer() && !owner.HasInArc(i_target.getTarget(), M_PI_F / 2.0f))
+        if (interrupted || owner.IsPlayer() && !owner.HasInArc(i_target.getTarget(), 0.25f))
             owner.SetFacingTo(owner.GetAngle(i_target.getTarget()));
 
         m_spreadTimer.Update(time_diff);

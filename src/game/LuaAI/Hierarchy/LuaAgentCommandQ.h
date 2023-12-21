@@ -13,6 +13,7 @@ enum class AgentCmdType : uint8
 	Tank,
 	Heal,
 	Pull,
+	CC,
 	Max,
 };
 
@@ -118,6 +119,16 @@ class AgentCmdPull : public AgentCmd
 
 public:
 	AgentCmdPull(const ObjectGuid& targetGuid) : AgentCmd(AgentCmdType::Pull), targetGuid(targetGuid) {}
+	int Push(lua_State* L) override;
+};
+
+
+class AgentCmdCC : public AgentCmd
+{
+	ObjectGuid targetGuid;
+
+public:
+	AgentCmdCC(const ObjectGuid& targetGuid) : AgentCmd(AgentCmdType::CC), targetGuid(targetGuid) {}
 	int Push(lua_State* L) override;
 };
 

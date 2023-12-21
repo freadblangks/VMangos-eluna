@@ -27,6 +27,18 @@ namespace
 }
 
 
+bool PartyIntelligence::CCInfo::Check(PartyIntelligence* intelligence)
+{
+	Player* agent = intelligence->GetAgent(agentGuid);
+	if (!agent || !agent->GetLuaAI() || !agent->GetLuaAI()->IsReady() || !agent->IsAlive() )
+		return false;
+	Unit* unit = agent->GetMap()->GetUnit(guid);
+	if (!unit || !unit->IsAlive())
+		return false;
+	return true;
+}
+
+
 PartyIntelligence::PartyIntelligence(std::string name, ObjectGuid owner) :
 	m_name(name),
 	m_userDataRef(LUA_NOREF),
@@ -72,6 +84,8 @@ void PartyIntelligence::Reset(lua_State* L, bool dropRefs)
 		Unref(L);
 	m_agentInfos.clear();
 	m_agents.clear();
+	m_cc.clear();
+	m_dungeon = nullptr;
 }
 
 
@@ -126,6 +140,8 @@ void PartyIntelligence::Update(uint32 diff, lua_State* L)
 		LoadAgents();
 		return;
 	}
+
+	UpdateCC();
 
 	lua_getglobal(L, m_update.c_str());
 	PushUD(L);
@@ -281,6 +297,16 @@ bool PartyIntelligence::HasCLineFor(Unit* agent)
 }
 
 
+void PartyIntelligence::UpdateCC()
+{
+	for (auto& it = m_cc.begin(); it != m_cc.end();)
+		if (!it->second.Check(this))
+			it = m_cc.erase(it);
+		else
+			++it;
+}
+
+
 // ---------------------------------------------------------
 //    LUA BINDS
 // ---------------------------------------------------------
@@ -319,6 +345,16 @@ int LuaBindsAI::PartyInt_CanPullTarget(lua_State* L)
 			return 1;
 		}
 	lua_pushboolean(L, true);
+	return 1;
+}
+
+
+int LuaBindsAI::PartyInt_CmdCC(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L, 2);
+	LuaObjectGuid* guid = Guid_GetGuidObject(L, 3);
+	AgentCmdCC* cmd = new AgentCmdCC(guid->guid);
+	lua_pushinteger(L, ai->CommandsAdd(cmd));
 	return 1;
 }
 
@@ -412,9 +448,12 @@ int LuaBindsAI::PartyInt_GetAgents(lua_State* L)
 		Player* agent = it.second;
 		if (LuaAgent* agentAI = agent->GetLuaAI())
 		{
-			agentAI->PushUD(L);
-			lua_seti(L, -2, idx);
-			++idx;
+			if (agentAI->IsReady())
+			{
+				agentAI->PushUD(L);
+				lua_seti(L, -2, idx);
+				++idx;
+			}
 		}
 	}
 	return 1;
@@ -521,4 +560,46 @@ int LuaBindsAI::PartyInt_GetPrevCLineS(lua_State* L)
 	lua_pushinteger(L, S);
 	lua_pushinteger(L, lineIdx);
 	return 5;
+}
+
+
+int LuaBindsAI::PartyInt_AddCC(lua_State* L)
+{
+	PartyIntelligence* intelligence = PartyInt_GetPIObject(L);
+	LuaObjectGuid* agentGuid = Guid_GetGuidObject(L, 2);
+	LuaObjectGuid* targetGuid = Guid_GetGuidObject(L, 3);
+	intelligence->AddCC(targetGuid->guid, agentGuid->guid);
+	return 0;
+}
+
+
+int LuaBindsAI::PartyInt_RemoveCC(lua_State* L)
+{
+	PartyIntelligence* intelligence = PartyInt_GetPIObject(L);
+	LuaObjectGuid* targetGuid = Guid_GetGuidObject(L, 2);
+	intelligence->RemoveCC(targetGuid->guid);
+	return 0;
+}
+
+
+int LuaBindsAI::PartyInt_GetCCTable(lua_State* L)
+{
+	PartyIntelligence* intelligence = PartyInt_GetPIObject(L);
+	lua_newtable(L);
+	lua_Integer i = 1;
+	for (auto& it : intelligence->GetCCMap())
+	{
+		PartyIntelligence::CCInfo& ccinfo = it.second;
+		Player* agent = intelligence->GetAgent(ccinfo.agentGuid);
+		Unit* target = agent->GetMap()->GetUnit(ccinfo.guid);
+		lua_newtable(L);
+		LuaAgent* ai = agent->GetLuaAI();
+		ai->PushUD(L);
+		lua_setfield(L, -2, "agent");
+		Unit_CreateUD(target, L);
+		lua_setfield(L, -2, "target");
+		lua_seti(L, -2, i);
+		++i;
+	}
+	return 1;
 }

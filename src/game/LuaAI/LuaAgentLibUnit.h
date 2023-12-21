@@ -15,6 +15,8 @@ namespace LuaBindsAI {
 	Unit* Unit_GetUnitObject(lua_State* L, int idx = 1);
 	void Unit_CreateUD(Unit* unit, lua_State* L);
 
+	int Unit_GetAI(lua_State* L);
+
 	// Attacking
 
 	int Unit_Attack(lua_State* L);
@@ -40,6 +42,7 @@ namespace LuaBindsAI {
 	int Unit_IsAlive(lua_State* L);
 	int Unit_IsInCombat(lua_State* L);
 	int Unit_IsNonMeleeSpellCasted(lua_State* L);
+	int Unit_IsNextSwingSpellCasted(lua_State* L);
 	int Unit_IsTanking(lua_State* L);
 
 	int Unit_GetAttackersNum(lua_State* L);
@@ -97,6 +100,7 @@ namespace LuaBindsAI {
 	int Unit_SetStandState(lua_State* L);
 
 	static const struct luaL_Reg Unit_BindLib[]{
+		{"GetAI", Unit_GetAI},
 		// Attacking
 		{"Attack", Unit_Attack},
 		{"AttackStop", Unit_AttackStop},
@@ -114,6 +118,7 @@ namespace LuaBindsAI {
 		{"IsAlive", Unit_IsAlive},
 		{"IsInCombat", Unit_IsInCombat},
 		{"IsNonMeleeSpellCasted", Unit_IsNonMeleeSpellCasted},
+		{"IsNextSwingSpellCasted", Unit_IsNextSwingSpellCasted},
 		{"IsTanking", Unit_IsTanking},
 
 		{"GetAttackersNum", Unit_GetAttackersNum},

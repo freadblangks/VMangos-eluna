@@ -22,6 +22,25 @@ namespace LuaBindsAI {
 	int AI_SetStdThreat(lua_State* L);
 	int AI_GetHealTarget(lua_State* L);
 	int AI_SetHealTarget(lua_State* L);
+	int AI_GetCCTarget(lua_State* L);
+	int AI_SetCCTarget(lua_State* L);
+
+	// chase control
+
+	int AI_GetChaseAngle(lua_State* L);
+	int AI_GetChaseAngleT(lua_State* L);
+	int AI_GetChaseUseAngle(lua_State* L);
+	int AI_GetChaseDist(lua_State* L);
+	int AI_GetChaseMinT(lua_State* L);
+	int AI_GetChaseMaxT(lua_State* L);
+	int AI_SetChaseAngle(lua_State* L);
+	int AI_SetChaseAngleT(lua_State* L);
+	int AI_SetChaseUseAngle(lua_State* L);
+	int AI_SetChaseAngleValues(lua_State* L);
+	int AI_SetChaseDist(lua_State* L);
+	int AI_SetChaseMinT(lua_State* L);
+	int AI_SetChaseMaxT(lua_State* L);
+	int AI_SetChaseValues(lua_State* L);
 
 	int AI_GetAngleForTanking(lua_State* L);
 	int AI_GetPosForTanking(lua_State* L);
@@ -89,6 +108,23 @@ namespace LuaBindsAI {
 		{"SetStdThreat", AI_SetStdThreat},
 		{"GetHealTarget", AI_GetHealTarget},
 		{"SetHealTarget", AI_SetHealTarget},
+		{"GetCCTarget", AI_GetCCTarget},
+		{"SetCCTarget", AI_SetCCTarget},
+
+		{"GetChaseAngle", AI_GetChaseAngle},
+		{"GetChaseAngleT", AI_GetChaseAngleT},
+		{"GetChaseUseAngle", AI_GetChaseUseAngle},
+		{"GetChaseDist", AI_GetChaseDist},
+		{"GetChaseMinT", AI_GetChaseMinT},
+		{"GetChaseMaxT", AI_GetChaseMaxT},
+		{"SetChaseAngleValues", AI_SetChaseAngleValues},
+		{"SetChaseAngle", AI_SetChaseAngle},
+		{"SetChaseAngleT", AI_SetChaseAngleT},
+		{"SetChaseUseAngle", AI_SetChaseUseAngle},
+		{"SetChaseDist", AI_SetChaseDist},
+		{"SetChaseMinT", AI_SetChaseMinT},
+		{"SetChaseMaxT", AI_SetChaseMaxT},
+		{"SetChaseValues", AI_SetChaseValues},
 
 		{"GetPosForTanking", AI_GetPosForTanking},
 		{"GetAngleForTanking", AI_GetAngleForTanking},

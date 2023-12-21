@@ -56,3 +56,10 @@ int AgentCmdPull::Push(lua_State* L)
 	LuaBindsAI::Guid_CreateUD(L, targetGuid);
 	return 1;
 }
+
+
+int AgentCmdCC::Push(lua_State* L)
+{
+	LuaBindsAI::Guid_CreateUD(L, targetGuid);
+	return 1;
+}

@@ -57,6 +57,10 @@ class LuaAITargetedMovementGeneratorMedium
 
         ShortTimeTracker m_checkDistanceTimer;
 
+        float m_offsetMin{0.f};
+        float m_offsetMax{0.f};
+        bool m_noMinOffsetIfMutual{false};
+        bool m_bUseAngle{true};
         bool m_bUseAbsAngle{false};
         float m_fAbsAngle{0.f};
         float m_fOffset;
@@ -75,15 +79,33 @@ template<class T>
 class LuaAIChaseMovementGenerator : public LuaAITargetedMovementGeneratorMedium<T, LuaAIChaseMovementGenerator<T> >
 {
     public:
-        LuaAIChaseMovementGenerator(Unit &target, float offset, float offsetMin, float offsetMax, float angle, float angleT, bool noMinOffsetIfMutual)
+        LuaAIChaseMovementGenerator(Unit &target, float offset, float offsetMin, float offsetMax, float angle, float angleT, bool noMinOffsetIfMutual, bool useAngle)
             : LuaAITargetedMovementGeneratorMedium<T, LuaAIChaseMovementGenerator<T> >(target, offset, angle),
-            m_offsetMin(offsetMin != 0.f ? offsetMin : .2f), m_offsetMax(offsetMax != .0f ? offsetMax : .2f),
-            m_angleT(angleT), m_noMinOffsetIfMutual(noMinOffsetIfMutual) {}
+            m_angleT(angleT)
+        {
+            m_offsetMax = offsetMax != .0f ? offsetMax : .2f;
+            m_offsetMin = offsetMin != 0.f ? offsetMin : .2f;
+            m_noMinOffsetIfMutual = noMinOffsetIfMutual;
+            m_bUseAngle = useAngle;
+        }
         ~LuaAIChaseMovementGenerator() noexcept {}
+
+        float GetOffset() { return m_fOffset; }
+        float GetOffsetMin() { return m_offsetMin; }
+        float GetOffsetMax() { return m_offsetMax; }
+        void SetOffset(float v) { m_fOffset = v; }
+        void SetOffsetMin(float v) { m_offsetMin = v; }
+        void SetOffsetMax(float v) { m_offsetMax = v; }
+        float GetAngle() { return m_fAngle; }
+        float GetAngleT() { return m_angleT; }
+        void SetAngle(float v) { m_fAngle = v; }
+        void SetAngleT(float v) { m_angleT = v; }
 
         bool IsUsingAbsAngle() { return m_bUseAbsAngle; }
         void UseAbsAngle(float A) { m_fAbsAngle = A; m_bUseAbsAngle = true; }
         void RemoveAbsAngle() { m_bUseAbsAngle = false; }
+        bool IsUsingAngle() { return m_bUseAngle; }
+        void SetUseAngle(bool v) { m_bUseAngle = v; }
 
         MovementGeneratorType GetMovementGeneratorType() const { return CHASE_MOTION_TYPE; }
 
@@ -107,9 +129,6 @@ class LuaAIChaseMovementGenerator : public LuaAITargetedMovementGeneratorMedium<
         uint8 m_uiSpreadAttempts = 0;
 
         float m_angleT;
-        float m_offsetMin;
-        float m_offsetMax;
-        float m_noMinOffsetIfMutual;
 
         bool IsAngleBad(T& owner, bool mutualChase);
         bool IsDistBad(T& owner, bool mutualChase);

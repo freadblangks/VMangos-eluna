@@ -13,12 +13,19 @@
 
 namespace
 {
-	void AI_CmdSetStateHelper(lua_State* L, LuaAgent* ai, AgentCmd::State state)
+	inline void AI_CmdSetStateHelper(lua_State* L, LuaAgent* ai, AgentCmd::State state)
 	{
 		AgentCmd* cmd = ai->CommandsGetFirst();
 		if (!cmd)
 			luaL_error(L, "AI_CmdSetState: no commands in queue");
 		cmd->SetState(AgentCmd::State(state));
+	}
+	inline LuaAIChaseMovementGenerator<Player>* AI_GetChaseGen(Player* agent)
+	{
+		if (agent->GetMotionMaster()->GetCurrentMovementGeneratorType() == MovementGeneratorType::CHASE_MOTION_TYPE)
+			if (auto constGen = dynamic_cast<const LuaAIChaseMovementGenerator<Player>*>(agent->GetMotionMaster()->GetCurrent()))
+				return const_cast<LuaAIChaseMovementGenerator<Player>*>(constGen);
+		return nullptr;
 	}
 }
 
@@ -140,6 +147,194 @@ int LuaBindsAI::AI_SetHealTarget(lua_State* L)
 }
 
 
+int LuaBindsAI::AI_GetCCTarget(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	lua_pushunitornil(L, ai->GetPlayer()->GetMap()->GetUnit(ai->GetCCTarget()));
+	return 1;
+}
+
+
+int LuaBindsAI::AI_SetCCTarget(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	if (lua_isnil(L, 2))
+		ai->SetCCTarget(ObjectGuid());
+	else
+	{
+		LuaObjectGuid* guid = Guid_GetGuidObject(L, 2);
+		ai->SetCCTarget(guid->guid);
+	}
+	return 0;
+}
+
+
+// -----------------------------------------------------------
+//                      Chase Control
+// -----------------------------------------------------------
+
+
+int LuaBindsAI::AI_GetChaseAngle(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	if (auto gen = AI_GetChaseGen(ai->GetPlayer()))
+		lua_pushnumber(L, gen->GetAngle());
+	else
+		lua_pushnumber(L, 0.f);
+	return 1;
+}
+
+
+int LuaBindsAI::AI_GetChaseAngleT(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	if (auto gen = AI_GetChaseGen(ai->GetPlayer()))
+		lua_pushnumber(L, gen->GetAngleT());
+	else
+		lua_pushnumber(L, 0.f);
+	return 1;
+}
+
+
+int LuaBindsAI::AI_GetChaseUseAngle(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	if (auto gen = AI_GetChaseGen(ai->GetPlayer()))
+		lua_pushboolean(L, gen->IsUsingAngle());
+	else
+		lua_pushboolean(L, false);
+	return 1;
+}
+
+
+int LuaBindsAI::AI_GetChaseDist(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	if (auto gen = AI_GetChaseGen(ai->GetPlayer()))
+		lua_pushnumber(L, gen->GetOffset());
+	else
+		lua_pushnumber(L, 0.f);
+	return 1;
+}
+
+
+int LuaBindsAI::AI_GetChaseMinT(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	if (auto gen = AI_GetChaseGen(ai->GetPlayer()))
+		lua_pushnumber(L, gen->GetOffsetMin());
+	else
+		lua_pushnumber(L, 0.f);
+	return 1;
+}
+
+
+int LuaBindsAI::AI_GetChaseMaxT(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	if (auto gen = AI_GetChaseGen(ai->GetPlayer()))
+		lua_pushnumber(L, gen->GetOffsetMax());
+	else
+		lua_pushnumber(L, 0.f);
+	return 1;
+}
+
+
+int LuaBindsAI::AI_SetChaseAngle(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	lua_Number v = luaL_checknumber(L, 2);
+	if (auto gen = AI_GetChaseGen(ai->GetPlayer()))
+		gen->SetAngle(v);
+	return 0;
+}
+
+
+int LuaBindsAI::AI_SetChaseAngleT(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	lua_Number v = luaL_checknumber(L, 2);
+	if (auto gen = AI_GetChaseGen(ai->GetPlayer()))
+		gen->SetAngleT(v);
+	return 0;
+}
+
+
+int LuaBindsAI::AI_SetChaseUseAngle(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	bool v = luaL_checkboolean(L, 2);
+	if (auto gen = AI_GetChaseGen(ai->GetPlayer()))
+		gen->SetUseAngle(v);
+	return 0;
+}
+
+
+int LuaBindsAI::AI_SetChaseAngleValues(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	auto gen = AI_GetChaseGen(ai->GetPlayer());
+	if (!gen) return 0;
+	if (lua_type(L, 2) == LUA_TNUMBER)
+		gen->SetAngle(lua_tonumber(L, 2));
+	if (lua_type(L, 3) == LUA_TNUMBER)
+		gen->SetAngleT(lua_tonumber(L, 3));
+	if (lua_type(L, 4) == LUA_TBOOLEAN)
+		gen->SetUseAngle(lua_toboolean(L, 4));
+	return 0;
+}
+
+
+int LuaBindsAI::AI_SetChaseDist(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	lua_Number v = luaL_checknumber(L, 2);
+	if (auto gen = AI_GetChaseGen(ai->GetPlayer()))
+		gen->SetOffset(v);
+	return 0;
+}
+
+
+int LuaBindsAI::AI_SetChaseMinT(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	lua_Number v = luaL_checknumber(L, 2);
+	if (auto gen = AI_GetChaseGen(ai->GetPlayer()))
+		gen->SetOffsetMin(v);
+	return 0;
+}
+
+
+int LuaBindsAI::AI_SetChaseMaxT(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	lua_Number v = luaL_checknumber(L, 2);
+	if (auto gen = AI_GetChaseGen(ai->GetPlayer()))
+		gen->SetOffsetMax(v);
+	return 0;
+}
+
+
+int LuaBindsAI::AI_SetChaseValues(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	auto gen = AI_GetChaseGen(ai->GetPlayer());
+	if (!gen) return 0;
+	if (lua_type(L, 2) == LUA_TNUMBER)
+		gen->SetOffset(lua_tonumber(L, 2));
+	if (lua_type(L, 3) == LUA_TNUMBER)
+		gen->SetOffsetMin(lua_tonumber(L, 3));
+	if (lua_type(L, 4) == LUA_TNUMBER)
+		gen->SetOffsetMax(lua_tonumber(L, 4));
+	return 0;
+}
+
+
+// -----------------------------------------------------------
+//                        Motion
+// -----------------------------------------------------------
+
+
 int LuaBindsAI::AI_GetPosForTanking(lua_State* L)
 {
 	LuaAgent* ai = AI_GetAIObject(L);
@@ -148,7 +343,9 @@ int LuaBindsAI::AI_GetPosForTanking(lua_State* L)
 	{
 		if (!pi->HasCLineFor(ai->GetPlayer()))
 			return 0;
-		DungeonData::EncounterData* encounter = pi->GetDungeonData()->GetEncounter(target->GetName());
+		DungeonData::EncounterData* encounter = nullptr;
+		if (DungeonData* data = pi->GetDungeonData())
+			encounter = data->GetEncounter(target->GetName());
 		if (!encounter || !encounter->forceTankPos)
 			return 0;
 		lua_pushnumber(L, encounter->tankPos.x);

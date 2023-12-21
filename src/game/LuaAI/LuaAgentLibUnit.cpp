@@ -48,6 +48,20 @@ void LuaBindsAI::Unit_CreateMetatable(lua_State* L) {
 }
 
 
+int LuaBindsAI::Unit_GetAI(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	if (Player* agent = unit->ToPlayer())
+		if (LuaAgent* ai = agent->GetLuaAI())
+		{
+			ai->PushUD(L);
+			return 1;
+		}
+	lua_pushnil(L);
+	return 1;
+}
+
+
 // ---------------------------------------------------------
 // --                Attacking
 // ---------------------------------------------------------
@@ -281,6 +295,14 @@ int LuaBindsAI::Unit_IsNonMeleeSpellCasted(lua_State* L)
 {
 	Unit* unit = Unit_GetUnitObject(L);
 	lua_pushboolean(L, unit->IsNonMeleeSpellCasted(false, false, true));
+	return 1;
+}
+
+
+int LuaBindsAI::Unit_IsNextSwingSpellCasted(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_pushboolean(L, unit->IsNextSwingSpellCasted());
 	return 1;
 }
 
@@ -743,7 +765,8 @@ int LuaBindsAI::Unit_MoveChase(lua_State* L)
 	double angle = luaL_checknumber(L, 6);
 	double angleT = luaL_checknumber(L, 7);
 	bool noMinOffsetIfMutual = luaL_checkboolean(L, 8);
-	unit->GetMotionMaster()->LuaAIMoveChase(target, offset, offsetMin, offsetMax, angle, angleT, noMinOffsetIfMutual);
+	bool useAngle = luaL_checkboolean(L, 9);
+	unit->GetMotionMaster()->LuaAIMoveChase(target, offset, offsetMin, offsetMax, angle, angleT, noMinOffsetIfMutual, useAngle);
 	return 0;
 }
 
