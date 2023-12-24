@@ -141,6 +141,13 @@ void PartyIntelligence::Update(uint32 diff, lua_State* L)
 		return;
 	}
 
+	// dungeondata update
+	if (Player* owner = sObjectAccessor.FindPlayer(m_owner))
+		if (!m_dungeon || m_dungeon->mapId != owner->GetMapId())
+			if (DungeonData* data = sLuaAgentMgr.GetDungeonData(owner->GetMapId()))
+				m_dungeon = data;
+			else
+				m_dungeon = nullptr;
 	UpdateCC();
 
 	lua_getglobal(L, m_update.c_str());
@@ -152,13 +159,6 @@ void PartyIntelligence::Update(uint32 diff, lua_State* L)
 		SetCeaseUpdates(true);
 		return;
 	}
-
-	if (Player* owner = sObjectAccessor.FindPlayer(m_owner))
-		if (!m_dungeon || m_dungeon->mapId != owner->GetMapId())
-			if (DungeonData* data = sLuaAgentMgr.GetDungeonData(owner->GetMapId()))
-				m_dungeon = data;
-			else
-				m_dungeon = nullptr;
 }
 
 
@@ -228,11 +228,11 @@ float PartyIntelligence::GetAngleForTank(LuaAgent* ai, Unit* target, bool& flipp
 		return agent->GetOrientation();
 
 	int resultS;
-	float resultD;
+	float resultD, resultpct;
 	G3D::Vector3 result;
 	G3D::Vector3 from(agent->GetPositionX(), agent->GetPositionY(), agent->GetPositionZ());
 
-	CLine& line = m_dungeon->lines[m_dungeon->ClosestP(from, result, resultD, resultS)];
+	CLine& line = m_dungeon->lines[m_dungeon->ClosestP(from, result, resultD, resultS, resultpct)];
 
 	G3D::Vector3& AB = line.pts[resultS + 1].pos - line.pts[resultS].pos;
 
@@ -345,6 +345,17 @@ int LuaBindsAI::PartyInt_CanPullTarget(lua_State* L)
 			return 1;
 		}
 	lua_pushboolean(L, true);
+	return 1;
+}
+
+
+int LuaBindsAI::PartyInt_CmdBuff(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L, 2);
+	LuaObjectGuid* guid = Guid_GetGuidObject(L, 3);
+	lua_Integer spellid = luaL_checkinteger(L, 4);
+	AgentCmdBuff* cmd = new AgentCmdBuff(guid->guid, spellid, luaL_checkstring(L, 5));
+	lua_pushinteger(L, ai->CommandsAdd(cmd));
 	return 1;
 }
 
@@ -489,6 +500,35 @@ int LuaBindsAI::PartyInt_GetAngleForTank(lua_State* L)
 }
 
 
+int LuaBindsAI::PartyInt_GetCLinePInLosAtD(lua_State* L)
+{
+	PartyIntelligence* intelligence = PartyInt_GetPIObject(L);
+	Unit* agent = Unit_GetUnitObject(L, 2);
+	Unit* target = Unit_GetUnitObject(L, 3);
+	lua_Number minD = luaL_checknumber(L, 4);
+	lua_Number maxD = luaL_checknumber(L, 5);
+	lua_Number step = luaL_checknumber(L, 6);
+	bool reverse = luaL_checkboolean(L, 7);
+	DungeonData* cline = intelligence->GetDungeonData();
+	if (!cline)
+		luaL_error(L, "PartyInt_GetCLinePInLosAtD: cline doesn't exist");
+	if (cline->mapId != agent->GetMapId())
+		luaL_error(L, "PartyInt_GetCLinePInLosAtD: cline map mismatch");
+	G3D::Vector3 result;
+	bool found = cline->GetPointInLosAtD(agent, target, result, minD, maxD, step, reverse);
+	if (!found || agent->GetDistanceSqr(result.x, result.y, result.z) < 4.0f)
+	{
+		lua_pushnil(L);
+		return 1;
+	}
+	agent->UpdateAllowedPositionZ(result.x, result.y, result.z);
+	lua_pushnumber(L, result.x);
+	lua_pushnumber(L, result.y);
+	lua_pushnumber(L, result.z);
+	return 3;
+}
+
+
 int LuaBindsAI::PartyInt_HasCLineFor(lua_State* L)
 {
 	PartyIntelligence* intelligence = PartyInt_GetPIObject(L);
@@ -508,9 +548,9 @@ int LuaBindsAI::PartyInt_GetNearestCLineP(lua_State* L)
 	if (cline->mapId != unit->GetMapId())
 		luaL_error(L, "PartyInt_GetNearestCLineP: cline map mismatch");
 	G3D::Vector3 P;
-	float D;
+	float D, pct;
 	int S;
-	int line = cline->ClosestP(G3D::Vector3(unit->GetPositionX(), unit->GetPositionY(), unit->GetPositionZ()), P, D, S);
+	int line = cline->ClosestP(G3D::Vector3(unit->GetPositionX(), unit->GetPositionY(), unit->GetPositionZ()), P, D, S, pct);
 	lua_pushnumber(L, P.x);
 	lua_pushnumber(L, P.y);
 	lua_pushnumber(L, P.z);
@@ -521,24 +561,26 @@ int LuaBindsAI::PartyInt_GetNearestCLineP(lua_State* L)
 }
 
 
-int LuaBindsAI::PartyInt_GetPrevCLineS(lua_State* L)
+int LuaBindsAI::PartyInt_GetNextCLineS(lua_State* L)
 {
 	PartyIntelligence* intelligence = PartyInt_GetPIObject(L);
 	Unit* unit = Unit_GetUnitObject(L, 2);
 	lua_Integer lineIdx = luaL_checkinteger(L, 3);
 	lua_Integer S = luaL_checkinteger(L, 4);
+	bool reverse = luaL_checkboolean(L, 5);
 	DungeonData* cline = intelligence->GetDungeonData();
 	if (!cline)
-		luaL_error(L, "PartyInt_GetPrevCLineS: cline doesn't exist");
+		luaL_error(L, "PartyInt_GetNextCLineS: cline doesn't exist");
 	if (cline->mapId != unit->GetMapId())
-		luaL_error(L, "PartyInt_GetPrevCLineS: cline map mismatch");
+		luaL_error(L, "PartyInt_GetNextCLineS: cline map mismatch");
 	if (cline->lines.size() <= lineIdx || lineIdx < 0)
-		luaL_error(L, "PartyInt_GetPrevCLineS: cline only has %d lines, got %d", cline->lines.size(), lineIdx);
+		luaL_error(L, "PartyInt_GetNextCLineS: cline only has %d lines, got %d", cline->lines.size(), lineIdx);
 	if (cline->lines[lineIdx].pts.size() <= S + 1 || S < 0)
-		luaL_error(L, "PartyInt_GetPrevCLineS: cline %d only has %d pts, got %d", lineIdx, cline->lines[lineIdx].pts.size(), S);
-	G3D::Vector3* P = &cline->lines[lineIdx].pts[0].pos;
-	if (S == 0 && lineIdx == 0);
-	else
+		luaL_error(L, "PartyInt_GetNextCLineS: cline %d only has %d pts, got %d", lineIdx, cline->lines[lineIdx].pts.size(), S);
+	
+	G3D::Vector3* P; // = &cline->lines[lineIdx].pts[0].pos;
+	//if (S == 0 && lineIdx == 0);
+	//else
 	{
 		CLine& line = cline->lines[lineIdx];
 		//if (S == 0)
@@ -550,7 +592,9 @@ int LuaBindsAI::PartyInt_GetPrevCLineS(lua_State* L)
 		//}
 		//else
 		{
-			if (S > 0) --S;
+			int finalS = reverse ? 0 : line.pts.size();
+			int inc = reverse ? -1 : 1;
+			if (S != finalS) S += inc;
 			P = &line.pts[S].pos;
 		}
 	}
@@ -563,6 +607,43 @@ int LuaBindsAI::PartyInt_GetPrevCLineS(lua_State* L)
 }
 
 
+int LuaBindsAI::PartyInt_ShouldReverseCLine(lua_State* L)
+{
+	PartyIntelligence* intelligence = PartyInt_GetPIObject(L);
+	Unit* unit = Unit_GetUnitObject(L, 2);
+	Unit* target = Unit_GetUnitObject(L, 3);
+	DungeonData* cline = intelligence->GetDungeonData();
+	if (!cline)
+		luaL_error(L, "PartyInt_ShouldReverseCLine: cline doesn't exist");
+	if (cline->mapId != unit->GetMapId())
+		luaL_error(L, "PartyInt_ShouldReverseCLine: cline map mismatch");
+
+	if (Player* owner = sObjectAccessor.FindPlayer(intelligence->GetOwnerGuid()))
+	{
+		int resultS;
+		float resultD, resultpct;
+		G3D::Vector3 result;
+		G3D::Vector3 from(unit->GetPositionX(), unit->GetPositionY(), unit->GetPositionZ());
+		CLine& line = cline->lines[cline->ClosestP(from, result, resultD, resultS, resultpct)];
+
+		G3D::Vector3& AB = line.pts[resultS + 1].pos - line.pts[resultS].pos;
+
+		G3D::Vector3 ownerPos(owner->GetPositionX(), owner->GetPositionY(), owner->GetPositionZ());
+		G3D::Vector3 targetPos(target->GetPositionX(), target->GetPositionY(), target->GetPositionZ());
+		G3D::Vector3& ownerToTarget = targetPos - ownerPos;
+		// flip direction if owner is opposite side
+		if (AB.dot(ownerToTarget) < 0.f)
+		{
+			lua_pushboolean(L, true);
+			return 1;
+		}
+	}
+
+	lua_pushboolean(L, false);
+	return 1;
+}
+
+
 int LuaBindsAI::PartyInt_AddCC(lua_State* L)
 {
 	PartyIntelligence* intelligence = PartyInt_GetPIObject(L);
@@ -570,6 +651,15 @@ int LuaBindsAI::PartyInt_AddCC(lua_State* L)
 	LuaObjectGuid* targetGuid = Guid_GetGuidObject(L, 3);
 	intelligence->AddCC(targetGuid->guid, agentGuid->guid);
 	return 0;
+}
+
+
+int LuaBindsAI::PartyInt_IsCC(lua_State* L)
+{
+	PartyIntelligence* intelligence = PartyInt_GetPIObject(L);
+	Unit* target = Unit_GetUnitObject(L, 2);
+	lua_pushboolean(L, intelligence->IsCC(target->GetObjectGuid()));
+	return 1;
 }
 
 
@@ -592,6 +682,8 @@ int LuaBindsAI::PartyInt_GetCCTable(lua_State* L)
 		PartyIntelligence::CCInfo& ccinfo = it.second;
 		Player* agent = intelligence->GetAgent(ccinfo.agentGuid);
 		Unit* target = agent->GetMap()->GetUnit(ccinfo.guid);
+		if (!target || !agent)
+			continue;
 		lua_newtable(L);
 		LuaAgent* ai = agent->GetLuaAI();
 		ai->PushUD(L);

@@ -1,4 +1,5 @@
 #include "LuaAgentLibSpell.h"
+#include "LuaAgentLibUnit.h"
 
 
 void LuaBindsAI::Spell_CreateUD(lua_State* L, uint32 id)
@@ -15,6 +16,7 @@ void LuaBindsAI::Spell_CreateUD(lua_State* L, uint32 id)
 void LuaBindsAI::BindSpell(lua_State* L)
 {
 	Spell_CreateMetatable(L);
+	lua_register(L, "Spell_GetSpellFromId", Spell_GetSpellFromId);
 }
 
 
@@ -45,9 +47,20 @@ void LuaBindsAI::Spell_CreateMetatable(lua_State* L)
 }
 
 
+int LuaBindsAI::Spell_GetSpellFromId(lua_State* L)
+{
+	lua_Integer spellid = luaL_checkinteger(L, 1);
+	if (const SpellEntry* proto = sSpellMgr.GetSpellEntry(spellid))
+		Spell_CreateUD(L, spellid);
+	else
+		lua_pushnil(L);
+	return 1;
+}
+
+
 int LuaBindsAI::Spell_GetEffectAuraType(lua_State* L)
 {
-	LuaAI_Spell* spell = Spell_GetSpellObject(L, 1);
+	LuaAI_Spell* spell = Spell_GetSpellObject(L);
 	int i = luaL_checkinteger(L, 2);
 	if (i < 0 || i > MAX_EFFECT_INDEX)
 		luaL_error(L, "Spell.GetEffectType index out of bounds. Got %d Max = %d", i, MAX_EFFECT_INDEX);
@@ -58,10 +71,23 @@ int LuaBindsAI::Spell_GetEffectAuraType(lua_State* L)
 
 int LuaBindsAI::Spell_GetEffectSimpleValue(lua_State* L)
 {
-	LuaAI_Spell* spell = Spell_GetSpellObject(L, 1);
+	LuaAI_Spell* spell = Spell_GetSpellObject(L);
 	int i = luaL_checkinteger(L, 2);
 	if (i < 0 || i > MAX_EFFECT_INDEX)
 		luaL_error(L, "Spell.GetEffectSimpleValue index out of bounds. Got %d Max = %d", i, MAX_EFFECT_INDEX);
 	lua_pushinteger(L, spell->proto->CalculateSimpleValue(SpellEffectIndex(i)));
+	return 1;
+}
+
+
+int LuaBindsAI::Spell_CheckCreatureType(lua_State* L)
+{
+	LuaAI_Spell* spell = Spell_GetSpellObject(L);
+	Unit* target = Unit_GetUnitObject(L, 2);
+	uint32 typeMask = target->GetCreatureTypeMask();
+	if (spell->proto->TargetCreatureType && typeMask)
+		lua_pushboolean(L, spell->proto->TargetCreatureType & typeMask);
+	else
+		lua_pushboolean(L, true);
 	return 1;
 }

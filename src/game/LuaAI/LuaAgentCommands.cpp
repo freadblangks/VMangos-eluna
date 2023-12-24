@@ -95,6 +95,14 @@ bool ChatHandler::HandleLuabRemoveCommand(char* args)
 }
 
 
+bool ChatHandler::HandleLuabKickBrokenCommand(char* args)
+{
+	if (Player* selection = GetSelectedPlayer())
+		sLuaAgentMgr.LogoutBrokenAgent(selection->GetObjectGuid());
+	return true;
+}
+
+
 bool ChatHandler::HandleLuabRemoveAllCommand(char* args)
 {
 	sLuaAgentMgr.LogoutAllAgents();

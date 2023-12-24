@@ -647,7 +647,7 @@ int LuaBindsAI::AI_CmdGetType(lua_State* L)
 {
 	LuaAgent* ai = AI_GetAIObject(L);
 	AgentCmd* cmd = ai->CommandsGetFirst();
-	lua_pushinteger(L, cmd ? lua_Integer(cmd->GetType()) : -1);
+	lua_pushinteger(L, lua_Integer(cmd ? cmd->GetType() : AgentCmdType::None));
 	return 1;
 }
 

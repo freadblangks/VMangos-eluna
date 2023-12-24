@@ -26,10 +26,12 @@ namespace LuaBindsAI {
 	LuaObjectGuid* Guid_GetGuidObject(lua_State* L, int idx = 1);
 
 	int Guid_Print(lua_State* L);
+	int Guid_GetId(lua_State* L);
 	int Guid_Empty(lua_State* L);
 
 	static const struct luaL_Reg Guid_BindLib[]{
 		{"Empty", Guid_Empty},
+		{"GetId", Guid_GetId},
 		{"Print", Guid_Print},
 
 		{NULL, NULL}

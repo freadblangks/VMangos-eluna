@@ -125,6 +125,7 @@ void LuaAgent::Update(uint32 diff)
 void LuaAgent::Reset(bool dropRefs)
 {
 	SetHealTarget(ObjectGuid());
+	SetCCTarget(ObjectGuid());
 
 	// clear goals
 	m_topGoal = Goal(-1, 0, Goal::NOPARAMS, nullptr, nullptr);

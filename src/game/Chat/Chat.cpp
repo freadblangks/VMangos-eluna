@@ -1174,6 +1174,7 @@ ChatCommand * ChatHandler::getCommandTable()
         { "add",            SEC_PLAYER,         false, &ChatHandler::HandleLuabAddCommand,             "", nullptr },
         { "addparty",       SEC_PLAYER,         false, &ChatHandler::HandleLuabAddPartyCommand,        "", nullptr },
         { "cline",          SEC_PLAYER,         false, nullptr,                                        "", luabCLineCommandTable },
+        { "kickbroken",     SEC_PLAYER,         false, &ChatHandler::HandleLuabKickBrokenCommand,      "", nullptr },
         { "reset",          SEC_PLAYER,         false, &ChatHandler::HandleLuabResetCommand,           "", nullptr },
         { "remove",         SEC_PLAYER,         false, &ChatHandler::HandleLuabRemoveCommand,          "", nullptr },
         { "removeall",      SEC_PLAYER,         false, &ChatHandler::HandleLuabRemoveAllCommand,       "", nullptr },

@@ -151,6 +151,10 @@ class LuaAIChaseMovementGenerator : public LuaAITargetedMovementGeneratorMedium<
         using LuaAITargetedMovementGeneratorMedium<T, LuaAIChaseMovementGenerator<T> >::m_bTargetReached;
         using LuaAITargetedMovementGeneratorMedium<T, LuaAIChaseMovementGenerator<T> >::m_bUseAbsAngle;
         using LuaAITargetedMovementGeneratorMedium<T, LuaAIChaseMovementGenerator<T> >::m_fAbsAngle;
+        using LuaAITargetedMovementGeneratorMedium<T, LuaAIChaseMovementGenerator<T> >::m_offsetMin;
+        using LuaAITargetedMovementGeneratorMedium<T, LuaAIChaseMovementGenerator<T> >::m_offsetMax;
+        using LuaAITargetedMovementGeneratorMedium<T, LuaAIChaseMovementGenerator<T> >::m_noMinOffsetIfMutual;
+        using LuaAITargetedMovementGeneratorMedium<T, LuaAIChaseMovementGenerator<T> >::m_bUseAngle;
 };
 
 template<class T>

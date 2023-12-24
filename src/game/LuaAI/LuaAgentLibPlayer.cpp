@@ -110,6 +110,15 @@ int LuaBindsAI::Player_LearnSpell(lua_State* L)
 }
 
 
+int LuaBindsAI::Player_IsInSameSubGroup(lua_State* L)
+{
+	Player* me = Player_GetPlayerObject(L);
+	Player* other = Player_GetPlayerObject(L, 2);
+	lua_pushboolean(L, me->IsInSameGroupWith(other));
+	return 1;
+}
+
+
 int LuaBindsAI::Player_GetTalentTbl(lua_State* L) {
 	Player* me = Player_GetPlayerObject(L);
 

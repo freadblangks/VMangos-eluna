@@ -602,8 +602,8 @@ template<>
 void LuaAIChaseMovementGenerator<Player>::Initialize(Player &owner)
 {
     owner.AddUnitState(UNIT_STAT_CHASE | UNIT_STAT_CHASE_MOVE);
-    m_bRecalculateTravel = true;
-    owner.GetMotionMaster()->SetNeedAsyncUpdate();
+    //m_bRecalculateTravel = true;
+    //owner.GetMotionMaster()->SetNeedAsyncUpdate();
 }
 
 template<>

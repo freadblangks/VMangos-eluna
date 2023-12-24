@@ -14,6 +14,7 @@ enum class AgentCmdType : uint8
 	Heal,
 	Pull,
 	CC,
+	Buff,
 	Max,
 };
 
@@ -131,6 +132,20 @@ public:
 	AgentCmdCC(const ObjectGuid& targetGuid) : AgentCmd(AgentCmdType::CC), targetGuid(targetGuid) {}
 	int Push(lua_State* L) override;
 };
+
+
+class AgentCmdBuff : public AgentCmd
+{
+	ObjectGuid targetGuid;
+	lua_Integer spellid;
+	std::string key;
+
+public:
+	AgentCmdBuff(const ObjectGuid& targetGuid, lua_Integer spellid, std::string key)
+		: AgentCmd(AgentCmdType::Buff), targetGuid(targetGuid), spellid(spellid), key(key) {}
+	int Push(lua_State* L) override;
+};
+
 
 
 class CmdQueue

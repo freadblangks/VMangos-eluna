@@ -48,8 +48,9 @@ public:
 		std::string spec = lqh->spec;
 
 		// already logged in or master's gone
-		if (!ObjectAccessor::FindPlayerNotInWorld(lqh->masterGuid) || sObjectMgr.GetPlayer(lqh->GetGuid()))
+		if (!ObjectAccessor::FindPlayerNotInWorld(lqh->masterGuid) || ObjectAccessor::FindPlayerNotInWorld(lqh->GetGuid()))
 		{
+			sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Failed to add bot: already logged in %s", myGuid.GetString());
 			delete holder;
 			return;
 		}
@@ -242,7 +243,10 @@ void LuaAgentMgr::SetLoggedIn(ObjectGuid guid)
 	const std::lock_guard<std::mutex> lock(loginMutex);
 	auto it = m_toAdd.find(guid);
 	if (it != m_toAdd.end())
+	{
 		it->second.status = LuaAgentInfoHolder::LOGGEDIN;
+		it->second.timeout = WorldTimer::getMSTime() + 60000;
+	}
 }
 
 
@@ -293,7 +297,7 @@ LuaAgentMgr::CheckResult LuaAgentMgr::AddAgent(std::string charName, ObjectGuid 
 	if (check == CHAR_OK)
 	{
 		const std::lock_guard<std::mutex> lock(loginMutex);
-		m_toAdd.emplace(sObjectMgr.GetPlayerGuidByName(charName), LuaAgentInfoHolder(charName, masterGuid, logicID, spec));
+		m_toAdd.emplace(sObjectMgr.GetPlayerGuidByName(charName), LuaAgentInfoHolder(charName, masterGuid, logicID, spec, WorldTimer::getMSTime()));
 	}
 	return check;
 }
@@ -307,8 +311,13 @@ void LuaAgentMgr::__AddAgents()
 		LuaAgentInfoHolder& info = it->second;
 		if (info.status == LuaAgentInfoHolder::LOGGEDIN)
 		{
-			if (Player* player = ObjectAccessor::FindPlayerByNameNotInWorld(info.name.c_str()))
+			if (Player* player = ObjectAccessor::FindPlayerNotInWorld(it->first))
 				m_agents[player->GetObjectGuid()] = player;
+			else
+				if (WorldTimer::getMSTime() < info.timeout)
+					continue;
+				else
+					sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "LuaAgentMgr::__AddAgents: logged in agent not found and timed out %s", info.name.c_str());
 			info.status = LuaAgentInfoHolder::TODELETE;
 		}
 
@@ -400,6 +409,36 @@ void LuaAgentMgr::__RemoveAgents()
 void LuaAgentMgr::LogoutAgent(ObjectGuid guid)
 {
 	m_toRemove.insert(guid);
+}
+
+
+void LuaAgentMgr::LogoutBrokenAgent(ObjectGuid guid)
+{
+	if (GetAgent(guid))
+	{
+		sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "LuaAgentMgr::LogoutBrokenAgent: agent was valid, logging out normally");
+		LogoutAgent(guid);
+		return;
+	}
+
+	Player* agent = sObjectAccessor.FindPlayerNotInWorld(guid);
+	if (!agent)
+		return;
+
+	LuaAgent* ai = agent->GetLuaAI();
+	if (!ai)
+	{
+		sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "LuaAgentMgr::LogoutBrokenAgent: player is not an agent");
+		return;
+	}
+
+	if (WorldSession* session = agent->GetSession())
+	{
+		if (Group* group = agent->GetGroup())
+			session->HandleGroupDisbandOpcode(WorldPacket(CMSG_GROUP_DISBAND));
+		session->LogoutPlayer(false);
+		delete session;
+	}
 }
 
 

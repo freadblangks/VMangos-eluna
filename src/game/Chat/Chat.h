@@ -286,6 +286,8 @@ class ChatHandler
 
         // Lua Bot commands
 
+        bool HandleLuabKickBrokenCommand(char* args);
+
         bool HandleLuabAddCommand(char* args);
         bool HandleLuabAddPartyCommand(char* args);
         bool HandleLuabRemoveCommand(char* args);

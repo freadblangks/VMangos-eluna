@@ -16,8 +16,8 @@ public:
 	static const char* PI_MTNAME;
 	struct CCInfo
 	{
-		const ObjectGuid& guid;
-		const ObjectGuid& agentGuid;
+		ObjectGuid guid;
+		ObjectGuid agentGuid;
 		CCInfo(const ObjectGuid& guid, const ObjectGuid& agentGuid) : guid(guid), agentGuid(agentGuid) {}
 		bool Check(PartyIntelligence* intelligence);
 	};
@@ -88,6 +88,7 @@ namespace LuaBindsAI {
 
 	int PartyInt_CanPullTarget(lua_State* L);
 
+	int PartyInt_CmdBuff(lua_State* L);
 	int PartyInt_CmdCC(lua_State* L);
 	int PartyInt_CmdEngage(lua_State* L);
 	int PartyInt_CmdFollow(lua_State* L);
@@ -102,12 +103,15 @@ namespace LuaBindsAI {
 
 	int PartyInt_HasCLineFor(lua_State* L);
 	int PartyInt_GetAngleForTank(lua_State* L);
+	int PartyInt_GetCLinePInLosAtD(lua_State* L);
 	int PartyInt_GetNearestCLineP(lua_State* L);
-	int PartyInt_GetPrevCLineS(lua_State* L);
+	int PartyInt_GetNextCLineS(lua_State* L);
+	int PartyInt_ShouldReverseCLine(lua_State* L);
 
 	// cc
 
 	int PartyInt_AddCC(lua_State* L);
+	int PartyInt_IsCC(lua_State* L);
 	int PartyInt_RemoveCC(lua_State* L);
 
 	int PartyInt_LoadInfoFromLuaTbl(lua_State* L);
@@ -119,6 +123,7 @@ namespace LuaBindsAI {
 	static const struct luaL_Reg PartyInt_BindLib[]{
 		{"CanPullTarget", PartyInt_CanPullTarget},
 
+		{"CmdBuff", PartyInt_CmdBuff},
 		{"CmdCC", PartyInt_CmdCC},
 		{"CmdEngage", PartyInt_CmdEngage},
 		{"CmdFollow", PartyInt_CmdFollow},
@@ -132,11 +137,14 @@ namespace LuaBindsAI {
 		// cline
 		{"HasCLineFor", PartyInt_HasCLineFor},
 		{"GetAngleForTank", PartyInt_GetAngleForTank},
+		{"GetCLinePInLosAtD", PartyInt_GetCLinePInLosAtD},
 		{"GetNearestCLineP", PartyInt_GetNearestCLineP},
-		{"GetPrevCLineS", PartyInt_GetPrevCLineS},
+		{"GetNextCLineS", PartyInt_GetNextCLineS},
+		{"ShouldReverseCLine", PartyInt_ShouldReverseCLine},
 
 		// cc
 		{"AddCC", PartyInt_AddCC},
+		{"IsCC", PartyInt_IsCC},
 		{"RemoveCC", PartyInt_RemoveCC},
 
 		{"LoadInfoFromLuaTbl", PartyInt_LoadInfoFromLuaTbl},

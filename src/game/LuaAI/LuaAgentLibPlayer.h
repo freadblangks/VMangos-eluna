@@ -19,6 +19,10 @@ namespace LuaBindsAI {
 	int Player_HasSpell(lua_State* L);
 	int Player_LearnSpell(lua_State* L);
 
+	// group
+
+	int Player_IsInSameSubGroup(lua_State* L);
+
 	// talents
 
 	int Player_GetTalentTbl(lua_State* L);
@@ -35,6 +39,9 @@ namespace LuaBindsAI {
 		// spells
 		{"HasSpell", Player_HasSpell},
 		{"LearnSpell", Player_LearnSpell},
+
+		// group
+		{"IsInSameSubGroup", Player_IsInSameSubGroup},
 
 		// talents
 		{"GetTalentTbl", Player_GetTalentTbl},

@@ -56,16 +56,98 @@ struct CLine
 		pts.emplace_back(point, -1000.f, helper);
 	}
 
-	G3D::Vector3 ClosestSegP(const G3D::Vector3& from, const G3D::Vector3& A, const G3D::Vector3& B)
+	bool GetPointInLosAtD(Unit* me, Unit* target, G3D::Vector3& result, int S, float minD, float maxD, float step, float pctStart, bool reverse)
+	{
+		float tx = target->GetPositionX(), ty = target->GetPositionY(), tz = target->GetPositionZ();
+		G3D::Vector3 resultPoint(result);
+
+		int inc = reverse ? -1 : 1;
+		int finalS = reverse ? 0 : pts.size();
+
+		// in case of reverse must correct segment and % returned by ClosestP
+		if (reverse)
+		{
+			++S;
+			pctStart = 1.0 - pctStart;
+		}
+
+		float pctStep;
+		if (S != finalS)
+		{
+			const G3D::Vector3& A = pts[S].pos;
+			const G3D::Vector3& B = pts[S + inc].pos;
+			pctStep = step / (A - B).magnitude();
+		}
+
+		G3D::Vector3 lastGood;
+		float pct = pctStart;
+		// is last point
+		for (;;)
+		{
+			if (S == finalS)
+			{
+				result = std::move(resultPoint);
+				float D = target->GetDistance(result.x, result.y, result.z);
+				return D <= maxD && me->IsWithinLOSAtPosition(result.x, result.y, result.z, tx, ty, tz);
+			}
+
+			float D = target->GetDistance(resultPoint.x, resultPoint.y, resultPoint.z);
+			bool minMatch = minD <= D;
+			bool maxMatch = maxD >= D;
+			bool losMatch = maxMatch && me->IsWithinLOSAtPosition(resultPoint.x, resultPoint.y, resultPoint.z, tx, ty, tz);
+			if (minMatch && losMatch)
+			{
+				result = std::move(resultPoint);
+				return true;
+			}
+
+			if (losMatch)
+				lastGood = resultPoint;
+			else
+			{
+				result = std::move(lastGood);
+				return lastGood.x != 0.f;
+			}
+
+			const G3D::Vector3& A = pts[S].pos;
+			const G3D::Vector3& B = pts[S + inc].pos;
+			G3D::Vector3& AB = B - A;
+			resultPoint = std::move(G3D::Vector3(A.x + AB.x * pct, A.y + AB.y * pct, A.z + AB.z * pct));
+
+			// get next point
+			pct += pctStep;
+			if (pct > 1.0f)
+			{
+				S += inc;
+				if (S != finalS)
+				{
+					pct = 0.f;
+					const G3D::Vector3& A = pts[S].pos;
+					const G3D::Vector3& B = pts[S + inc].pos;
+					pctStep = step / (A - B).magnitude();
+				}
+			}
+		}
+		return false;
+	}
+
+	G3D::Vector3 ClosestSegP(const G3D::Vector3& from, const G3D::Vector3& A, const G3D::Vector3& B, float& pct)
 	{
 		G3D::Vector3& Afrom = from - A;
 		G3D::Vector3& AB = B - A;
 		float ndot = Afrom.dot(AB) / AB.squaredMagnitude();
 		// bind ndot to segment AB
-		if (ndot <= 0)
+		if (ndot <= 0.f)
+		{
+			pct = 0.f;
 			return A;
-		if (ndot >= 1)
+		}
+		if (ndot >= 1.f)
+		{
+			pct = 1.f;
 			return B;
+		}
+		pct = ndot;
 		return G3D::Vector3(A.x + AB.x * ndot, A.y + AB.y * ndot, A.z + AB.z * ndot);
 	}
 
@@ -74,12 +156,12 @@ struct CLine
 		return (B - A).squaredMagnitude();
 	}
 
-	void ClosestP(const G3D::Vector3& from, G3D::Vector3& resultPoint, float& resultDistance, int& resultSegment)
+	void ClosestP(const G3D::Vector3& from, G3D::Vector3& resultPoint, float& resultDistance, int& resultSegment, float& pct)
 	{
 		assert(pts.size() > 1);
 		if (pts.size() == 2)
 		{
-			resultPoint = ClosestSegP(from, pts[0].pos, pts[1].pos);
+			resultPoint = ClosestSegP(from, pts[0].pos, pts[1].pos, pct);
 			resultDistance = D2(from, resultPoint);
 			resultSegment = 0;
 			return;
@@ -87,12 +169,13 @@ struct CLine
 		G3D::Vector3 nearestP = pts[0].pos;
 		float nearestD = std::numeric_limits<float>::max();
 		int nearestS = 0;
+		float percent;
 
 		for (size_t i = 1; i < pts.size(); ++i)
 		{
 			G3D::Vector3& A = pts[i - 1].pos;
 			G3D::Vector3& B = pts[i].pos;
-			G3D::Vector3& C = ClosestSegP(from, A, B);
+			G3D::Vector3& C = ClosestSegP(from, A, B, percent);
 
 			if (C == nearestP)
 				continue;
@@ -103,6 +186,7 @@ struct CLine
 				nearestD = d2;
 				nearestP = C;
 				nearestS = i - 1;
+				pct = percent;
 			}
 		}
 
@@ -201,7 +285,16 @@ struct DungeonData
 	int mapId{-1};
 	std::vector<CLine> lines;
 
-	int ClosestP(const G3D::Vector3& from, G3D::Vector3& resultPoint, float& resultDistance, int& resultSegment)
+	bool GetPointInLosAtD(Unit* me, Unit* target, G3D::Vector3& result, float minD, float maxD, float step, bool reverse)
+	{
+		const G3D::Vector3 from(me->GetPositionX(), me->GetPositionY(), me->GetPositionZ());
+		float D, pct = 0.f;
+		int S;
+		CLine& line = lines[ClosestP(from, result, D, S, pct)];
+		return line.GetPointInLosAtD(me, target, result, S, minD, maxD, step, pct, reverse);
+	}
+
+	int ClosestP(const G3D::Vector3& from, G3D::Vector3& resultPoint, float& resultDistance, int& resultSegment, float& pct)
 	{
 		assert(lines.size() > 0);
 
@@ -214,15 +307,16 @@ struct DungeonData
 		{
 			auto& line = lines[i];
 			G3D::Vector3 P;
-			float D2;
+			float D2, percent;
 			int S;
-			line.ClosestP(from, P, D2, S);
+			line.ClosestP(from, P, D2, S, percent);
 			if (D2 < nearestD)
 			{
 				nearestP = P;
 				nearestD = D2;
 				nearestS = S;
 				nearestL = i;
+				pct = percent;
 			}
 		}
 

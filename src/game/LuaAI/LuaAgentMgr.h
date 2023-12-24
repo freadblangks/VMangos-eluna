@@ -19,13 +19,14 @@ struct LuaAgentInfoHolder
 		TODELETE
 	};
 public:
+	uint32 timeout;
 	std::string name;
 	const ObjectGuid masterGuid;
 	int logicID;
 	std::string spec;
 	LBIHStatus status;
-	LuaAgentInfoHolder(std::string name, const ObjectGuid& masterGuid, int logicID, std::string spec)
-		: name(name), masterGuid(masterGuid), logicID(logicID), spec(spec), status(OFFLINE) {}
+	LuaAgentInfoHolder(std::string name, const ObjectGuid& masterGuid, int logicID, std::string spec, uint32 timeout)
+		: name(name), masterGuid(masterGuid), logicID(logicID), spec(spec), status(OFFLINE), timeout(timeout) {}
 };
 
 
@@ -97,6 +98,7 @@ public:
 
 	void OnAgentLogin(WorldSession* session, ObjectGuid guid, ObjectGuid masterGuid, int logicID, std::string spec);
 	void LogoutAgent(ObjectGuid guid);
+	void LogoutBrokenAgent(ObjectGuid guid);
 	void LogoutAllAgents();
 	void LogoutAllImmediately();
 

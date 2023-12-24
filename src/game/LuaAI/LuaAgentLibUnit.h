@@ -32,6 +32,7 @@ namespace LuaBindsAI {
 	*/
 	int Unit_GetSpellDamageAndThreat(lua_State* L);
 	int Unit_GetSpellCastLeft(lua_State* L);
+	int Unit_HasEnoughPowerFor(lua_State* L);
 	int Unit_InterruptSpell(lua_State* L);
 	int Unit_IsCastingHeal(lua_State* L);
 	int Unit_IsInPositionToCast(lua_State* L);
@@ -39,6 +40,7 @@ namespace LuaBindsAI {
 
 	// Info
 
+	int Unit_IsAgent(lua_State* L);
 	int Unit_IsAlive(lua_State* L);
 	int Unit_IsInCombat(lua_State* L);
 	int Unit_IsNonMeleeSpellCasted(lua_State* L);
@@ -78,6 +80,7 @@ namespace LuaBindsAI {
 	int Unit_GetAuraTimeLeft(lua_State* L);
 	int Unit_HasAura(lua_State* L);
 	int Unit_HasAuraType(lua_State* L);
+	int Unit_RemoveAuraByCancel(lua_State* L);
 
 	// General info
 
@@ -87,6 +90,7 @@ namespace LuaBindsAI {
 	int Unit_GetName(lua_State* L);
 	int Unit_GetRace(lua_State* L);
 	int Unit_GetRole(lua_State* L);
+	int Unit_IsPlayer(lua_State* L);
 
 	// Motion control
 
@@ -97,6 +101,7 @@ namespace LuaBindsAI {
 	int Unit_MoveChase(lua_State* L);
 	int Unit_MovePoint(lua_State* L);
 	int Unit_StopMoving(lua_State* L);
+	int Unit_GetStandState(lua_State* L);
 	int Unit_SetStandState(lua_State* L);
 
 	static const struct luaL_Reg Unit_BindLib[]{
@@ -109,12 +114,14 @@ namespace LuaBindsAI {
 		{"GetPowerCost", Unit_GetPowerCost},
 		{"GetSpellDamageAndThreat", Unit_GetSpellDamageAndThreat},
 		{"GetSpellCastLeft", Unit_GetSpellCastLeft},
+		{"HasEnoughPowerFor", Unit_HasEnoughPowerFor},
 		{"InterruptSpell", Unit_InterruptSpell},
 		{"IsCastingHeal", Unit_IsCastingHeal},
 		{"IsInPositionToCast", Unit_IsInPositionToCast},
 		{"IsInLOS", Unit_IsInLOS},
 
 		// Info
+		{"IsAgent", Unit_IsAgent},
 		{"IsAlive", Unit_IsAlive},
 		{"IsInCombat", Unit_IsInCombat},
 		{"IsNonMeleeSpellCasted", Unit_IsNonMeleeSpellCasted},
@@ -150,6 +157,7 @@ namespace LuaBindsAI {
 		{"GetVictim", Unit_GetVictim},
 		{"IsRanged", Unit_IsRanged},
 
+		{"CancelAura", Unit_RemoveAuraByCancel},
 		{"GetAuraStacks", Unit_GetAuraStacks},
 		{"GetAuraTimeLeft", Unit_GetAuraTimeLeft},
 		{"HasAura", Unit_HasAura},
@@ -162,6 +170,7 @@ namespace LuaBindsAI {
 		{"GetName", Unit_GetName},
 		{"GetRace", Unit_GetRace},
 		{"GetRole", Unit_GetRole},
+		{"IsPlayer", Unit_IsPlayer},
 
 		// motion
 		{"ClearMotion", Unit_ClearMotion},
@@ -171,6 +180,7 @@ namespace LuaBindsAI {
 		{"MoveChase", Unit_MoveChase},
 		{"MovePoint", Unit_MovePoint},
 		{"StopMoving", Unit_StopMoving},
+		{"GetStandState", Unit_GetStandState},
 		{"SetStandState", Unit_SetStandState},
 
 		{NULL, NULL}

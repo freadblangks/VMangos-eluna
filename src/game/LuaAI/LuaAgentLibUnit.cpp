@@ -200,6 +200,28 @@ int LuaBindsAI::Unit_GetSpellCastLeft(lua_State* L)
 }
 
 
+int LuaBindsAI::Unit_HasEnoughPowerFor(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_Integer spellId = luaL_checkinteger(L, 2);
+	bool allowDiffPower = luaL_checkboolean(L, 3);
+	if (const SpellEntry* spell = sSpellMgr.GetSpellEntry(spellId))
+	{
+		if (allowDiffPower || spell->powerType == unit->GetPowerType())
+		{
+			Spell s(unit, spell, false);
+			uint32 cost = Spell::CalculatePowerCost(spell, unit, &s);
+			lua_pushboolean(L, cost <= unit->GetPower(Powers(spell->powerType)));
+			return 1;
+		}
+	}
+	else
+		luaL_error(L, "Unit_HasEnoughPowerFor: spell %d doesn't exist", spellId);
+	lua_pushboolean(L, false);
+	return 1;
+}
+
+
 int LuaBindsAI::Unit_InterruptSpell(lua_State* L)
 {
 	Unit* unit = Unit_GetUnitObject(L);
@@ -273,6 +295,17 @@ int LuaBindsAI::Unit_IsInLOS(lua_State* L)
 // ---------------------------------------------------------
 // --                     Info
 // ---------------------------------------------------------
+
+
+int LuaBindsAI::Unit_IsAgent(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	if (Player* agent = unit->ToPlayer())
+		lua_pushboolean(L, agent->IsLuaAgent());
+	else
+		lua_pushboolean(L, unit->IsAlive());
+	return 1;
+}
 
 
 int LuaBindsAI::Unit_IsAlive(lua_State* L)
@@ -613,7 +646,7 @@ int LuaBindsAI::Unit_HasAura(lua_State* L)
 	Unit* unit = Unit_GetUnitObject(L);
 	lua_Integer spellId = luaL_checkinteger(L, 2);
 	if (!sSpellMgr.GetSpellEntry(spellId))
-		luaL_error(L, "Unit_HasAura: spell %d doesn't exist", spellId);
+		luaL_error(L, "Unit_HasAura: spell %I doesn't exist", spellId);
 	lua_pushboolean(L, unit->HasAura(spellId));
 	return 1;
 }
@@ -623,7 +656,7 @@ int LuaBindsAI::Unit_HasAuraType(lua_State* L) {
 	Unit* unit = Unit_GetUnitObject(L);
 	lua_Integer auraId = luaL_checkinteger(L, 2);
 	if (auraId < SPELL_AURA_NONE || auraId >= TOTAL_AURAS)
-		luaL_error(L, "Unit_HasAuraType: invalid aura type id, expected value in range [0, %d], got %d", SPELL_AURA_NONE, TOTAL_AURAS - 1, auraId);
+		luaL_error(L, "Unit_HasAuraType: invalid aura type id, expected value in range [0, %d], got %I", SPELL_AURA_NONE, TOTAL_AURAS - 1, auraId);
 	lua_pushboolean(L, unit->HasAuraType((AuraType) auraId));
 	return 1;
 }
@@ -633,7 +666,7 @@ int LuaBindsAI::Unit_GetAuraStacks(lua_State* L) {
 	Unit* unit = Unit_GetUnitObject(L);
 	lua_Integer spellId = luaL_checkinteger(L, 2);
 	if (spellId < 0 || !sSpellMgr.GetSpellEntry(spellId))
-		luaL_error(L, "Unit_GetAuraStacks: spell %d doesn't exist", spellId);
+		luaL_error(L, "Unit_GetAuraStacks: spell %I doesn't exist", spellId);
 	if (SpellAuraHolder* sah = unit->GetSpellAuraHolder(spellId))
 		lua_pushinteger(L, sah->GetStackAmount());
 	else
@@ -646,12 +679,22 @@ int LuaBindsAI::Unit_GetAuraTimeLeft(lua_State* L) {
 	Unit* unit = Unit_GetUnitObject(L);
 	lua_Integer spellId = luaL_checkinteger(L, 2);
 	if (spellId < 0 || !sSpellMgr.GetSpellEntry(spellId))
-		luaL_error(L, "Unit_GetAuraTimeLeft: spell %d doesn't exist", spellId);
+		luaL_error(L, "Unit_GetAuraTimeLeft: spell %I doesn't exist", spellId);
 	if (SpellAuraHolder* sah = unit->GetSpellAuraHolder(spellId))
 		lua_pushinteger(L, sah->GetAuraDuration());
 	else
 		lua_pushinteger(L, -1);
 	return 1;
+}
+
+
+int LuaBindsAI::Unit_RemoveAuraByCancel(lua_State* L) {
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_Integer spellId = luaL_checkinteger(L, 2);
+	if (spellId < 0 || !sSpellMgr.GetSpellEntry(spellId))
+		luaL_error(L, "Unit_RemoveAuraByCancel: spell %I doesn't exist", spellId);
+	unit->RemoveAurasDueToSpellByCancel(spellId);
+	return 0;
 }
 
 
@@ -710,6 +753,14 @@ int LuaBindsAI::Unit_GetRole(lua_State* L)
 			return 1;
 		}
 	lua_pushinteger(L, 0ll);
+	return 1;
+}
+
+
+int LuaBindsAI::Unit_IsPlayer(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_pushboolean(L, unit->IsPlayer());
 	return 1;
 }
 
@@ -791,6 +842,14 @@ int LuaBindsAI::Unit_StopMoving(lua_State* L)
 	Unit* unit = Unit_GetUnitObject(L);
 	unit->StopMoving();
 	return 0;
+}
+
+
+int LuaBindsAI::Unit_GetStandState(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_pushinteger(L, unit->GetStandState());
+	return 1;
 }
 
 

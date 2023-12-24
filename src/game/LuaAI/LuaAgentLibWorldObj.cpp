@@ -70,6 +70,16 @@ int LuaBindsAI::Guid_Empty(lua_State* L)
 }
 
 
+int LuaBindsAI::Guid_GetId(lua_State* L)
+{
+	LuaObjectGuid* guid = Guid_GetGuidObject(L);
+	if (!guid->guid.IsPlayer())
+		luaL_error(L, "Guid_GetId: only player guid is supported");
+	lua_pushinteger(L, guid->guid.GetCounter());
+	return 1;
+}
+
+
 int LuaBindsAI::Guid_Print(lua_State* L)
 {
 	LuaObjectGuid* guid = Guid_GetGuidObject(L);

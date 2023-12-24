@@ -25,7 +25,9 @@ void LuaBindsAI::BindAll(lua_State* L) {
 	BindPartyIntelligence(L);
 	lua_register(L, "GetUnitByGuid", GetUnitByGuid);
 	lua_register(L, "GetPlayerByGuid", GetPlayerByGuid);
+	lua_register(L, "GetPlayerById", GetPlayerById);
 	lua_register(L, "GetSpellName", GetSpellName);
+	lua_register(L, "isinteger", isinteger);
 	BindItem(L);
 	BindSpell(L);
 	lua_pushinteger(L, SUPPORTED_CLIENT_BUILD);
