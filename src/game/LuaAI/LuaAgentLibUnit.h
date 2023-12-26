@@ -37,6 +37,7 @@ namespace LuaBindsAI {
 	int Unit_IsCastingHeal(lua_State* L);
 	int Unit_IsInPositionToCast(lua_State* L);
 	int Unit_IsInLOS(lua_State* L);
+	int Unit_RemoveSpellCooldown(lua_State* L);
 
 	// Info
 
@@ -48,9 +49,12 @@ namespace LuaBindsAI {
 	int Unit_IsTanking(lua_State* L);
 
 	int Unit_GetAttackersNum(lua_State* L);
+	int Unit_GetCreatureChaseInfo(lua_State* L);
 	int Unit_GetDistance(lua_State* L);
+	int Unit_GetForwardVector(lua_State* L);
 	int Unit_GetOrientation(lua_State* L);
 	int Unit_GetPosition(lua_State* L);
+	int Unit_IsInDungeon(lua_State* L);
 
 	int Unit_GetHealth(lua_State* L);
 	int Unit_GetHealthPct(lua_State* L);
@@ -81,6 +85,7 @@ namespace LuaBindsAI {
 	int Unit_HasAura(lua_State* L);
 	int Unit_HasAuraType(lua_State* L);
 	int Unit_RemoveAuraByCancel(lua_State* L);
+	int Unit_RemoveSpellsCausingAura(lua_State* L);
 
 	// General info
 
@@ -119,7 +124,8 @@ namespace LuaBindsAI {
 		{"IsCastingHeal", Unit_IsCastingHeal},
 		{"IsInPositionToCast", Unit_IsInPositionToCast},
 		{"IsInLOS", Unit_IsInLOS},
-
+		{"RemoveSpellCooldown", Unit_RemoveSpellCooldown},
+		
 		// Info
 		{"IsAgent", Unit_IsAgent},
 		{"IsAlive", Unit_IsAlive},
@@ -129,9 +135,12 @@ namespace LuaBindsAI {
 		{"IsTanking", Unit_IsTanking},
 
 		{"GetAttackersNum", Unit_GetAttackersNum},
+		{"GetCreatureChaseInfo", Unit_GetCreatureChaseInfo},
 		{"GetDistance", Unit_GetDistance},
+		{"GetForwardVector", Unit_GetForwardVector},
 		{"GetOrientation", Unit_GetOrientation},
 		{"GetPosition", Unit_GetPosition},
+		{"IsInDungeon", Unit_IsInDungeon},
 
 		{"GetHealth", Unit_GetHealth},
 		{"GetHealthPct", Unit_GetHealthPct},
@@ -162,6 +171,7 @@ namespace LuaBindsAI {
 		{"GetAuraTimeLeft", Unit_GetAuraTimeLeft},
 		{"HasAura", Unit_HasAura},
 		{"HasAuraType", Unit_HasAuraType},
+		{"RemoveSpellsCausingAura", Unit_RemoveSpellsCausingAura},
 
 		// General info
 		{"GetClass", Unit_GetClass},

@@ -62,13 +62,13 @@ struct CLine
 		G3D::Vector3 resultPoint(result);
 
 		int inc = reverse ? -1 : 1;
-		int finalS = reverse ? 0 : pts.size();
+		int finalS = reverse ? 0 : (pts.size() - 1);
 
 		// in case of reverse must correct segment and % returned by ClosestP
 		if (reverse)
 		{
 			++S;
-			pctStart = 1.0 - pctStart;
+			pctStart = 1.f - pctStart;
 		}
 
 		float pctStep;

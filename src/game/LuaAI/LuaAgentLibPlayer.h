@@ -21,6 +21,7 @@ namespace LuaBindsAI {
 
 	// group
 
+	int Player_GetGroupMemberCount(lua_State* L);
 	int Player_IsInSameSubGroup(lua_State* L);
 
 	// talents
@@ -35,12 +36,15 @@ namespace LuaBindsAI {
 
 	int Player_SendCastSpellUnit(lua_State* L);
 
+	int Player_GetComboPoints(lua_State* L);
+
 	static const struct luaL_Reg Player_BindLib[]{
 		// spells
 		{"HasSpell", Player_HasSpell},
 		{"LearnSpell", Player_LearnSpell},
 
 		// group
+		{"GetGroupMemberCount", Player_GetGroupMemberCount},
 		{"IsInSameSubGroup", Player_IsInSameSubGroup},
 
 		// talents
@@ -52,6 +56,8 @@ namespace LuaBindsAI {
 
 		// packets
 		{"SendCastSpellUnit", Player_SendCastSpellUnit},
+
+		{"GetComboPoints", Player_GetComboPoints},
 
 		{NULL, NULL}
 	};

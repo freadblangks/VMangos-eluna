@@ -4,6 +4,7 @@
 #include "LuaAgentLibUnit.h"
 #include "LuaAgentUtils.h"
 #include "Spell.h"
+#include "Group.h"
 
 
 namespace
@@ -107,6 +108,16 @@ int LuaBindsAI::Player_LearnSpell(lua_State* L)
 	if (!me->HasSpell(spellID))
 		me->LearnSpell(spellID, false);
 	return 0;
+}
+
+
+int LuaBindsAI::Player_GetGroupMemberCount(lua_State* L) {
+	Player* player = Player_GetPlayerObject(L);
+	if (Group* grp = player->GetGroup())
+		lua_pushinteger(L, grp->GetMembersCount());
+	else
+		lua_pushinteger(L, 1);
+	return 1;
 }
 
 
@@ -276,4 +287,12 @@ int LuaBindsAI::Player_SendCastSpellUnit(lua_State* L)
 	else
 		luaL_error(L, "Player_SendCastSpellUnit: spell %d doesn't exist", spellId);
 	return 0;
+}
+
+
+int LuaBindsAI::Player_GetComboPoints(lua_State* L)
+{
+	Player* player = Player_GetPlayerObject(L);
+	lua_pushinteger(L, player->GetComboPoints());
+	return 1;
 }

@@ -19,6 +19,8 @@ namespace
 		for (const auto pAttacker : unit->GetAttackers())
 		{
 			//printf("Additing target to tbl %s attacking %s\n", pAttacker->GetName(), pMember->GetName());
+			if (!unit->CanAttack(pAttacker, true))
+				continue;
 			LuaBindsAI::Unit_CreateUD(pAttacker, L); // pushes pAttacker userdata on top of stack
 			lua_seti(L, -2, idx); // stack[-2][tblIdx] = stack[-1], pops pAttacker
 			++idx;
@@ -575,9 +577,9 @@ int LuaBindsAI::PartyInt_GetNextCLineS(lua_State* L)
 		luaL_error(L, "PartyInt_GetNextCLineS: cline map mismatch");
 	if (cline->lines.size() <= lineIdx || lineIdx < 0)
 		luaL_error(L, "PartyInt_GetNextCLineS: cline only has %d lines, got %d", cline->lines.size(), lineIdx);
-	if (cline->lines[lineIdx].pts.size() <= S + 1 || S < 0)
-		luaL_error(L, "PartyInt_GetNextCLineS: cline %d only has %d pts, got %d", lineIdx, cline->lines[lineIdx].pts.size(), S);
-	
+	if (cline->lines[lineIdx].pts.size() <= S || S < 0)
+		luaL_error(L, "PartyInt_GetNextCLineS: idx check fail, cline %d only has %d pts, got %d", lineIdx, cline->lines[lineIdx].pts.size(), S);
+
 	G3D::Vector3* P; // = &cline->lines[lineIdx].pts[0].pos;
 	//if (S == 0 && lineIdx == 0);
 	//else
@@ -592,7 +594,7 @@ int LuaBindsAI::PartyInt_GetNextCLineS(lua_State* L)
 		//}
 		//else
 		{
-			int finalS = reverse ? 0 : line.pts.size();
+			int finalS = reverse ? 0 : (line.pts.size() - 1);
 			int inc = reverse ? -1 : 1;
 			if (S != finalS) S += inc;
 			P = &line.pts[S].pos;
@@ -604,6 +606,33 @@ int LuaBindsAI::PartyInt_GetNextCLineS(lua_State* L)
 	lua_pushinteger(L, S);
 	lua_pushinteger(L, lineIdx);
 	return 5;
+}
+
+
+int LuaBindsAI::PartyInt_GetCLineLen(lua_State* L)
+{
+	PartyIntelligence* intelligence = PartyInt_GetPIObject(L);
+	Unit* unit = Unit_GetUnitObject(L, 2);
+	lua_Integer lineIdx = luaL_checkinteger(L, 3);
+	DungeonData* cline = intelligence->GetDungeonData();
+	if (!cline)
+		luaL_error(L, "PartyInt_GetCLineLen: cline doesn't exist");
+	if (lineIdx < 0 || lineIdx >= cline->lines.size())
+		luaL_error(L, "PartyInt_GetCLineLen: index out of bounds, got %I, max %d", lineIdx, cline->lines.size());
+	lua_pushinteger(L, cline->lines[lineIdx].pts.size());
+	return 1;
+}
+
+
+int LuaBindsAI::PartyInt_GetCLineCount(lua_State* L)
+{
+	PartyIntelligence* intelligence = PartyInt_GetPIObject(L);
+	Unit* unit = Unit_GetUnitObject(L, 2);
+	DungeonData* cline = intelligence->GetDungeonData();
+	if (!cline)
+		luaL_error(L, "PartyInt_GetCLineCount: cline doesn't exist");
+	lua_pushinteger(L, cline->lines.size());
+	return 1;
 }
 
 

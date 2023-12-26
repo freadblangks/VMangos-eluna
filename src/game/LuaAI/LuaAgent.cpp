@@ -31,8 +31,8 @@ LuaAgent::LuaAgent(Player* me, ObjectGuid masterGuid, int logicID) :
 	m_party(nullptr),
 
 	m_stdThreat(10.f),
-	m_healTarget(),
 	m_ammo(0u),
+	m_form(ShapeshiftForm::FORM_NONE),
 
 	m_queueGoname(false),
 	m_queueGonameName("")
@@ -171,9 +171,13 @@ void LuaAgent::Reset(bool dropRefs)
 	m_bInitialized = false;
 	m_queueGoname = false;
 	m_queueGonameName = "";
-	m_bCmdQueueMode = false;
-	m_stdThreat = 10.f;
-
+	CommandsSetQMode(false);
+	SetStdThreat(10.f);
+	SetForm(ShapeshiftForm::FORM_NONE);
+	SetHealTarget(ObjectGuid());
+	SetCCTarget(ObjectGuid());
+	SetAmmo(0u);
+	m_updateTimer.Reset(500);
 }
 
 

@@ -10,6 +10,7 @@
 class PartyIntelligence;
 enum EnchantmentSlot;
 enum EquipmentSlots;
+enum ShapeshiftForm;
 
 enum class LuaAgentRoles {
 	Invalid = 0,
@@ -48,6 +49,7 @@ class LuaAgent
 	float m_stdThreat;
 	ObjectGuid m_healTarget;
 	ObjectGuid m_ccTarget;
+	ShapeshiftForm m_form;
 
 	ShortTimeTracker m_updateTimer;
 	uint32 m_updateInterval;
@@ -112,6 +114,8 @@ public:
 
 	float GetStdThreat() { return m_stdThreat; }
 	void SetStdThreat(float value) { m_stdThreat = value; }
+	ShapeshiftForm GetForm() { return m_form; }
+	void SetForm(ShapeshiftForm value) { m_form = value; }
 
 	ObjectGuid& GetCCTarget() { return m_ccTarget; }
 	void SetCCTarget(const ObjectGuid& guid) { m_ccTarget = guid; }

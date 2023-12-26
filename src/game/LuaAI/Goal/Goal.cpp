@@ -101,6 +101,16 @@ Goal* Goal::AddSubGoal(int goalId, double life, std::vector<GoalParamP>& goalPar
 		manager->PushGoalOnActivationStack(result);
 	return result;
 }
+
+Goal* Goal::AddSubGoal_Front(int goalId, double life, std::vector<GoalParamP>& goalParams) {
+	subgoals.push_front(std::make_shared<Goal>(goalId, life, goalParams, manager, L, this));
+	Goal* result = subgoals.front().get();
+	// if this is the only goal queue for activation
+	if (subgoals.size() > 0)
+		manager->PushGoalOnActivationStack(result);
+	return result;
+}
+
 // Pops all subgoals from the queue.
 void Goal::ClearSubGoal() {
 	if (subgoals.size()) {
@@ -244,13 +254,12 @@ void LuaBindsAI::Goal_GrabParams(lua_State* L, int nArgs, std::vector<GoalParamP
 				params.push_back(std::make_shared<GoalParamNumber>(lua_tonumber(L, i)));
 			else if (lua_type(L, i) == LUA_TBOOLEAN)
 				params.push_back(std::make_shared<GoalParamBoolean>(lua_toboolean(L, i)));
-			else if (lua_isnil(L, i))
-				params.push_back(std::make_shared<GoalParamNil>());
 			else if (lua_type(L, i) == LUA_TSTRING)
-				// GoalParamString takes care of making a copy
 				params.push_back(std::make_shared<GoalParamString>(lua_tostring(L, i)));
 			else if (void* ud = luaL_testudata(L, i, LuaBindsAI::GuidMtName))
 				params.push_back(std::make_shared<GoalParamGuid>(static_cast<LuaObjectGuid*>(ud)->guid.GetRawValue()));
+			else if (lua_isnil(L, i))
+				params.push_back(std::make_shared<GoalParamNil>());
 			else
 				luaL_error(L, "Goal.AddSubGoal - unknown argument type at position %d", i);
 }
@@ -275,6 +284,35 @@ int LuaBindsAI::Goal_AddSubGoal(lua_State* L) {
 	// printf( "%d\n", params.size() );
 
 	Goal* goalUserdata = Goal_CreateGoalUD(L, goal->AddSubGoal(goalId, life, params)); // ud on top of the stack
+	// duplicate userdata for return result
+	lua_pushvalue(L, -1);
+	// save userdata
+	goalUserdata->SetRef(luaL_ref(L, LUA_REGISTRYINDEX)); // pops the object as well
+	goalUserdata->CreateUsertable();
+	return 1;
+
+}
+
+int LuaBindsAI::Goal_AddSubGoal_Front(lua_State* L) {
+
+	int nArgs = lua_gettop(L);
+
+	if (nArgs < 3) {
+		luaL_error(L, "Goal_AddSubGoal_Front - invalid number of arguments. 3 min, %d given", nArgs);
+		//return 0;
+	}
+
+	Goal* goal = Goal_GetGoalObject(L);
+	int goalId = luaL_checknumber(L, 2);
+	double life = luaL_checknumber(L, 3);
+
+	// (*goal)->Print();
+
+	std::vector<GoalParamP> params;
+	Goal_GrabParams(L, nArgs, params);
+	// printf( "%d\n", params.size() );
+
+	Goal* goalUserdata = Goal_CreateGoalUD(L, goal->AddSubGoal_Front(goalId, life, params)); // ud on top of the stack
 	// duplicate userdata for return result
 	lua_pushvalue(L, -1);
 	// save userdata

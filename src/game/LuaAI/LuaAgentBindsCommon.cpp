@@ -13,6 +13,14 @@
 #include "Hierarchy/LuaAgentPartyInt.h"
 #include "lua.hpp"
 
+namespace
+{
+	inline void lua_setglobalint(lua_State* L, const char* field, lua_Integer value)
+	{
+		lua_pushinteger(L, value);
+		lua_setglobal(L, field);
+	}
+}
 
 void LuaBindsAI::BindAll(lua_State* L) {
 	BindGoalManager(L);
@@ -30,8 +38,9 @@ void LuaBindsAI::BindAll(lua_State* L) {
 	lua_register(L, "isinteger", isinteger);
 	BindItem(L);
 	BindSpell(L);
-	lua_pushinteger(L, SUPPORTED_CLIENT_BUILD);
-	lua_setglobal(L, "CVER");
+	lua_setglobalint(L, "CVER", SUPPORTED_CLIENT_BUILD);
+	lua_setglobalint(L, "CAST_NOT_SHAPESHIFT", SpellCastResult::SPELL_FAILED_NOT_SHAPESHIFT);
+	lua_setglobalint(L, "CAST_ONLY_SHAPESHIFT", SpellCastResult::SPELL_FAILED_ONLY_SHAPESHIFT);
 }
 
 

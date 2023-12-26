@@ -106,6 +106,8 @@ namespace LuaBindsAI {
 	int PartyInt_GetCLinePInLosAtD(lua_State* L);
 	int PartyInt_GetNearestCLineP(lua_State* L);
 	int PartyInt_GetNextCLineS(lua_State* L);
+	int PartyInt_GetCLineLen(lua_State* L);
+	int PartyInt_GetCLineCount(lua_State* L);
 	int PartyInt_ShouldReverseCLine(lua_State* L);
 
 	// cc
@@ -140,6 +142,8 @@ namespace LuaBindsAI {
 		{"GetCLinePInLosAtD", PartyInt_GetCLinePInLosAtD},
 		{"GetNearestCLineP", PartyInt_GetNearestCLineP},
 		{"GetNextCLineS", PartyInt_GetNextCLineS},
+		{"GetCLineLen", PartyInt_GetCLineLen},
+		{"GetCLineCount", PartyInt_GetCLineCount},
 		{"ShouldReverseCLine", PartyInt_ShouldReverseCLine},
 
 		// cc

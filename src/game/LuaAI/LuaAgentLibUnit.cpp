@@ -5,6 +5,7 @@
 #include "LuaAgentLibWorldObj.h"
 #include "Spell.h"
 #include "SpellAuras.h"
+#include "TargetedMovementGenerator.h"
 
 
 void LuaBindsAI::BindUnit(lua_State* L) {
@@ -292,6 +293,17 @@ int LuaBindsAI::Unit_IsInLOS(lua_State* L)
 }
 
 
+int LuaBindsAI::Unit_RemoveSpellCooldown(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_Integer spellId = luaL_checkinteger(L, 2);
+	if (spellId < 0 || !sSpellMgr.GetSpellEntry(spellId))
+		luaL_error(L, "Unit_RemoveSpellCooldown: spell %d doesn't exist", spellId);
+	unit->RemoveSpellCooldown(spellId, true);
+	return 1;
+}
+
+
 // ---------------------------------------------------------
 // --                     Info
 // ---------------------------------------------------------
@@ -362,6 +374,21 @@ int LuaBindsAI::Unit_GetAttackersNum(lua_State* L)
 }
 
 
+int LuaBindsAI::Unit_GetCreatureChaseInfo(lua_State* L)
+{
+	//Unit* unit = Unit_GetUnitObject(L);
+	//if (unit->GetMotionMaster()->GetCurrentMovementGeneratorType() == MovementGeneratorType::CHASE_MOTION_TYPE)
+	//	if (auto constGen = dynamic_cast<const ChaseMovementGenerator<Creature>*>(unit->GetMotionMaster()->GetCurrent()))
+	//	{
+	//		auto gen = const_cast<ChaseMovementGenerator<Creature>*>(constGen);
+	//		lua_pushnumber(L, gen->GetOffset());
+	//		lua_pushnumber(L, gen->GetAngle());
+	//		return 2;
+	//	}
+	return 0;
+}
+
+
 int LuaBindsAI::Unit_GetDistance(lua_State* L)
 {
 	Unit* unit = Unit_GetUnitObject(L);
@@ -381,6 +408,18 @@ int LuaBindsAI::Unit_GetDistance(lua_State* L)
 }
 
 
+int LuaBindsAI::Unit_GetForwardVector(lua_State* L) {
+	Unit* unit = Unit_GetUnitObject(L);
+	float ori = unit->GetOrientation();
+	lua_newtable(L);
+	lua_pushnumber(L, std::cos(ori));
+	lua_setfield(L, -2, "x");
+	lua_pushnumber(L, std::sin(ori));
+	lua_setfield(L, -2, "y");
+	return 1;
+}
+
+
 int LuaBindsAI::Unit_GetOrientation(lua_State* L)
 {
 	Unit* unit = Unit_GetUnitObject(L);
@@ -396,6 +435,14 @@ int LuaBindsAI::Unit_GetPosition(lua_State* L)
 	lua_pushnumber(L, unit->GetPositionY());
 	lua_pushnumber(L, unit->GetPositionZ());
 	return 3;
+}
+
+
+int LuaBindsAI::Unit_IsInDungeon(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_pushboolean(L, unit->GetMap()->IsDungeon());
+	return 1;
 }
 
 
@@ -694,6 +741,16 @@ int LuaBindsAI::Unit_RemoveAuraByCancel(lua_State* L) {
 	if (spellId < 0 || !sSpellMgr.GetSpellEntry(spellId))
 		luaL_error(L, "Unit_RemoveAuraByCancel: spell %I doesn't exist", spellId);
 	unit->RemoveAurasDueToSpellByCancel(spellId);
+	return 0;
+}
+
+
+int LuaBindsAI::Unit_RemoveSpellsCausingAura(lua_State* L) {
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_Integer auraType = luaL_checkinteger(L, 2);
+	if (auraType < 0 || auraType >= AuraType::TOTAL_AURAS)
+		luaL_error(L, "Unit_RemoveSpellsCausingAura: aura type %I doesn't exist", auraType);
+	unit->RemoveSpellsCausingAura(AuraType(auraType));
 	return 0;
 }
 

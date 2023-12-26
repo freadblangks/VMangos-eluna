@@ -91,6 +91,7 @@ public:
 	/// <param name="goalParams">Reference to goal param vector. It's contents are moved during the call to constructor.</param>
 	/// <returns>Pointer to newly created Goal object.</returns>
 	Goal* AddSubGoal(int goalId, double life, std::vector<GoalParamP>& goalParams);
+	Goal* AddSubGoal_Front(int goalId, double life, std::vector<GoalParamP>& goalParams);
 	// Pops all subgoals from the queue.
 	void ClearSubGoal();
 	// Pops front subgoal.
@@ -141,6 +142,7 @@ public:
 namespace LuaBindsAI {
 
 	int Goal_AddSubGoal(lua_State* L);
+	int Goal_AddSubGoal_Front(lua_State* L);
 	int Goal_ClearSubGoal(lua_State* L);
 	int Goal_GetLife(lua_State* L);
 	int Goal_GetNumber(lua_State* L);
@@ -162,6 +164,7 @@ namespace LuaBindsAI {
 	void BindGoal(lua_State* L);
 	static const struct luaL_Reg Goal_BindLib[]{
 		{"AddSubGoal", Goal_AddSubGoal},
+		{"AddSubGoal_Front", Goal_AddSubGoal_Front},
 		{"ClearSubGoal", Goal_ClearSubGoal},
 		{"GetLife", Goal_GetLife},
 		{"GetNumber", Goal_GetNumber},
