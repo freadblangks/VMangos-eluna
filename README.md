@@ -4,7 +4,7 @@ Scripts repository: https://github.com/TuriansNotBad/vanilla-luab
 Compiling on Windows:
 1. Clone.
 2. Create folder "lua" in the same folder you cloned to. In folder "lua" create folders lib and src.
-3. Download and build lua 5.4.6 as dll from their websitew.
+3. Download and build lua 5.4.6 as dll from their website.
 4. Put lua.dll and lua.lib into folder "lua/lib"
 5. Put lua source files into folder "lua/src"
 6. Your root folder should contain folders "lua" and "vmangos-luab" now.
