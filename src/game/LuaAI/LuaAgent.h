@@ -50,6 +50,7 @@ class LuaAgent
 	ObjectGuid m_healTarget;
 	ObjectGuid m_ccTarget;
 	ShapeshiftForm m_form;
+	int m_desiredLevel;
 
 	ShortTimeTracker m_updateTimer;
 	uint32 m_updateInterval;
@@ -116,6 +117,8 @@ public:
 	void SetStdThreat(float value) { m_stdThreat = value; }
 	ShapeshiftForm GetForm() { return m_form; }
 	void SetForm(ShapeshiftForm value) { m_form = value; }
+	int GetDesiredLevel() { return m_desiredLevel; }
+	void SetDesiredLevel(int value) { m_desiredLevel = value; }
 
 	ObjectGuid& GetCCTarget() { return m_ccTarget; }
 	void SetCCTarget(const ObjectGuid& guid) { m_ccTarget = guid; }

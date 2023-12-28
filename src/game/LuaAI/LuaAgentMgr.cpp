@@ -56,6 +56,7 @@ public:
 		}
 
 		// Deleted in LuaAgentMgr::__RemoveAgents
+		printf("HandleLoginCallback for agent %s\n", myGuid.GetString().c_str());
 		WorldSession* session = new WorldSession(lqh->GetAccountId(), nullptr, sAccountMgr.GetSecurity(lqh->GetAccountId()), 0, LOCALE_enUS);
 		session->SetToLoading();
 		session->HandlePlayerLogin(lqh); // will delete lqh
@@ -73,7 +74,13 @@ public:
 } luaChrHandler;
 
 
-LuaAgentMgr::LuaAgentMgr() : m_bLuaCeaseUpdates(false), m_bLuaReload(false), L(nullptr), m_bGroupAllInProgress(false), m_dungeons()
+LuaAgentMgr::LuaAgentMgr() :
+	L(nullptr),
+	m_bLuaCeaseUpdates(false),
+	m_bLuaReload(false),
+	m_bGroupAllInProgress(false),
+	m_bDisableAgentSaving(true),
+	m_dungeons()
 {
 	LuaLoadAll();
 }
@@ -148,6 +155,13 @@ void LuaAgentMgr::LuaLoadAll() {
 	LuaBindsAI::BindAll(L);
 
 	LuaLoadFiles(fpath);
+
+	// allow enabling saving in lua
+	if (LUA_TBOOLEAN == lua_getglobal(L, "__Mgr_Disable_Agent_Save"))
+	{
+		SetDisableSavingAgents(lua_toboolean(L, -1));
+		lua_pop(L, 1);
+	}
 }
 
 
@@ -368,6 +382,8 @@ void LuaAgentMgr::OnAgentLogin(WorldSession* session, ObjectGuid guid, ObjectGui
 		sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "LuaAgent - player ptr is null after log in. Removing agent %s.", guid.GetString());
 		return;
 	}
+
+	player->SetSavingDisabled(m_bDisableAgentSaving);
 
 	player->CreateLuaAI(player, masterGuid, logicID);
 	LuaAgent* ai = player->GetLuaAI();

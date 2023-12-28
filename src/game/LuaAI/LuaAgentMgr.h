@@ -40,6 +40,7 @@ class LuaAgentMgr
 
 	bool m_bGroupAllInProgress;
 
+	bool m_bDisableAgentSaving;
 	bool m_bLuaCeaseUpdates;
 	bool m_bLuaReload;
 
@@ -101,6 +102,7 @@ public:
 	void LogoutBrokenAgent(ObjectGuid guid);
 	void LogoutAllAgents();
 	void LogoutAllImmediately();
+	void SetDisableSavingAgents(bool v) { m_bDisableAgentSaving = v; }
 
 	void Update(uint32 diff);
 

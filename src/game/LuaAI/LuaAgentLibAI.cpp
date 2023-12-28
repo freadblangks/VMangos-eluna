@@ -106,6 +106,25 @@ int LuaBindsAI::AI_GetUserTbl(lua_State* L) {
 }
 
 
+int LuaBindsAI::AI_GetDesiredLevel(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	lua_pushinteger(L, ai->GetDesiredLevel());
+	return 1;
+}
+
+
+int LuaBindsAI::AI_SetDesiredLevel(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	lua_Integer value = luaL_checkinteger(L, 2);
+	if (value < 1)  value = 1;
+	if (value > 60) value = 60;
+	ai->SetDesiredLevel(value);
+	return 0;
+}
+
+
 int LuaBindsAI::AI_GetForm(lua_State* L)
 {
 	LuaAgent* ai = AI_GetAIObject(L);
@@ -117,7 +136,7 @@ int LuaBindsAI::AI_GetForm(lua_State* L)
 int LuaBindsAI::AI_SetForm(lua_State* L)
 {
 	LuaAgent* ai = AI_GetAIObject(L);
-	lua_Number value = luaL_checkinteger(L, 2);
+	lua_Integer value = luaL_checkinteger(L, 2);
 	if (value < 0 || value > ShapeshiftForm::FORM_SPIRITOFREDEMPTION)
 		luaL_error(L, "AI_SetForm: value must be in range [0, %d], got %I", ShapeshiftForm::FORM_SPIRITOFREDEMPTION, value);
 	ai->SetForm(ShapeshiftForm(value));

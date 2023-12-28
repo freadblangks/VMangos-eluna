@@ -20,6 +20,8 @@ namespace LuaBindsAI {
 
 	int AI_GetForm(lua_State* L);
 	int AI_SetForm(lua_State* L);
+	int AI_GetDesiredLevel(lua_State* L);
+	int AI_SetDesiredLevel(lua_State* L);
 	int AI_GetStdThreat(lua_State* L);
 	int AI_SetStdThreat(lua_State* L);
 	int AI_GetHealTarget(lua_State* L);
@@ -106,6 +108,8 @@ namespace LuaBindsAI {
 		{"HasTopGoal", AI_HasTopGoal},
 		{"GetData", AI_GetUserTbl},
 
+		{"GetDesiredLevel", AI_GetDesiredLevel},
+		{"SetDesiredLevel", AI_SetDesiredLevel},
 		{"GetForm", AI_GetForm},
 		{"SetForm", AI_SetForm},
 		{"GetStdThreat", AI_GetStdThreat},

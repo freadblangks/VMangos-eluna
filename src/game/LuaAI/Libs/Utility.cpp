@@ -90,7 +90,7 @@ namespace
 				}
 			}
 		}
-		printf("(RP max=%.2f id=%d), ", max, chosenId);
+		//printf("(RP max=%.2f id=%d), ", max, chosenId);
 		return ChosenRandomProperty(max, chosenId);
 	}
 }
@@ -108,13 +108,13 @@ void Utility::GetItemUtility(lua_State* L, LuaAI_Item* item, Player* agent)
 {
 	if (agent->CanUseItem(item->proto) != InventoryResult::EQUIP_ERR_OK)
 	{
-		printf("item %d score=0\n", item->proto->ItemId);
+		//printf("item %d score=0\n", item->proto->ItemId);
 	 	lua_pushinteger(L, 0);
 		lua_pushnumber(L, 0.f);
 		return;
 	}
 	// weighted sum
-	printf("top=%d, ", lua_gettop(L));
+	//printf("top=%d, ", lua_gettop(L));
 	//printf("top=%d, ---id=%d name=%s---, ", lua_gettop(L), item->proto->ItemId, item->proto->Name1);
 	luaL_checktype(L, -1, LUA_TTABLE);
 
@@ -125,13 +125,13 @@ void Utility::GetItemUtility(lua_State* L, LuaAI_Item* item, Player* agent)
 	{
 		lua_getfield(L, -1, "DamageWeight");
 		score = Linear(item->GetDps(), MAX_ITEM_DPS) * luaL_checknumber(L, -1);
-		printf("[%.2f, ", score);
+		//printf("[%.2f, ", score);
 	}
 	else
 	{
 		lua_getfield(L, -1, "ArmorWeight");
 		score = Linear(proto->Armor, MAX_ITEM_ARMOR) * luaL_checknumber(L, -1);
-		printf("[%.2f, ", score);
+		//printf("[%.2f, ", score);
 	}
 
 	lua_getfield(L, -2, "StatWeights");
@@ -144,7 +144,7 @@ void Utility::GetItemUtility(lua_State* L, LuaAI_Item* item, Player* agent)
 			// do not consider items with negative stats
 			if (stat.ItemStatValue < 0)
 			{
-				printf("\n");
+				//printf("\n");
 				lua_pushinteger(L, 0);
 				lua_pushnumber(L, 0.f);
 				return;
@@ -152,7 +152,7 @@ void Utility::GetItemUtility(lua_State* L, LuaAI_Item* item, Player* agent)
 			if (lua_geti(L, -1, stat.ItemStatType) != LUA_TNIL)
 			{
 				score += Linear(stat.ItemStatValue, MAX_ITEM_STAT) * luaL_checknumber(L, -1);
-				printf("%.2f, ", Linear(stat.ItemStatValue, MAX_ITEM_STAT) * luaL_checknumber(L, -1));
+				//printf("%.2f, ", Linear(stat.ItemStatValue, MAX_ITEM_STAT) * luaL_checknumber(L, -1));
 			}
 			lua_pop(L, 1);
 		}
@@ -164,7 +164,7 @@ void Utility::GetItemUtility(lua_State* L, LuaAI_Item* item, Player* agent)
 	lua_getfield(L, -4, "AuraWeights");
 	luaL_checktype(L, -1, LUA_TTABLE);
 
-	printf("], [");
+	//printf("], [");
 	for (auto& itemSpell : proto->Spells)
 		if (itemSpell.SpellId)
 			if (const SpellEntry* spellEntry = sSpellMgr.GetSpellEntry(itemSpell.SpellId))
@@ -174,7 +174,7 @@ void Utility::GetItemUtility(lua_State* L, LuaAI_Item* item, Player* agent)
 						if (spellEntry->EffectApplyAuraName[i] != AuraType::SPELL_AURA_MOD_DAMAGE_DONE || (schoolMask & spellEntry->EffectMiscValue[i]))
 						{
 							score += Linear(spellEntry->CalculateSimpleValue(SpellEffectIndex(i)), MAX_ITEM_AURA_VAL) * luaL_checknumber(L, -1);
-							printf("%.2f, ", Linear(spellEntry->CalculateSimpleValue(SpellEffectIndex(i)), MAX_ITEM_AURA_VAL) * luaL_checknumber(L, -1));
+							//printf("%.2f, ", Linear(spellEntry->CalculateSimpleValue(SpellEffectIndex(i)), MAX_ITEM_AURA_VAL) * luaL_checknumber(L, -1));
 						}
 					lua_pop(L, 1);
 				}
@@ -184,7 +184,7 @@ void Utility::GetItemUtility(lua_State* L, LuaAI_Item* item, Player* agent)
 	if (rp.id != 0)
 		score += rp.score;
 
-	printf("] score=%f %d %s\n", score, lua_gettop(L), proto->Name1);
+	//printf("] score=%f %d %s\n", score, lua_gettop(L), proto->Name1);
 	lua_pushinteger(L, rp.id);
 	lua_pushnumber(L, score);
 }

@@ -38,6 +38,11 @@ namespace LuaBindsAI {
 
 	int Player_GetComboPoints(lua_State* L);
 
+	int Player_ResurrectPlayer(lua_State* L);
+
+	int Player_SetGameMaster(lua_State* L);
+	int Player_TeleportTo(lua_State* L);
+
 	static const struct luaL_Reg Player_BindLib[]{
 		// spells
 		{"HasSpell", Player_HasSpell},
@@ -58,6 +63,11 @@ namespace LuaBindsAI {
 		{"SendCastSpellUnit", Player_SendCastSpellUnit},
 
 		{"GetComboPoints", Player_GetComboPoints},
+
+		{"ResurrectPlayer", Player_ResurrectPlayer},
+
+		{"SetGameMaster", Player_SetGameMaster},
+		{"TeleportTo", Player_TeleportTo},
 
 		{NULL, NULL}
 	};

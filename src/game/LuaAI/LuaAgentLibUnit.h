@@ -48,12 +48,13 @@ namespace LuaBindsAI {
 	int Unit_IsNextSwingSpellCasted(lua_State* L);
 	int Unit_IsTanking(lua_State* L);
 
-	int Unit_GetAttackersNum(lua_State* L);
 	int Unit_GetCreatureChaseInfo(lua_State* L);
 	int Unit_GetDistance(lua_State* L);
 	int Unit_GetForwardVector(lua_State* L);
 	int Unit_GetOrientation(lua_State* L);
 	int Unit_GetPosition(lua_State* L);
+	int Unit_GetMapId(lua_State* L);
+	int Unit_GetZoneId(lua_State* L);
 	int Unit_IsInDungeon(lua_State* L);
 
 	int Unit_GetHealth(lua_State* L);
@@ -73,6 +74,8 @@ namespace LuaBindsAI {
 
 	int Unit_CanReachWithMeleeAutoAttack(lua_State* L);
 	int Unit_CanHaveThreatList(lua_State* L);
+	int Unit_GetAttackers(lua_State* L);
+	int Unit_GetAttackersNum(lua_State* L);
 	int Unit_GetHighestThreat(lua_State* L);
 	int Unit_GetShapeshiftForm(lua_State* L);
 	int Unit_GetThreat(lua_State* L);
@@ -95,6 +98,7 @@ namespace LuaBindsAI {
 	int Unit_GetName(lua_State* L);
 	int Unit_GetRace(lua_State* L);
 	int Unit_GetRole(lua_State* L);
+	int Unit_GetTeam(lua_State* L);
 	int Unit_IsPlayer(lua_State* L);
 
 	// Motion control
@@ -134,12 +138,13 @@ namespace LuaBindsAI {
 		{"IsNextSwingSpellCasted", Unit_IsNextSwingSpellCasted},
 		{"IsTanking", Unit_IsTanking},
 
-		{"GetAttackersNum", Unit_GetAttackersNum},
 		{"GetCreatureChaseInfo", Unit_GetCreatureChaseInfo},
 		{"GetDistance", Unit_GetDistance},
 		{"GetForwardVector", Unit_GetForwardVector},
 		{"GetOrientation", Unit_GetOrientation},
 		{"GetPosition", Unit_GetPosition},
+		{"GetMapId", Unit_GetMapId},
+		{"GetZoneId", Unit_GetZoneId},
 		{"IsInDungeon", Unit_IsInDungeon},
 
 		{"GetHealth", Unit_GetHealth},
@@ -159,6 +164,8 @@ namespace LuaBindsAI {
 
 		{"CanReachWithMelee", Unit_CanReachWithMeleeAutoAttack},
 		{"CanHaveThreatList", Unit_CanHaveThreatList},
+		{"GetAttackers", Unit_GetAttackers},
+		{"GetAttackersNum", Unit_GetAttackersNum},
 		{"GetThreat", Unit_GetThreat},
 		{"GetThreatTbl", Unit_GetThreatTbl},
 		{"GetHighestThreat", Unit_GetHighestThreat},
@@ -180,6 +187,7 @@ namespace LuaBindsAI {
 		{"GetName", Unit_GetName},
 		{"GetRace", Unit_GetRace},
 		{"GetRole", Unit_GetRole},
+		{"GetTeam", Unit_GetTeam},
 		{"IsPlayer", Unit_IsPlayer},
 
 		// motion

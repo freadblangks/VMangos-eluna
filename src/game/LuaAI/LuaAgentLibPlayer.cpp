@@ -296,3 +296,31 @@ int LuaBindsAI::Player_GetComboPoints(lua_State* L)
 	lua_pushinteger(L, player->GetComboPoints());
 	return 1;
 }
+
+
+int LuaBindsAI::Player_ResurrectPlayer(lua_State* L) {
+	Player* player = Player_GetPlayerObject(L);
+	int hp = luaL_checknumber(L, 2);
+	bool bSick = luaL_checkboolean(L, 3);
+	player->ResurrectPlayer(hp, bSick);
+	return 0;
+}
+
+
+int LuaBindsAI::Player_SetGameMaster(lua_State* L) {
+	Player* player = Player_GetPlayerObject(L);
+	bool on = luaL_checkboolean(L, 2);
+	player->SetGameMaster(on);
+	return 0;
+}
+
+
+int LuaBindsAI::Player_TeleportTo(lua_State* L) {
+	Player* player = Player_GetPlayerObject(L);
+	int mapId = luaL_checkinteger(L, 2);
+	float x = luaL_checknumber(L, 3);
+	float y = luaL_checknumber(L, 4);
+	float z = luaL_checknumber(L, 5);
+	lua_pushboolean(L, player->TeleportTo(mapId, x, y, z, player->GetOrientation()));
+	return 1;
+}

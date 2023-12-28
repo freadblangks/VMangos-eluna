@@ -33,6 +33,7 @@ LuaAgent::LuaAgent(Player* me, ObjectGuid masterGuid, int logicID) :
 	m_stdThreat(10.f),
 	m_ammo(0u),
 	m_form(ShapeshiftForm::FORM_NONE),
+	m_desiredLevel(-1),
 
 	m_queueGoname(false),
 	m_queueGonameName("")
@@ -82,6 +83,15 @@ void LuaAgent::Update(uint32 diff)
 	if (!IsInitialized())
 	{
 		Init();
+		return;
+	}
+
+	if (GetDesiredLevel() != -1 && !me->IsInCombat() && me->GetLevel() != GetDesiredLevel())
+	{
+		me->GiveLevel(GetDesiredLevel());
+		me->InitTalentForLevel();
+		me->SetUInt32Value(PLAYER_XP, 0);
+		Reset(false);
 		return;
 	}
 
@@ -193,6 +203,8 @@ void LuaAgent::Init()
 	if (m_userTblRef == LUA_NOREF)
 		CreateUserTbl();
 
+	me->UpdateSkillsToMaxSkillsForLevel();
+
 	m_logicManager.Init(L, this);
 	m_bInitialized = true;
 }
@@ -284,7 +296,7 @@ void LuaAgent::OnPacketReceived(const WorldPacket& pck)
 		*send << guid;
 #endif
 #if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_9_4
-		send << mCounter;
+		*send << mCounter;
 #endif
 		*send << movementInfo;
 		FallBegin(vcos, vsin, speedxy, speedz, WorldTimer::getMSTime());

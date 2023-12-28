@@ -222,6 +222,33 @@ void PartyIntelligence::LoadAgents()
 }
 
 
+void PartyIntelligence::RemoveAgent(const ObjectGuid& guid)
+{
+	if (Player* agent = GetAgent(guid))
+	{
+		for (auto& it = m_agentInfos.begin(); it != m_agentInfos.end(); ++it)
+		{
+			if (it->name == agent->GetName())
+			{
+				it = m_agentInfos.erase(it);
+				break;
+			}
+		}
+		m_agents.erase(guid);
+		sLuaAgentMgr.LogoutAgent(guid);
+	}
+}
+
+
+void PartyIntelligence::RemoveAll()
+{
+	for (auto& it : m_agents)
+		sLuaAgentMgr.LogoutAgent(it.first);
+	m_agentInfos.clear();
+	m_agents.clear();
+}
+
+
 float PartyIntelligence::GetAngleForTank(LuaAgent* ai, Unit* target, bool& flipped, bool allowFlip, bool forceFlip)
 {
 	flipped = false;
@@ -723,4 +750,21 @@ int LuaBindsAI::PartyInt_GetCCTable(lua_State* L)
 		++i;
 	}
 	return 1;
+}
+
+
+int LuaBindsAI::PartyInt_RemoveAgent(lua_State* L)
+{
+	PartyIntelligence* intelligence = PartyInt_GetPIObject(L);
+	LuaObjectGuid* guid = Guid_GetGuidObject(L, 2);
+	intelligence->RemoveAgent(guid->guid);
+	return 0;
+}
+
+
+int LuaBindsAI::PartyInt_RemoveAll(lua_State* L)
+{
+	PartyIntelligence* intelligence = PartyInt_GetPIObject(L);
+	intelligence->RemoveAll();
+	return 0;
 }

@@ -97,6 +97,7 @@ int LuaBindsAI::Unit_CastSpell(lua_State* L)
 			unit->StopMoving();
 		SpellCastResult result = unit->CastSpell(target, spell, triggered);
 		if (result == SpellCastResult::SPELL_FAILED_NO_AMMO)
+		{
 			if (Player* player = unit->ToPlayer())
 				if (LuaAgent* ai = player->GetLuaAI())
 					if (uint32 ammo = ai->GetAmmo())
@@ -106,6 +107,17 @@ int LuaBindsAI::Unit_CastSpell(lua_State* L)
 							player->SetAmmo(ammo);
 							result = unit->CastSpell(target, spell, triggered);
 						}
+		}
+		else if (result == SpellCastResult::SPELL_FAILED_ITEM_NOT_READY)
+		{
+			if (Player* player = unit->ToPlayer())
+				if (LuaAgent* ai = player->GetLuaAI())
+					if (spell->Reagent[0])
+					{
+						player->StoreNewItemInBestSlots(spell->Reagent[0], spell->ReagentCount[0]);
+						result = unit->CastSpell(target, spell, triggered);
+					}
+		}
 		lua_pushinteger(L, result);
 	}
 	else
@@ -366,14 +378,6 @@ int LuaBindsAI::Unit_IsTanking(lua_State* L)
 }
 
 
-int LuaBindsAI::Unit_GetAttackersNum(lua_State* L)
-{
-	Unit* unit = Unit_GetUnitObject(L);
-	lua_pushinteger(L, unit->GetAttackers().size());
-	return 1;
-}
-
-
 int LuaBindsAI::Unit_GetCreatureChaseInfo(lua_State* L)
 {
 	//Unit* unit = Unit_GetUnitObject(L);
@@ -435,6 +439,22 @@ int LuaBindsAI::Unit_GetPosition(lua_State* L)
 	lua_pushnumber(L, unit->GetPositionY());
 	lua_pushnumber(L, unit->GetPositionZ());
 	return 3;
+}
+
+
+int LuaBindsAI::Unit_GetMapId(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_pushinteger(L, unit->GetMapId());
+	return 1;
+}
+
+
+int LuaBindsAI::Unit_GetZoneId(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_pushinteger(L, unit->GetZoneId());
+	return 1;
 }
 
 
@@ -599,6 +619,29 @@ int LuaBindsAI::Unit_CanHaveThreatList(lua_State* L)
 {
 	Unit* unit = Unit_GetUnitObject(L);
 	lua_pushboolean(L, unit->CanHaveThreatList());
+	return 1;
+}
+
+
+int LuaBindsAI::Unit_GetAttackers(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_newtable(L);
+	int tblIdx = 1;
+	for (const auto pAttacker : unit->GetAttackers())
+		if (unit->CanAttack(pAttacker, true)) {
+			Unit_CreateUD(pAttacker, L);
+			lua_seti(L, -2, tblIdx);
+			tblIdx++;
+		}
+	return 1;
+}
+
+
+int LuaBindsAI::Unit_GetAttackersNum(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_pushinteger(L, unit->GetAttackers().size());
 	return 1;
 }
 
@@ -810,6 +853,14 @@ int LuaBindsAI::Unit_GetRole(lua_State* L)
 			return 1;
 		}
 	lua_pushinteger(L, 0ll);
+	return 1;
+}
+
+
+int LuaBindsAI::Unit_GetTeam(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_pushinteger(L, unit->GetTeam());
 	return 1;
 }
 

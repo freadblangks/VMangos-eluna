@@ -41,6 +41,8 @@ public:
 
 	void LoadInfoFromLuaTbl(lua_State* L);
 	void LoadAgents();
+	void RemoveAgent(const ObjectGuid& guid);
+	void RemoveAll();
 	void Reset(lua_State* L, bool dropRefs);
 	void Init(lua_State* L);
 	void Update(uint32 diff, lua_State* L);
@@ -121,6 +123,8 @@ namespace LuaBindsAI {
 	int PartyInt_GetAgents(lua_State* L);
 	int PartyInt_GetAttackers(lua_State* L);
 	int PartyInt_GetCCTable(lua_State* L);
+	int PartyInt_RemoveAgent(lua_State* L);
+	int PartyInt_RemoveAll(lua_State* L);
 
 	static const struct luaL_Reg PartyInt_BindLib[]{
 		{"CanPullTarget", PartyInt_CanPullTarget},
@@ -156,6 +160,8 @@ namespace LuaBindsAI {
 		{"GetAgents", PartyInt_GetAgents},
 		{"GetAttackers", PartyInt_GetAttackers},
 		{"GetCC", PartyInt_GetCCTable},
+		{"RemoveAgent", PartyInt_RemoveAgent},
+		{"RemoveAll", PartyInt_RemoveAll},
 
 		{NULL, NULL}
 	};
