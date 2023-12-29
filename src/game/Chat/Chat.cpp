@@ -1177,6 +1177,7 @@ ChatCommand * ChatHandler::getCommandTable()
         { "kickbroken",     SEC_PLAYER,         false, &ChatHandler::HandleLuabKickBrokenCommand,      "", nullptr },
         { "reset",          SEC_PLAYER,         false, &ChatHandler::HandleLuabResetCommand,           "", nullptr },
         { "remove",         SEC_PLAYER,         false, &ChatHandler::HandleLuabRemoveCommand,          "", nullptr },
+        { "removeparty",    SEC_PLAYER,         false, &ChatHandler::HandleLuabRemovePartyCommand,     "", nullptr },
         { "removeall",      SEC_PLAYER,         false, &ChatHandler::HandleLuabRemoveAllCommand,       "", nullptr },
         { "groupall",       SEC_PLAYER,         false, &ChatHandler::HandleLuabGroupAllCommand,        "", nullptr },
         { "reviveall",      SEC_PLAYER,         false, &ChatHandler::HandleLuabReviveAllCommand,       "", nullptr },

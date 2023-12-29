@@ -264,7 +264,7 @@ void LuaAgentMgr::SetLoggedIn(ObjectGuid guid)
 }
 
 
-void LuaAgentMgr::AddParty(std::string name, ObjectGuid owner)
+void LuaAgentMgr::AddParty(std::string name, const ObjectGuid& owner)
 {
 	for (auto& party : m_parties)
 		if (party->GetName() == name && party->GetOwnerGuid() == owner)
@@ -273,6 +273,21 @@ void LuaAgentMgr::AddParty(std::string name, ObjectGuid owner)
 	std::unique_ptr<PartyIntelligence> party = std::make_unique<PartyIntelligence>(name, owner);
 	party->Init(L);
 	m_parties.push_back(std::move(party));
+}
+
+
+void LuaAgentMgr::RemoveParty(std::string name, const ObjectGuid& owner)
+{
+	for (auto& it = m_parties.begin(); it != m_parties.end(); ++it)
+	{
+		auto party = it->get();
+		if (party->GetName() == name && party->GetOwnerGuid() == owner)
+		{
+			party->RemoveAll();
+			it = m_parties.erase(it);
+			return;
+		}
+	}
 }
 
 

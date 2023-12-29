@@ -93,7 +93,8 @@ public:
 	Player* GetAgent(ObjectGuid guid);
 	const LuaAgentInfoHolder* GetLoginInfo(ObjectGuid guid);
 
-	void AddParty(std::string name, ObjectGuid owner);
+	void AddParty(std::string name, const ObjectGuid& owner);
+	void RemoveParty(std::string name, const ObjectGuid& owner);
 	CheckResult AddAgent(std::string charName, ObjectGuid masterGuid, int logicID, std::string spec);
 	CheckResult CheckAgentValid(std::string charName, ObjectGuid masterGuid);
 

@@ -79,6 +79,28 @@ bool ChatHandler::HandleLuabAddPartyCommand(char* args)
 }
 
 
+bool ChatHandler::HandleLuabRemovePartyCommand(char* args)
+{
+	Player* owner = GetSession()->GetPlayer();
+	if (!owner)
+		return false;
+
+	std::string name;
+	if (char* nameCstr = ExtractArg(&args))
+		name = std::string(nameCstr);
+	else
+	{
+		SendSysMessage("Incorrect syntax. Expected name. Usage: .luab removeparty name");
+		SetSentErrorMessage(true);
+		return false;
+	}
+
+	sLuaAgentMgr.RemoveParty(name, owner->GetObjectGuid());
+
+	return true;
+}
+
+
 bool ChatHandler::HandleLuabRemoveCommand(char* args)
 {
 	if (Player* selection = GetSelectedPlayer())
