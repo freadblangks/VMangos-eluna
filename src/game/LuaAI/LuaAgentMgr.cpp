@@ -375,7 +375,7 @@ void LuaAgentMgr::__AddAgents()
 				continue;
 			}
 
-			CharacterDatabase.DelayQueryHolder(&luaChrHandler, &LuaAgentCharacterHandler::HandleLoginCallback, holder);
+			CharacterDatabase.DelayQueryHolderUnsafe(&luaChrHandler, &LuaAgentCharacterHandler::HandleLoginCallback, holder);
 			info.status = LuaAgentInfoHolder::LOADING;
 		}
 		else

@@ -424,14 +424,6 @@ void WorldSession::HandlePlayerLogin(LoginQueryHolder *holder)
     // If the character is online (ALT-F4 logout for example)
     Player* pCurrChar = sObjectAccessor.FindPlayer(playerGuid);
     MasterPlayer* pCurrMasterPlayer = sObjectAccessor.FindMasterPlayer(playerGuid);
-
-    bool _isLuaAgent = pCurrChar && pCurrChar->IsLuaAgent();
-    if (_isLuaAgent)
-    {
-        pCurrChar = nullptr;
-        pCurrMasterPlayer = nullptr;
-    }
-
     bool alreadyOnline = false;
     if (pCurrChar)
     {
