@@ -72,3 +72,11 @@ int AgentCmdBuff::Push(lua_State* L)
 	lua_pushstring(L, key.c_str());
 	return 3;
 }
+
+
+int AgentCmdDispel::Push(lua_State* L)
+{
+	LuaBindsAI::Guid_CreateUD(L, targetGuid);
+	lua_pushstring(L, key.c_str());
+	return 2;
+}

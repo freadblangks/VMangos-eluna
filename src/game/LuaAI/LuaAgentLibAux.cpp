@@ -22,6 +22,18 @@ int LuaBindsAI::GetUnitByGuid(lua_State* L) {
 }
 
 
+int LuaBindsAI::GetUnitByGuidEx(lua_State* L) {
+	Player* player = Player_GetPlayerObject(L);
+	lua_Integer e = luaL_checkinteger(L, 2);
+	lua_Integer c = luaL_checkinteger(L, 3);
+	if (e < 0 || c < 0)
+		luaL_error(L, "GetUnitByGuidEx: got negative number");
+	ObjectGuid guid(HighGuid::HIGHGUID_UNIT, uint32(e), uint32(c));
+	lua_pushunitornil(L, player->GetMap()->GetUnit(guid));
+	return 1;
+}
+
+
 int LuaBindsAI::GetPlayerByGuid(lua_State* L) {
 	const ObjectGuid& guid = Guid_GetGuidObject(L)->guid;
 	if (guid.IsEmpty())

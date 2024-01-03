@@ -399,6 +399,16 @@ int LuaBindsAI::PartyInt_CmdCC(lua_State* L)
 }
 
 
+int LuaBindsAI::PartyInt_CmdDispel(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L, 2);
+	LuaObjectGuid* guid = Guid_GetGuidObject(L, 3);
+	AgentCmdDispel* cmd = new AgentCmdDispel(guid->guid, luaL_checkstring(L, 4));
+	lua_pushinteger(L, ai->CommandsAdd(cmd));
+	return 1;
+}
+
+
 int LuaBindsAI::PartyInt_CmdEngage(lua_State* L)
 {
 	LuaAgent* ai = AI_GetAIObject(L, 2);

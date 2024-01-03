@@ -32,6 +32,7 @@ void LuaBindsAI::BindAll(lua_State* L) {
 	BindWorldObject(L);
 	BindPartyIntelligence(L);
 	lua_register(L, "GetUnitByGuid", GetUnitByGuid);
+	lua_register(L, "GetUnitByGuidEx", GetUnitByGuidEx);
 	lua_register(L, "GetPlayerByGuid", GetPlayerByGuid);
 	lua_register(L, "GetPlayerById", GetPlayerById);
 	lua_register(L, "GetSpellName", GetSpellName);

@@ -6,6 +6,7 @@
 #include "Spell.h"
 #include "SpellAuras.h"
 #include "TargetedMovementGenerator.h"
+#include "Totem.h"
 
 
 void LuaBindsAI::BindUnit(lua_State* L) {
@@ -81,6 +82,27 @@ int LuaBindsAI::Unit_AttackStop(lua_State* L)
 {
 	Unit* unit = Unit_GetUnitObject(L);
 	lua_pushboolean(L, unit->AttackStop());
+	return 1;
+}
+
+
+int LuaBindsAI::Unit_CalculateDamage(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_Integer attType = luaL_checkinteger(L, 2);
+	bool normalized = luaL_checkboolean(L, 3);
+	if (attType < 0 || attType > WeaponAttackType::RANGED_ATTACK)
+		luaL_error(L, "Unit_CalculateDamage: invalid attack type. Allowed values [0, %d], got %I", WeaponAttackType::RANGED_ATTACK, attType);
+	lua_pushnumber(L, unit->CalculateDamage(WeaponAttackType(attType), normalized));
+	return 1;
+}
+
+
+int LuaBindsAI::Unit_CanAttack(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	Unit* target = Unit_GetUnitObject(L);
+	lua_pushboolean(L, unit->CanAttack(target, true));
 	return 1;
 }
 
@@ -257,6 +279,49 @@ int LuaBindsAI::Unit_IsCastingHeal(lua_State* L)
 }
 
 
+int LuaBindsAI::Unit_IsCastingInterruptableSpell(lua_State* L) {
+	Unit* unit = Unit_GetUnitObject(L);
+
+	// TODO: not all spells that used this effect apply cooldown at school spells
+	// also exist case: apply cooldown to interrupted cast only and to all spells
+	for (uint32 i = CURRENT_FIRST_NON_MELEE_SPELL; i < CURRENT_MAX_SPELL; ++i)
+	{
+		if (Spell* spell = unit->GetCurrentSpell(CurrentSpellTypes(i)))
+		{
+			// Nostalrius: fix CS of instant spells (with CC Delay)
+			if (i != CURRENT_CHANNELED_SPELL && !spell->GetCastTime())
+				continue;
+
+			SpellEntry const* curSpellInfo = spell->m_spellInfo;
+			// check if we can interrupt spell
+			if ((spell->getState() == SPELL_STATE_CASTING
+				|| (spell->getState() == SPELL_STATE_PREPARING && spell->GetCastTime() > 0.0f))
+				&& curSpellInfo->PreventionType == SPELL_PREVENTION_TYPE_SILENCE
+				&& ((i == CURRENT_GENERIC_SPELL && curSpellInfo->HasSpellInterruptFlag(SPELL_INTERRUPT_FLAG_DAMAGE_PUSHBACK))
+					|| (i == CURRENT_CHANNELED_SPELL && curSpellInfo->HasChannelInterruptFlag(AURA_INTERRUPT_ACTION_CANCELS))))
+			{
+				lua_pushboolean(L, true);
+				return 1;
+			}
+		}
+	}
+	lua_pushboolean(L, false);
+	return 1;
+}
+
+
+int LuaBindsAI::Unit_IsImmuneToSpell(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_Integer spellid = luaL_checkinteger(L, 2);
+	auto entry = sSpellMgr.GetSpellEntry(spellid);
+	if (!entry)
+		luaL_error(L, "Unit_IsImmuneToSpell: spell doesn't exist %I", spellid);
+	lua_pushboolean(L, unit->IsImmuneToSchoolMask(entry->GetSpellSchoolMask()));
+	return 1;
+}
+
+
 int LuaBindsAI::Unit_IsInPositionToCast(lua_State* L)
 {
 	Unit* unit = Unit_GetUnitObject(L);
@@ -305,6 +370,32 @@ int LuaBindsAI::Unit_IsInLOS(lua_State* L)
 }
 
 
+int LuaBindsAI::Unit_IsSpellReady(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_Integer spellid = luaL_checkinteger(L, 2);
+	if (const SpellEntry* entry = sSpellMgr.GetSpellEntry(spellid))
+		lua_pushboolean(L, unit->IsSpellReady(*entry));
+	else
+		luaL_error(L, "Unit_IsSpellReady: spell %I doesn't exist", spellid);
+	return 1;
+}
+
+
+int LuaBindsAI::Unit_GetTotemEntry(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_Integer slot = luaL_checkinteger(L, 2);
+	if (slot < 0 || slot > TotemSlot::TOTEM_SLOT_AIR)
+		luaL_error(L, "Unit_GetTotemEntry: invalid totem slot. Allowed values [0, %d], got %I", TotemSlot::TOTEM_SLOT_AIR, slot);
+	if (Totem* totem = unit->GetTotem(TotemSlot(slot)))
+		lua_pushinteger(L, totem->GetEntry());
+	else
+		lua_pushnil(L);
+	return 1;
+}
+
+
 int LuaBindsAI::Unit_RemoveSpellCooldown(lua_State* L)
 {
 	Unit* unit = Unit_GetUnitObject(L);
@@ -312,7 +403,15 @@ int LuaBindsAI::Unit_RemoveSpellCooldown(lua_State* L)
 	if (spellId < 0 || !sSpellMgr.GetSpellEntry(spellId))
 		luaL_error(L, "Unit_RemoveSpellCooldown: spell %d doesn't exist", spellId);
 	unit->RemoveSpellCooldown(spellId, true);
-	return 1;
+	return 0;
+}
+
+
+int LuaBindsAI::Unit_UnsummonAllTotems(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	unit->UnsummonAllTotems();
+	return 0;
 }
 
 
@@ -752,6 +851,20 @@ int LuaBindsAI::Unit_HasAuraType(lua_State* L) {
 }
 
 
+int LuaBindsAI::Unit_HasAuraWithMechanics(lua_State* L) {
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_Integer mask = luaL_checkinteger(L, 2);
+	for (auto& itr : unit->GetSpellAuraHolderMap())
+		if (itr.second->HasMechanicMask(mask))
+		{
+			lua_pushboolean(L, true);
+			return 1;
+		}
+	lua_pushboolean(L, false);
+	return 1;
+}
+
+
 int LuaBindsAI::Unit_GetAuraStacks(lua_State* L) {
 	Unit* unit = Unit_GetUnitObject(L);
 	lua_Integer spellId = luaL_checkinteger(L, 2);
@@ -774,6 +887,40 @@ int LuaBindsAI::Unit_GetAuraTimeLeft(lua_State* L) {
 		lua_pushinteger(L, sah->GetAuraDuration());
 	else
 		lua_pushinteger(L, -1);
+	return 1;
+}
+
+
+int LuaBindsAI::Unit_GetDispelsTbl(lua_State* L) {
+	Unit* unit = Unit_GetUnitObject(L);
+	bool positive = luaL_checkboolean(L, 2);
+	lua_newtable(L);
+	for (auto& sah : unit->GetSpellAuraHolderMap())
+	{
+		if (sah.second->IsPositive() != positive)
+			continue;
+		auto proto = sah.second->GetSpellProto();
+		if (proto->Dispel == DISPEL_MAGIC || proto->Dispel == DISPEL_ALL)
+		{
+			lua_pushboolean(L, true);
+			lua_setfield(L, -2, "Magic");
+		}
+		if (proto->Dispel == DISPEL_DISEASE || proto->Dispel == DISPEL_ALL)
+		{
+			lua_pushboolean(L, true);
+			lua_setfield(L, -2, "Disease");
+		}
+		if (proto->Dispel == DISPEL_CURSE || proto->Dispel == DISPEL_ALL)
+		{
+			lua_pushboolean(L, true);
+			lua_setfield(L, -2, "Curse");
+		}
+		if (proto->Dispel == DISPEL_POISON || proto->Dispel == DISPEL_ALL)
+		{
+			lua_pushboolean(L, true);
+			lua_setfield(L, -2, "Poison");
+		}
+	}
 	return 1;
 }
 

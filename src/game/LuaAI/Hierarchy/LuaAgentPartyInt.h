@@ -92,6 +92,7 @@ namespace LuaBindsAI {
 
 	int PartyInt_CmdBuff(lua_State* L);
 	int PartyInt_CmdCC(lua_State* L);
+	int PartyInt_CmdDispel(lua_State* L);
 	int PartyInt_CmdEngage(lua_State* L);
 	int PartyInt_CmdFollow(lua_State* L);
 	int PartyInt_CmdHeal(lua_State* L);
@@ -131,6 +132,7 @@ namespace LuaBindsAI {
 
 		{"CmdBuff", PartyInt_CmdBuff},
 		{"CmdCC", PartyInt_CmdCC},
+		{"CmdDispel", PartyInt_CmdDispel},
 		{"CmdEngage", PartyInt_CmdEngage},
 		{"CmdFollow", PartyInt_CmdFollow},
 		{"CmdHeal", PartyInt_CmdHeal},

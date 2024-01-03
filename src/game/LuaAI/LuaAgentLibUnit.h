@@ -21,6 +21,8 @@ namespace LuaBindsAI {
 
 	int Unit_Attack(lua_State* L);
 	int Unit_AttackStop(lua_State* L);
+	int Unit_CalculateDamage(lua_State* L);
+	int Unit_CanAttack(lua_State* L);
 	int Unit_CastSpell(lua_State* L);
 	int Unit_GetCurrentSpellId(lua_State* L);
 	int Unit_GetPowerCost(lua_State* L);
@@ -35,9 +37,14 @@ namespace LuaBindsAI {
 	int Unit_HasEnoughPowerFor(lua_State* L);
 	int Unit_InterruptSpell(lua_State* L);
 	int Unit_IsCastingHeal(lua_State* L);
+	int Unit_IsCastingInterruptableSpell(lua_State* L);
+	int Unit_IsImmuneToSpell(lua_State* L);
 	int Unit_IsInPositionToCast(lua_State* L);
 	int Unit_IsInLOS(lua_State* L);
+	int Unit_IsSpellReady(lua_State* L);
+	int Unit_GetTotemEntry(lua_State* L);
 	int Unit_RemoveSpellCooldown(lua_State* L);
+	int Unit_UnsummonAllTotems(lua_State* L);
 
 	// Info
 
@@ -85,8 +92,10 @@ namespace LuaBindsAI {
 
 	int Unit_GetAuraStacks(lua_State* L);
 	int Unit_GetAuraTimeLeft(lua_State* L);
+	int Unit_GetDispelsTbl(lua_State* L);
 	int Unit_HasAura(lua_State* L);
 	int Unit_HasAuraType(lua_State* L);
+	int Unit_HasAuraWithMechanics(lua_State* L);
 	int Unit_RemoveAuraByCancel(lua_State* L);
 	int Unit_RemoveSpellsCausingAura(lua_State* L);
 
@@ -112,12 +121,14 @@ namespace LuaBindsAI {
 	int Unit_StopMoving(lua_State* L);
 	int Unit_GetStandState(lua_State* L);
 	int Unit_SetStandState(lua_State* L);
-
+	
 	static const struct luaL_Reg Unit_BindLib[]{
 		{"GetAI", Unit_GetAI},
 		// Attacking
 		{"Attack", Unit_Attack},
 		{"AttackStop", Unit_AttackStop},
+		{"CalculateDamage", Unit_CalculateDamage},
+		{"CanAttack", Unit_CanAttack},
 		{"CastSpell", Unit_CastSpell},
 		{"GetCurrentSpellId", Unit_GetCurrentSpellId},
 		{"GetPowerCost", Unit_GetPowerCost},
@@ -125,11 +136,16 @@ namespace LuaBindsAI {
 		{"GetSpellCastLeft", Unit_GetSpellCastLeft},
 		{"HasEnoughPowerFor", Unit_HasEnoughPowerFor},
 		{"InterruptSpell", Unit_InterruptSpell},
+		{"IsCastingInterruptableSpell", Unit_IsCastingInterruptableSpell},
 		{"IsCastingHeal", Unit_IsCastingHeal},
+		{"IsImmuneToSpell", Unit_IsImmuneToSpell},
 		{"IsInPositionToCast", Unit_IsInPositionToCast},
 		{"IsInLOS", Unit_IsInLOS},
+		{"IsSpellReady", Unit_IsSpellReady},
+		{"GetTotemEntry", Unit_GetTotemEntry},
 		{"RemoveSpellCooldown", Unit_RemoveSpellCooldown},
-		
+		{"UnsummonAllTotems", Unit_UnsummonAllTotems},
+
 		// Info
 		{"IsAgent", Unit_IsAgent},
 		{"IsAlive", Unit_IsAlive},
@@ -176,8 +192,10 @@ namespace LuaBindsAI {
 		{"CancelAura", Unit_RemoveAuraByCancel},
 		{"GetAuraStacks", Unit_GetAuraStacks},
 		{"GetAuraTimeLeft", Unit_GetAuraTimeLeft},
+		{"GetDispelsTbl", Unit_GetDispelsTbl},
 		{"HasAura", Unit_HasAura},
 		{"HasAuraType", Unit_HasAuraType},
+		{"HasAuraWithMechanics", Unit_HasAuraWithMechanics},
 		{"RemoveSpellsCausingAura", Unit_RemoveSpellsCausingAura},
 
 		// General info

@@ -15,6 +15,7 @@ enum class AgentCmdType : uint8
 	Pull,
 	CC,
 	Buff,
+	Dispel,
 	Max,
 };
 
@@ -146,6 +147,17 @@ public:
 	int Push(lua_State* L) override;
 };
 
+
+class AgentCmdDispel : public AgentCmd
+{
+	ObjectGuid targetGuid;
+	std::string key;
+
+public:
+	AgentCmdDispel(const ObjectGuid& targetGuid, std::string key)
+		: AgentCmd(AgentCmdType::Dispel), targetGuid(targetGuid), key(key) {}
+	int Push(lua_State* L) override;
+};
 
 
 class CmdQueue
