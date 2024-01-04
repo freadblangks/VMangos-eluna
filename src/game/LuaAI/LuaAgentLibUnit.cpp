@@ -115,6 +115,8 @@ int LuaBindsAI::Unit_CastSpell(lua_State* L)
 	bool triggered = luaL_checkboolean(L, 4);
 	if (const SpellEntry* spell = sSpellMgr.GetSpellEntry(spellId))
 	{
+		if (!triggered && (unit->HasGCD(spell) || !unit->IsSpellReady(*spell)))
+			return SPELL_FAILED_NOT_READY;
 		if ((spell->InterruptFlags & SpellInterruptFlags::SPELL_INTERRUPT_FLAG_MOVEMENT) && !unit->IsStopped())
 			unit->StopMoving();
 		SpellCastResult result = unit->CastSpell(target, spell, triggered);
@@ -317,7 +319,7 @@ int LuaBindsAI::Unit_IsImmuneToSpell(lua_State* L)
 	auto entry = sSpellMgr.GetSpellEntry(spellid);
 	if (!entry)
 		luaL_error(L, "Unit_IsImmuneToSpell: spell doesn't exist %I", spellid);
-	lua_pushboolean(L, unit->IsImmuneToSchoolMask(entry->GetSpellSchoolMask()));
+	lua_pushboolean(L, unit->IsImmuneToSpell(entry, false));
 	return 1;
 }
 

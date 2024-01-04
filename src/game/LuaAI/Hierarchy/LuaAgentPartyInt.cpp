@@ -14,16 +14,19 @@ const char* PartyIntelligence::PI_MTNAME = "Object.PartyInt";
 
 namespace
 {
-	void AddAttackersFrom(lua_State* L, Unit* unit, lua_Integer& idx)
+	void AddAttackersFrom(lua_State* L, Unit* unit, lua_Integer& idx, std::set<ObjectGuid>& _added)
 	{
 		for (const auto pAttacker : unit->GetAttackers())
 		{
+			if (_added.find(pAttacker->GetObjectGuid()) != _added.end())
+				continue;
 			//printf("Additing target to tbl %s attacking %s\n", pAttacker->GetName(), pMember->GetName());
 			if (!unit->CanAttack(pAttacker, true))
 				continue;
 			LuaBindsAI::Unit_CreateUD(pAttacker, L); // pushes pAttacker userdata on top of stack
 			lua_seti(L, -2, idx); // stack[-2][tblIdx] = stack[-1], pops pAttacker
 			++idx;
+			_added.insert(pAttacker->GetObjectGuid());
 		}
 	}
 }
@@ -515,11 +518,12 @@ int LuaBindsAI::PartyInt_GetAttackers(lua_State* L)
 	PartyIntelligence* intelligence = PartyInt_GetPIObject(L);
 	lua_newtable(L);
 	lua_Integer idx = 1;
+	std::set<ObjectGuid> _added;
 	for (auto& it : intelligence->GetAgentMap())
-		AddAttackersFrom(L, it.second->ToUnit(), idx);
+		AddAttackersFrom(L, it.second->ToUnit(), idx, _added);
 
 	if (Player* owner = sObjectAccessor.FindPlayer(intelligence->GetOwnerGuid()))
-		AddAttackersFrom(L, owner->ToUnit(), idx);
+		AddAttackersFrom(L, owner->ToUnit(), idx, _added);
 
 	return 1;
 }
