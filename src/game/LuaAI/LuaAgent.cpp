@@ -60,12 +60,6 @@ void LuaAgent::Update(uint32 diff)
 	if (m_bCeaseUpdates || m_logic == -1)
 		return;
 
-	m_updateTimer.Update(diff);
-	if (m_updateTimer.Passed())
-		m_updateTimer.Reset(m_updateInterval);
-	else
-		return;
-
 	// catch up was queued
 	if (m_queueGoname) {
 		m_queueGoname = false;

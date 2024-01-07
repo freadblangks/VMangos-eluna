@@ -116,7 +116,10 @@ int LuaBindsAI::Unit_CastSpell(lua_State* L)
 	if (const SpellEntry* spell = sSpellMgr.GetSpellEntry(spellId))
 	{
 		if (!triggered && (unit->HasGCD(spell) || !unit->IsSpellReady(*spell)))
-			return SPELL_FAILED_NOT_READY;
+		{
+			lua_pushinteger(L, SPELL_FAILED_NOT_READY);
+			return 1;
+		}
 		if ((spell->InterruptFlags & SpellInterruptFlags::SPELL_INTERRUPT_FLAG_MOVEMENT) && !unit->IsStopped())
 			unit->StopMoving();
 		SpellCastResult result = unit->CastSpell(target, spell, triggered);

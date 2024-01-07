@@ -43,6 +43,8 @@ class LuaAgentMgr
 	bool m_bDisableAgentSaving;
 	bool m_bLuaCeaseUpdates;
 	bool m_bLuaReload;
+	int m_updateInterval;
+	ShortTimeTracker m_updateTimer;
 
 	std::set<uint32> m_toRemoveParties;
 	std::vector<std::unique_ptr<PartyIntelligence>> m_parties;

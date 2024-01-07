@@ -10,6 +10,7 @@ struct LuaAI_Spell
 {
 	Spell* spell;
 	const SpellEntry* proto;
+	LuaAI_Spell() : spell(nullptr), proto(nullptr) {}
 };
 
 namespace LuaBindsAI {

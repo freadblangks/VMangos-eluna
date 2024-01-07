@@ -76,6 +76,7 @@ public:
 
 LuaAgentMgr::LuaAgentMgr() :
 	L(nullptr),
+	m_updateInterval(50),
 	m_bLuaCeaseUpdates(false),
 	m_bLuaReload(false),
 	m_bGroupAllInProgress(false),
@@ -83,6 +84,7 @@ LuaAgentMgr::LuaAgentMgr() :
 	m_dungeons()
 {
 	LuaLoadAll();
+	m_updateTimer.Reset(0);
 }
 
 
@@ -158,10 +160,8 @@ void LuaAgentMgr::LuaLoadAll() {
 
 	// allow enabling saving in lua
 	if (LUA_TBOOLEAN == lua_getglobal(L, "__Mgr_Disable_Agent_Save"))
-	{
 		SetDisableSavingAgents(lua_toboolean(L, -1));
-		lua_pop(L, 1);
-	}
+	lua_pop(L, 1);
 }
 
 
@@ -206,22 +206,27 @@ void LuaAgentMgr::Update(uint32 diff)
 	if (m_bLuaCeaseUpdates)
 		return;
 
-	for (auto& party : m_parties)
-		party->Update(diff, L);
-
-	for (auto& it : m_agents)
+	m_updateTimer.Update(diff);
+	if (m_updateTimer.Passed())
 	{
-		LuaAgent* agent = it.second->GetLuaAI();
-		if (!agent)
+		m_updateTimer.Reset(m_updateInterval);
+		for (auto& party : m_parties)
+			party->Update(diff, L);
+
+		for (auto& it : m_agents)
 		{
-			LogoutAgent(it.first);
-			continue;
+			LuaAgent* agent = it.second->GetLuaAI();
+			if (!agent)
+			{
+				LogoutAgent(it.first);
+				continue;
+			}
+
+			agent->Update(diff);
+			agent->UpdateSession(diff);
 		}
-
-		agent->Update(diff);
-		agent->UpdateSession(diff);
 	}
-
+	
 	__RemoveAgents(); // process logout queue
 	__AddAgents(); // process login queue
 

@@ -127,12 +127,6 @@ void PartyIntelligence::Update(uint32 diff, lua_State* L)
 	if (m_userDataRef == LUA_NOREF || m_bCeaseUpdates)
 		return;
 
-	m_updateTimer.Update(diff);
-	if (m_updateTimer.Passed())
-		m_updateTimer.Reset(m_updateInterval);
-	else
-		return;
-
 	// process login
 	if (m_agents.size() != m_agentInfos.size())
 	{
