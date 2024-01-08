@@ -303,6 +303,17 @@ void LuaAgent::OnPacketReceived(const WorldPacket& pck)
 		me->GetSession()->QueuePacket(std::move(send));
 		break;
 	}
+	case SMSG_PETITION_SHOW_SIGNATURES:
+	{
+		WorldPacket pck(pck);
+		ObjectGuid itemGuid, ownerGuid;
+		uint32 petitionGuid;
+		uint8 signs;
+		pck >> itemGuid >> ownerGuid >> petitionGuid >> signs;
+		std::unique_ptr<WorldPacket> send = std::make_unique<WorldPacket>(CMSG_PETITION_SIGN);
+		*send << itemGuid << uint8(0);
+		me->GetSession()->QueuePacket(std::move(send));
+	}
 	}
 }
 

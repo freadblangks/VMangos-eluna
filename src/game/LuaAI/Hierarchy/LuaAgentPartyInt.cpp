@@ -495,7 +495,7 @@ int LuaBindsAI::PartyInt_GetAgents(lua_State* L)
 		Player* agent = it.second;
 		if (LuaAgent* agentAI = agent->GetLuaAI())
 		{
-			if (agentAI->IsReady())
+			if (agentAI->IsReady() && agentAI->IsInitialized())
 			{
 				agentAI->PushUD(L);
 				lua_seti(L, -2, idx);
