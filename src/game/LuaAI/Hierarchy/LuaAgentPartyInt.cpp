@@ -558,7 +558,7 @@ int LuaBindsAI::PartyInt_GetCLinePInLosAtD(lua_State* L)
 		lua_pushnil(L);
 		return 1;
 	}
-	agent->UpdateAllowedPositionZ(result.x, result.y, result.z);
+	result.z = agent->GetMap()->GetHeight(result.x, result.y, result.z);
 	lua_pushnumber(L, result.x);
 	lua_pushnumber(L, result.y);
 	lua_pushnumber(L, result.z);

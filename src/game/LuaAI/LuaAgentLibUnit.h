@@ -63,6 +63,8 @@ namespace LuaBindsAI {
 	int Unit_GetMapId(lua_State* L);
 	int Unit_GetZoneId(lua_State* L);
 	int Unit_IsInDungeon(lua_State* L);
+	int Unit_GetMapHeight(lua_State* L);
+	int Unit_GetAllowedZ(lua_State* L);
 
 	int Unit_GetHealth(lua_State* L);
 	int Unit_GetHealthPct(lua_State* L);
@@ -162,6 +164,8 @@ namespace LuaBindsAI {
 		{"GetMapId", Unit_GetMapId},
 		{"GetZoneId", Unit_GetZoneId},
 		{"IsInDungeon", Unit_IsInDungeon},
+		{"GetMapHeight", Unit_GetMapHeight},
+		{"GetAllowedZ", Unit_GetAllowedZ},
 
 		{"GetHealth", Unit_GetHealth},
 		{"GetHealthPct", Unit_GetHealthPct},

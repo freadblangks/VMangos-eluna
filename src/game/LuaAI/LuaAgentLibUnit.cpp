@@ -1122,3 +1122,27 @@ int LuaBindsAI::Unit_SetStandState(lua_State* L)
 	unit->SetStandState(state);
 	return 0;
 }
+
+
+int LuaBindsAI::Unit_GetMapHeight(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_Number x = luaL_checknumber(L, 2);
+	lua_Number y = luaL_checknumber(L, 3);
+	lua_Number z = luaL_checknumber(L, 4);
+	lua_pushnumber(L, unit->GetMap()->GetHeight(x, y, z));
+	return 1;
+}
+
+
+int LuaBindsAI::Unit_GetAllowedZ(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_Number x = luaL_checknumber(L, 2);
+	lua_Number y = luaL_checknumber(L, 3);
+	lua_Number z = luaL_checknumber(L, 4);
+	float result = z;
+	unit->UpdateAllowedPositionZ(x,y,result);
+	lua_pushnumber(L, result);
+	return 1;
+}
