@@ -30,3 +30,7 @@ foreach(variable ${variables})
 		mark_as_advanced(${variable})
 	endif()
 endforeach()
+
+if(SCRIPT_LIB_ELUNA)
+	add_subdirectory(lualib)
+endif()

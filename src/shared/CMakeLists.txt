@@ -284,3 +284,8 @@ endif()
 target_link_libraries(shared PRIVATE cpptrace::cpptrace)
 
 SET_TARGET_PROPERTIES(shared PROPERTIES FOLDER "Game Libs")
+
+target_compile_definitions(shared
+    PUBLIC
+      $<$<BOOL:${SCRIPT_LIB_ELUNA}>:ENABLE_ELUNA>
+)

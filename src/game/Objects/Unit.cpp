@@ -60,6 +60,11 @@
 #include "Errors.h"
 #include "ScriptMgr.h"
 
+#ifdef ENABLE_ELUNA
+#include "LuaEngine.h"
+#include "ElunaEventMgr.h"
+#endif /* ENABLE_ELUNA */
+
 //#define DEBUG_DEBUFF_LIMIT
 
 float baseMoveSpeed[MAX_MOVE_TYPE] =
@@ -207,6 +212,11 @@ void Unit::Update(uint32 update_diff, uint32 p_time)
 {
     if (!IsInWorld())
         return;
+
+
+#ifdef ENABLE_ELUNA
+    elunaEvents->Update(update_diff);
+#endif /* ENABLE_ELUNA */   
 
     // Buffer spell system update time to save on performance when players are updated twice per
     // world update. We do not need to update spells when the interval is only a few ms (~10ms)
@@ -1072,6 +1082,24 @@ void Unit::Kill(Unit* pVictim, SpellEntry const* spellProto, bool durabilityLoss
     if (pPlayerVictim)
         pPlayerVictim->RewardHonorOnDeath();
 
+    // Used by Eluna
+#ifdef ENABLE_ELUNA
+    if(pPlayerVictim && pPlayerTap)
+    {
+        if( pPlayerTap != pPlayerVictim )
+        {
+            sEluna->OnPVPKill(pPlayerTap, pPlayerVictim);
+        }
+        //else
+        //{
+            //sEluna->OnKillSelf(pPlayerVictim);
+        //}
+    }else if(pCreatureVictim && pPlayerTap)
+    {
+        sEluna->OnCreatureKill(pPlayerTap, pCreatureVictim);
+    }
+#endif /* ENABLE_ELUNA */
+
     // To be replaced if possible using ProcDamageAndSpell
     if (pVictim != this) // The one who has the fatal blow
         ProcDamageAndSpell(ProcSystemArguments(pVictim, PROC_FLAG_KILL, PROC_FLAG_HEARTBEAT, PROC_EX_NONE, 0, 0));
@@ -1257,6 +1285,15 @@ void Unit::Kill(Unit* pVictim, SpellEntry const* spellProto, bool durabilityLoss
     }
 
     pVictim->InterruptSpellsCastedOnMe(false, true);
+    
+    // Used by Eluna
+#ifdef ENABLE_ELUNA
+    if (Creature* killer = ToCreature())
+    {
+        if(pPlayerVictim)
+            sEluna->OnPlayerKilledByCreature(killer, pPlayerVictim);
+    }
+#endif /* ENABLE_ELUNA */
 }
 
 struct PetOwnerKilledUnitHelper
@@ -4912,6 +4949,22 @@ void Unit::CombatStopWithPets(bool includingCast)
     CallForAllControlledUnits(CombatStopWithPetsHelper(includingCast), CONTROLLED_PET | CONTROLLED_GUARDIANS | CONTROLLED_CHARM);
 }
 
+#ifdef ENABLE_ELUNA
+struct IsAttackingPlayerHelper
+{
+    explicit IsAttackingPlayerHelper() {}
+    bool operator()(Unit const* unit) const { return unit->isAttackingPlayer(); }
+};
+
+bool Unit::isAttackingPlayer() const
+{
+    if (GetTargetGuid().IsPlayer())
+        { return true; }
+
+    return CheckAllControlledUnits(IsAttackingPlayerHelper(), CONTROLLED_PET | CONTROLLED_TOTEMS | CONTROLLED_GUARDIANS | CONTROLLED_CHARM);
+}
+#endif
+
 void Unit::RemoveAllAttackers()
 {
     while (!m_attackers.empty())
@@ -6197,6 +6250,13 @@ void Unit::SetInCombatState(uint32 combatTimer, Unit* pEnemy)
         if (m_isCreatureLinkingTrigger)
             GetMap()->GetCreatureLinkingHolder()->DoCreatureLinkingEvent(LINKING_EVENT_AGGRO, pCreature, pEnemy);
     }
+
+    // Used by Eluna
+#ifdef ENABLE_ELUNA
+    if (GetTypeId() == TYPEID_PLAYER)
+        sEluna->OnPlayerEnterCombat(ToPlayer(), pEnemy);
+#endif /* ENABLE_ELUNA */
+
 }
 
 void Unit::SetInCombatWithAggressor(Unit* pAggressor, bool touchOnly/* = false*/)
@@ -6351,7 +6411,14 @@ void Unit::ClearInCombat()
     if (IsPlayer())
     {
         static_cast<Player*>(this)->pvpInfo.inPvPCombat = false;
+		
         static_cast<Player*>(this)->ClearTemporaryWarWithFactions();
+
+	// Used by Eluna
+#ifdef ENABLE_ELUNA
+    if (GetTypeId() == TYPEID_PLAYER)
+        sEluna->OnPlayerLeaveCombat(ToPlayer());
+#endif /* ENABLE_ELUNA */
     }
 }
 

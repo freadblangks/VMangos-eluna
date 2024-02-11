@@ -145,6 +145,9 @@ enum LogType
     LOG_SCRIPTS,
     LOG_MOVEMENT,
     LOG_NETWORK,
+#ifdef ENABLE_ELUNA
+    LOG_ELUNA,
+#endif
     LOG_TYPE_MAX
 };
 
