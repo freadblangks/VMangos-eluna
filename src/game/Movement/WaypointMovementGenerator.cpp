@@ -27,6 +27,7 @@
 #include "MoveSplineInit.h"
 #include "MoveSpline.h"
 #include "CreatureGroups.h"
+#include "Map.h"
 
 #include <cassert>
 
@@ -557,6 +558,10 @@ void PatrolMovementGenerator::StartMove(Creature& creature)
     uint32 totalLeaderPoints = leader->movespline->CountSplinePoints();
     Vector3 last = leader->movespline->GetPoint(totalLeaderPoints);
     Vector3 direction = last - leader->movespline->GetPoint(totalLeaderPoints - 1);
+
+    if (direction.isZero())
+        return;
+
     float angle = atan2(direction.y, direction.x);
     float x, y, z;
     m_groupMember.ComputeRelativePosition(angle, x, y);
