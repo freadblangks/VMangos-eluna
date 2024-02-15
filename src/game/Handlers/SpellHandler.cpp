@@ -29,6 +29,7 @@
 #include "Spell.h"
 #include "SpellAuras.h"
 #include "GameObject.h"
+#include "Map.h"
 
 #ifdef ENABLE_ELUNA
 #include "LuaEngine.h"
@@ -389,16 +390,14 @@ void WorldSession::HandleCancelAuraOpcode(WorldPacket& recvPacket)
     uint32 spellId;
     recvPacket >> spellId;
 
-    // Buff MJ '.gm visible off'.
-    if (spellId == 16380 && !_player->IsGMVisible())
-        return;
-
     SpellEntry const* spellInfo = sSpellMgr.GetSpellEntry(spellId);
     if (!spellInfo)
         return;
 
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_6_1
     if (spellInfo->Attributes & SPELL_ATTR_NO_AURA_CANCEL)
         return;
+#endif
 
     if (spellInfo->IsPassiveSpell())
         return;
@@ -427,6 +426,16 @@ void WorldSession::HandleCancelAuraOpcode(WorldPacket& recvPacket)
         else
             return;
     }
+
+    // World of Warcraft Client Patch 1.7.0 (2005-09-13)
+    // - Druids should now be able to shapeshift back into caster form while Feared.
+#if SUPPORTED_CLIENT_BUILD <= CLIENT_BUILD_1_6_1
+    if (_player->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_FLEEING | UNIT_FLAG_POSSESSED))
+#else
+    // confirmed you cant remove buffs while mind controlled on wotlk ptr
+    if (_player->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_POSSESSED))
+#endif
+        return;
 
     // channeled spell case (it currently casted then)
     if (spellInfo->IsChanneledSpell())
