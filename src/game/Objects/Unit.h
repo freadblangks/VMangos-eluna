@@ -382,8 +382,6 @@ class Unit : public SpellCaster
         float GetRegenMPPerSpirit() const;
     public:
         // Data
-        float m_modMeleeHitChance;
-        float m_modRangedHitChance;
         float m_modSpellHitChance;
         int32 m_baseSpellCritChance;
         float m_threatModifier[MAX_SPELL_SCHOOL];
@@ -502,6 +500,7 @@ class Unit : public SpellCaster
         bool m_AINotifyScheduled;
     protected:
         DeathState m_deathState;
+        uint32 m_invincibilityHpThreshold;
         uint32 m_transform;
         float m_modelCollisionHeight;
         bool m_isCreatureLinkingTrigger;
@@ -533,6 +532,8 @@ class Unit : public SpellCaster
         bool IsDead() const { return m_deathState == DEAD || m_deathState == CORPSE; }
         DeathState GetDeathState() const { return m_deathState; }
         virtual void SetDeathState(DeathState s);           // overwritten in Creature/Player/Pet
+        void SetInvincibilityHpThreshold(uint32 hp) { m_invincibilityHpThreshold = hp; }
+        uint32 GetInvincibilityHpThreshold() const { return m_invincibilityHpThreshold; }
         uint32 GetLevel() const final { return GetUInt32Value(UNIT_FIELD_LEVEL); }
         void SetLevel(uint32 lvl);
         uint8 GetRace() const { return GetByteValue(UNIT_FIELD_BYTES_0, UNIT_BYTES_0_OFFSET_RACE); }
@@ -566,7 +567,7 @@ class Unit : public SpellCaster
         void ResetTransformScale();
         float GetNativeScale() const;
         void SetNativeScale(float scale);
-        float GetCollisionHeight() const final { return m_modelCollisionHeight * m_nativeScaleOverride; }
+        float GetCollisionHeight() const { return m_modelCollisionHeight * m_nativeScaleOverride; }
         float GetMinSwimDepth() const { return GetCollisionHeight() * 0.75f; } // client switches to swim animation at this depth
         static float GetScaleForDisplayId(uint32 displayId);
         void UpdateModelData(); // at any changes to scale and/or displayId
@@ -700,6 +701,7 @@ class Unit : public SpellCaster
         void SendPeriodicAuraLog(SpellPeriodicAuraLogInfo* pInfo, AuraType auraTypeOverride = SPELL_AURA_NONE) const;
         void SendEnvironmentalDamageLog(uint8 type, uint32 damage, uint32 absorb, int32 resist) const;
         void WritePetSpellsCooldown(WorldPacket& data) const;
+        void CancelSpellChannelingAnimationInstantly();
 
         SpellAuraHolder* AddAura(uint32 spellId, uint32 addAuraFlags = 0, Unit* pCaster = nullptr);
         SpellAuraHolder* RefreshAura(uint32 spellId, int32 duration);
@@ -1013,6 +1015,7 @@ class Unit : public SpellCaster
         ObjectGuid const& GetReactiveTarget(ReactiveType reactive) const { return m_reactiveTarget[reactive]; }
         void UpdateReactives(uint32 p_time);
 
+        virtual float GetWeaponBasedAuraModifier(WeaponAttackType attType, AuraType auraType) const = 0;
         float MeleeMissChanceCalc(Unit const* pVictim, WeaponAttackType attType) const;
         void CalculateMeleeDamage(Unit* pVictim, uint32 damage, CalcDamageInfo* damageInfo, WeaponAttackType attackType = BASE_ATTACK);
         void UnitDamaged(ObjectGuid from, uint32 damage) { m_damageTakenHistory[from] += damage; m_lastDamageTaken = 0; }
@@ -1267,6 +1270,7 @@ class Unit : public SpellCaster
                 return guid;
             return GetObjectGuid();
         }
+        Player* GetOwnerPlayerOrPlayerItself() const;
         Player* GetCharmerOrOwnerPlayerOrPlayerItself() const;
         Player* GetCharmerOrOwnerPlayer() const;
         Unit* GetCharmerOrOwner() const { return GetCharmerGuid() ? GetCharmer() : GetOwner(); }
@@ -1416,8 +1420,8 @@ class Unit : public SpellCaster
         void RestoreMovement();
 
         template <class T>
-        void NearTeleportTo(T const& pos, uint32 teleportOptions = TELE_TO_NOT_LEAVE_TRANSPORT | TELE_TO_NOT_LEAVE_COMBAT | TELE_TO_NOT_UNSUMMON_PET) { NearTeleportTo(pos.x, pos.y, pos.z, pos.o, teleportOptions); }
-        void NearTeleportTo(float x, float y, float z, float orientation, uint32 teleportOptions = TELE_TO_NOT_LEAVE_TRANSPORT | TELE_TO_NOT_LEAVE_COMBAT | TELE_TO_NOT_UNSUMMON_PET);
+        bool NearTeleportTo(T const& pos, uint32 teleportOptions = TELE_TO_NOT_LEAVE_TRANSPORT | TELE_TO_NOT_LEAVE_COMBAT | TELE_TO_NOT_UNSUMMON_PET) { return NearTeleportTo(pos.x, pos.y, pos.z, pos.o, teleportOptions); }
+        bool NearTeleportTo(float x, float y, float z, float orientation, uint32 teleportOptions = TELE_TO_NOT_LEAVE_TRANSPORT | TELE_TO_NOT_LEAVE_COMBAT | TELE_TO_NOT_UNSUMMON_PET);
         void NearLandTo(float x, float y, float z, float orientation);
         template <class T>
         void TeleportPositionRelocation(T const& pos) { TeleportPositionRelocation(pos.x, pos.y, pos.z, pos.o); }
