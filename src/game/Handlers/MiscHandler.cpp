@@ -44,6 +44,9 @@
 #include "Conditions.h"
 #include "Anticheat.h"
 #include "MasterPlayer.h"
+#ifdef ENABLE_ELUNA
+#include "LuaEngine.h"
+#endif /* ENABLE_ELUNA */
 
 void WorldSession::HandleRepopRequestOpcode(WorldPacket& /*recv_data*/)
 {
@@ -64,6 +67,11 @@ void WorldSession::HandleRepopRequestOpcode(WorldPacket& /*recv_data*/)
         sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "HandleRepopRequestOpcode: got request after player %s(%d) was killed and before he was updated", player->GetName(), player->GetGUIDLow());
         player->KillPlayer();
     }
+
+    // Used by Eluna
+#ifdef ENABLE_ELUNA
+    sEluna->OnRepop(GetPlayer());
+#endif /* ENABLE_ELUNA */
 
     player->BuildPlayerRepop();
     player->ScheduleRepopAtGraveyard();

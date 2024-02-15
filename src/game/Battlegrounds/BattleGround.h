@@ -43,7 +43,6 @@ class Player;
 class WorldPacket;
 class BattleGroundMap;
 class ChatHandler;
-class SpellInfo;
 
 struct WorldSafeLocsEntry;
 
