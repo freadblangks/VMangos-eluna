@@ -71,22 +71,17 @@ jobs:
           #data is in Release folder
           cd ${{github.workspace}}/bin
           copy ${{github.workspace}}/tbb/bin/intel64/vc14/tbb.dll ${{github.workspace}}/bin/Release/tbb.dll
-          copy ${{github.workspace}}/tbb/bin/intel64/vc14/tbb_debug.dll ${{github.workspace}}/bin/Release/tbb_debug.dll
-          copy ${{github.workspace}}/tbb/bin/intel64/vc14/tbb_preview.dll ${{github.workspace}}/bin/Release/tbb_preview.dll
-          copy ${{github.workspace}}/tbb/bin/intel64/vc14/tbb_preview_debug.dll ${{github.workspace}}/bin/Release/tbb_preview_debug.dll
           copy ${{github.workspace}}/tbb/bin/intel64/vc14/tbbmalloc.dll ${{github.workspace}}/bin/Release/tbbmalloc.dll
-          copy ${{github.workspace}}/tbb/bin/intel64/vc14/tbbmalloc_debug.dll ${{github.workspace}}/bin/Release/tbbmalloc_debug.dll
-          copy ${{github.workspace}}/tbb/bin/intel64/vc14/tbbmalloc_proxy.dll ${{github.workspace}}/bin/Release/tbbmalloc_proxy.dll
-          copy ${{github.workspace}}/tbb/bin/intel64/vc14/tbbmalloc_proxy_debug.dll ${{github.workspace}}/bin/Release/tbbmalloc_proxy_debug.dll
-
           copy ${{github.workspace}}/ACE_wrappers/lib/ACE.dll ${{github.workspace}}/bin/Release/ACE.dll
           copy ${{github.workspace}}/dep/windows/lib/x64_release/libmySQL.dll ${{github.workspace}}/bin/Release/libmySQL.dll
-          # copy "c:/Program Files/OpenSSL-Win64/bin/libssl-1_1-x64.dll" ${{github.workspace}}/bin/Release/libssl-1_1-x64.dll
-          # copy "c:/Program Files/OpenSSL-Win64/bin/libcrypto-1_1-x64.dll" ${{github.workspace}}/bin/Release/libcrypto-1_1-x64.dll
           copy ${{github.workspace}}/dep/windows/lib/x64_release/libeay32.dll ${{github.workspace}}/bin/Release/libeay32.dll
+          
+          copy ${{github.workspace}}/src/mangosd/mangosd.conf.dist.in ${{github.workspace}}/bin/Release/mangosd.conf.dist
+          copy ${{github.workspace}}/src/realmd/realmd.conf.dist.in ${{github.workspace}}/bin/Release/realmd.conf.dist
+          robocopy /E ${{github.workspace}}/src/modules/Eluna/extensions/ ${{github.workspace}}/bin/Release/lua_scripts/extensions/
 
           7z a -tzip ${{env.ARCHIVE_FILENAME}} Release
-    - name: Archive this artefact
+    - name: Archive this artifact
       uses: actions/upload-artifact@v4
       with:
           name: snapshot-devbuild-without-anticheat
@@ -114,22 +109,17 @@ jobs:
           #data is in Release folder
           cd ${{github.workspace}}/bin
           copy ${{github.workspace}}/tbb/bin/intel64/vc14/tbb.dll ${{github.workspace}}/bin/Release/tbb.dll
-          copy ${{github.workspace}}/tbb/bin/intel64/vc14/tbb_debug.dll ${{github.workspace}}/bin/Release/tbb_debug.dll
-          copy ${{github.workspace}}/tbb/bin/intel64/vc14/tbb_preview.dll ${{github.workspace}}/bin/Release/tbb_preview.dll
-          copy ${{github.workspace}}/tbb/bin/intel64/vc14/tbb_preview_debug.dll ${{github.workspace}}/bin/Release/tbb_preview_debug.dll
           copy ${{github.workspace}}/tbb/bin/intel64/vc14/tbbmalloc.dll ${{github.workspace}}/bin/Release/tbbmalloc.dll
-          copy ${{github.workspace}}/tbb/bin/intel64/vc14/tbbmalloc_debug.dll ${{github.workspace}}/bin/Release/tbbmalloc_debug.dll
-          copy ${{github.workspace}}/tbb/bin/intel64/vc14/tbbmalloc_proxy.dll ${{github.workspace}}/bin/Release/tbbmalloc_proxy.dll
-          copy ${{github.workspace}}/tbb/bin/intel64/vc14/tbbmalloc_proxy_debug.dll ${{github.workspace}}/bin/Release/tbbmalloc_proxy_debug.dll
-
           copy ${{github.workspace}}/ACE_wrappers/lib/ACE.dll ${{github.workspace}}/bin/Release/ACE.dll
           copy ${{github.workspace}}/dep/windows/lib/x64_release/libmySQL.dll ${{github.workspace}}/bin/Release/libmySQL.dll
-          # copy "c:/Program Files/OpenSSL-Win64/bin/libssl-1_1-x64.dll" ${{github.workspace}}/bin/Release/libssl-1_1-x64.dll
-          # copy "c:/Program Files/OpenSSL-Win64/bin/libcrypto-1_1-x64.dll" ${{github.workspace}}/bin/Release/libcrypto-1_1-x64.dll
           copy ${{github.workspace}}/dep/windows/lib/x64_release/libeay32.dll ${{github.workspace}}/bin/Release/libeay32.dll
+          
+          copy ${{github.workspace}}/src/mangosd/mangosd.conf.dist.in ${{github.workspace}}/bin/Release/mangosd.conf.dist
+          copy ${{github.workspace}}/src/realmd/realmd.conf.dist.in ${{github.workspace}}/bin/Release/realmd.conf.dist
+          robocopy /E ${{github.workspace}}/src/modules/Eluna/extensions/ ${{github.workspace}}/bin/Release/lua_scripts/extensions/
 
           7z a -tzip ${{env.ARCHIVE_FILENAME}} Release
-    - name: Archive this artefact
+    - name: Archive this artifact
       uses: actions/upload-artifact@v4
       with:
           name: snapshot-devbuild-with-anticheat
