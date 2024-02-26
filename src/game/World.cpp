@@ -85,6 +85,8 @@
 #include <chrono>
 #ifdef ENABLE_ELUNA
 #include "LuaEngine.h"
+#include "ElunaConfig.h"
+#include "ElunaLoader.h"
 #endif /* ENABLE_ELUNA */
 
 INSTANTIATE_SINGLETON_1(World);
@@ -157,6 +159,12 @@ World::World():
 // World destructor
 World::~World()
 {
+#ifdef ENABLE_ELUNA
+    // Delete world Eluna state
+    delete eluna;
+    eluna = nullptr;
+#endif
+
     // Empty the kicked session set
     while (!m_sessions.empty())
     {
@@ -945,10 +953,12 @@ void World::LoadConfigSettings(bool reload)
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "WORLD: VMap data directory is: %svmaps", m_dataPath.c_str());
     setConfig(CONFIG_BOOL_MMAP_ENABLED, "mmap.enabled", true);
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "WORLD: mmap pathfinding %sabled", getConfig(CONFIG_BOOL_MMAP_ENABLED) ? "en" : "dis");
-    setConfig(CONFIG_BOOL_ELUNA_ENABLED, "Eluna.Enabled", true);
 #ifdef ENABLE_ELUNA
     if (reload)
-        sEluna->OnConfigLoad(reload);
+    {
+        if (Eluna* e = GetEluna())
+            e->OnConfigLoad(reload);
+    }
 #endif /* ENABLE_ELUNA */
 
     setConfig(CONFIG_UINT32_EMPTY_MAPS_UPDATE_TIME, "MapUpdate.Empty.UpdateTime", 0);
@@ -1426,8 +1436,17 @@ void World::SetInitialWorldSettings()
 
 #ifdef ENABLE_ELUNA
     //need to be set here, or will leads to error when loading Transports
-    ELUNA_LOG_INFO("Initialize Eluna Lua Engine...");
-    Eluna::Initialize();
+    ELUNA_LOG_INFO("Loading Eluna config...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
+    sElunaConfig->Initialize();
+
+    if (sElunaConfig->IsElunaEnabled())
+    {
+        ///- Initialize Lua Engine
+        ELUNA_LOG_INFO("Loading Lua scripts...");
+        sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
+        sElunaLoader->LoadScripts();
+    }
 #endif
 
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Broadcast Texts...");
@@ -1729,6 +1748,21 @@ void World::SetInitialWorldSettings()
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Returning old mails...");
     sObjectMgr.ReturnOrDeleteOldMails(false);
 
+#ifdef ENABLE_ELUNA
+    // lua state begins uninitialized
+    eluna = nullptr;
+
+    if (sElunaConfig->IsElunaEnabled())
+    {
+        ///- Run eluna scripts.
+        sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
+        ELUNA_LOG_INFO("Starting Eluna world state...");
+        // use map id -1 for the global Eluna state
+        eluna = new Eluna(nullptr, sElunaConfig->IsElunaCompatibilityMode());
+        ELUNA_LOG_INFO("");
+    }
+#endif
+
     // Load and initialize scripts
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Scripts...");
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
@@ -1883,8 +1917,9 @@ void World::SetInitialWorldSettings()
     sAnticheatMgr->StartWardenUpdateThread();
 
 #ifdef ENABLE_ELUNA
-    sEluna->RunScripts();
-    sEluna->OnConfigLoad(false); // Must be done after Eluna is initialized and scripts have run.
+    if (GetEluna())
+        GetEluna()->OnConfigLoad(false); // Must be done after Eluna is initialized and scripts have run
+    ELUNA_LOG_INFO("");
 #endif /* ENABLE_ELUNA */
     m_broadcaster =
         std::make_unique<MovementBroadcaster>(getConfig(CONFIG_UINT32_PACKET_BCAST_THREADS),
@@ -2054,7 +2089,11 @@ void World::Update(uint32 diff)
     sZoneScriptMgr.Update(diff);
 
 #ifdef ENABLE_ELUNA
-    sEluna->OnWorldUpdate(diff);
+    if (Eluna* e = GetEluna())
+    {
+        e->UpdateEluna(diff);
+        e->OnWorldUpdate(diff);
+    }
 #endif /* ENABLE_ELUNA */
 
     // Update groups with offline leaders
@@ -2678,7 +2717,8 @@ void World::ShutdownServ(uint32 time, uint32 options, uint8 exitcode)
         ShutdownMsg(true);
     }
 #ifdef ENABLE_ELUNA
-    sEluna->OnShutdownInitiate(ShutdownExitCode(exitcode), ShutdownMask(options));
+    if (Eluna* e = GetEluna())
+        e->OnShutdownInitiate(ShutdownExitCode(exitcode), ShutdownMask(options));
 #endif /* ENABLE_ELUNA */
 }
 
@@ -2728,7 +2768,8 @@ void World::ShutdownCancel()
 
     sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "Server %s cancelled.", (m_ShutdownMask & SHUTDOWN_MASK_RESTART ? "restart" : "shutdown"));
 #ifdef ENABLE_ELUNA
-    sEluna->OnShutdownCancel();
+    if (Eluna* e = GetEluna())
+        e->OnShutdownCancel();
 #endif /* ENABLE_ELUNA */
 }
 

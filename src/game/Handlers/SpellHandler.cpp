@@ -162,7 +162,8 @@ void WorldSession::HandleUseItemOpcode(WorldPacket& recvPacket)
 
 #ifdef ENABLE_ELUNA
 	// Note: If script stop casting it must send appropriate data to client to prevent stuck item in gray state.
-	if (sEluna->OnUse(pUser, pItem, targets))
+        if (Eluna* e = pUser->GetEluna())
+            if (!e->OnUse(pUser, pItem, targets))
 	{
 		// no script or script not process request by self
 		pUser->CastItemUseSpell(pItem, targets);

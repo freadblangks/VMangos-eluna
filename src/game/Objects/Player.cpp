@@ -3658,7 +3658,8 @@ void Player::GiveLevel(uint32 level)
 
 #ifdef ENABLE_ELUNA
     int oldLevel = GetLevel();
-    sEluna->OnLevelChanged(this, oldLevel);
+    if (Eluna* e = GetEluna())
+        e->OnLevelChanged(this, oldLevel);
 #endif
 }
 
@@ -14678,7 +14679,8 @@ void Player::LogModifyMoney(int32 d, char const* type, ObjectGuid fromGuid, uint
 #ifdef ENABLE_ELUNA
 void Player::ModifyMoney(int32 d)
 {
-    sEluna->OnMoneyChanged(this, d);
+    if (Eluna* e = GetEluna())
+        e->OnMoneyChanged(this, d);
 
     if (d < 0)
         SetMoney(GetMoney() > uint32(-d) ? GetMoney() + d : 0);
