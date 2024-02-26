@@ -59,13 +59,23 @@
 
 #ifdef ENABLE_ELUNA
 #include "LuaEngine.h"
+#include "ElunaConfig.h"
+#include "ElunaLoader.h"
 #endif /* ENABLE_ELUNA */
 
 
 Map::~Map()
 {
 #ifdef ENABLE_ELUNA
-    sEluna->OnDestroy(this);
+    if (Eluna* e = GetEluna())
+        e->OnDestroy(this);
+
+    if (Eluna* e = GetEluna())
+        if (Instanceable())
+            e->FreeInstanceId(GetInstanceId());
+
+    delete eluna;
+    eluna = nullptr;
 #endif /* ENABLE_ELUNA */
     UnloadAll(true);
 
@@ -74,11 +84,6 @@ Map::~Map()
 
     if (m_persistentState)
         m_persistentState->SetUsedByMapState(nullptr);         // field pointer can be deleted after this
-
-#ifdef ENABLE_ELUNA
-    if (Instanceable())
-        sEluna->FreeInstanceId(GetInstanceId());
-#endif /* ENABLE_ELUNA */
 
     if (i_data)
     {
@@ -188,7 +193,13 @@ Map::Map(uint32 id, time_t expiry, uint32 InstanceId)
 	LoadElevatorTransports();
 
 #ifdef ENABLE_ELUNA
-    sEluna->OnCreate(this);
+    // lua state begins uninitialized
+    eluna = nullptr;
+    if (sElunaConfig->IsElunaEnabled() && !sElunaConfig->IsElunaCompatibilityMode() && sElunaLoader->ShouldMapLoadEluna(id))
+        eluna = new Eluna(this);
+
+    if (Eluna* e = GetEluna())
+        e->OnCreate(this);
 #endif /* ENABLE_ELUNA */
 }
 
@@ -445,8 +456,11 @@ bool Map::Add(Player* player)
     UpdateObjectVisibility(player, cell, p);
 
 #ifdef ENABLE_ELUNA
-    sEluna->OnMapChanged(player);
-    sEluna->OnPlayerEnter(this, player);
+    if (Eluna* e = player->GetEluna())
+        e->OnMapChanged(player);
+
+    if (Eluna* e = GetEluna())
+        e->OnPlayerEnter(this, player);
 #endif /* ENABLE_ELUNA */
 
     if (i_data)
@@ -1039,7 +1053,13 @@ void Map::Update(uint32 t_diff)
     ScriptsProcess();
 
 #ifdef ENABLE_ELUNA
-    sEluna->OnUpdate(this, t_diff);
+    if (Eluna* e = GetEluna())
+    {
+        if (!sElunaConfig->IsElunaCompatibilityMode())
+            e->UpdateEluna(t_diff);
+
+        e->OnUpdate(this, t_diff);
+    }
 #endif /* ENABLE_ELUNA */
 
     if (i_data)
@@ -1223,7 +1243,8 @@ void Map::Remove(Player* player, bool remove)
 {
 
 #ifdef ENABLE_ELUNA
-    sEluna->OnPlayerLeave(this, player);
+    if (Eluna* e = GetEluna())
+        e->OnPlayerLeave(this, player);
 #endif /* ENABLE_ELUNA */
 
     if (i_data)
@@ -1776,10 +1797,13 @@ void Map::AddObjectToRemoveList(WorldObject* obj)
 
 
 #ifdef ENABLE_ELUNA
-    if (Creature* creature = obj->ToCreature())
-        sEluna->OnRemove(creature);
-    else if (GameObject* gameobject = obj->ToGameObject())
-        sEluna->OnRemove(gameobject);
+    if (Eluna* e = GetEluna())
+    {
+        if (Creature* creature = obj->ToCreature())
+            e->OnRemove(creature);
+        else if (GameObject* gameobject = obj->ToGameObject())
+            e->OnRemove(gameobject);
+    }
 #endif /* ENABLE_ELUNA */
 
     obj->CleanupsBeforeDelete();                            // remove or simplify at least cross referenced links
@@ -2001,7 +2025,8 @@ void Map::CreateInstanceData(bool load)
         return;
 
 #ifdef ENABLE_ELUNA
-    i_data = sEluna->GetInstanceData(this);
+    if (Eluna* e = GetEluna())
+        i_data = e->GetInstanceData(this);
 #endif /* ENABLE_ELUNA */
 
     if (!i_mapEntry->scriptId)
@@ -3771,3 +3796,13 @@ Creature* Map::LoadCreatureSpawnWithGroup(uint32 leaderDbGuid, bool delaySpawn)
 
     return pLeader;
 }
+
+#ifdef ENABLE_ELUNA
+Eluna* Map::GetEluna() const
+{
+    if (sElunaConfig->IsElunaCompatibilityMode())
+        return sWorld.GetEluna();
+
+    return eluna;
+}
+#endif
