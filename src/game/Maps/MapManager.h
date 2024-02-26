@@ -179,6 +179,8 @@ class MapManager : public MaNGOS::Singleton<MapManager, MaNGOS::ClassLevelLockab
         template<typename Do>
         void DoForAllMapsWithMapId(uint32 mapId, Do& _do);
 
+        void DoForAllMaps(const std::function<void(Map*)>& worker);
+
         void ScheduleInstanceSwitch(Player* player, uint16 newInstance);
         void SwitchPlayersInstances();
 

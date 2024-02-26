@@ -173,8 +173,9 @@ bool Guild::Create(Player* leader, std::string gname)
 
     CreateDefaultGuildRanks(lSession->GetSessionDbLocaleIndex());
 #ifdef ENABLE_ELUNA
-    sEluna->OnCreate(this, leader, gname.c_str());
-#endif /* ENABLE_ELUNA */
+    if (Eluna* e = sWorld.GetEluna())
+        e->OnCreate(this, leader, gname.c_str());
+#endif
 
     return AddMember(m_LeaderGuid, (uint32)GR_GUILDMASTER) == GuildAddStatus::OK;
 }
@@ -278,8 +279,9 @@ GuildAddStatus Guild::AddMember(ObjectGuid plGuid, uint32 plRank, uint32 petitio
     UpdateAccountsNumber();
 
 #ifdef ENABLE_ELUNA
-    sEluna->OnAddMember(this, pl, newmember.RankId);
-#endif /* ENABLE_ELUNA */
+    if (Eluna* e = sWorld.GetEluna())
+        e->OnAddMember(this, pl, newmember.RankId);
+#endif
     return GuildAddStatus::OK;
 }
 
@@ -291,8 +293,9 @@ void Guild::SetMOTD(std::string motd)
     CharacterDatabase.escape_string(motd);
     CharacterDatabase.PExecute("UPDATE `guild` SET `motd`='%s' WHERE `guild_id`='%u'", motd.c_str(), m_Id);
 #ifdef ENABLE_ELUNA
-    sEluna->OnMOTDChanged(this, motd);
-#endif /* ENABLE_ELUNA */
+    if (Eluna* e = sWorld.GetEluna())
+        e->OnMOTDChanged(this, motd);
+#endif
 }
 
 void Guild::SetGINFO(std::string ginfo)
@@ -303,8 +306,9 @@ void Guild::SetGINFO(std::string ginfo)
     CharacterDatabase.escape_string(ginfo);
     CharacterDatabase.PExecute("UPDATE `guild` SET `info`='%s' WHERE `guild_id`='%u'", ginfo.c_str(), m_Id);
 #ifdef ENABLE_ELUNA
-    sEluna->OnInfoChanged(this, ginfo);
-#endif /* ENABLE_ELUNA */
+    if (Eluna* e = sWorld.GetEluna())
+        e->OnInfoChanged(this, ginfo);
+#endif
 }
 
 bool Guild::LoadGuildFromDB(QueryResult* guildDataResult)
@@ -596,8 +600,9 @@ bool Guild::DelMember(ObjectGuid guid, bool isDisbanding)
         UpdateAccountsNumber();
 
 #ifdef ENABLE_ELUNA
-    sEluna->OnRemoveMember(this, player, isDisbanding); // IsKicked not a part of Mangos, implement?
-#endif /* ENABLE_ELUNA */
+    if (Eluna* e = sWorld.GetEluna())
+        e->OnRemoveMember(this, player, isDisbanding); // IsKicked not a part of Mangos, implement?
+#endif
     return members.empty();
 }
 
@@ -765,8 +770,9 @@ void Guild::Disband()
     CharacterDatabase.CommitTransaction();
     // Used by Eluna
 #ifdef ENABLE_ELUNA
-    sEluna->OnDisband(this);
-#endif /* ENABLE_ELUNA */
+    if (Eluna* e = sWorld.GetEluna())
+        e->OnDisband(this);
+#endif
     sGuildMgr.RemoveGuild(m_Id);
 }
 
