@@ -182,7 +182,7 @@ WorldSocket::HandlerResult WorldSocket::_HandleCompleteReceivedPacket(std::uniqu
                 }
 
 #ifdef ENABLE_ELUNA
-                if (!sEluna->OnPacketReceive(m_Session, *packet))
+                if (!sWorld.GetEluna()->OnPacketReceive(m_Session, *packet))
                     return 0;
 #endif /* ENABLE_ELUNA */
 

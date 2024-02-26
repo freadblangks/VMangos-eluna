@@ -1088,15 +1088,13 @@ void Unit::Kill(Unit* pVictim, SpellEntry const* spellProto, bool durabilityLoss
     {
         if( pPlayerTap != pPlayerVictim )
         {
-            sEluna->OnPVPKill(pPlayerTap, pPlayerVictim);
+            if (Eluna* e = pPlayerTap->GetEluna())
+                e->OnPVPKill(pPlayerTap, pPlayerVictim);
         }
         //else
         //{
             //sEluna->OnKillSelf(pPlayerVictim);
         //}
-    }else if(pCreatureVictim && pPlayerTap)
-    {
-        sEluna->OnCreatureKill(pPlayerTap, pCreatureVictim);
     }
 #endif /* ENABLE_ELUNA */
 
@@ -1201,6 +1199,14 @@ void Unit::Kill(Unit* pVictim, SpellEntry const* spellProto, bool durabilityLoss
             // durability lost message
             WorldPacket data(SMSG_DURABILITY_DAMAGE_DEATH, 0);
             pPlayerVictim->GetSession()->SendPacket(&data);
+
+#ifdef ENABLE_ELUNA
+            // used by eluna
+            if (Creature* killer = ToCreature())
+                if (pPlayerVictim)
+                    if (Eluna* e = pPlayerVictim->GetEluna())
+                        e->OnPlayerKilledByCreature(killer, pPlayerVictim);
+#endif /* ENABLE_ELUNA */
         }
     }
     else                                                // creature died
@@ -1284,16 +1290,15 @@ void Unit::Kill(Unit* pVictim, SpellEntry const* spellProto, bool durabilityLoss
                 bg->HandleKillUnit(pCreatureVictim, pPlayerTap);
     }
 
-    pVictim->InterruptSpellsCastedOnMe(false, true);
-    
-    // Used by Eluna
 #ifdef ENABLE_ELUNA
-    if (Creature* killer = ToCreature())
+    if (pCreatureVictim && pPlayerTap)
     {
-        if(pPlayerVictim)
-            sEluna->OnPlayerKilledByCreature(killer, pPlayerVictim);
+        if (Eluna* e = pPlayerTap->GetEluna())
+            e->OnCreatureKill(pPlayerTap, pCreatureVictim);
     }
-#endif /* ENABLE_ELUNA */
+#endif
+
+    pVictim->InterruptSpellsCastedOnMe(false, true);
 }
 
 struct PetOwnerKilledUnitHelper
@@ -6253,8 +6258,10 @@ void Unit::SetInCombatState(uint32 combatTimer, Unit* pEnemy)
 
     // Used by Eluna
 #ifdef ENABLE_ELUNA
+     // used by eluna
     if (GetTypeId() == TYPEID_PLAYER)
-        sEluna->OnPlayerEnterCombat(ToPlayer(), pEnemy);
+        if (Eluna* e = ToPlayer()->GetEluna())
+            e->OnPlayerEnterCombat(ToPlayer(), pEnemy);
 #endif /* ENABLE_ELUNA */
 
 }
@@ -6417,7 +6424,8 @@ void Unit::ClearInCombat()
 	// Used by Eluna
 #ifdef ENABLE_ELUNA
     if (GetTypeId() == TYPEID_PLAYER)
-        sEluna->OnPlayerLeaveCombat(ToPlayer());
+        if (Eluna* e = ToPlayer()->GetEluna())
+            e->OnPlayerLeaveCombat(ToPlayer());
 #endif /* ENABLE_ELUNA */
     }
 }

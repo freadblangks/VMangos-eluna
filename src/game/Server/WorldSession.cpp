@@ -774,7 +774,8 @@ void WorldSession::LogoutPlayer(bool Save)
         sMapMgr.CancelInstanceCreationForPlayer(_player);
 
 #ifdef ENABLE_ELUNA
-        sEluna->OnLogout(_player);
+        if (Eluna* e = sWorld.GetEluna())
+            e->OnLogout(_player);
 #endif /* ENABLE_ELUNA */
 
         // Remove the player from the world
@@ -1123,8 +1124,9 @@ uint32 WorldSession::GetTutorialInt(uint32 intId) const
 void WorldSession::ExecuteOpcode(OpcodeHandler const& opHandle, WorldPacket* packet)
 {
 #ifdef ENABLE_ELUNA
-    if (!sEluna->OnPacketReceive(this, *packet))
-        return;
+    if (Eluna* e = sWorld.GetEluna())
+        if (!e->OnPacketReceive(this, *packet))
+            return;
 #endif /* ENABLE_ELUNA */
     // need prevent do internal far teleports in handlers because some handlers do lot steps
     // or call code that can do far teleports in some conditions unexpectedly for generic way work code
