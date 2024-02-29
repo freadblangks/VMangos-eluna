@@ -16923,6 +16923,13 @@ void Player::SaveToDB(bool online, bool force)
 
     CharacterDatabase.BeginTransaction(GetGUIDLow());
 
+#ifdef ENABLE_ELUNA
+    // Hack to check that this is not on create save
+    if (Eluna* e = GetEluna())
+        if (!HasAtLoginFlag(AT_LOGIN_FIRST))
+            e->OnSave(this);
+#endif
+
     m_honorMgr.Update();
 
     static SqlStatementID insChar;
