@@ -101,7 +101,7 @@ enum CharacterFlags
 {
     CHARACTER_FLAG_NONE                 = 0x00000000,
     CHARACTER_FLAG_UNK1                 = 0x00000001,
-    CHARACTER_FLAG_UNK2                 = 0x00000002,
+    CHARACTER_FLAG_RESTING              = 0x00000002,
     CHARACTER_LOCKED_FOR_TRANSFER       = 0x00000004,
     CHARACTER_FLAG_UNK4                 = 0x00000008,
     CHARACTER_FLAG_UNK5                 = 0x00000010,
@@ -1115,7 +1115,7 @@ void Player::SatisfyItemRequirements(ItemPrototype const* pItem)
 
 uint32 Player::EnvironmentalDamage(EnvironmentalDamageType type, uint32 damage)
 {
-    if (!IsAlive() || IsGameMaster() || IsBot())
+    if (!IsAlive() || IsGameMaster() || (IsBot() && sWorld.getConfig(CONFIG_BOT_ENVIRONMENTAL_DAMAGE) == 0))
         return 0;
 
     // Absorb, resist some environmental damage type
@@ -2086,19 +2086,21 @@ bool Player::BuildEnumData(QueryResult* result, WorldPacket* p_data)
 
     *p_data << uint32(fields[16].GetUInt32());              // guild id
 
-    uint32 char_flags = 0;
+    uint32 charFlags = 0;
     uint32 playerFlags = fields[17].GetUInt32();
     uint32 atLoginFlags = fields[18].GetUInt32();
+    if (playerFlags & PLAYER_FLAGS_RESTING)
+        charFlags |= CHARACTER_FLAG_RESTING;
     if (playerFlags & PLAYER_FLAGS_HIDE_HELM)
-        char_flags |= CHARACTER_FLAG_HIDE_HELM;
+        charFlags |= CHARACTER_FLAG_HIDE_HELM;
     if (playerFlags & PLAYER_FLAGS_HIDE_CLOAK)
-        char_flags |= CHARACTER_FLAG_HIDE_CLOAK;
+        charFlags |= CHARACTER_FLAG_HIDE_CLOAK;
     if (playerFlags & PLAYER_FLAGS_GHOST)
-        char_flags |= CHARACTER_FLAG_GHOST;
+        charFlags |= CHARACTER_FLAG_GHOST;
     if (atLoginFlags & AT_LOGIN_RENAME)
-        char_flags |= CHARACTER_FLAG_RENAME;
+        charFlags |= CHARACTER_FLAG_RENAME;
 
-    *p_data << uint32(char_flags);                          // character flags
+    *p_data << uint32(charFlags);                           // character flags
 
     // First login
     *p_data << uint8(atLoginFlags & AT_LOGIN_FIRST ? 1 : 0);
@@ -2343,9 +2345,6 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
             CombatStop();
         }
 
-        if (!IsWithinDist3d(x, y, z, GetMap()->GetVisibilityDistance()))
-            RemoveAurasWithInterruptFlags(AURA_INTERRUPT_ENTER_WORLD_CANCELS);
-
         // this will be used instead of the current location in SaveToDB
         m_teleport_dest = WorldLocation(mapid, x, y, z, orientation);
         DisableSpline();
@@ -2440,7 +2439,6 @@ bool Player::ExecuteTeleportFar(ScheduledTeleportData* data)
         SetSelectionGuid(ObjectGuid());
         CombatStop();
         UpdatePvPContested(false, true);
-        RemoveAurasWithInterruptFlags(AURA_INTERRUPT_ENTER_WORLD_CANCELS);
 
         // reset extraAttack counter
         ResetExtraAttacks();
@@ -3203,13 +3201,24 @@ void Player::SetGMVisible(bool on, bool notify)
     CharacterDatabase.PExecute("UPDATE characters SET extra_flags = %u WHERE guid = %u", m_ExtraFlags, GetGUIDLow());
 }
 
-void Player::SetCheatGod(bool on, bool notify)
+void Player::SetCheatFly(bool on, bool notify)
 {
-    SetCheatOption(PLAYER_CHEAT_GOD, on);
+    SetCheatOption(PLAYER_CHEAT_FLY, on);
+    SetFly(on);
 
     if (notify)
     {
-        GetSession()->SendNotification(on ? LANG_GOD_ON : LANG_GOD_OFF);
+        GetSession()->SendNotification(on ? LANG_CHEAT_FLY_ON : LANG_CHEAT_FLY_OFF);
+    }
+}
+
+void Player::SetCheatGod(bool on, bool notify)
+{
+    SetInvincibilityHpThreshold(on ? 1 : 0);
+
+    if (notify)
+    {
+        GetSession()->SendNotification(on ? LANG_CHEAT_GOD_ON : LANG_CHEAT_GOD_OFF);
     }
 }
 
@@ -5001,12 +5010,10 @@ void Player::SetFly(bool enable)
         }
         
         m_movementInfo.moveFlags = (MOVEFLAG_LEVITATING | MOVEFLAG_SWIMMING | MOVEFLAG_CAN_FLY | MOVEFLAG_FLYING);
-        AddUnitState(UNIT_STAT_FLYING_ALLOWED);
     }
     else
     {
         m_movementInfo.moveFlags = (MOVEFLAG_NONE);
-        ClearUnitState(UNIT_STAT_FLYING_ALLOWED);
     }
 
     SendHeartBeat(true);
@@ -5312,6 +5319,10 @@ void Player::DurabilityPointsLossAll(int32 points, bool inventory)
 
 void Player::DurabilityPointsLoss(Item* item, int32 points)
 {
+    //bot do not loss durabilitypoints
+    if (IsBot() && sWorld.getConfig(CONFIG_BOT_DURABILITY_POINTS_LOSS) == 0)
+        return;
+
     int32 pMaxDurability = item->GetUInt32Value(ITEM_FIELD_MAXDURABILITY);
     int32 pOldDurability = item->GetUInt32Value(ITEM_FIELD_DURABILITY);
     int32 pNewDurability = pOldDurability - points;
@@ -6509,40 +6520,44 @@ bool Player::SetPosition(float x, float y, float z, float orientation, bool tele
     float const old_z = GetPositionZ();
     float const old_r = GetOrientation();
     bool const positionChanged = teleport || old_x != x || old_y != y || old_z != z;
+    bool const hasMovingFlags = m_movementInfo.HasMovementFlag(MOVEFLAG_MASK_MOVING);
 
-    if (positionChanged || old_r != orientation)
+    if (positionChanged || hasMovingFlags || old_r != orientation)
     {
-        HandleInterruptsOnMovement(positionChanged);
+        HandleInterruptsOnMovement(positionChanged || hasMovingFlags);
 
-        // move and update visible state if need
-        m->PlayerRelocation(this, x, y, z, orientation);
-
-        // reread after Map::Relocation
-        m = GetMap();
-        x = GetPositionX();
-        y = GetPositionY();
-        z = GetPositionZ();
-
-        if (positionChanged)
+        if (positionChanged || old_r != orientation)
         {
-            // group update
-            if (GetGroup() && (uint16(old_x) != uint16(x) || uint16(old_y) != uint16(y)))
-                SetGroupUpdateFlag(GROUP_UPDATE_FLAG_POSITION);
+            // move and update visible state if need
+            m->PlayerRelocation(this, x, y, z, orientation);
 
-            if (Player* pTrader = GetTrader())
-                if (!IsWithinDistInMap(pTrader, INTERACTION_DISTANCE))
-                    TradeCancel(true, TRADE_STATUS_TRADE_CANCELED);   // will close both side trade windows
+            // reread after Map::Relocation
+            m = GetMap();
+            x = GetPositionX();
+            y = GetPositionY();
+            z = GetPositionZ();
 
-            if (uint32 const timerMax = sWorld.getConfig(CONFIG_UINT32_RELOCATION_VMAP_CHECK_TIMER))
+            if (positionChanged)
             {
-                if (!m_areaCheckTimer)
-                    m_areaCheckTimer = timerMax;
-            }
-            else
-            {
-                UpdateTerainEnvironmentFlags();
-                CheckAreaExploreAndOutdoor();
-                LoadMapCellsAround(GetMap()->GetGridActivationDistance());
+                // group update
+                if (GetGroup() && (uint16(old_x) != uint16(x) || uint16(old_y) != uint16(y)))
+                    SetGroupUpdateFlag(GROUP_UPDATE_FLAG_POSITION);
+
+                if (Player* pTrader = GetTrader())
+                    if (!IsWithinDistInMap(pTrader, INTERACTION_DISTANCE))
+                        TradeCancel(true, TRADE_STATUS_TRADE_CANCELED);   // will close both side trade windows
+
+                if (uint32 const timerMax = sWorld.getConfig(CONFIG_UINT32_RELOCATION_VMAP_CHECK_TIMER))
+                {
+                    if (!m_areaCheckTimer)
+                        m_areaCheckTimer = timerMax;
+                }
+                else
+                {
+                    UpdateTerainEnvironmentFlags();
+                    CheckAreaExploreAndOutdoor();
+                    LoadMapCellsAround(GetMap()->GetGridActivationDistance());
+                }
             }
         }
     }
@@ -13027,7 +13042,7 @@ bool Player::CanTakeQuest(Quest const* pQuest, bool msg, bool skipStatusCheck /*
 
     return (skipStatusCheck || SatisfyQuestStatus(pQuest, msg)) && SatisfyQuestExclusiveGroup(pQuest, msg) &&
            SatisfyQuestClass(pQuest, msg) && SatisfyQuestRace(pQuest, msg) && SatisfyQuestLevel(pQuest, msg) &&
-           SatisfyQuestSkill(pQuest, msg) && SatisfyQuestCondition(pQuest, msg) && SatisfyQuestReputation(pQuest, msg) &&
+           SatisfyQuestDaily(pQuest, msg) && SatisfyQuestSkill(pQuest, msg) && SatisfyQuestCondition(pQuest, msg) && SatisfyQuestReputation(pQuest, msg) &&
            SatisfyQuestPreviousQuest(pQuest, msg) && SatisfyQuestTimed(pQuest, msg) &&
            SatisfyQuestNextChain(pQuest, msg) && SatisfyQuestPrevChain(pQuest, msg) &&
            SatisfyQuestBreadcrumbQuest(pQuest, msg) && SatisfyQuestDependentBreadcrumbQuests(pQuest, msg) &&
@@ -13699,6 +13714,10 @@ void Player::RewardQuest(Quest const* pQuest, uint32 reward, WorldObject* questE
                 if (!HasAura(itr->second->spellId, EFFECT_INDEX_0))
                     CastSpell(this, itr->second->spellId, true);
     }
+
+    // daily quest recall Player::SaveToDB() at quest reward
+    if (quest_id == 10004 || quest_id == 10005 || quest_id == 10006)
+        SaveToDB();
 }
 
 void Player::FailQuest(uint32 questId)
@@ -13733,6 +13752,49 @@ void Player::FailQuest(uint32 questId)
         else
             SendQuestFailed(questId);
     }
+}
+
+uint32 getTodayStartTimestamp()
+{
+    time_t rawtime = time(NULL);
+    struct tm *timeinfo = localtime(&rawtime);
+    timeinfo->tm_hour = 0;
+    timeinfo->tm_min = 0;
+    timeinfo->tm_sec = 0;
+    return mktime(timeinfo);
+}
+
+bool Player::SatisfyQuestDaily(Quest const* qInfo, bool msg) const
+{
+    uint32 quest_id = qInfo->GetQuestId();
+    if (!(quest_id == 10004 || quest_id == 10005 || quest_id == 10006))
+        return true;
+
+    uint32 todayStart = getTodayStartTimestamp();
+    uint32 todayEnd = todayStart + 86399;
+    QueryResult* result = CharacterDatabase.PQuery("SELECT `quest` FROM `character_queststatus` WHERE `guid`='%u' and `quest`='%u' and `timer`>='%u' and `timer`<='%u' and `status`=0 and `rewarded`=1 and `mob_count1`=1 and `mob_count2`=1 and `mob_count3`=1", GetGUIDLow(), quest_id, todayStart, todayEnd);
+    if (result)
+    {
+        uint32 id = result->Fetch()[0].GetUInt32();
+        delete result;
+        switch (id)
+        {
+            case 10004:
+                GetSession()->SendNotification("Hello, Blackrock Mountain! can only be completed once a day.");
+                break;
+            case 10005:
+                GetSession()->SendNotification("Hello, Plaguelands! can only be completed once a day.");
+                break;
+            case 10006:
+                GetSession()->SendNotification("Hello, Dire Maul! can only be completed once a day.");
+                break;
+        }
+        if (msg)
+            SendCanTakeQuestResponse(INVALIDREASON_DONT_HAVE_REQ);
+        return false;
+    }
+
+    return true;
 }
 
 bool Player::SatisfyQuestSkill(Quest const* qInfo, bool msg) const
@@ -16302,6 +16364,7 @@ void Player::_LoadBoundInstances(QueryResult* result)
 
 InstancePlayerBind* Player::GetBoundInstance(uint32 mapid)
 {
+    std::lock_guard<std::mutex> guard(m_boundInstancesMutex);
     BoundInstancesMap::iterator itr = m_boundInstances.find(mapid);
     if (itr != m_boundInstances.end())
         return &itr->second;
@@ -16311,6 +16374,7 @@ InstancePlayerBind* Player::GetBoundInstance(uint32 mapid)
 
 void Player::UnbindInstance(uint32 mapid, bool unload)
 {
+    std::lock_guard<std::mutex> guard(m_boundInstancesMutex);
     BoundInstancesMap::iterator itr = m_boundInstances.find(mapid);
     UnbindInstance(itr, unload);
 }
@@ -16332,6 +16396,7 @@ InstancePlayerBind* Player::BindToInstance(DungeonPersistentState* state, bool p
     if (state)
     {
         ASSERT(state->GetMapId() > 1);
+        std::lock_guard<std::mutex> guard(m_boundInstancesMutex);
         InstancePlayerBind& bind = m_boundInstances[state->GetMapId()];
 
         if (bind.state)
@@ -16399,6 +16464,7 @@ void Player::SendRaidInfo() const
     size_t p_counter = data.wpos();
     data << uint32(counter);                                // placeholder
 
+    std::lock_guard<std::mutex> guard(m_boundInstancesMutex);
     for (const auto& itr : m_boundInstances)
     {
         if (itr.second.perm)
@@ -16429,6 +16495,7 @@ void Player::SendSavedInstances() const
     bool hasBeenSaved = false;
     WorldPacket data;
 
+    std::lock_guard<std::mutex> guard(m_boundInstancesMutex);
     for (const auto& itr : m_boundInstances)
     {
         if (itr.second.perm)                               // only permanent binds are sent
@@ -16478,6 +16545,7 @@ void Player::ConvertInstancesToGroup(Player* player, Group* group, ObjectGuid pl
 
     if (player)
     {
+        std::lock_guard<std::mutex> guard(player->m_boundInstancesMutex);
         for (BoundInstancesMap::iterator itr = player->m_boundInstances.begin(); itr != player->m_boundInstances.end();)
         {
             has_binds = true;
@@ -17516,6 +17584,7 @@ void Player::SendResetFailedNotify()
 void Player::ResetInstances(InstanceResetMethod method)
 {
     // method can be INSTANCE_RESET_ALL, INSTANCE_RESET_GROUP_JOIN
+    std::lock_guard<std::mutex> guard(m_boundInstancesMutex);
     for (BoundInstancesMap::iterator itr = m_boundInstances.begin(); itr != m_boundInstances.end();)
     {
         DungeonPersistentState* state = itr->second.state;
@@ -17578,6 +17647,7 @@ void Player::ResetPersonalInstanceOnLeaveDungeon(uint32 mapId)
     if (!pGroup)
         return;
 
+    std::lock_guard<std::mutex> guard(m_boundInstancesMutex);
     BoundInstancesMap::iterator itr = m_boundInstances.find(mapId);
     if (itr == m_boundInstances.end() || itr->second.perm)
         return;

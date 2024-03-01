@@ -1601,6 +1601,7 @@ void Spell::DoAllEffectOnTarget(TargetInfo *target)
 
         // Send log damage message to client
         pCaster->SendSpellNonMeleeDamageLog(&damageInfo);
+        pCaster->DealSpellDamage(&damageInfo, true);
 
         procEx = CreateProcExtendMask(&damageInfo, missInfo);
         procVictim |= PROC_FLAG_TAKEN_ANY_DAMAGE;
@@ -1653,8 +1654,6 @@ void Spell::DoAllEffectOnTarget(TargetInfo *target)
                     triggerWeaponProcs = true;
             }
         }
-
-        pCaster->DealSpellDamage(&damageInfo, true);
 
         // Courroux Naturel a 20% de chance de faire proc WF.
         if (m_spellInfo->Id == 17364 && pCaster->IsPlayer())
@@ -2638,7 +2637,7 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
                 case 14297:
                 case 26546:
                 case 26555:
-                    minDist = 20.0f;
+                    minDist = 25.0f;
                     break;
             }
 #endif
@@ -5569,6 +5568,10 @@ void Spell::TakeAmmo()
     if (!pCaster)
         return;
 
+    // Hurter - Butterfly : take no ammo
+    if (pCaster->HasAura(34132))
+        return;
+
     // Some ranged attacks dont take any ammo
     switch (m_spellInfo->Id)
     {
@@ -6651,6 +6654,18 @@ SpellCastResult Spell::CheckCast(bool strict)
                     if ((canFailAtMax || skillValue < sWorld.GetConfigMaxSkillValue()) && reqSkillValue > irand(skillValue - 25, skillValue + 37))
                         return SPELL_FAILED_TRY_AGAIN;
                 }
+                break;
+            }
+            case SPELL_EFFECT_PICKPOCKET:
+            {
+                Creature* target = ToCreature(m_targets.getUnitTarget());
+                if (!target || target->GetOwnerGuid().IsPlayer())
+                    return SPELL_FAILED_BAD_TARGETS;
+
+                if (!target->GetCreatureInfo()->pickpocket_loot_id &&
+                    !(target->GetCreatureTypeMask() & CREATURE_TYPEMASK_HUMANOID_OR_UNDEAD))
+                    return SPELL_FAILED_TARGET_NO_POCKETS;
+
                 break;
             }
             case SPELL_EFFECT_SUMMON_DEAD_PET:
