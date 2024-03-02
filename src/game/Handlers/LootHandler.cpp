@@ -186,14 +186,14 @@ void WorldSession::HandleAutostoreLootItemOpcode(WorldPacket & recv_data)
 
         --loot->unlootedCount;
 
-#ifdef ENABLE_ELUNA
-        if (Eluna* e = player->GetEluna())
-            e->OnLootItem(player, newitem, newitem->GetCount(), newitem->GetObjectGuid());
-#endif
-
         sLog.Player(this, LOG_LOOTS, LOG_LVL_MINIMAL, "%s loots %ux%u [loot from %s]", _player->GetShortDescription().c_str(), item->count, item->itemid, lguid.GetString().c_str());
         player->SendNewItem(newitem, uint32(item->count), false, false, true);
         player->OnReceivedItem(newitem);
+
+#ifdef ENABLE_ELUNA
+        if (Eluna* e = player->GetEluna())
+            e->OnLootItem(player, newitem, uint32(item->count), newitem->GetObjectGuid());
+#endif
     }
     else
         player->SendEquipError(msg, nullptr, nullptr, item->itemid);
