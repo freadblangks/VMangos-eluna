@@ -1718,6 +1718,21 @@ void World::SetInitialWorldSettings()
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Petitions...");
     sGuildMgr.LoadPetitions();
 
+#ifdef ENABLE_ELUNA
+    // lua state begins uninitialized
+    eluna = nullptr;
+
+    if (sElunaConfig->IsElunaEnabled())
+    {
+        ///- Run eluna scripts.
+        sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
+        ELUNA_LOG_INFO("Starting Eluna world state...");
+        // use map id -1 for the global Eluna state
+        eluna = new Eluna(nullptr, sElunaConfig->IsElunaCompatibilityMode());
+        ELUNA_LOG_INFO("");
+    }
+#endif
+
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Groups...");
     sObjectMgr.LoadGroups();
 
@@ -1747,21 +1762,6 @@ void World::SetInitialWorldSettings()
     // Handle outdated emails (delete/return)
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Returning old mails...");
     sObjectMgr.ReturnOrDeleteOldMails(false);
-
-#ifdef ENABLE_ELUNA
-    // lua state begins uninitialized
-    eluna = nullptr;
-
-    if (sElunaConfig->IsElunaEnabled())
-    {
-        ///- Run eluna scripts.
-        sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
-        ELUNA_LOG_INFO("Starting Eluna world state...");
-        // use map id -1 for the global Eluna state
-        eluna = new Eluna(nullptr, sElunaConfig->IsElunaCompatibilityMode());
-        ELUNA_LOG_INFO("");
-    }
-#endif
 
     // Load and initialize scripts
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Scripts...");
