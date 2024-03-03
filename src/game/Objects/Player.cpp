@@ -3527,6 +3527,10 @@ void Player::GiveLevel(uint32 level)
     if (level == GetLevel())
         return;
 
+#if ENABLE_ELUNA
+    int oldLevel = GetLevel();
+#endif
+
     uint32 numInstanceMembers = 0;
     uint32 numGroupMembers = 0;
 
@@ -3685,7 +3689,6 @@ void Player::GiveLevel(uint32 level)
         pet->SynchronizeLevelWithOwner();
 
 #ifdef ENABLE_ELUNA
-    int oldLevel = GetLevel();
     if (Eluna* e = GetEluna())
         e->OnLevelChanged(this, oldLevel);
 #endif
