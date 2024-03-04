@@ -345,7 +345,7 @@ float SpellCaster::MeleeSpellMissChance(Unit* pVictim, WeaponAttackType attType,
             modOwner->ApplySpellMod(spell->Id, SPELLMOD_RESIST_MISS_CHANCE, hitChance, spellPtr);
 
         // Bonuses from attacker aura and ratings
-        hitChance += pUnit->GetBonusHitChanceFromAuras(attType);
+        hitChance += pUnit->GetWeaponBasedAuraModifier(attType, SPELL_AURA_MOD_HIT_CHANCE);
     } 
 
     // There is some code in 1.12 that explicitly adds a modifier that causes the first 1% of +hit gained from
@@ -753,7 +753,7 @@ int32 SpellCaster::DealHeal(Unit* pVictim, uint32 addhealth, SpellEntry const* s
 
     SpellCaster* pHealer = this;
 
-    if (IsCreature() && ((Creature*)this)->IsTotem() && ((Totem*)this)->GetTotemType() != TOTEM_STATUE)
+    if (IsCreature() && ((Creature*)this)->IsTotem())
         pHealer = pUnit->GetOwner();
 
     if (IsPlayer() || pVictim->IsPlayer())
@@ -1180,8 +1180,8 @@ float SpellCaster::SpellHealingBonusDone(Unit* pVictim, SpellEntry const* spellP
 {
     Unit* pUnit = ToUnit();
 
-    // For totems get healing bonus from owner (statue isn't totem in fact)
-    if (GetTypeId() == TYPEID_UNIT && ((Creature*)this)->IsTotem() && ((Totem*)this)->GetTotemType() != TOTEM_STATUE)
+    // For totems get healing bonus from owner
+    if (GetTypeId() == TYPEID_UNIT && ((Creature*)this)->IsTotem())
         if (Unit* owner = pUnit->GetOwner())
             return owner->SpellHealingBonusDone(pVictim, spellProto, effectIndex, healamount, damagetype, stack, spell);
 
@@ -1296,8 +1296,8 @@ float SpellCaster::SpellDamageBonusDone(Unit* pVictim, SpellEntry const* spellPr
 
     Unit* pUnit = ToUnit();
 
-    // For totems get damage bonus from owner (statue isn't totem in fact)
-    if (pUnit && GetTypeId() == TYPEID_UNIT && ((Creature*)this)->IsTotem() && ((Totem*)this)->GetTotemType() != TOTEM_STATUE)
+    // For totems get damage bonus from owner
+    if (pUnit && GetTypeId() == TYPEID_UNIT && ((Creature*)this)->IsTotem())
     {
         if (Unit* owner = pUnit->GetOwner())
             return owner->SpellDamageBonusDone(pVictim, spellProto, effectIndex, pdamage, damagetype, stack, spell);

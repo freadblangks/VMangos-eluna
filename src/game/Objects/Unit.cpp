@@ -102,6 +102,7 @@ Unit::Unit()
 
     m_stateFlags = 0;
     m_deathState = ALIVE;
+    m_invincibilityHpThreshold = 0;
 
     //m_Aura = nullptr;
     //m_AurasCheck = 2000;
@@ -755,13 +756,8 @@ uint32 Unit::DealDamage(Unit* pVictim, uint32 damage, CleanDamage const* cleanDa
         }
     }
 
-    if (health <= damage)
+    if (health <= damage && pVictim->GetInvincibilityHpThreshold() == 0)
     {
-        // Can't kill gods
-        if (Player* pPlayer = pVictim->ToPlayer())
-            if (pPlayer->IsGod())
-                return 0;
-
         DEBUG_FILTER_LOG(LOG_FILTER_DAMAGE, "DealDamage: victim just died");
         Kill(pVictim, spellProto, durabilityLoss); // Function too long, we cut
         // last damage from non duel opponent or opponent controlled creature
@@ -780,7 +776,11 @@ uint32 Unit::DealDamage(Unit* pVictim, uint32 damage, CleanDamage const* cleanDa
     }
     else                                                    // if (health <= damage)
     {
-        pVictim->ModifyHealth(- (int32)damage);
+        if (health > pVictim->GetInvincibilityHpThreshold())
+        {
+            uint32 dmg = std::min<uint32>(health - pVictim->GetInvincibilityHpThreshold(), damage);
+            pVictim->ModifyHealth(-(int32)dmg);
+        }
 
         if (damagetype != DOT)
         {
@@ -1627,7 +1627,9 @@ void Unit::DealMeleeDamage(CalcDamageInfo* damageInfo, bool durabilityLoss)
     DealDamage(pVictim, damageInfo->totalDamage, &cleanDamage, DIRECT_DAMAGE, SpellSchoolMask(damageInfo->subDamage[0].damageSchoolMask), nullptr, durabilityLoss);
 
     // If this is a creature and it attacks from behind it has a probability to daze it's victim
-    if (damageInfo->totalDamage && !IsPlayer() && !((Creature*)this)->GetCharmerOrOwnerGuid() && !pVictim->HasInArc(this))
+    if (damageInfo->totalDamage && !IsPlayer() &&
+        !((Creature*)this)->GetCharmerOrOwnerGuid() && !pVictim->HasInArc(this) &&
+        !(pVictim->IsPlayer() && pVictim->GetInvincibilityHpThreshold())) // dont daze player in god mode
     {
         // -probability is between 0% and 40%
         // 20% base chance
@@ -1644,10 +1646,6 @@ void Unit::DealMeleeDamage(CalcDamageInfo* damageInfo, bool durabilityLoss)
 
         if (probability > 40.0f)
             probability = 40.0f;
-
-        if (Player* pPlayer = pVictim->ToPlayer())
-            if (pPlayer->IsGod())
-                probability = 0.0f;
 
         if (roll_chance_f(probability))
         {
@@ -2142,6 +2140,7 @@ void Unit::AttackerStateUpdate(Unit* pVictim, WeaponAttackType attType, bool ext
     SendAttackStateUpdate(&damageInfo);
     ProcDamageAndSpell(ProcSystemArguments(damageInfo.target, damageInfo.procAttacker, damageInfo.procVictim, damageInfo.procEx, damageInfo.totalDamage, damageInfo.totalDamage + damageInfo.totalAbsorb + damageInfo.totalResist, damageInfo.attackType));
 
+    // Damage is done after procs so it can trigger auras on the victim that affect the caster in case of killing blow.
     DealMeleeDamage(&damageInfo, true);
 
     if (IsPlayer())
@@ -2607,7 +2606,7 @@ float Unit::MeleeMissChanceCalc(Unit const* pVictim, WeaponAttackType attType) c
     missChance *= levelDiffMultiplier;
 
     // Hit chance bonus from attacker based on ratings and auras
-    float hitChance = GetBonusHitChanceFromAuras(attType);
+    float hitChance = GetWeaponBasedAuraModifier(attType, SPELL_AURA_MOD_HIT_CHANCE);
 
     // There is some code in 1.12 that explicitly adds a modifier that causes the first 1% of +hit gained from
     // talents or gear to be ignored against monsters with more than 10 Defense Skill above the attacking player’s Weapon Skill.
@@ -2673,7 +2672,7 @@ float Unit::GetUnitParryChance() const
 
     if (Player const* pPlayer = ToPlayer())
     {
-        if (pPlayer->CanParry() && pPlayer->HasWeaponForParry())
+        if (pPlayer->CanParry() && pPlayer->GetWeaponForParry())
             chance = GetFloatValue(PLAYER_PARRY_PERCENTAGE);
     }
     else
@@ -3482,15 +3481,14 @@ bool Unit::RemoveNoStackAurasDueToAuraHolder(SpellAuraHolder* holder)
 
     SpellSpecific spellId_spec = Spells::GetSpellSpecific(spellId);
 
-    bool isAreaAura = spellProto->HasEffect(SPELL_EFFECT_APPLY_AREA_AURA_PARTY);
-    SpellAuraHolderMap::iterator i, next;
-    for (i = m_spellAuraHolders.begin(); i != m_spellAuraHolders.end(); i = next)
+    bool const isAreaAura = spellProto->HasEffect(SPELL_EFFECT_APPLY_AREA_AURA_PARTY);
+    std::vector<std::pair<uint32, ObjectGuid>> aurasToRemove;
+    for (auto const& i : m_spellAuraHolders)
     {
-        next = i;
-        ++next;
-        if (!(*i).second) continue;
+        if (!i.second)
+            continue;
 
-        SpellEntry const* i_spellProto = (*i).second->GetSpellProto();
+        SpellEntry const* i_spellProto = i.second->GetSpellProto();
 
         if (!i_spellProto)
             continue;
@@ -3516,7 +3514,7 @@ bool Unit::RemoveNoStackAurasDueToAuraHolder(SpellAuraHolder* holder)
         {
             // passive non-stackable spells not stackable only for same caster
             // -> Sauf si 2 AreaAuras
-            if (holder->GetCasterGuid() != i->second->GetCasterGuid() && !isAreaAura && !i_spellProto->HasEffect(SPELL_EFFECT_APPLY_AREA_AURA_PARTY))
+            if (holder->GetCasterGuid() != i.second->GetCasterGuid() && !isAreaAura && !i_spellProto->HasEffect(SPELL_EFFECT_APPLY_AREA_AURA_PARTY))
                 continue;
 
             // passive non-stackable spells not stackable only with another rank of same spell
@@ -3537,16 +3535,16 @@ bool Unit::RemoveNoStackAurasDueToAuraHolder(SpellAuraHolder* holder)
         {
             // Nostalrius - fix stack same HoT rank / diff caster
             if (firstInChain)
-                RemoveAurasDueToSpell(i_spellId);
+                aurasToRemove.push_back({ spellId, i.second->GetCasterGuid() });
             else switch (spellId)
             {
             // Blessing of Light does not stack between casters.
-            case 19977:
-            case 19978:
-            case 19979:
-            case 25890:
-                RemoveAurasDueToSpell(spellId);
-                break;
+                case 19977:
+                case 19978:
+                case 19979:
+                case 25890:
+                    aurasToRemove.push_back({ spellId, i.second->GetCasterGuid() });
+                    break;
             }
             continue;
         }
@@ -3562,7 +3560,7 @@ bool Unit::RemoveNoStackAurasDueToAuraHolder(SpellAuraHolder* holder)
                 return false;
             }
             sLog.Out(LOG_BASIC, LOG_LVL_DETAIL, "[STACK][DB] Unable to stack %u and %u. %u will be removed.", spellId, i_spellId, i_spellId);
-            RemoveAurasDueToSpell(i_spellId);
+            aurasToRemove.push_back({ i_spellId, i.second->GetCasterGuid() });
             continue;
         }
 
@@ -3580,7 +3578,7 @@ bool Unit::RemoveNoStackAurasDueToAuraHolder(SpellAuraHolder* holder)
         if (!is_spellSpecPerTarget && firstInChain && firstInChain == sSpellMgr.GetFirstSpellInChain(i_spellId))
             is_spellSpecPerTarget = true;
 
-        if (is_spellSpecPerTarget || (is_spellSpecPerTargetPerCaster && holder->GetCasterGuid() == (*i).second->GetCasterGuid()))
+        if (is_spellSpecPerTarget || (is_spellSpecPerTargetPerCaster && holder->GetCasterGuid() == i.second->GetCasterGuid()))
         {
             // cannot remove stronger snare / haste debuff
             if (spellId_spec == SPELL_SNARE || spellId_spec == SPELL_NEGATIVE_HASTE)
@@ -3593,26 +3591,20 @@ bool Unit::RemoveNoStackAurasDueToAuraHolder(SpellAuraHolder* holder)
                     return false;
 
             // Its a parent aura (create this aura in ApplyModifier)
-            if ((*i).second->IsInUse())
+            if (i.second->IsInUse())
             {
-                sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "SpellAuraHolder (Spell %u) is in process but attempt removed at SpellAuraHolder (Spell %u) adding, need add stack rule for Unit::RemoveNoStackAurasDueToAuraHolder", i->second->GetId(), holder->GetId());
+                sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "SpellAuraHolder (Spell %u) is in process but attempt removed at SpellAuraHolder (Spell %u) adding, need add stack rule for Unit::RemoveNoStackAurasDueToAuraHolder", i.second->GetId(), holder->GetId());
                 continue;
             }
             sLog.Out(LOG_BASIC, LOG_LVL_DETAIL, "[STACK][%u/%u] SpellSpecPerTarget ou SpellSpecPerCaster", spellId, i_spellId);
-            RemoveAurasDueToSpell(i_spellId);
-
-            if (m_spellAuraHolders.empty())
-                break;
-            else
-                next =  m_spellAuraHolders.begin();
-
+            aurasToRemove.push_back({ i_spellId, i.second->GetCasterGuid() });
             continue;
         }
 
         // spell with spell specific that allow single ranks for spell from diff caster
         // same caster case processed or early or later
         bool is_spellPerTarget = Spells::IsSingleFromSpellSpecificSpellRanksPerTarget(spellId_spec, i_spellId_spec);
-        if (is_spellPerTarget && holder->GetCasterGuid() != (*i).second->GetCasterGuid() && sSpellMgr.IsRankSpellDueToSpell(spellProto, i_spellId))
+        if (is_spellPerTarget && holder->GetCasterGuid() != i.second->GetCasterGuid() && sSpellMgr.IsRankSpellDueToSpell(spellProto, i_spellId))
         {
             // cannot remove higher rank
             if (Spells::CompareAuraRanks(spellId, i_spellId) < 0)
@@ -3622,24 +3614,18 @@ bool Unit::RemoveNoStackAurasDueToAuraHolder(SpellAuraHolder* holder)
             }
 
             // Its a parent aura (create this aura in ApplyModifier)
-            if ((*i).second->IsInUse())
+            if (i.second->IsInUse())
             {
-                sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "SpellAuraHolder (Spell %u) is in process but attempt removed at SpellAuraHolder (Spell %u) adding, need add stack rule for Unit::RemoveNoStackAurasDueToAuraHolder", i->second->GetId(), holder->GetId());
+                sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "SpellAuraHolder (Spell %u) is in process but attempt removed at SpellAuraHolder (Spell %u) adding, need add stack rule for Unit::RemoveNoStackAurasDueToAuraHolder", i.second->GetId(), holder->GetId());
                 continue;
             }
             sLog.Out(LOG_BASIC, LOG_LVL_DETAIL, "[STACK][%u/%u] SpellPerTarget", spellId, i_spellId);
-            RemoveAurasDueToSpell(i_spellId);
-
-            if (m_spellAuraHolders.empty())
-                break;
-            else
-                next =  m_spellAuraHolders.begin();
-
+            aurasToRemove.push_back({ i_spellId, i.second->GetCasterGuid() });
             continue;
         }
 
         // Periodic damage: allow different ranks from different casters for the same spell chain
-        if (dmgPeriodic && holder->GetCasterGuid() != (*i).second->GetCasterGuid() && sSpellMgr.IsRankSpellDueToSpell(spellProto, i_spellId))
+        if (dmgPeriodic && holder->GetCasterGuid() != i.second->GetCasterGuid() && sSpellMgr.IsRankSpellDueToSpell(spellProto, i_spellId))
         {
             continue;
         }
@@ -3654,27 +3640,25 @@ bool Unit::RemoveNoStackAurasDueToAuraHolder(SpellAuraHolder* holder)
             }
 
             // Its a parent aura (create this aura in ApplyModifier)
-            if ((*i).second->IsInUse())
+            if (i.second->IsInUse())
             {
-                sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "SpellAuraHolder (Spell %u) is in process but attempt removed at SpellAuraHolder (Spell %u) adding, need add stack rule for Unit::RemoveNoStackAurasDueToAuraHolder", i->second->GetId(), holder->GetId());
+                sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "SpellAuraHolder (Spell %u) is in process but attempt removed at SpellAuraHolder (Spell %u) adding, need add stack rule for Unit::RemoveNoStackAurasDueToAuraHolder", i.second->GetId(), holder->GetId());
                 continue;
             }
             sLog.Out(LOG_BASIC, LOG_LVL_DETAIL, "[STACK][%u/%u] NoStackSpellDueToSpell", spellId, i_spellId);
-            RemoveAurasByCasterSpell(i_spellId, (*i).second->GetCasterGuid());
-
-            if (m_spellAuraHolders.empty())
-                break;
-            else
-                next =  m_spellAuraHolders.begin();
-
+            aurasToRemove.push_back({ i_spellId, i.second->GetCasterGuid() });
             continue;
         }
     }
-    // Sorts moins puissants :
+
+    for (auto const& itr : aurasToRemove)
+        RemoveAurasByCasterSpell(itr.first, itr.second);
+
     std::vector<uint32> lessPowerfulSpells;
     if (sSpellMgr.ListLessPowerfulSpells(spellId, lessPowerfulSpells))
         for (const auto& it : lessPowerfulSpells)
-            RemoveAurasDueToSpell(it);
+            RemoveAurasDueToSpell(it, holder);
+
     return true;
 }
 
@@ -3911,13 +3895,8 @@ void Unit::DeleteAuraHolder(SpellAuraHolder* holder)
 
 void Unit::RemoveSpellAuraHolder(SpellAuraHolder* holder, AuraRemoveMode mode)
 {
-    // Statue unsummoned at holder remove
-    Totem* statue = nullptr;
     SpellCaster* caster = holder->GetRealCaster();
     bool isChanneled = holder->IsChanneled(); // cache for after the holder is deleted
-    if (isChanneled && caster)
-        if (caster->IsCreature() && ((Creature*)caster)->IsTotem() && ((Totem*)caster)->GetTotemType() == TOTEM_STATUE)
-            statue = ((Totem*)caster);
 
     if (m_spellAuraHoldersUpdateIterator != m_spellAuraHolders.end() && m_spellAuraHoldersUpdateIterator->second == holder)
         ++m_spellAuraHoldersUpdateIterator;
@@ -3950,9 +3929,6 @@ void Unit::RemoveSpellAuraHolder(SpellAuraHolder* holder, AuraRemoveMode mode)
 
     if (mode != AURA_REMOVE_BY_DELETE)
         holder->HandleSpellSpecificBoosts(false);
-
-    if (statue)
-        statue->UnSummon();
 
     uint32 auraSpellId = holder->GetId();
 
@@ -4881,6 +4857,15 @@ Player* Unit::GetPossessor() const
     return nullptr;
 }
 
+Player* Unit::GetOwnerPlayerOrPlayerItself() const
+{
+    ObjectGuid guid = GetOwnerGuid();
+    if (guid.IsPlayer())
+        return ObjectAccessor::FindPlayer(guid);
+
+    return IsPlayer() ? (Player*)this : nullptr;
+}
+
 Player* Unit::GetCharmerOrOwnerPlayerOrPlayerItself() const
 {
     ObjectGuid guid = GetCharmerOrOwnerGuid();
@@ -4905,7 +4890,7 @@ Player* Unit::GetAffectingPlayer() const
         return const_cast<Unit*>(this)->ToPlayer();
 
     if (Unit* owner = GetCharmerOrOwner())
-        return owner->GetCharmerOrOwnerPlayerOrPlayerItself();
+        return owner->GetOwnerPlayerOrPlayerItself(); // no charmer, pet of charmed creature should still be attackable by player
 
     return nullptr;
 }
@@ -5933,15 +5918,7 @@ bool Unit::IsNoWeaponShapeShift() const
 
 bool Unit::IsAttackSpeedOverridenShapeShift() const
 {
-    switch (GetShapeshiftForm())
-    {
-        case FORM_CAT:
-        case FORM_BEAR:
-        case FORM_DIREBEAR:
-            return true;
-    }
-
-    return false;
+    return IsAttackSpeedOverridenForm(GetShapeshiftForm());
 }
 
 bool Unit::IsInDisallowedMountForm() const
@@ -6043,9 +6020,9 @@ void Unit::SetInCombatWithAggressor(Unit* pAggressor, bool touchOnly/* = false*/
     // PvP combat participation pulse: refresh pvp timers on pvp combat (we are the victim)
     if (pAggressor->IsPvP())
     {
-        if (Player* pThisPlayer = GetCharmerOrOwnerPlayerOrPlayerItself())
+        if (Player* pThisPlayer = GetAffectingPlayer())
         {
-            if (Player const* pAggressorPlayer = pAggressor->GetCharmerOrOwnerPlayerOrPlayerItself())
+            if (Player const* pAggressorPlayer = pAggressor->GetAffectingPlayer())
             {
                 if (pThisPlayer != pAggressorPlayer && !pThisPlayer->IsInDuelWith(pAggressorPlayer) && !(pThisPlayer->IsFFAPvP() && pAggressorPlayer->IsFFAPvP()))
                 {
@@ -6113,9 +6090,9 @@ void Unit::TogglePlayerPvPFlagOnAttackVictim(Unit const* pVictim, bool touchOnly
     // PvP combat participation pulse: refresh pvp timers on pvp combat (we are the aggressor)
     if (pVictim->IsPvP())
     {
-        if (Player* pThisPlayer = GetCharmerOrOwnerPlayerOrPlayerItself())
+        if (Player* pThisPlayer = GetAffectingPlayer())
         {
-            Player const* pVictimPlayer = pVictim->GetCharmerOrOwnerPlayerOrPlayerItself();
+            Player const* pVictimPlayer = pVictim->GetAffectingPlayer();
 
             if (!pVictimPlayer || ((pThisPlayer != pVictimPlayer) && !pThisPlayer->IsInDuelWith(pVictimPlayer) && !(pThisPlayer->IsFFAPvP() && pVictimPlayer->IsFFAPvP())))
             {
@@ -8107,6 +8084,8 @@ void Unit::SetMaxHealth(uint32 val)
 void Unit::SetHealthPercent(float percent)
 {
     uint32 newHealth = GetMaxHealth() * percent / 100.0f;
+    if (percent > 0 && newHealth == 0)
+        newHealth = 1;
     SetHealth(newHealth);
 }
 
@@ -9751,30 +9730,30 @@ void Unit::RemoveAurasAtMechanicImmunity(uint32 mechMask, uint32 exceptSpellId, 
     }
 }
 
-void Unit::NearTeleportTo(float x, float y, float z, float orientation, uint32 teleportOptions)
+bool Unit::NearTeleportTo(float x, float y, float z, float orientation, uint32 teleportOptions)
 {
     DisableSpline();
 
     if (IsPlayer())
-        ((Player*)this)->TeleportTo(GetMapId(), x, y, z, orientation, teleportOptions);
-    else
-    {
-        Creature* c = (Creature*)this;
-        // Creature relocation acts like instant movement generator, so current generator expects interrupt/reset calls to react properly
-        if (!c->GetMotionMaster()->empty())
-            if (MovementGenerator* movgen = c->GetMotionMaster()->top())
-                movgen->Interrupt(*c);
+        return ((Player*)this)->TeleportTo(GetMapId(), x, y, z, orientation, teleportOptions);
 
-        MovementPacketSender::SendTeleportToObservers(this, x, y, z, orientation);
-        GetMap()->CreatureRelocation((Creature*)this, x, y, z, orientation);
-        MovementPacketSender::SendTeleportToObservers(this, x, y, z, orientation);
+    Creature* c = (Creature*)this;
+    // Creature relocation acts like instant movement generator, so current generator expects interrupt/reset calls to react properly
+    if (!c->GetMotionMaster()->empty())
+        if (MovementGenerator* movgen = c->GetMotionMaster()->top())
+            movgen->Interrupt(*c);
 
-        // finished relocation, movegen can different from top before creature relocation,
-        // but apply Reset expected to be safe in any case
-        if (!c->GetMotionMaster()->empty())
-            if (MovementGenerator* movgen = c->GetMotionMaster()->top())
-                movgen->Reset(*c);
-    }
+    MovementPacketSender::SendTeleportToObservers(this, x, y, z, orientation);
+    GetMap()->CreatureRelocation((Creature*)this, x, y, z, orientation);
+    MovementPacketSender::SendTeleportToObservers(this, x, y, z, orientation);
+
+    // finished relocation, movegen can different from top before creature relocation,
+    // but apply Reset expected to be safe in any case
+    if (!c->GetMotionMaster()->empty())
+        if (MovementGenerator* movgen = c->GetMotionMaster()->top())
+            movgen->Reset(*c);
+
+    return true;
 }
 
 void Unit::NearLandTo(float x, float y, float z, float orientation)
@@ -10109,7 +10088,7 @@ void Unit::HandleInterruptsOnMovement(bool positionChanged)
 
     // Fix bug after 1.11 where client doesn't send stand state update while casting.
     // Test case: Begin eating or drinking, then start casting Hearthstone and run.
-    if (HasUnitMovementFlag(MOVEFLAG_MASK_MOVING_OR_TURN)) // sitting on chair teleports you, so we need to check flags
+    if (m_movementInfo.HasMovementFlag(MOVEFLAG_MASK_MOVING_OR_TURN)) // sitting on chair teleports you, so we need to check flags
         SetStandState(UNIT_STAND_STATE_STAND);
 }
 
@@ -10226,7 +10205,7 @@ bool Unit::GetRandomAttackPoint(Unit const* attacker, float &x, float &y, float 
     float angle = GetAngle(attacker);
     float sizeFactor = GetObjectBoundingRadius() + attacker->GetObjectBoundingRadius();
     if (sizeFactor < 0.1f)
-        sizeFactor = DEFAULT_COMBAT_REACH;
+        sizeFactor = DEFAULT_WORLD_OBJECT_SIZE;
 
     bool const canOnlySwim = attacker->CanSwim() && !attacker->CanWalk() && !attacker->CanFly();
     bool const reachableBySwiming = attacker->CanSwimAtPosition(GetPosition());
@@ -10241,7 +10220,7 @@ bool Unit::GetRandomAttackPoint(Unit const* attacker, float &x, float &y, float 
 
     angle += (attacker_number ? ((float(M_PI / 2) - float(M_PI) * rand_norm_f()) * attacker_number / sizeFactor) * 0.3f : 0);
 
-    float dist = attacker->GetObjectBoundingRadius() + GetObjectBoundingRadius() + rand_norm_f() * (attacker->GetMeleeReach() - attacker->GetObjectBoundingRadius());
+    float dist = GetCombatReachToTarget(attacker, false, 0.0f, true) - 0.5f;
     float initialPosX, initialPosY, initialPosZ, o;
     GetPosition(initialPosX, initialPosY, initialPosZ);
 
@@ -10331,7 +10310,7 @@ float Unit::GetCombatReach(bool forMeleeRange /*=true*/) const
     return (forMeleeRange && reach < 1.5f) ? 1.5f : reach;
 }
 
-float Unit::GetCombatReach(Unit const* pVictim, bool ability, float flat_mod) const
+float Unit::GetCombatReachToTarget(Unit const* pVictim, bool ability, float flat_mod, bool ignoreLeeway /*= false*/) const
 {
     float victimReach = (pVictim && pVictim->IsInWorld())
         ? pVictim->GetCombatReach(true)
@@ -10342,6 +10321,9 @@ float Unit::GetCombatReach(Unit const* pVictim, bool ability, float flat_mod) co
     reach += BASE_MELEERANGE_OFFSET;
     if (reach < ATTACK_DISTANCE)
         reach = ATTACK_DISTANCE;
+
+    if (ignoreLeeway)
+        return reach;
 
     // Melee leeway mechanic.
     // When both player and target has > 70% of normal runspeed, and are moving,
@@ -10363,7 +10345,7 @@ bool Unit::CanReachWithMeleeAutoAttackAtPosition(Unit const* pVictim, float x, f
     if (!pVictim || !pVictim->IsInWorld())
         return false;
 
-    float reach = GetCombatReach(pVictim, false, flat_mod);
+    float reach = GetCombatReachToTarget(pVictim, false, flat_mod);
 
     float dx = x - pVictim->GetPositionX();
     float dy = y - pVictim->GetPositionY();
@@ -10711,11 +10693,20 @@ void Unit::SendPlaySpellVisual(uint32 id) const
     SendMessageToSet(&data, true);
 }
 
+void Unit::CancelSpellChannelingAnimationInstantly()
+{
+    if (Player* pPlayer = ToPlayer())
+        pPlayer->SendChannelUpdate(0);
+
+    SetChannelObjectGuid(ObjectGuid());
+    SetUInt32Value(UNIT_CHANNEL_SPELL, 0);
+    DirectSendPublicValueUpdate({ UNIT_FIELD_CHANNEL_OBJECT , UNIT_FIELD_CHANNEL_OBJECT + 1 , UNIT_CHANNEL_SPELL });
+}
+
 #define PRELOAD if (this == unit) return true; \
 Unit const* u1 = GetCharmerOrOwnerOrSelf(); \
 Unit const* u2 = unit->GetCharmerOrOwnerOrSelf(); \
 if (u1 == u2) return true;
-
 
 bool Unit::IsInPartyWith(Unit const* unit) const
 {
@@ -10910,8 +10901,8 @@ float Unit::GetMinChaseDistance(Unit* victim) const
 float Unit::GetMaxChaseDistance(Unit* victim) const
 {
     if (m_casterChaseDistance > 1.0f)
-        return m_casterChaseDistance + GetObjectBoundingRadius() + victim->GetObjectBoundingRadius();
-    return GetMeleeReach() + BASE_MELEERANGE_OFFSET;
+        return m_casterChaseDistance + GetCombatReach() + victim->GetCombatReach();
+    return GetCombatReachToTarget(victim, false, 0.0f, true);
 }
 
 void Unit::RestoreMovement()
@@ -10924,7 +10915,7 @@ void Unit::RestoreMovement()
         Unit* victim = GetCharmInfo() && GetCharmInfo()->IsAtStay() ? nullptr : GetVictim();
         if (victim)
             GetMotionMaster()->MoveChase(victim);
-        else
+        else if (GetMotionMaster()->GetCurrentMovementGeneratorType() != static_cast<Creature*>(this)->GetDefaultMovementType())
             GetMotionMaster()->Initialize();
     }
 }
