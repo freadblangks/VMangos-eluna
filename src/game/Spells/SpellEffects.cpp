@@ -440,7 +440,7 @@ void Spell::EffectSchoolDMG(SpellEffectIndex effect_idx)
                 }
                 // Shield Slam
                 else if (m_spellInfo->IsFitToFamilyMask<CF_WARRIOR_SHIELD_SLAM>())
-                    damage += m_casterUnit->GetShieldBlockValue() * 2;
+                    damage += m_casterUnit->GetShieldBlockValue();
                 // Execute trigger
                 else if (m_spellInfo->Id == 20647)
                     m_casterUnit->SetPower(POWER_RAGE, 0);
@@ -1772,12 +1772,6 @@ void Spell::EffectDummy(SpellEffectIndex effIdx)
 
                 dmg = m_casterUnit->SpellDamageBonusDone(m_casterUnit, m_spellInfo, effIdx, dmg > 0 ? dmg : 0, SPELL_DIRECT_DAMAGE);
                 dmg = m_casterUnit->SpellDamageBonusTaken(m_casterUnit, m_spellInfo, effIdx, dmg, SPELL_DIRECT_DAMAGE);
-
-                //JieFuFuTi(34001) reduce 99% taken damage do not work on life tap.
-                if(m_casterUnit->HasAura(34001)){
-                    dmg = 100 * dmg;
-                }
-                
                 int32 idmg = dither(dmg);
 
                 if (int32(m_casterUnit->GetHealth()) > idmg)

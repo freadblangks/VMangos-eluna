@@ -1019,13 +1019,6 @@ void PartyBotAI::UpdateInCombatAI_Paladin()
 
     if (Unit* pFriend = me->FindLowestHpFriendlyUnit(30.0f, 70, true, me))
     {
-        if (m_spells.paladin.pQuZhu &&
-            !pFriend->HasAura(34047) &&
-            CanTryToCastSpell(pFriend, m_spells.paladin.pQuZhu))
-        {
-            if (DoCastSpell(pFriend, m_spells.paladin.pQuZhu) == SPELL_CAST_OK)
-                return;
-        }
         if (m_spells.paladin.pBlessingOfProtection &&
            !IsPhysicalDamageClass(pFriend->GetClass()) &&
             CanTryToCastSpell(pFriend, m_spells.paladin.pBlessingOfProtection))
@@ -1191,15 +1184,6 @@ void PartyBotAI::UpdateInCombatAI_Paladin()
                 me->GetMotionMaster()->MoveChase(pVictim);
             }
         }
-    }
-
-    if (m_spells.paladin.pQuZhu &&
-        (me->HasUnitState(UNIT_STAT_CAN_NOT_REACT_OR_LOST_CONTROL) || me->HasAuraType(SPELL_AURA_MOD_SILENCE)) &&
-        !me->HasAura(34047) &&
-        CanTryToCastSpell(me, m_spells.paladin.pQuZhu))
-    {
-        if (DoCastSpell(me, m_spells.paladin.pQuZhu) == SPELL_CAST_OK)
-            return;
     }
 
     if (m_spells.paladin.pBlessingOfFreedom &&
@@ -1397,15 +1381,6 @@ void PartyBotAI::UpdateInCombatAI_Hunter()
 {
     if (Unit* pVictim = me->GetVictim())
     {
-        if (Pet* pPet = me->GetPet())
-        {
-            if (!pPet->GetVictim() && pPet->IsAlive())
-            {
-                pPet->GetCharmInfo()->SetIsCommandAttack(true);
-                pPet->AI()->AttackStart(pVictim);
-            }
-        }
-
         if (me->GetMotionMaster()->GetCurrentMovementGeneratorType() == IDLE_MOTION_TYPE
             && me->GetDistance(pVictim) > 30.0f)
         {
@@ -1544,12 +1519,8 @@ void PartyBotAI::UpdateInCombatAI_Hunter()
             if (!me->IsStopped())
                 me->StopMoving();
             me->GetMotionMaster()->Clear();
-            
             if (RunAwayFromTarget(pVictim))
-            {
-                me->SetCasterChaseDistance(25.0f);
                 return;
-            }
         }
     }
 }
@@ -1609,60 +1580,14 @@ void PartyBotAI::UpdateOutOfCombatAI_Mage()
         m_isBuffing = false;
     }
 
-    if (Unit* pVictim = me->GetVictim())
-    {
-        if (Pet* pPet = me->GetPet())
-        {
-            pPet->ToggleAutocast(34060, true);
-            pPet->ToggleAutocast(34061, true);
-            if (!pPet->GetVictim())
-            {
-                pPet->GetCharmInfo()->SetIsCommandAttack(true);
-                pPet->AI()->AttackStart(pVictim);
-            }
-        }
-
+    if (me->GetVictim())
         UpdateInCombatAI_Mage();
-    }
-    else
-        SummonPetIfNeeded();
 }
 
 void PartyBotAI::UpdateInCombatAI_Mage()
 {
     if (Unit* pVictim = me->GetVictim())
     {
-        if (Pet* pPet = me->GetPet())
-        {
-            if (pPet->IsAlive())
-            {
-                pPet->ToggleAutocast(34060, true);
-                pPet->ToggleAutocast(34061, true);
-                if (!pPet->GetVictim())
-                {
-                    pPet->GetCharmInfo()->SetIsCommandAttack(true);
-                    pPet->AI()->AttackStart(pVictim);
-                }
-            }
-        }
-
-        if (m_spells.mage.pATuoSiZhiGun &&
-            CanTryToCastSpell(pVictim, m_spells.mage.pATuoSiZhiGun) &&
-            (me->GetDistance(pVictim) < 40.0f) &&
-            !pVictim->HasAura(34003))
-        {
-            if (DoCastSpell(pVictim, m_spells.mage.pATuoSiZhiGun) == SPELL_CAST_OK)
-                return;
-        }
-
-        if (m_spells.mage.pBlinkDagger &&
-            CanTryToCastSpell(me, m_spells.mage.pBlinkDagger) &&
-            ((me->GetHealthPercent() < 75.0f) || (me->GetPowerPercent(POWER_MANA) < 75.0f)))
-        {
-            if (DoCastSpell(me, m_spells.mage.pBlinkDagger) == SPELL_CAST_OK)
-                return;
-        }
-
         if (m_spells.mage.pCombustion &&
             CanTryToCastSpell(me, m_spells.mage.pCombustion))
         {
@@ -1963,50 +1888,12 @@ void PartyBotAI::UpdateOutOfCombatAI_Priest()
         FindAndHealInjuredAlly())
         return;
 
-    if (Unit* pVictim = me->GetVictim())
-    {
-        if (Pet* pPet = me->GetPet())
-        {
-            pPet->ToggleAutocast(34067, true);
-            pPet->ToggleAutocast(34068, true);
-            pPet->ToggleAutocast(34069, true);
-            if (!pPet->GetVictim())
-            {
-                pPet->GetCharmInfo()->SetIsCommandAttack(true);
-                pPet->AI()->AttackStart(pVictim);
-            }
-        }
-
+    if (me->GetVictim())
         UpdateInCombatAI_Priest();
-    }
-    else
-        SummonPetIfNeeded();
 }
 
 void PartyBotAI::UpdateInCombatAI_Priest()
 {
-    if (me->GetHealthPercent() < 50.0f){
-        if (m_spells.priest.pXuLingZhiRen &&
-            !me->HasAura(34019) &&
-            CanTryToCastSpell(me, m_spells.priest.pXuLingZhiRen))
-        {
-            if (DoCastSpell(me, m_spells.priest.pXuLingZhiRen) == SPELL_CAST_OK)
-                return;
-        }
-    }
-
-    if (Unit* pFriend = me->FindLowestHpFriendlyUnit(30.0f, 70, true, me))
-    {
-        if (m_spells.priest.pXuLingZhiRen &&
-           !IsPhysicalDamageClass(pFriend->GetClass()) &&
-           !pFriend->HasAura(34019) &&
-            CanTryToCastSpell(pFriend, m_spells.priest.pXuLingZhiRen))
-        {
-            if (DoCastSpell(pFriend, m_spells.priest.pXuLingZhiRen) == SPELL_CAST_OK)
-                return;
-        }
-    }
-
     if (m_spells.priest.pPowerWordShield &&
         CanTryToCastSpell(me, m_spells.priest.pPowerWordShield))
     {
@@ -2043,28 +1930,7 @@ void PartyBotAI::UpdateInCombatAI_Priest()
     {
         DoCastSpell(me, m_spells.priest.pInnerFocus);
     }
-    
-    if (Unit* pFriend_pet = me->FindLowestHpFriendlyUnit(40.0f, 1, false, me))
-    {
-        if (Unit* pVictim_pet = pFriend_pet->GetVictim())
-        {
-            if (Pet* pPet = me->GetPet())
-            {
-                if (pPet->IsAlive())
-                {
-                    pPet->ToggleAutocast(34067, true);
-                    pPet->ToggleAutocast(34068, true);
-                    pPet->ToggleAutocast(34069, true);
-                    if (!pPet->GetVictim())
-                    {
-                        pPet->GetCharmInfo()->SetIsCommandAttack(true);
-                        pPet->AI()->AttackStart(pVictim_pet);
-                    }
-                }
-            }
-        }
-    }
-    
+
     if (m_role == ROLE_HEALER || (!me->GetVictim() && me->GetShapeshiftForm() == FORM_NONE))
     {
         // Shield allies being attacked.
@@ -2119,17 +1985,6 @@ void PartyBotAI::UpdateInCombatAI_Priest()
     }
     else if (Unit* pVictim = me->GetVictim())
     {
-        if (m_spells.priest.pXuLingZhiRen &&
-            CanTryToCastSpell(pVictim, m_spells.priest.pXuLingZhiRen) &&
-            (me->GetDistance(pVictim) < 30.0f) &&
-            (pVictim->GetVictim() == me) &&
-            !pVictim->HasAura(34019) &&
-            IsPhysicalDamageClass(pVictim->GetClass()))
-        {
-            if (DoCastSpell(pVictim, m_spells.priest.pXuLingZhiRen) == SPELL_CAST_OK)
-                return;
-        }
-        
         if (m_spells.priest.pShadowform &&
             CanTryToCastSpell(me, m_spells.priest.pShadowform))
         {
@@ -2284,24 +2139,6 @@ void PartyBotAI::UpdateInCombatAI_Warlock()
 {
     if (Unit* pVictim = me->GetVictim())
     {
-        if (Pet* pPet = me->GetPet())
-        {
-            if (!pPet->GetVictim() && pPet->IsAlive())
-            {
-                pPet->GetCharmInfo()->SetIsCommandAttack(true);
-                pPet->AI()->AttackStart(pVictim);
-            }
-        }
-
-        if (m_spells.warlock.pEMoFuTi &&
-           ((me->GetHealthPercent() < 50.0f) || ((me->GetDistance(pVictim) < 10.0f) && (pVictim->GetVictim() == me) && IsPhysicalDamageClass(pVictim->GetClass()))) &&
-            !me->HasAura(34020) &&
-            CanTryToCastSpell(me, m_spells.warlock.pEMoFuTi))
-        {
-            if (DoCastSpell(me, m_spells.warlock.pEMoFuTi) == SPELL_CAST_OK)
-                return;
-        }
-
         if (m_spells.warlock.pDeathCoil &&
            (pVictim->CanReachWithMeleeAutoAttack(me) || pVictim->IsNonMeleeSpellCasted()) &&
             CanTryToCastSpell(pVictim, m_spells.warlock.pDeathCoil))
@@ -2433,8 +2270,8 @@ void PartyBotAI::UpdateInCombatAI_Warlock()
         }
 
         if (m_spells.warlock.pLifeTap &&
-           (me->GetPowerPercent(POWER_MANA) < 25.0f) &&
-           (me->GetHealthPercent() > 50.0f) &&
+           (me->GetPowerPercent(POWER_MANA) < 10.0f) &&
+           (me->GetHealthPercent() > 70.0f) &&
             CanTryToCastSpell(me, m_spells.warlock.pLifeTap))
         {
             if (DoCastSpell(me, m_spells.warlock.pLifeTap) == SPELL_CAST_OK)

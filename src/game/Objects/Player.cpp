@@ -4481,8 +4481,6 @@ uint32 Player::GetResetTalentsCost() const
 
 bool Player::ResetTalents(bool no_cost)
 {
-    if(HasItemCount(26001, 1))
-        no_cost = true;
     // not need after this call
     if (HasAtLoginFlag(AT_LOGIN_RESET_TALENTS))
         RemoveAtLoginFlag(AT_LOGIN_RESET_TALENTS, true);
@@ -5027,13 +5025,6 @@ void Player::ResurrectPlayer(float restore_percent, bool applySickness)
 {
     // Interrupt resurrect spells
     InterruptSpellsCastedOnMe(false, true);
-
-    // Hardcore Challenger Can Not Resurrect
-    if (GetLevel()<60 && GetQuestStatus(10000) == QUEST_STATUS_COMPLETE)
-    {
-        GetSession()->SendNotification("Hardcore Challenger Can Not Resurrect.");
-        return;
-    }
 
     SetDeathState(ALIVE);
 
@@ -10826,18 +10817,7 @@ void Player::SetVisibleItemSlot(uint8 slot, Item* pItem)
         SetGuidValue(PLAYER_VISIBLE_ITEM_1_CREATOR + (slot * MAX_VISIBLE_ITEM_OFFSET), pItem->GetGuidValue(ITEM_FIELD_CREATOR));
 
         int VisibleBase = PLAYER_VISIBLE_ITEM_1_0 + (slot * MAX_VISIBLE_ITEM_OFFSET);
-        //Transmogrification
-        uint64 item_guid = pItem->GetGUIDLow();
-        uint64 character_guid = pItem->GetOwnerGuid();
-        QueryResult* result = CharacterDatabase.PQuery("SELECT `entry` FROM `character_transmog` WHERE `guid` = '%u' and `character` = '%u'", item_guid, character_guid);
-        if(result){
-            Field* fields = result->Fetch();
-            uint64 item_entry = fields[0].GetUInt64();
-            SetUInt32Value(VisibleBase + 0, item_entry);
-            delete result;
-        }else{
-            SetUInt32Value(VisibleBase + 0, pItem->GetEntry());
-        }
+        SetUInt32Value(VisibleBase + 0, pItem->GetEntry());
 
         for (int i = 0; i < MAX_INSPECTED_ENCHANTMENT_SLOT; ++i)
             SetUInt32Value(VisibleBase + 1 + i, pItem->GetEnchantmentId(EnchantmentSlot(i)));
@@ -10859,11 +10839,6 @@ void Player::SetVisibleItemSlot(uint8 slot, Item* pItem)
         SetUInt32Value(PLAYER_VISIBLE_ITEM_1_PROPERTIES + 0 + (slot * MAX_VISIBLE_ITEM_OFFSET), 0);
         SetUInt32Value(PLAYER_VISIBLE_ITEM_1_PROPERTIES + 1 + (slot * MAX_VISIBLE_ITEM_OFFSET), 0);
     }
-}
-
-void Player::ReplaceCharacterTransmog(uint64 guid, uint64 entry, uint64 character)
-{
-    CharacterDatabase.PExecute("REPLACE INTO `character_transmog` (`guid`, `entry`, `character`) VALUES (%u, %u, %u)", guid, entry, character);
 }
 
 void Player::VisualizeItem(uint8 slot, Item* pItem)
@@ -15340,9 +15315,6 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
 
     _LoadSpells(holder->GetResult(PLAYER_LOGIN_QUERY_LOADSPELLS));
 
-    //Dual Talent Specialization
-    _LoadAlternativeSpec();
-
     // after spell load
     InitTalentForLevel();
     LearnDefaultSpells();
@@ -18363,20 +18335,13 @@ bool Player::ActivateTaxiPathTo(std::vector<uint32> const& nodes, Creature* npc 
     if (GetPet())
         RemovePet(PET_SAVE_REAGENTS);
 
-    if(HasItemCount(26000, 1))
-    {
-        TaxiNodesEntry const* lastnode = sObjectMgr.FindTaxiNodesEntry(nodes[nodes.size() - 1]);
-		m_taxi.ClearTaxiDestinations();
-		TeleportTo(lastnode->map_id, lastnode->x, lastnode->y, lastnode->z, GetOrientation());
-		return false;
-    }
-    else{
-        WorldPacket data(SMSG_ACTIVATETAXIREPLY, 4);
-        data << uint32(ERR_TAXIOK);
-        GetSession()->SendPacket(&data);
-        GetSession()->SendDoFlight(mount_display_id, sourcepath);
-        return true;
-    }
+    WorldPacket data(SMSG_ACTIVATETAXIREPLY, 4);
+    data << uint32(ERR_TAXIOK);
+    GetSession()->SendPacket(&data);
+
+    GetSession()->SendDoFlight(mount_display_id, sourcepath);
+
+    return true;
 }
 
 bool Player::ActivateTaxiPathTo(uint32 taxi_path_id, uint32 spellid /*= 0*/, bool nocheck)
@@ -20186,11 +20151,6 @@ void Player::RewardSinglePlayerAtKill(Unit* pVictim)
     bool PvP = pVictim->IsCharmerOrOwnerPlayerOrPlayerItself();
     uint32 xp = PvP ? 0 : MaNGOS::XP::Gain(this, static_cast<Creature*>(pVictim));
     
-    //Double Experience
-    if(HasItemCount(26002, 1))
-    {
-        xp = xp * 2;
-    }
     // honor can be in PvP and !PvP (racial leader) cases
     RewardHonor(pVictim, 1);
 
@@ -20204,15 +20164,7 @@ void Player::RewardSinglePlayerAtKill(Unit* pVictim)
         if (xp)
         {
             if (Pet* pet = GetPet())
-            {
-                //Double Experience
-                uint32 xp_pet = MaNGOS::XP::Gain(pet, static_cast<Creature*>(pVictim));
-                if(HasItemCount(26002, 1))
-                {
-                    xp_pet = xp_pet * 2;
-                }
-                pet->GivePetXP(xp_pet);
-            }   
+                pet->GivePetXP(MaNGOS::XP::Gain(pet, static_cast<Creature*>(pVictim)));
         }
 
         // normal creature (not pet/etc) can be only in !PvP case
@@ -22845,124 +22797,4 @@ void Player::ClearTemporaryWarWithFactions()
         }
         m_temporaryAtWarFactions.clear();
     }
-}
-
-//Dual Talent Specialization
-void Player::_LoadAlternativeSpec() {
-
-	m_altspec_talents.clear();
-	QueryResult *result = CharacterDatabase.PQuery("SELECT spells FROM character_swap_spec WHERE guid = '%u'",GetGUIDLow());
-
-	if (result)
-	{
-		Field *fields = result->Fetch();
-		std::string spells = fields[0].GetString();
-		std::istringstream ss(spells);
-		std::string spell;
-
-		while(std::getline(ss, spell, ' ')) {
-			m_altspec_talents.push_back(atoi(spell.c_str()));
-		}
-	}
-	delete result;
-
-};
-
-void Player::_SaveAlternativeSpec()
-{
-    uint32 ts = uint32(time(NULL));
-	//At first, save spells.
-	std::ostringstream ss;
-	ss << "REPLACE INTO character_swap_spec (guid, spells, timestamp) VALUES ('" << GetGUIDLow() << "', '";
-	//Okay, now serialize it into string of ids, separated by whitespace
-	for (SpellIDList::iterator it = m_altspec_talents.begin(); it != m_altspec_talents.end(); it++)
-		ss << *it << " ";
-	ss << "', '" << std::to_string(ts) << "')";
-
-	//Nice, it saved!
-	CharacterDatabase.PExecute(ss.str().c_str());
-	
-}
-
-uint32 Player::SwapSpec()
-{
-	//Level check
-	if (GetLevel() <= 10)
-		return 2;
-
-	//Time check
-    uint32 ts = uint32(time(NULL)) - 7200;
-    QueryResult *result = CharacterDatabase.PQuery("SELECT timestamp FROM character_swap_spec WHERE guid = '%u'",GetGUIDLow());
-	if (result)
-	{
-		Field *fields = result->Fetch();
-		std::string str_ts = fields[0].GetString();
-        ts = uint32(atoi(str_ts.c_str()));
-	}
-	delete result;
-
-	if (uint32(time(NULL) - ts) < sWorld.getConfig(CONFIG_SWAP_SPEC_INTERVAL))
-        return 3;
-
-	/*********************************************************/
-	/***                   SAVE TALENTS                    ***/
-	/*********************************************************/
-	//copy current talents list
-	SpellIDList tmp = m_altspec_talents;
-
-	//erase it for populating using current talents
-	m_altspec_talents.clear();
-
-	//Find all talents, general idea from Player::resetTalents
-	for (unsigned int i = 0; i < sTalentStore.GetNumRows(); ++i) {
-		TalentEntry const *talentInfo = sTalentStore.LookupEntry(i);
-		if (!talentInfo) continue;
-		TalentTabEntry const *talentTabInfo = sTalentTabStore.LookupEntry(talentInfo->TalentTab);
-		if (!talentTabInfo) continue;
-		if ((GetClassMask() & talentTabInfo->ClassMask) == 0) continue;
-		for (int j = 0; j < 5; ++j) {
-			for (PlayerSpellMap::iterator itr = GetSpellMap().begin(); itr != GetSpellMap().end();) {
-
-				//skip disabled talents like Pyroblast or some else
-				if (itr->second.state == PLAYERSPELL_REMOVED || itr->second.disabled)
-				{
-					++itr;
-					continue;
-				}
-
-				//for spells, which can be updated via trainers(like Pyroblast), we can'n just compare, cuz
-				// >1 ranks are not in talens store. So, first rank it is. We can just get lowerest rank of skill
-				// and search it in the talents storage.
-				uint32 itrFirstId = sSpellMgr.GetFirstSpellInChain(itr->first);
-
-				//now - just compare. Also, it make sense to add "|| spellmgr.IsSpellLearnToSpell(talentInfo->RankID[j],itrFirstId)"
-				//but i have no idea what it is, it uses in the Player::resetTalents function and it may be needed.
-				//Also, there is a some spells like Prayer of Spirit, which not in talents tree, but its depends on talents.
-				//So, we need just to get required spell by current spell and find is it in player spellbook.
-				if (itrFirstId == talentInfo->RankID[j]
-					|| sSpellMgr.IsSpellLearnToSpell(talentInfo->RankID[j], itrFirstId)
-					)//|| HasSpell(spellmgr.GetSpellRequired(itrFirstId)))
-					m_altspec_talents.push_back(itr->first);
-				++itr;
-			}
-		}
-	}
-
-	/*********************************************************/
-	/***                   LOAD TALENTS                    ***/
-	/*********************************************************/
-	ResetTalents(true);
-	for (SpellIDList::iterator it = tmp.begin(); it != tmp.end(); it++)
-	{
-		LearnSpell(*it, false, true);
-	}
-	InitTalentForLevel();
-	//learnSkillRewardedSpells();
-
-	//Drop mana and health to minimum for preventing of profit from swappings
-	SetHealth(12);
-	SetPower(POWER_MANA, 12);
-	_SaveAlternativeSpec();
-    //Okay
-	return 1;
 }

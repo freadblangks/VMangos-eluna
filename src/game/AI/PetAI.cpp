@@ -43,8 +43,7 @@ PetAI::PetAI(Creature* c) : CreatureAI(c), m_updateAlliesTimer(0)
 {
     UpdateAllies();
     // Warlock imp has no melee attack
-    // Mage Water Elemental has no melee attack
-    m_bMeleeAttack = (c->GetEntry() != 416 && c->GetEntry() != 200009);
+    m_bMeleeAttack = (c->GetEntry() != 416);
 }
 
 bool PetAI::_needToStop() const
