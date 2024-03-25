@@ -34,6 +34,7 @@
 #include "WorldPacket.h"
 #include "Weather.h"
 #include "Player.h"
+#include "Group.h"
 #include "AccountMgr.h"
 #include "AuctionHouseMgr.h"
 #include "ObjectMgr.h"
@@ -50,7 +51,6 @@
 #include "CreatureAIRegistry.h"
 #include "Policies/SingletonImp.h"
 #include "BattleGroundMgr.h"
-#include "TemporarySummon.h"
 #include "VMapFactory.h"
 #include "GameEventMgr.h"
 #include "PoolManager.h"
@@ -65,23 +65,22 @@
 #include "LFGMgr.h"
 #include "AutoBroadCastMgr.h"
 #include "AuctionHouseBotMgr.h"
-#include "AutoTesting/AutoTestingMgr.h"
 #include "Transports/TransportMgr.h"
 #include "PlayerBotMgr.h"
-#include "ProgressBar.h"
 #include "ZoneScriptMgr.h"
 #include "CharacterDatabaseCache.h"
 #include "CreatureGroups.h"
 #include "MoveMap.h"
 #include "SpellModMgr.h"
-#include "NodesMgr.h"
 #include "Anticheat.h"
 #include "MovementBroadcaster.h"
 #include "HonorMgr.h"
 #include "Anticheat/Anticheat.h"
+#include "ThreadPool.h"
 #include "AuraRemovalMgr.h"
 #include "InstanceStatistics.h"
 #include "GuardMgr.h"
+#include "TransportMgr.h"
 
 #include <chrono>
 
@@ -102,7 +101,9 @@ float World::m_VisibleObjectGreyDistance      = 0;
 float  World::m_relocation_lower_limit_sq     = 10.f * 10.f;
 uint32 World::m_relocation_ai_notify_delay    = 1000u;
 
-uint32 World::m_creatureSummonCountLimit      = DEFAULT_CREATURE_SUMMON_LIMIT;
+uint32 World::m_currentMSTime = 0;
+TimePoint World::m_currentTime = TimePoint();
+uint32 World::m_currentDiff = 0;
 
 void LoadGameObjectModelList();
 
@@ -111,45 +112,49 @@ World& GetSWorld()
     return sWorld;
 }
 
-/// World constructor
-World::World()
+// World constructor
+World::World():
+    m_playerLimit(0),
+    m_allowMovement(true),
+    m_gameTime(time(nullptr)),
+    m_timeZoneOffset(0),
+    m_gameDay((m_gameTime + m_timeZoneOffset) / DAY),
+    m_startTime(m_gameTime),
+    m_wowPatch(WOW_PATCH_102),
+    m_defaultDbcLocale(LOCALE_enUS),
+    m_timeRate(1.0f),
+    m_canProcessAsyncPackets(false)
 {
-    m_playerLimit = 0;
     m_ShutdownMask = 0;
     m_ShutdownTimer = 0;
-    m_gameTime = time(nullptr);
-    m_timeZoneOffset = 0;
-    m_gameDay = (m_gameTime + m_timeZoneOffset) / DAY;
-    m_startTime = m_gameTime;
     m_maxActiveSessionCount = 0;
     m_maxQueuedSessionCount = 0;
     m_MaintenanceTimeChecker = 0;
     m_anticrashRearmTimer = 0;
-    m_wowPatch = WOW_PATCH_102;
 
     m_defaultDbcLocale = LOCALE_enUS;
     m_availableDbcLocaleMask = 0;
 
-    for (int i = 0; i < CONFIG_UINT32_VALUE_COUNT; ++i)
-        m_configUint32Values[i] = 0;
+    for (uint32 & value : m_configUint32Values)
+        value = 0;
 
-    for (int i = 0; i < CONFIG_INT32_VALUE_COUNT; ++i)
-        m_configInt32Values[i] = 0;
+    for (int32 & value : m_configInt32Values)
+        value = 0;
 
-    for (int i = 0; i < CONFIG_FLOAT_VALUE_COUNT; ++i)
-        m_configFloatValues[i] = 0.0f;
+    for (float & value : m_configFloatValues)
+        value = 0.0f;
 
-    for (int i = 0; i < CONFIG_BOOL_VALUE_COUNT; ++i)
-        m_configBoolValues[i] = false;
+    for (bool & value : m_configBoolValues)
+        value = false;
 
     m_timeRate = 1.0f;
     m_charDbWorkerThread    = nullptr;
 }
 
-/// World destructor
+// World destructor
 World::~World()
 {
-    ///- Empty the kicked session set
+    // Empty the kicked session set
     while (!m_sessions.empty())
     {
         // not remove from queue, prevent loading new sessions
@@ -165,41 +170,68 @@ World::~World()
 
     if (m_charDbWorkerThread)
     {
-        m_charDbWorkerThread->wait();
-        delete m_charDbWorkerThread;
+        if (m_charDbWorkerThread->joinable())
+            m_charDbWorkerThread->join();
+        m_charDbWorkerThread.reset(nullptr);
     }
+
+    if (m_lfgQueueThread)
+    {
+        if (m_lfgQueueThread->joinable())
+            m_lfgQueueThread->join();
+        m_lfgQueueThread.reset(nullptr);
+    }
+
+    if (m_asyncPacketsThread)
+    {
+        if (m_asyncPacketsThread->joinable())
+            m_asyncPacketsThread->join();
+        m_asyncPacketsThread.reset(nullptr);
+    }
+
     //TODO free addSessQueue
 }
 
 void World::Shutdown()
 {
-    sWorld.KickAll();                                       // save and kick all players
-    sWorld.UpdateSessions( 1 );                             // real players unload required UpdateSessions call
-    if (m_charDbWorkerThread)
-        m_charDbWorkerThread->wait();
+    sPlayerBotMgr.DeleteAll();
+    KickAll();                                     // save and kick all players
+    UpdateSessions(1);                             // real players unload required UpdateSessions call
+
+    if (m_charDbWorkerThread && m_charDbWorkerThread->joinable())
+        m_charDbWorkerThread->join();
+
+    if (m_lfgQueueThread && m_lfgQueueThread->joinable())
+        m_lfgQueueThread->join();
+
+    if (m_asyncPacketsThread && m_asyncPacketsThread->joinable())
+        m_asyncPacketsThread->join();
+
+    sAnticheatMgr->StopWardenUpdateThread();
 }
 
-/// Find a session by its id
+// Find a session by its id
 WorldSession* World::FindSession(uint32 id) const
 {
     SessionMap::const_iterator itr = m_sessions.find(id);
 
     if (itr != m_sessions.end())
-        return itr->second;                                 // also can return NULL for kicked session
-    else
-        return nullptr;
+        return itr->second;                                 // also can return nullptr for kicked session
+
+    return nullptr;
 }
 
-/// Remove a given session
+// Remove a given session
 bool World::RemoveSession(uint32 id)
 {
-    ///- Find the session, kick the user, but we can't delete session at this moment to prevent iterator invalidation
+    // Find the session, kick the user, but we can't delete session at this moment to prevent iterator invalidation
     SessionMap::const_iterator itr = m_sessions.find(id);
 
     if (itr != m_sessions.end() && itr->second)
     {
         if (itr->second->PlayerLoading())
             return false;
+
         itr->second->KickPlayer();
     }
 
@@ -220,10 +252,10 @@ void World::AddSession_(WorldSession* s)
 {
     MANGOS_ASSERT(s);
 
-    //NOTE - Still there is race condition in WorldSession* being used in the Sockets
+    // NOTE - Still there is race condition in WorldSession* being used in the Sockets
 
-    ///- kick already loaded player with same account (if any) and remove session
-    ///- if player is in loading and want to load again, return
+    // kick already loaded player with same account (if any) and remove session
+    // if player is in loading and want to load again, return
     if (!RemoveSession(s->GetAccountId()))
     {
         s->KickPlayer();
@@ -244,61 +276,76 @@ void World::AddSession_(WorldSession* s)
             // prevent decrease sessions count if session queued
             if (RemoveQueuedSession(old->second))
                 decrease_session = false;
+
+            // don't allow resetting consecutive play time on double login to same account
+            s->SetPreviousPlayedTime(old->second->GetConsecutivePlayTime(time(nullptr)));
+
+            // player is not kept in world so session can be deleted
             if (!old->second->ForcePlayerLogoutDelay())
                 delete old->second;
         }
+        else
+        {
+            auto itr = m_accountsPlayHistory.find(s->GetAccountId());
+            if (itr != m_accountsPlayHistory.end())
+            {
+                if ((time(nullptr) - itr->second.logoutTime) < PLAY_TIME_LIMIT_FULL)
+                    s->SetPreviousPlayedTime(itr->second.playedTime);
+                else
+                    itr->second.playedTime = 0;
+            }
+        }
     }
 
-    sAnticheatLib->SessionAdded(s);
     m_sessions[s->GetAccountId()] = s;
 
-    uint32 Sessions = GetActiveAndQueuedSessionCount();
-    uint32 pLimit = GetPlayerAmountLimit();
-    uint32 QueueSize = GetQueuedSessionCount();             //number of players in the queue
+    uint32 activeSessions = GetActiveSessionCount();
+    uint32 playerLimit = GetPlayerAmountLimit();
+    uint32 queuedSessions = GetQueuedSessionCount();             //number of players in the queue
 
     //so we don't count the user trying to
     //login as a session and queue the socket that we are using
-    if (decrease_session)
-        --Sessions;
+    if (decrease_session && activeSessions)
+        --activeSessions;
 
-    if (pLimit > 0 && Sessions >= pLimit && !CanSkipQueue(s))
+    if (playerLimit > 0 && activeSessions >= playerLimit && !CanSkipQueue(s))
     {
         AddQueuedSession(s);
         UpdateMaxSessionCounters();
-        DETAIL_LOG("PlayerQueue: Account id %u is in Queue Position (%u).", s->GetAccountId(), ++QueueSize);
+        sLog.Out(LOG_BASIC, LOG_LVL_DETAIL, "PlayerQueue: Account id %u is in Queue Position (%u).", s->GetAccountId(), ++queuedSessions);
         return;
     }
 
-    if (!s->GetMasterSession())
-    {
-        // Checked for 1.12.2
-        WorldPacket packet(SMSG_AUTH_RESPONSE, 1 + 4 + 1 + 4);
-        packet << uint8(AUTH_OK);
-        packet << uint32(0);                                    // BillingTimeRemaining
-        packet << uint8(0);                                     // BillingPlanFlags
-        packet << uint32(0);                                    // BillingTimeRested
-        s->SendPacket(&packet);
-    }
+    // Checked for 1.12.2
+    WorldPacket packet(SMSG_AUTH_RESPONSE, 1 + 4 + 1 + 4);
+    packet << uint8(AUTH_OK);
+    packet << uint32(0);                                    // BillingTimeRemaining
+    packet << uint8(0);                                     // BillingPlanFlags
+    packet << uint32(0);                                    // BillingTimeRested
+    s->SendPacket(&packet);
 
     UpdateMaxSessionCounters();
 
+    // Only init warden after session has been added
+    s->InitWarden();
+
     // Updates the population
-    if (pLimit > 0)
+    if (playerLimit > 0)
     {
         float popu = float(GetActiveSessionCount());        // updated number of users on the server
-        popu /= pLimit;
+        popu /= playerLimit;
         popu *= 2;
 
         static SqlStatementID id;
 
-        SqlStatement stmt = LoginDatabase.CreateStatement(id, "UPDATE realmlist SET population = ? WHERE id = ?");
+        SqlStatement stmt = LoginDatabase.CreateStatement(id, "UPDATE `realmlist` SET `population` = ? WHERE `id` = ?");
         stmt.PExecute(popu, realmID);
 
-        DETAIL_LOG("Server Population (%f).", popu);
+        sLog.Out(LOG_BASIC, LOG_LVL_DETAIL, "Server Population (%f).", popu);
     }
 }
 
-int32 World::GetQueuedSessionPos(WorldSession* sess)
+uint32 World::GetQueuedSessionPos(WorldSession* sess)
 {
     uint32 position = 1;
 
@@ -357,16 +404,17 @@ bool World::RemoveQueuedSession(WorldSession* sess)
         --sessions;
 
     uint32 loggedInSessions = uint32(m_sessions.size() - m_QueuedSessions.size());
-    if (loggedInSessions >= getConfig(CONFIG_UINT32_PLAYER_HARD_LIMIT))
+    if (loggedInSessions > getConfig(CONFIG_UINT32_PLAYER_HARD_LIMIT))
         return found;
-
+    
     // accept first in queue
-    if ((!m_playerLimit || (int32)sessions < m_playerLimit) && !m_QueuedSessions.empty())
+    if ((!m_playerLimit || (int32)sessions <= m_playerLimit) && !m_QueuedSessions.empty())
     {
         WorldSession* pop_sess = m_QueuedSessions.front();
         pop_sess->SetInQueue(false);
         pop_sess->m_idleTime = WorldTimer::getMSTime();
         pop_sess->SendAuthWaitQue(0);
+        pop_sess->InitWarden();
         m_QueuedSessions.pop_front();
 
         // update iter to point first queued socket or end() if queue is empty now
@@ -382,37 +430,37 @@ bool World::RemoveQueuedSession(WorldSession* sess)
     return found;
 }
 
-/// Initialize config values
+// Initialize config values
 void World::LoadConfigSettings(bool reload)
 {
     if (reload)
     {
         if (!sConfig.Reload())
         {
-            sLog.outError("World settings reload fail: can't read settings from %s.", sConfig.GetFilename().c_str());
+            sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "World settings reload fail: can't read settings from %s.", sConfig.GetFilename().c_str());
             return;
         }
     }
 
-    ///- Read the version of the configuration file and warn the user in case of emptiness or mismatch
+    // Read the version of the configuration file and warn the user in case of emptiness or mismatch
     uint32 confVersion = sConfig.GetIntDefault("ConfVersion", 0);
     if (!confVersion)
     {
-        sLog.outError("*****************************************************************************");
-        sLog.outError(" WARNING: mangosd.conf does not include a ConfVersion variable.");
-        sLog.outError("          Your configuration file may be out of date!");
-        sLog.outError("*****************************************************************************");
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "*****************************************************************************");
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, " WARNING: mangosd.conf does not include a ConfVersion variable.");
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "          Your configuration file may be out of date!");
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "*****************************************************************************");
         Log::WaitBeforeContinueIfNeed();
     }
     else
     {
         if (confVersion < _MANGOSDCONFVERSION)
         {
-            sLog.outError("*****************************************************************************");
-            sLog.outError(" WARNING: Your mangosd.conf version indicates your conf file is out of date!");
-            sLog.outError("          Please check for updates, as your current default values may cause");
-            sLog.outError("          unexpected behavior.");
-            sLog.outError("*****************************************************************************");
+            sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "*****************************************************************************");
+            sLog.Out(LOG_BASIC, LOG_LVL_ERROR, " WARNING: Your mangosd.conf version indicates your conf file is out of date!");
+            sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "          Please check for updates, as your current default values may cause");
+            sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "          unexpected behavior.");
+            sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "*****************************************************************************");
             Log::WaitBeforeContinueIfNeed();
         }
     }
@@ -423,11 +471,11 @@ void World::LoadConfigSettings(bool reload)
     if (m_wowPatch > MAX_CONTENT_PATCH)
         m_wowPatch = MAX_CONTENT_PATCH;
 
-    ///- Read the player limit and the Message of the day from the config file
+    // Read the player limit and the Message of the day from the config file
     SetPlayerLimit(sConfig.GetIntDefault("PlayerLimit", DEFAULT_PLAYER_LIMIT), true);
     SetMotd(sConfig.GetStringDefault("Motd", "Welcome to the Massive Network Game Object Server.") + std::string("\n") + std::string(GetPatchName()) + std::string(" is now live!"));
 
-    ///- Read all rates from the config file
+    // Read all rates from the config file
     setConfigPos(CONFIG_FLOAT_RATE_HEALTH,               "Rate.Health", 1.0f);
     setConfigPos(CONFIG_FLOAT_RATE_POWER_MANA,           "Rate.Mana", 1.0f);
     setConfig(CONFIG_FLOAT_RATE_POWER_RAGE_INCOME,       "Rate.Rage.Income", 1.0f);
@@ -435,7 +483,6 @@ void World::LoadConfigSettings(bool reload)
     setConfig(CONFIG_FLOAT_RATE_POWER_FOCUS,             "Rate.Focus", 1.0f);
     setConfigPos(CONFIG_FLOAT_RATE_LOYALTY,              "Rate.Loyalty", 1.0f);
     setConfig(CONFIG_FLOAT_RATE_POWER_ENERGY,            "Rate.Energy", 1.0f);
-    setConfigPos(CONFIG_FLOAT_RATE_SKILL_DISCOVERY,      "Rate.Skill.Discovery",      1.0f);
     setConfigPos(CONFIG_FLOAT_RATE_DROP_ITEM_POOR,       "Rate.Drop.Item.Poor",       1.0f);
     setConfigPos(CONFIG_FLOAT_RATE_DROP_ITEM_NORMAL,     "Rate.Drop.Item.Normal",     1.0f);
     setConfigPos(CONFIG_FLOAT_RATE_DROP_ITEM_UNCOMMON,   "Rate.Drop.Item.Uncommon",   1.0f);
@@ -481,7 +528,6 @@ void World::LoadConfigSettings(bool reload)
     setConfig(CONFIG_UINT32_ACCOUNT_CONCURRENT_AUCTION_LIMIT,   "Auction.AccountConcurrentLimit", 0);
     setConfig(CONFIG_FLOAT_RATE_WAR_EFFORT_RESOURCE,            "Rate.WarEffortResourceComplete", 0.0f);
     setConfig(CONFIG_UINT32_WAR_EFFORT_AUTOCOMPLETE_PERIOD,     "WarEffortResourceCompletePeriod", 86400);
-    setConfig(CONFIG_FLOAT_RATE_HONOR,                  "Rate.Honor", 1.0f);
     setConfigPos(CONFIG_FLOAT_RATE_MINING_AMOUNT,       "Rate.Mining.Amount", 1.0f);
     setConfigPos(CONFIG_FLOAT_RATE_MINING_NEXT,         "Rate.Mining.Next", 1.0f);
     setConfigPos(CONFIG_FLOAT_RATE_INSTANCE_RESET_TIME, "Rate.InstanceResetTime", 1.0f);
@@ -495,9 +541,6 @@ void World::LoadConfigSettings(bool reload)
     setConfigMinMax(CONFIG_FLOAT_RATE_TARGET_POS_RECALCULATION_RANGE, "TargetPosRecalculateRange", 1.5f, CONTACT_DISTANCE, ATTACK_DISTANCE);
 
     setConfigPos(CONFIG_FLOAT_RATE_DURABILITY_LOSS_DAMAGE, "DurabilityLossChance.Damage", 0.5f);
-    setConfigPos(CONFIG_FLOAT_RATE_DURABILITY_LOSS_ABSORB, "DurabilityLossChance.Absorb", 0.5f);
-    setConfigPos(CONFIG_FLOAT_RATE_DURABILITY_LOSS_PARRY,  "DurabilityLossChance.Parry",  0.05f);
-    setConfigPos(CONFIG_FLOAT_RATE_DURABILITY_LOSS_BLOCK,  "DurabilityLossChance.Block",  0.05f);
 
     setConfigPos(CONFIG_FLOAT_LISTEN_RANGE_SAY,       "ListenRange.Say",       25.0f);
     setConfigPos(CONFIG_FLOAT_LISTEN_RANGE_YELL,      "ListenRange.Yell",     300.0f);
@@ -507,11 +550,12 @@ void World::LoadConfigSettings(bool reload)
 
     setConfigPos(CONFIG_FLOAT_CREATURE_FAMILY_ASSISTANCE_RADIUS,      "CreatureFamilyAssistanceRadius",     10.0f);
     setConfigPos(CONFIG_FLOAT_CREATURE_FAMILY_FLEE_ASSISTANCE_RADIUS, "CreatureFamilyFleeAssistanceRadius", 30.0f);
-    setConfig(CONFIG_FLOAT_THREAT_RADIUS, "ThreatRadius", 100.0f);
+    setConfig(CONFIG_FLOAT_THREAT_RADIUS, "ThreatRadius", 50.0f);
     setConfig(CONFIG_FLOAT_MAX_CREATURE_ATTACK_RADIUS, "MaxCreaturesAttackRadius", 40.0f);
-    setConfig(CONFIG_FLOAT_MAX_PLAYERS_STEALTH_DETECT_RANGE, "MaxPlayersStealthDetectRange", 40.0f);
+    setConfig(CONFIG_FLOAT_MAX_PLAYERS_STEALTH_DETECT_RANGE, "MaxPlayersStealthDetectRange", 30.0f);
+    setConfig(CONFIG_FLOAT_MAX_CREATURES_STEALTH_DETECT_RANGE, "MaxCreaturesStealthDetectRange", 30.0f);
 
-    ///- Read other configuration items from the config file
+    // Read other configuration items from the config file
     setConfig(CONFIG_UINT32_LOGIN_PER_TICK, "LoginPerTick", 0);
     setConfig(CONFIG_UINT32_PLAYER_HARD_LIMIT, "PlayerHardLimit", 0);
     setConfig(CONFIG_UINT32_LOGIN_QUEUE_GRACE_PERIOD_SECS, "LoginQueue.GracePeriodSecs", 0);
@@ -566,19 +610,30 @@ void World::LoadConfigSettings(bool reload)
     setConfigMinMax(CONFIG_UINT32_MIN_CHARTER_NAME, "MinCharterName", 2, 1, MAX_CHARTER_NAME);
     setConfigMinMax(CONFIG_UINT32_MIN_PET_NAME,     "MinPetName",     2, 1, MAX_PET_NAME);
 
+    setConfig(CONFIG_BOOL_WORLD_AVAILABLE, "WorldAvailable", true);
     setConfig(CONFIG_UINT32_CHARACTERS_CREATING_DISABLED, "CharactersCreatingDisabled", 0);
     setConfigMinMax(CONFIG_UINT32_CHARACTERS_PER_REALM, "CharactersPerRealm", 10, 1, 10);
     setConfigMin(CONFIG_UINT32_CHARACTERS_PER_ACCOUNT, "CharactersPerAccount", 50, getConfig(CONFIG_UINT32_CHARACTERS_PER_REALM));
+    setConfig(CONFIG_BOOL_LIMIT_PLAY_TIME, "LimitPlayTime", false);
 
-    setConfigMinMax(CONFIG_UINT32_SKIP_CINEMATICS, "SkipCinematics", 0, 0, 2);
+    setConfig(CONFIG_BOOL_SKIP_CINEMATICS, "SkipCinematics", false);
     setConfig(CONFIG_BOOL_OBJECT_HEALTH_VALUE_SHOW, "ShowHealthValues", false);
-    if (configNoReload(reload, CONFIG_UINT32_MAX_PLAYER_LEVEL, "MaxPlayerLevel", DEFAULT_MAX_LEVEL))
-        setConfigMinMax(CONFIG_UINT32_MAX_PLAYER_LEVEL, "MaxPlayerLevel", DEFAULT_MAX_LEVEL, 1, DEFAULT_MAX_LEVEL);
+    if (configNoReload(reload, CONFIG_UINT32_MAX_PLAYER_LEVEL, "MaxPlayerLevel", PLAYER_MAX_LEVEL))
+        setConfigMinMax(CONFIG_UINT32_MAX_PLAYER_LEVEL, "MaxPlayerLevel", PLAYER_MAX_LEVEL, 1, PLAYER_STRONG_MAX_LEVEL);
     setConfigMinMax(CONFIG_UINT32_START_PLAYER_LEVEL, "StartPlayerLevel", 1, 1, getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL));
     setConfigMinMax(CONFIG_UINT32_START_PLAYER_MONEY, "StartPlayerMoney", 0, 0, MAX_MONEY_AMOUNT);
-    setConfigPos(CONFIG_UINT32_MAX_HONOR_POINTS, "MaxHonorPoints", 75000);
-    setConfigMinMax(CONFIG_UINT32_START_HONOR_POINTS, "StartHonorPoints", 0, 0, getConfig(CONFIG_UINT32_MAX_HONOR_POINTS));
-    setConfigMin(CONFIG_UINT32_MIN_HONOR_KILLS, "MinHonorKills", MIN_HONOR_KILLS, 1);
+    setConfig(CONFIG_UINT32_MIN_HONOR_KILLS, "MinHonorKills", 0);
+
+    // If min honor kills is at 0, decide based on patch.
+    if (getConfig(CONFIG_UINT32_MIN_HONOR_KILLS) == 0)
+    {
+        if (GetWowPatch() >= WOW_PATCH_110)
+            setConfig(CONFIG_UINT32_MIN_HONOR_KILLS, MIN_HONOR_KILLS_POST_1_10);
+        else
+            setConfig(CONFIG_UINT32_MIN_HONOR_KILLS, MIN_HONOR_KILLS_PRE_1_10);
+    }
+
+    setConfigMinMax(CONFIG_FLOAT_RP_DECAY, "RpDecay", 0.2f, 0.0f, 1.0f);
     setConfigMinMax(CONFIG_UINT32_MAINTENANCE_DAY, "MaintenanceDay", 4, 0, 6);
     setConfig(CONFIG_BOOL_AUTO_HONOR_RESTART, "AutoHonorRestart", true);
     setConfig(CONFIG_BOOL_ALL_TAXI_PATHS, "AllFlightPaths", false);
@@ -589,6 +644,7 @@ void World::LoadConfigSettings(bool reload)
     setConfig(CONFIG_BOOL_INSTANCE_IGNORE_RAID,  "Instance.IgnoreRaid", false);
     setConfig(CONFIG_UINT32_INSTANCE_RESET_TIME_HOUR, "Instance.ResetTimeHour", 4);
     setConfig(CONFIG_UINT32_INSTANCE_UNLOAD_DELAY,    "Instance.UnloadDelay", 30 * MINUTE * IN_MILLISECONDS);
+    setConfig(CONFIG_UINT32_INSTANCE_PER_HOUR_LIMIT, "Instance.PerHourLimit", MAX_INSTANCE_PER_ACCOUNT_PER_HOUR);
 
     setConfig(CONFIG_UINT32_MAX_PRIMARY_TRADE_SKILL, "MaxPrimaryTradeSkill", 2);
     setConfigMinMax(CONFIG_UINT32_MIN_PETITION_SIGNS, "MinPetitionSigns", 9, 0, 9);
@@ -598,6 +654,7 @@ void World::LoadConfigSettings(bool reload)
     setConfig(CONFIG_UINT32_GM_ACCEPT_TICKETS,    "GM.AcceptTickets", 2);
     setConfig(CONFIG_UINT32_GM_CHAT,              "GM.Chat",          2);
     setConfig(CONFIG_UINT32_GM_WISPERING_TO,      "GM.WhisperingTo",  2);
+    setConfig(CONFIG_BOOL_GM_CHEAT_GOD,           "GM.CheatGod",      true);
     setConfig(CONFIG_UINT32_GM_LEVEL_IN_GM_LIST,  "GM.InGMList.Level",  SEC_ADMINISTRATOR);
     setConfig(CONFIG_UINT32_GM_LEVEL_IN_WHO_LIST, "GM.InWhoList.Level", SEC_ADMINISTRATOR);
     setConfig(CONFIG_BOOL_GM_LOG_TRADE,           "GM.LogTrade", false);
@@ -606,7 +663,7 @@ void World::LoadConfigSettings(bool reload)
     setConfig(CONFIG_BOOL_GM_LOWER_SECURITY,      "GM.LowerSecurity", false);
     setConfig(CONFIG_BOOL_GM_ALLOW_TRADES,        "GM.AllowTrades", true);
     setConfig(CONFIG_BOOL_GMS_ALLOW_PUBLIC_CHANNELS,         "GM.AllowPublicChannels", false);
-    setConfig(CONFIG_BOOL_GM_JOIN_OPPOSITE_FACTION_CHANNELS, "GM.JoinOppositeFactionChannels", 0);
+    setConfig(CONFIG_BOOL_GM_JOIN_OPPOSITE_FACTION_CHANNELS, "GM.JoinOppositeFactionChannels", false);
     if (getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_CHAT))
         setConfig(CONFIG_BOOL_GM_JOIN_OPPOSITE_FACTION_CHANNELS, false);
     setConfig(CONFIG_BOOL_GMTICKETS_ENABLE,           "GMTickets.Enable", true);
@@ -618,6 +675,8 @@ void World::LoadConfigSettings(bool reload)
     setConfig(CONFIG_UINT32_MAIL_DELIVERY_DELAY, "MailDeliveryDelay", HOUR);
 
     setConfigMin(CONFIG_UINT32_MASS_MAILER_SEND_PER_TICK, "MassMailer.SendPerTick", 10, 1);
+
+    setConfigMin(CONFIG_UINT32_RETURNED_MAIL_PR_TICK, "Mail.ReturnedMail.PerTick", 5, 1);
 
     setConfig(CONFIG_UINT32_BANLIST_RELOAD_TIMER, "BanListReloadTimer", 60);
     setConfigPos(CONFIG_UINT32_UPTIME_UPDATE, "UpdateUptimeInterval", 10);
@@ -647,7 +706,7 @@ void World::LoadConfigSettings(bool reload)
     setConfig(CONFIG_UINT32_MAX_OVERSPEED_PINGS, "MaxOverspeedPings", 2);
     if (getConfig(CONFIG_UINT32_MAX_OVERSPEED_PINGS) != 0 && getConfig(CONFIG_UINT32_MAX_OVERSPEED_PINGS) < 2)
     {
-        sLog.outError("MaxOverspeedPings (%i) must be in range 2..infinity (or 0 to disable check). Set to 2.", getConfig(CONFIG_UINT32_MAX_OVERSPEED_PINGS));
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "MaxOverspeedPings (%i) must be in range 2..infinity (or 0 to disable check). Set to 2.", getConfig(CONFIG_UINT32_MAX_OVERSPEED_PINGS));
         setConfig(CONFIG_UINT32_MAX_OVERSPEED_PINGS, 2);
     }
 
@@ -661,6 +720,7 @@ void World::LoadConfigSettings(bool reload)
     setConfig(CONFIG_UINT32_CHATFLOOD_MUTE_TIME,     "ChatFlood.MuteTime", 10);
 
     setConfig(CONFIG_BOOL_EVENT_ANNOUNCE, "Event.Announce", false);
+    setConfig(CONFIG_UINT32_AUTOBROADCAST_INTERVAL, "AutoBroadcast.Timer", 1800000);
 
     setConfig(CONFIG_UINT32_CREATURE_FAMILY_ASSISTANCE_DELAY, "CreatureFamilyAssistanceDelay", 1500);
     setConfig(CONFIG_UINT32_CREATURE_FAMILY_FLEE_DELAY,       "CreatureFamilyFleeDelay",       7000);
@@ -674,20 +734,18 @@ void World::LoadConfigSettings(bool reload)
 
     setConfig(CONFIG_BOOL_DETECT_POS_COLLISION, "DetectPosCollision", true);
 
-    setConfig(CONFIG_BOOL_RESTRICTED_LFG_CHANNEL,      "Channel.RestrictedLfg", true);
     setConfig(CONFIG_BOOL_SILENTLY_GM_JOIN_TO_CHANNEL, "Channel.SilentlyGMJoin", false);
     setConfig(CONFIG_BOOL_STRICT_LATIN_IN_GENERAL_CHANNELS, "Channel.StrictLatinInGeneral", false);
 
-    setConfig(CONFIG_BOOL_CHAT_FAKE_MESSAGE_PREVENTING, "ChatFakeMessagePreventing", false);
+    setConfig(CONFIG_BOOL_CHAT_FAKE_MESSAGE_PREVENTING, "ChatFakeMessagePreventing", true);
 
-    setConfig(CONFIG_UINT32_CHAT_STRICT_LINK_CHECKING_SEVERITY, "ChatStrictLinkChecking.Severity", 0);
+    setConfig(CONFIG_UINT32_CHAT_STRICT_LINK_CHECKING_SEVERITY, "ChatStrictLinkChecking.Severity", 2);
     setConfig(CONFIG_UINT32_CHAT_STRICT_LINK_CHECKING_KICK,     "ChatStrictLinkChecking.Kick", 0);
 
     setConfig(CONFIG_BOOL_SEND_LOOT_ROLL_UPON_RECONNECT, "SendLootRollUponReconnect", false);
 
     setConfig(CONFIG_UINT32_BONES_EXPIRE_MINUTES,      "Bones.ExpireMinutes", 60);
     setConfig(CONFIG_UINT32_CORPSES_UPDATE_MINUTES,    "Corpses.UpdateMinutes", 20);
-    setConfig(CONFIG_BOOL_CORPSE_EMPTY_LOOT_SHOW,      "Corpse.EmptyLootShow", true);
     setConfigPos(CONFIG_UINT32_CORPSE_DECAY_NORMAL,    "Corpse.Decay.NORMAL",    300);
     setConfigPos(CONFIG_UINT32_CORPSE_DECAY_RARE,      "Corpse.Decay.RARE",      900);
     setConfigPos(CONFIG_UINT32_CORPSE_DECAY_ELITE,     "Corpse.Decay.ELITE",     600);
@@ -702,6 +760,8 @@ void World::LoadConfigSettings(bool reload)
     setConfig(CONFIG_BOOL_DEATH_BONES_BG,                 "Death.Bones.Battleground", true);
     setConfigMinMax(CONFIG_FLOAT_GHOST_RUN_SPEED_WORLD,   "Death.Ghost.RunSpeed.World", 1.0f, 0.1f, 10.0f);
     setConfigMinMax(CONFIG_FLOAT_GHOST_RUN_SPEED_BG,      "Death.Ghost.RunSpeed.Battleground", 1.0f, 0.1f, 10.0f);
+
+    setConfig(CONFIG_UINT32_PVP_POOL_SIZE_PER_FACTION, "PvP.PoolSizePerFaction", 0);
 
     setConfig(CONFIG_UINT32_AV_MIN_PLAYERS_IN_QUEUE, "Alterac.MinPlayersInQueue", 0);
     setConfig(CONFIG_UINT32_AV_INITIAL_MAX_PLAYERS,  "Alterac.InitMaxPlayers", 0);
@@ -731,34 +791,38 @@ void World::LoadConfigSettings(bool reload)
 
     setConfig(CONFIG_BOOL_PLAYER_COMMANDS, "PlayerCommands", true);
     setConfig(CONFIG_UINT32_INSTANT_LOGOUT, "InstantLogout", SEC_MODERATOR);
+    setConfig(CONFIG_BOOL_FORCE_LOGOUT_DELAY, "ForceLogoutDelay", true);
     setConfigMin(CONFIG_UINT32_GROUP_OFFLINE_LEADER_DELAY, "Group.OfflineLeaderDelay", 300, 0);
     setConfigMin(CONFIG_UINT32_GUILD_EVENT_LOG_COUNT, "Guild.EventLogRecordsCount", GUILD_EVENTLOG_MAX_RECORDS, GUILD_EVENTLOG_MAX_RECORDS);
 
-    setConfig(CONFIG_UINT32_TIMERBAR_FATIGUE_GMLEVEL, "TimerBar.Fatigue.GMLevel", SEC_CONSOLE);
-    setConfig(CONFIG_UINT32_TIMERBAR_FATIGUE_MAX,     "TimerBar.Fatigue.Max", 60);
-    setConfig(CONFIG_UINT32_TIMERBAR_BREATH_GMLEVEL,  "TimerBar.Breath.GMLevel", SEC_CONSOLE);
-    setConfig(CONFIG_UINT32_TIMERBAR_BREATH_MAX,      "TimerBar.Breath.Max", 60);
-    setConfig(CONFIG_UINT32_TIMERBAR_FIRE_GMLEVEL,    "TimerBar.Fire.GMLevel", SEC_CONSOLE);
-    setConfig(CONFIG_UINT32_TIMERBAR_FIRE_MAX,        "TimerBar.Fire.Max", 1);
+    setConfig(CONFIG_UINT32_MIRRORTIMER_FATIGUE_MAX, "MirrorTimer.Fatigue.Max", 60);
+    setConfig(CONFIG_UINT32_MIRRORTIMER_BREATH_MAX, "MirrorTimer.Breath.Max", 60);
+    setConfig(CONFIG_UINT32_MIRRORTIMER_ENVIRONMENTAL_MAX, "MirrorTimer.Environmental.Max", 1);
+    setConfig(CONFIG_UINT32_ENVIRONMENTAL_DAMAGE_MIN, "EnvironmentalDamage.Min", 605);
+    setConfigMin(CONFIG_UINT32_ENVIRONMENTAL_DAMAGE_MAX, "EnvironmentalDamage.Max", 610, getConfig(CONFIG_UINT32_ENVIRONMENTAL_DAMAGE_MIN));
 
     setConfig(CONFIG_BOOL_PET_UNSUMMON_AT_MOUNT,      "PetUnsummonAtMount", false);
     setConfigMinMax(CONFIG_UINT32_PET_DEFAULT_LOYALTY, "PetDefaultLoyalty", 1, 1, 6);
 
     setConfig(CONFIG_UINT32_ANTIFLOOD_SANCTION,       "Antiflood.Sanction", CHEAT_ACTION_KICK);
 
+    setConfig(CONFIG_BOOL_LFG_MATCHMAKING, "LFG.Matchmaking", false);
+    setConfig(CONFIG_UINT32_LFG_MATCHMAKING_TIMER, "LFG.MatchmakingTimer", 600);
+
+    setConfig(CONFIG_BOOL_VISIBILITY_FORCE_ACTIVE_OBJECTS, "Visibility.ForceActiveObjects", true);
     m_relocation_ai_notify_delay = sConfig.GetIntDefault("Visibility.AIRelocationNotifyDelay", 1000u);
     m_relocation_lower_limit_sq  = pow(sConfig.GetFloatDefault("Visibility.RelocationLowerLimit", 10), 2);
 
     m_VisibleUnitGreyDistance = sConfig.GetFloatDefault("Visibility.Distance.Grey.Unit", 1);
     if (m_VisibleUnitGreyDistance >  MAX_VISIBILITY_DISTANCE)
     {
-        sLog.outError("Visibility.Distance.Grey.Unit can't be greater %f", MAX_VISIBILITY_DISTANCE);
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Visibility.Distance.Grey.Unit can't be greater %f", MAX_VISIBILITY_DISTANCE);
         m_VisibleUnitGreyDistance = MAX_VISIBILITY_DISTANCE;
     }
     m_VisibleObjectGreyDistance = sConfig.GetFloatDefault("Visibility.Distance.Grey.Object", 10);
     if (m_VisibleObjectGreyDistance >  MAX_VISIBILITY_DISTANCE)
     {
-        sLog.outError("Visibility.Distance.Grey.Object can't be greater %f", MAX_VISIBILITY_DISTANCE);
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Visibility.Distance.Grey.Object can't be greater %f", MAX_VISIBILITY_DISTANCE);
         m_VisibleObjectGreyDistance = MAX_VISIBILITY_DISTANCE;
     }
 
@@ -766,12 +830,12 @@ void World::LoadConfigSettings(bool reload)
     m_MaxVisibleDistanceOnContinents      = sConfig.GetFloatDefault("Visibility.Distance.Continents",     DEFAULT_VISIBILITY_DISTANCE);
     if (m_MaxVisibleDistanceOnContinents < 45 * getConfig(CONFIG_FLOAT_RATE_CREATURE_AGGRO))
     {
-        sLog.outError("Visibility.Distance.Continents can't be less max aggro radius %f", 45 * getConfig(CONFIG_FLOAT_RATE_CREATURE_AGGRO));
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Visibility.Distance.Continents can't be less max aggro radius %f", 45 * getConfig(CONFIG_FLOAT_RATE_CREATURE_AGGRO));
         m_MaxVisibleDistanceOnContinents = 45 * getConfig(CONFIG_FLOAT_RATE_CREATURE_AGGRO);
     }
     else if (m_MaxVisibleDistanceOnContinents + m_VisibleUnitGreyDistance >  MAX_VISIBILITY_DISTANCE)
     {
-        sLog.outError("Visibility.Distance.Continents can't be greater %f", MAX_VISIBILITY_DISTANCE - m_VisibleUnitGreyDistance);
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Visibility.Distance.Continents can't be greater %f", MAX_VISIBILITY_DISTANCE - m_VisibleUnitGreyDistance);
         m_MaxVisibleDistanceOnContinents = MAX_VISIBILITY_DISTANCE - m_VisibleUnitGreyDistance;
     }
 
@@ -779,36 +843,36 @@ void World::LoadConfigSettings(bool reload)
     m_MaxVisibleDistanceInInstances        = sConfig.GetFloatDefault("Visibility.Distance.Instances",       DEFAULT_VISIBILITY_INSTANCE);
     if (m_MaxVisibleDistanceInInstances < 45 * getConfig(CONFIG_FLOAT_RATE_CREATURE_AGGRO))
     {
-        sLog.outError("Visibility.Distance.Instances can't be less max aggro radius %f", 45 * getConfig(CONFIG_FLOAT_RATE_CREATURE_AGGRO));
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Visibility.Distance.Instances can't be less max aggro radius %f", 45 * getConfig(CONFIG_FLOAT_RATE_CREATURE_AGGRO));
         m_MaxVisibleDistanceInInstances = 45 * getConfig(CONFIG_FLOAT_RATE_CREATURE_AGGRO);
     }
     else if (m_MaxVisibleDistanceInInstances + m_VisibleUnitGreyDistance >  MAX_VISIBILITY_DISTANCE)
     {
-        sLog.outError("Visibility.Distance.Instances can't be greater %f", MAX_VISIBILITY_DISTANCE - m_VisibleUnitGreyDistance);
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Visibility.Distance.Instances can't be greater %f", MAX_VISIBILITY_DISTANCE - m_VisibleUnitGreyDistance);
         m_MaxVisibleDistanceInInstances = MAX_VISIBILITY_DISTANCE - m_VisibleUnitGreyDistance;
     }
 
     //visibility in BG
     m_MaxVisibleDistanceInBG        = sConfig.GetFloatDefault("Visibility.Distance.BG",       DEFAULT_VISIBILITY_BG);
-    if (m_MaxVisibleDistanceInBG < 45 * sWorld.getConfig(CONFIG_FLOAT_RATE_CREATURE_AGGRO))
+    if (m_MaxVisibleDistanceInBG < 45 * getConfig(CONFIG_FLOAT_RATE_CREATURE_AGGRO))
     {
-        sLog.outError("Visibility.Distance.BG can't be less max aggro radius %f", 45 * getConfig(CONFIG_FLOAT_RATE_CREATURE_AGGRO));
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Visibility.Distance.BG can't be less max aggro radius %f", 45 * getConfig(CONFIG_FLOAT_RATE_CREATURE_AGGRO));
         m_MaxVisibleDistanceInBG = 45 * getConfig(CONFIG_FLOAT_RATE_CREATURE_AGGRO);
     }
     else if (m_MaxVisibleDistanceInBG + m_VisibleUnitGreyDistance >  MAX_VISIBILITY_DISTANCE)
     {
-        sLog.outError("Visibility.Distance.BG can't be greater %f", MAX_VISIBILITY_DISTANCE - m_VisibleUnitGreyDistance);
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Visibility.Distance.BG can't be greater %f", MAX_VISIBILITY_DISTANCE - m_VisibleUnitGreyDistance);
         m_MaxVisibleDistanceInBG = MAX_VISIBILITY_DISTANCE - m_VisibleUnitGreyDistance;
     }
 
     m_MaxVisibleDistanceInFlight    = sConfig.GetFloatDefault("Visibility.Distance.InFlight",      DEFAULT_VISIBILITY_DISTANCE);
     if (m_MaxVisibleDistanceInFlight + m_VisibleObjectGreyDistance > MAX_VISIBILITY_DISTANCE)
     {
-        sLog.outError("Visibility.Distance.InFlight can't be greater %f", MAX_VISIBILITY_DISTANCE - m_VisibleObjectGreyDistance);
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Visibility.Distance.InFlight can't be greater %f", MAX_VISIBILITY_DISTANCE - m_VisibleObjectGreyDistance);
         m_MaxVisibleDistanceInFlight = MAX_VISIBILITY_DISTANCE - m_VisibleObjectGreyDistance;
     }
 
-    ///- Load the CharDelete related config options
+    // Load the CharDelete related config options
     setConfigMinMax(CONFIG_UINT32_CHARDELETE_METHOD, "CharDelete.Method", 0, 0, 1);
     setConfigMinMax(CONFIG_UINT32_CHARDELETE_MIN_LEVEL, "CharDelete.MinLevel", 0, 0, getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL));
     setConfigPos(CONFIG_UINT32_CHARDELETE_KEEP_DAYS, "CharDelete.KeepDays", 30);
@@ -818,7 +882,28 @@ void World::LoadConfigSettings(bool reload)
     if (configNoReload(reload, CONFIG_UINT32_GUID_RESERVE_SIZE_GAMEOBJECT, "GuidReserveSize.GameObject", 100))
         setConfigPos(CONFIG_UINT32_GUID_RESERVE_SIZE_GAMEOBJECT, "GuidReserveSize.GameObject", 100);
 
-    ///- Read the "Data" directory from the config file
+    // Read the "Honor" directory from the config file (basically these are PvP ranking logs)
+    std::string honorPath = sConfig.GetStringDefault("HonorDir", "./");
+
+    // for empty string use current dir as for absent case
+    if (honorPath.empty())
+        honorPath = "./";
+    // normalize dir path to path/ or path\ form
+    else if (honorPath.at(honorPath.length() - 1) != '/' && honorPath.at(honorPath.length() - 1) != '\\')
+        honorPath.append("/");
+
+    if (reload)
+    {
+        if (honorPath != m_honorPath)
+            sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "HonorDir option can't be changed at mangosd.conf reload, using current value (%s).", m_honorPath.c_str());
+    }
+    else
+    {
+        m_honorPath = honorPath;
+        sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Using HonorDir %s", m_honorPath.c_str());
+    }
+
+    // Read the "Data" directory from the config file
     std::string dataPath = sConfig.GetStringDefault("DataDir", "./");
 
     // for empty string use current dir as for absent case
@@ -831,33 +916,30 @@ void World::LoadConfigSettings(bool reload)
     if (reload)
     {
         if (dataPath != m_dataPath)
-            sLog.outError("DataDir option can't be changed at mangosd.conf reload, using current value (%s).", m_dataPath.c_str());
+            sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "DataDir option can't be changed at mangosd.conf reload, using current value (%s).", m_dataPath.c_str());
     }
     else
     {
         m_dataPath = dataPath;
-        sLog.outString("Using DataDir %s", m_dataPath.c_str());
+        sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Using DataDir %s", m_dataPath.c_str());
     }
 
     setConfig(CONFIG_BOOL_VMAP_INDOOR_CHECK, "vmap.enableIndoorCheck", true);
     bool enableLOS = sConfig.GetBoolDefault("vmap.enableLOS", false);
     bool enableHeight = sConfig.GetBoolDefault("vmap.enableHeight", false);
     bool disableModelUnload = sConfig.GetBoolDefault("Collision.Models.Unload", false);
-    std::string ignoreSpellIds = sConfig.GetStringDefault("vmap.ignoreSpellIds", "");
-    setConfig(CONFIG_BOOL_PET_LOS, "vmap.petLoS", true);
 
     if (!enableHeight)
-        sLog.outError("VMAP height use disabled! Creatures movements and other things will be in broken state.");
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "VMAP height use disabled! Creatures movements and other things will be in broken state.");
 
     VMAP::VMapFactory::createOrGetVMapManager()->setEnableLineOfSightCalc(enableLOS);
     VMAP::VMapFactory::createOrGetVMapManager()->setEnableHeightCalc(enableHeight);
-    VMAP::VMapFactory::createOrGetVMapManager()->setDisableModelUnload(disableModelUnload);
-    VMAP::VMapFactory::preventSpellsFromBeingTestedForLoS(ignoreSpellIds.c_str());
-    sLog.outString("WORLD: VMap support included. LineOfSight:%i, getHeight:%i, indoorCheck:%i", enableLOS, enableHeight, getConfig(CONFIG_BOOL_VMAP_INDOOR_CHECK) ? 1 : 0);
-    sLog.outString("WORLD: VMap data directory is: %svmaps", m_dataPath.c_str());
+    VMAP::VMapFactory::createOrGetVMapManager()->setUseManagedPtrs(!disableModelUnload);
+
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "WORLD: VMap support included. LineOfSight:%i, getHeight:%i, indoorCheck:%i", enableLOS, enableHeight, getConfig(CONFIG_BOOL_VMAP_INDOOR_CHECK) ? 1 : 0);
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "WORLD: VMap data directory is: %svmaps", m_dataPath.c_str());
     setConfig(CONFIG_BOOL_MMAP_ENABLED, "mmap.enabled", true);
-    sLog.outString("WORLD: mmap pathfinding %sabled", getConfig(CONFIG_BOOL_MMAP_ENABLED) ? "en" : "dis");
-    setConfig(CONFIG_BOOL_IS_MAPSERVER, "IsMapServer", false);
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "WORLD: mmap pathfinding %sabled", getConfig(CONFIG_BOOL_MMAP_ENABLED) ? "en" : "dis");
 
     setConfig(CONFIG_UINT32_EMPTY_MAPS_UPDATE_TIME, "MapUpdate.Empty.UpdateTime", 0);
     setConfigMinMax(CONFIG_UINT32_MAP_OBJECTSUPDATE_THREADS, "MapUpdate.ObjectsUpdate.MaxThreads", 4, 1, 20);
@@ -879,19 +961,27 @@ void World::LoadConfigSettings(bool reload)
     setConfig(CONFIG_UINT32_MAPUPDATE_MIN_VISIBILITY_DISTANCE, "MapUpdate.MinVisibilityDistance", 0);
     setConfig(CONFIG_BOOL_CONTINENTS_INSTANCIATE, "Continents.Instanciate", false);
     setConfig(CONFIG_UINT32_CONTINENTS_MOTIONUPDATE_THREADS, "Continents.MotionUpdate.Threads", 0);
-    setConfig(CONFIG_BOOL_TERRAIN_PRELOAD_CONTINENTS, "Terrain.Preload.Continents", 1);
-    setConfig(CONFIG_BOOL_TERRAIN_PRELOAD_INSTANCES, "Terrain.Preload.Instances", 1);
+    setConfig(CONFIG_BOOL_TERRAIN_PRELOAD_CONTINENTS, "Terrain.Preload.Continents", true);
+    setConfig(CONFIG_BOOL_TERRAIN_PRELOAD_INSTANCES, "Terrain.Preload.Instances", true);
 
-    setConfig(CONFIG_BOOL_ENABLE_MOVEMENT_INTERP, "Movement.Interpolation", true);
-    setConfig(CONFIG_UINT32_MOVEMENT_CHANGE_ACK_TIME, "Movement.PendingAckResponseTime", 2000);
+    setConfig(CONFIG_BOOL_ENABLE_MOVEMENT_EXTRAPOLATION_CHARGE, "Movement.ExtrapolateChargePosition", true);
+    setConfig(CONFIG_BOOL_ENABLE_MOVEMENT_EXTRAPOLATION_PET, "Movement.ExtrapolatePetPosition", true);
+    setConfig(CONFIG_UINT32_MOVEMENT_CHANGE_ACK_TIME, "Movement.PendingAckResponseTime", 4000);
     setConfigMinMax(CONFIG_UINT32_MAX_POINTS_PER_MVT_PACKET, "Movement.MaxPointsPerPacket", 80, 5, 10000);
     setConfigMinMax(CONFIG_UINT32_RELOCATION_VMAP_CHECK_TIMER, "Movement.RelocationVmapsCheckDelay", 0, 0, 2000);
 
-    sAnticheatLib->LoadConfig();
     sPlayerBotMgr.LoadConfig();
+    setConfig(CONFIG_BOOL_PLAYER_BOT_SHOW_IN_WHO_LIST, "PlayerBot.ShowInWhoList", false);
+    setConfig(CONFIG_UINT32_PARTY_BOT_MAX_BOTS, "PartyBot.MaxBots", 0);
+    setConfig(CONFIG_BOOL_PARTY_BOT_SKIP_CHECKS, "PartyBot.SkipChecks", false);
+    setConfigMinMax(CONFIG_UINT32_PARTY_BOT_AUTO_EQUIP, "PartyBot.AutoEquip", PLAYER_BOT_AUTO_EQUIP_RANDOM_GEAR, PLAYER_BOT_AUTO_EQUIP_STARTING_GEAR, PLAYER_BOT_AUTO_EQUIP_PREMADE_GEAR);
+    setConfigMinMax(CONFIG_UINT32_BATTLE_BOT_AUTO_EQUIP, "BattleBot.AutoEquip", PLAYER_BOT_AUTO_EQUIP_RANDOM_GEAR, PLAYER_BOT_AUTO_EQUIP_STARTING_GEAR, PLAYER_BOT_AUTO_EQUIP_PREMADE_GEAR);
+    setConfig(CONFIG_UINT32_PARTY_BOT_RANDOM_GEAR_LEVEL_DIFFERENCE, "PartyBot.RandomGearLevelDifference", 10);
 
-    setConfigMinMax(CONFIG_UINT32_SPELLS_CCDELAY, "Spells.CCDelay", 200, 0, 20000);
+    setConfigMinMax(CONFIG_UINT32_SPELL_EFFECT_DELAY, "Spell.EffectDelay", 400, 0, 1000);
+    setConfigMinMax(CONFIG_UINT32_SPELL_PROC_DELAY, "Spell.ProcDelay", 400, 0, 1000);
     setConfigMinMax(CONFIG_UINT32_DEBUFF_LIMIT, "DebuffLimit", 0, 0, 40);
+
     // If max debuff slots is at 0, decide based on patch.
     if (getConfig(CONFIG_UINT32_DEBUFF_LIMIT) == 0)
     {
@@ -942,14 +1032,16 @@ void World::LoadConfigSettings(bool reload)
     setConfig(CONFIG_UINT32_YELLRANGE_QUADRATICSCALE_MAXLEVEL, "YellRange.QuadraticScale.MaxLevel", 0);
     setConfig(CONFIG_UINT32_YELLRANGE_MIN, "YellRange.Min", 0);
 
-    setConfig(CONFIG_BOOL_LOGSDB_BATTLEGROUNDS, "LogsDB.Battlegrounds", 0);
-    setConfig(CONFIG_BOOL_LOGSDB_CHARACTERS, "LogsDB.Characters", 1);
-    setConfig(CONFIG_BOOL_LOGSDB_CHAT, "LogsDB.Chat", 1);
-    setConfig(CONFIG_BOOL_LOGSDB_TRADES, "LogsDB.Trades", 1);
-    setConfig(CONFIG_BOOL_LOGSDB_TRANSACTIONS, "LogsDB.Transactions", 0);
-    setConfig(CONFIG_BOOL_SMARTLOG_DEATH, "Smartlog.Death", 1);
-    setConfig(CONFIG_BOOL_SMARTLOG_LONGCOMBAT, "Smartlog.LongCombat", 1);
-    setConfig(CONFIG_BOOL_SMARTLOG_SCRIPTINFO, "Smartlog.ScriptInfo", 1);
+    setConfig(CONFIG_BOOL_LOGSDB_BATTLEGROUNDS, "LogsDB.Battlegrounds", false);
+    setConfig(CONFIG_BOOL_LOGSDB_CHARACTERS, "LogsDB.Characters", false);
+    setConfig(CONFIG_BOOL_LOGSDB_LEVELUP, "LogsDB.LevelUp", false);
+    setConfig(CONFIG_BOOL_LOGSDB_GM, "LogsDB.GM", false);
+    setConfig(CONFIG_BOOL_LOGSDB_CHAT, "LogsDB.Chat", false);
+    setConfig(CONFIG_BOOL_LOGSDB_LOOT, "LogsDB.Loot", false);
+    setConfig(CONFIG_BOOL_LOGSDB_TRADES, "LogsDB.Trades", false);
+    setConfig(CONFIG_BOOL_LOGSDB_TRANSACTIONS, "LogsDB.Transactions", false);
+    setConfig(CONFIG_BOOL_SMARTLOG_DEATH, "Smartlog.Death", false);
+    setConfig(CONFIG_BOOL_SMARTLOG_LONGCOMBAT, "Smartlog.LongCombat", false);
     setConfig(CONFIG_UINT32_LONGCOMBAT, "Smartlog.LongCombatDuration", 30 * MINUTE);
 
     setConfig(CONFIG_UINT32_ITEM_INSTANTSAVE_QUALITY, "Item.InstantSaveQuality", ITEM_QUALITY_ARTIFACT);
@@ -968,22 +1060,23 @@ void World::LoadConfigSettings(bool reload)
     setConfig(CONFIG_UINT32_PACKET_BCAST_FREQUENCY,                "Network.PacketBroadcast.Frequency", 50);
     setConfig(CONFIG_UINT32_PBCAST_DIFF_LOWER_VISIBILITY_DISTANCE, "Network.PacketBroadcast.ReduceVisDistance.DiffAbove", 0);
     
-    sLog.outString("* Anticrash : options 0x%x rearm after %usec", getConfig(CONFIG_UINT32_ANTICRASH_OPTIONS), getConfig(CONFIG_UINT32_ANTICRASH_REARM_TIMER) / 1000);
-    sLog.outString("* Pathfinding : [%s]", getConfig(CONFIG_BOOL_MMAP_ENABLED) ? "ON" : "OFF");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "* Anticrash : options 0x%x rearm after %usec", getConfig(CONFIG_UINT32_ANTICRASH_OPTIONS), getConfig(CONFIG_UINT32_ANTICRASH_REARM_TIMER) / 1000);
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "* Pathfinding : [%s]", getConfig(CONFIG_BOOL_MMAP_ENABLED) ? "ON" : "OFF");
 
     // Update packet broadcaster config
-    if (reload) {
-        sWorld.m_broadcaster->UpdateConfiguration(getConfig(CONFIG_UINT32_PACKET_BCAST_THREADS),
-            std::chrono::milliseconds(getConfig(CONFIG_UINT32_PACKET_BCAST_FREQUENCY)));
+    if (reload)
+    {
+        m_broadcaster->UpdateConfiguration(getConfig(CONFIG_UINT32_PACKET_BCAST_THREADS),
+        std::chrono::milliseconds(getConfig(CONFIG_UINT32_PACKET_BCAST_FREQUENCY)));
     }
 
     // PvP options
     setConfig(CONFIG_BOOL_ACCURATE_PVP_EQUIP_REQUIREMENTS, "PvP.AccurateEquipRequirements", true);
     setConfig(CONFIG_BOOL_ACCURATE_PVP_PURCHASE_REQUIREMENTS, "PvP.AccuratePurchaseRequirements", true);
-    setConfig(CONFIG_BOOL_ACCURATE_PVP_ZONE_REQUIREMENTS, "PvP.AccurateZoneRequirements", true);
     setConfig(CONFIG_BOOL_ACCURATE_PVP_TIMELINE, "PvP.AccurateTimeline", true);
     setConfig(CONFIG_BOOL_ACCURATE_PVP_REWARDS, "PvP.AccurateRewards", true);
     setConfig(CONFIG_BOOL_ENABLE_DK, "PvP.DishonorableKills", true);
+    setConfig(CONFIG_BOOL_ENABLE_CITY_PROTECTOR, "PvP.CityProtector", true);
 
     // Progression settings
     setConfig(CONFIG_BOOL_ACCURATE_PETS, "Progression.AccuratePetStatistics", true);
@@ -1001,6 +1094,7 @@ void World::LoadConfigSettings(bool reload)
     setConfig(CONFIG_BOOL_AC_MOVEMENT_NOTIFY_CHEATERS, "Anticheat.NotifyCheaters", false);
     setConfig(CONFIG_UINT32_AC_MOVEMENT_BAN_DURATION, "Anticheat.BanDuration", 86400);
     setConfig(CONFIG_BOOL_AC_MOVEMENT_LOG_DATA, "Anticheat.LogData", false);
+    setConfig(CONFIG_UINT32_AC_MOVEMENT_PACKET_LOG_SIZE, "Anticheat.PacketLogSize", 100);
     setConfig(CONFIG_INT32_AC_ANTICHEAT_MAX_ALLOWED_DESYNC, "Anticheat.MaxAllowedDesync", 0);
     setConfig(CONFIG_BOOL_AC_MOVEMENT_CHEAT_REVERSE_TIME_ENABLED, "Anticheat.ReverseTime.Enable", true);
     setConfig(CONFIG_UINT32_AC_MOVEMENT_CHEAT_REVERSE_TIME_THRESHOLD, "Anticheat.ReverseTime.Threshold", 1);
@@ -1013,19 +1107,15 @@ void World::LoadConfigSettings(bool reload)
     setConfig(CONFIG_UINT32_AC_MOVEMENT_CHEAT_SKIPPED_HEARTBEATS_THRESHOLD_TOTAL, "Anticheat.SkippedHeartbeats.Threshold.Total", 10);
     setConfig(CONFIG_UINT32_AC_MOVEMENT_CHEAT_SKIPPED_HEARTBEATS_PENALTY, "Anticheat.SkippedHeartbeats.Penalty", CHEAT_ACTION_LOG | CHEAT_ACTION_REPORT_GMS | CHEAT_ACTION_KICK);
     setConfig(CONFIG_BOOL_AC_MOVEMENT_CHEAT_TIME_DESYNC_ENABLED, "Anticheat.TimeDesync.Enable", true);
-    setConfig(CONFIG_UINT32_AC_MOVEMENT_CHEAT_TIME_DESYNC_THRESHOLD, "Anticheat.TimeDesync.Threshold", 10000);
+    setConfig(CONFIG_UINT32_AC_MOVEMENT_CHEAT_TIME_DESYNC_THRESHOLD, "Anticheat.TimeDesync.Threshold", 5000);
     setConfig(CONFIG_UINT32_AC_MOVEMENT_CHEAT_TIME_DESYNC_PENALTY, "Anticheat.TimeDesync.Penalty", CHEAT_ACTION_LOG | CHEAT_ACTION_REPORT_GMS | CHEAT_ACTION_KICK);
     setConfig(CONFIG_BOOL_AC_MOVEMENT_CHEAT_NUM_DESYNCS_ENABLED, "Anticheat.NumDesyncs.Enable", true);
     setConfig(CONFIG_UINT32_AC_MOVEMENT_CHEAT_NUM_DESYNCS_THRESHOLD, "Anticheat.NumDesyncs.Threshold", 5);
     setConfig(CONFIG_UINT32_AC_MOVEMENT_CHEAT_NUM_DESYNCS_PENALTY, "Anticheat.NumDesyncs.Penalty", CHEAT_ACTION_LOG | CHEAT_ACTION_REPORT_GMS | CHEAT_ACTION_KICK);
     setConfig(CONFIG_BOOL_AC_MOVEMENT_CHEAT_SPEED_HACK_ENABLED, "Anticheat.SpeedHack.Enable", true);
-    setConfig(CONFIG_BOOL_AC_MOVEMENT_USE_INTERPOLATION, "Anticheat.SpeedHack.UseInterpolation", true);
     setConfig(CONFIG_BOOL_AC_MOVEMENT_CHEAT_OVERSPEED_DISTANCE_ENABLED, "Anticheat.OverpspeedDistance.Enable", true);
     setConfig(CONFIG_UINT32_AC_MOVEMENT_CHEAT_OVERSPEED_DISTANCE_THRESHOLD, "Anticheat.OverpspeedDistance.Threshold", 30);
     setConfig(CONFIG_UINT32_AC_MOVEMENT_CHEAT_OVERSPEED_DISTANCE_PENALTY, "Anticheat.OverpspeedDistance.Penalty", CHEAT_ACTION_LOG | CHEAT_ACTION_REPORT_GMS | CHEAT_ACTION_KICK);
-    setConfig(CONFIG_BOOL_AC_MOVEMENT_CHEAT_OVERSPEED_Z_ENABLED, "Anticheat.OverspeedZ.Enable", true);
-    setConfig(CONFIG_UINT32_AC_MOVEMENT_CHEAT_OVERSPEED_Z_THRESHOLD, "Anticheat.OverspeedZ.Threshold", 3);
-    setConfig(CONFIG_UINT32_AC_MOVEMENT_CHEAT_OVERSPEED_Z_PENALTY, "Anticheat.OverspeedZ.Penalty", CHEAT_ACTION_LOG | CHEAT_ACTION_REPORT_GMS | CHEAT_ACTION_KICK);
     setConfig(CONFIG_BOOL_AC_MOVEMENT_CHEAT_OVERSPEED_JUMP_ENABLED, "Anticheat.OverspeedJump.Enable", true);
     setConfig(CONFIG_BOOL_AC_MOVEMENT_CHEAT_OVERSPEED_JUMP_REJECT, "Anticheat.OverspeedJump.Reject", true);
     setConfig(CONFIG_UINT32_AC_MOVEMENT_CHEAT_OVERSPEED_JUMP_THRESHOLD, "Anticheat.OverspeedJump.Threshold", 3);
@@ -1056,6 +1146,9 @@ void World::LoadConfigSettings(bool reload)
     setConfig(CONFIG_BOOL_AC_MOVEMENT_CHEAT_NO_FALL_TIME_REJECT, "Anticheat.NoFallTime.Reject", true);
     setConfig(CONFIG_UINT32_AC_MOVEMENT_CHEAT_NO_FALL_TIME_THRESHOLD, "Anticheat.NoFallTime.Threshold", 5);
     setConfig(CONFIG_UINT32_AC_MOVEMENT_CHEAT_NO_FALL_TIME_PENALTY, "Anticheat.NoFallTime.Penalty", CHEAT_ACTION_LOG | CHEAT_ACTION_REPORT_GMS | CHEAT_ACTION_KICK);
+    setConfig(CONFIG_BOOL_AC_MOVEMENT_CHEAT_BAD_FALL_RESET_ENABLED, "Anticheat.BadFallReset.Enable", true);
+    setConfig(CONFIG_UINT32_AC_MOVEMENT_CHEAT_BAD_FALL_RESET_THRESHOLD, "Anticheat.BadFallReset.Threshold", 1);
+    setConfig(CONFIG_UINT32_AC_MOVEMENT_CHEAT_BAD_FALL_RESET_PENALTY, "Anticheat.BadFallReset.Penalty", CHEAT_ACTION_LOG | CHEAT_ACTION_REPORT_GMS | CHEAT_ACTION_KICK);
     setConfig(CONFIG_BOOL_AC_MOVEMENT_CHEAT_TELEPORT_ENABLED, "Anticheat.Teleport.Enable", true);
     setConfig(CONFIG_BOOL_AC_MOVEMENT_CHEAT_TELEPORT_REJECT, "Anticheat.Teleport.Reject", true);
     setConfig(CONFIG_FLOAT_AC_MOVEMENT_CHEAT_TELEPORT_DISTANCE, "Anticheat.Teleport.Distance", 40.0f);
@@ -1066,8 +1159,9 @@ void World::LoadConfigSettings(bool reload)
     setConfig(CONFIG_UINT32_AC_MOVEMENT_CHEAT_TELE_TO_TRANSPORT_THRESHOLD, "Anticheat.TeleportToTransport.Threshold", 2);
     setConfig(CONFIG_UINT32_AC_MOVEMENT_CHEAT_TELE_TO_TRANSPORT_PENALTY, "Anticheat.TeleportToTransport.Penalty", CHEAT_ACTION_LOG | CHEAT_ACTION_REPORT_GMS | CHEAT_ACTION_KICK);
     setConfig(CONFIG_BOOL_AC_MOVEMENT_CHEAT_FAKE_TRANSPORT_ENABLED, "Anticheat.FakeTransport.Enable", true);
+    setConfig(CONFIG_BOOL_AC_MOVEMENT_CHEAT_FAKE_TRANSPORT_REJECT, "Anticheat.FakeTransport.Reject", true);
     setConfig(CONFIG_UINT32_AC_MOVEMENT_CHEAT_FAKE_TRANSPORT_THRESHOLD, "Anticheat.FakeTransport.Threshold", 1);
-    setConfig(CONFIG_UINT32_AC_MOVEMENT_CHEAT_FAKE_TRANSPORT_PENALTY, "Anticheat.FakeTransport.Penalty", CHEAT_ACTION_LOG | CHEAT_ACTION_REPORT_GMS | CHEAT_ACTION_KICK);
+    setConfig(CONFIG_UINT32_AC_MOVEMENT_CHEAT_FAKE_TRANSPORT_PENALTY, "Anticheat.FakeTransport.Penalty", CHEAT_ACTION_LOG | CHEAT_ACTION_REPORT_GMS);
     setConfig(CONFIG_BOOL_AC_MOVEMENT_CHEAT_WATER_WALK_ENABLED, "Anticheat.WaterWalk.Enable", true);
     setConfig(CONFIG_BOOL_AC_MOVEMENT_CHEAT_WATER_WALK_REJECT, "Anticheat.WaterWalk.Reject", true);
     setConfig(CONFIG_UINT32_AC_MOVEMENT_CHEAT_WATER_WALK_THRESHOLD, "Anticheat.WaterWalk.Threshold", 5);
@@ -1108,49 +1202,51 @@ void World::LoadConfigSettings(bool reload)
     setConfig(CONFIG_BOOL_AC_MOVEMENT_CHEAT_FORBIDDEN_AREA_ENABLED, "Anticheat.ForbiddenArea.Enable", true);
     setConfig(CONFIG_UINT32_AC_MOVEMENT_CHEAT_FORBIDDEN_AREA_THRESHOLD, "Anticheat.ForbiddenArea.Threshold", 1);
     setConfig(CONFIG_UINT32_AC_MOVEMENT_CHEAT_FORBIDDEN_AREA_PENALTY, "Anticheat.ForbiddenArea.Penalty", CHEAT_ACTION_LOG | CHEAT_ACTION_REPORT_GMS);
+    setConfig(CONFIG_BOOL_AC_MOVEMENT_CHEAT_BOTTING_ENABLED, "Anticheat.Botting.Enable", true);
+    setConfig(CONFIG_UINT32_AC_MOVEMENT_CHEAT_BOTTING_PERIOD, "Anticheat.Botting.Period", 300000);
+    setConfig(CONFIG_UINT32_AC_MOVEMENT_CHEAT_BOTTING_MIN_PACKETS, "Anticheat.Botting.MinPackets", 160);
+    setConfig(CONFIG_UINT32_AC_MOVEMENT_CHEAT_BOTTING_MIN_TURNS_MOUSE, "Anticheat.Botting.MinTurnsMouse", 20);
+    setConfig(CONFIG_UINT32_AC_MOVEMENT_CHEAT_BOTTING_MIN_TURNS_KEYBOARD, "Anticheat.Botting.MinTurnsKeyboard", 80);
+    setConfig(CONFIG_UINT32_AC_MOVEMENT_CHEAT_BOTTING_MIN_TURNS_ABNORMAL, "Anticheat.Botting.MinTurnsAbnormal", 5);
+    setConfig(CONFIG_UINT32_AC_MOVEMENT_CHEAT_BOTTING_PENALTY, "Anticheat.Botting.Penalty", CHEAT_ACTION_LOG | CHEAT_ACTION_REPORT_GMS);
 
     // Warden Anticheat
-    setConfig(CONFIG_BOOL_AC_WARDEN_WIN_ENABLED, "Warden.WinEnabled", false);
-    setConfig(CONFIG_BOOL_AC_WARDEN_OSX_ENABLED, "Warden.OSXEnabled", false);
-    setConfig(CONFIG_BOOL_AC_WARDEN_PLAYERS_ONLY, "Warden.PlayersOnly", true);
-    setConfig(CONFIG_UINT32_AC_WARDEN_NUM_MEM_CHECKS, "Warden.NumMemChecks", 3);
-    setConfig(CONFIG_UINT32_AC_WARDEN_NUM_OTHER_CHECKS, "Warden.NumOtherChecks", 7);
-    setConfigMinMax(CONFIG_UINT32_AC_WARDEN_DEFAULT_PENALTY, "Warden.DefaultPenalty", WARDEN_ACTION_BAN, WARDEN_ACTION_LOG, WARDEN_ACTION_BAN);
+    setConfig(CONFIG_BOOL_AC_WARDEN_WIN_ENABLED, "Warden.WinEnabled", true);
+    setConfig(CONFIG_BOOL_AC_WARDEN_OSX_ENABLED, "Warden.OSXEnabled", true);
+    setConfig(CONFIG_BOOL_AC_WARDEN_PLAYERS_ONLY, "Warden.PlayersOnly", false);
+    setConfig(CONFIG_UINT32_AC_WARDEN_NUM_SCANS, "Warden.NumScans", 10);
+    setConfig(CONFIG_UINT32_AC_WARDEN_CLIENT_RESPONSE_DELAY, "Warden.ClientResponseDelay", 30);
+    setConfig(CONFIG_UINT32_AC_WARDEN_SCAN_FREQUENCY, "Warden.ScanFrequency", 15);
+    setConfigMinMax(CONFIG_UINT32_AC_WARDEN_DEFAULT_PENALTY, "Warden.DefaultPenalty", WARDEN_ACTION_LOG, WARDEN_ACTION_LOG, WARDEN_ACTION_BAN);
     setConfig(CONFIG_UINT32_AC_WARDEN_CLIENT_BAN_DURATION, "Warden.BanDuration", 86400);
-    setConfig(CONFIG_UINT32_AC_WARDEN_CLIENT_CHECK_HOLDOFF, "Warden.ClientCheckHoldOff", 30);
-    setConfig(CONFIG_UINT32_AC_WARDEN_CLIENT_RESPONSE_DELAY, "Warden.ClientResponseDelay", 120);
-    setConfig(CONFIG_UINT32_AC_WARDEN_DB_LOGLEVEL, "Warden.DBLogLevel", 0);
     m_wardenModuleDirectory = sConfig.GetStringDefault("Warden.ModuleDir", "warden_modules");
 
     setConfig(CONFIG_UINT32_CREATURE_SUMMON_LIMIT, "MaxCreatureSummonLimit", DEFAULT_CREATURE_SUMMON_LIMIT);
-    m_creatureSummonCountLimit = getConfig(CONFIG_UINT32_CREATURE_SUMMON_LIMIT);
 
     // Smartlog data
     sLog.InitSmartlogEntries(sConfig.GetStringDefault("Smartlog.ExtraEntries", ""));
     sLog.InitSmartlogGuids(sConfig.GetStringDefault("Smartlog.ExtraGuids", ""));
 }
 
-class CharactersDatabaseWorkerThread : public ACE_Based::Runnable
+void CharactersDatabaseWorkerThread()
 {
-public:
-    CharactersDatabaseWorkerThread()
+    time_t lastCheckTime = 0;
+    CharacterDatabase.ThreadStart();
+    while (!sWorld.IsStopped())
     {
-    }
-
-    virtual void run()
-    {
-        CharacterDatabase.ThreadStart();
-        while (!sWorld.IsStopped())
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        time_t const now = time(nullptr);
+        if ((lastCheckTime + 30 * MINUTE) < now)
         {
-            ACE_Based::Thread::Sleep(1000);
             if (CharacterDatabase.HasAsyncQuery())
                 continue;
             Player::DeleteOldCharacters();
             sObjectMgr.ReturnOrDeleteOldMails(true);
+            lastCheckTime = now;
         }
-        CharacterDatabase.ThreadEnd();
     }
-};
+    CharacterDatabase.ThreadEnd();
+}
 
 char const* World::GetPatchName() const
 {
@@ -1183,20 +1279,19 @@ char const* World::GetPatchName() const
     return "Invalid Patch!";
 }
 
-/// Initialize the World
+// Initialize the World
 void World::SetInitialWorldSettings()
 {
-    ///- Initialize the random number generator
+    // Initialize the random number generator
     srand((unsigned int)time(nullptr));
 
-    ///- Time server startup
+    // Time server startup
     uint32 uStartTime = WorldTimer::getMSTime();
 
-    ///- Initialize config settings
+    // Initialize config settings
     LoadConfigSettings();
-    bool isMapServer = getConfig(CONFIG_BOOL_IS_MAPSERVER);
 
-    ///- Check the existence of the map files for all races start areas.
+    // Check the existence of the map files for all races start areas.
     if (!MapManager::ExistMapAndVMap(0, -6240.32f, 331.033f) ||
             !MapManager::ExistMapAndVMap(0, -8949.95f, -132.493f) ||
             !MapManager::ExistMapAndVMap(1, -618.518f, -4251.67f) ||
@@ -1204,14 +1299,14 @@ void World::SetInitialWorldSettings()
             !MapManager::ExistMapAndVMap(1, 10311.3f, 832.463f) ||
             !MapManager::ExistMapAndVMap(1, -2917.58f, -257.98f))
     {
-        sLog.outError("Correct *.map files not found in path '%smaps' or *.vmtree/*.vmtile files in '%svmaps'. Please place *.map and vmap files in appropriate directories or correct the DataDir value in the mangosd.conf file.", m_dataPath.c_str(), m_dataPath.c_str());
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Correct *.map files not found in path '%smaps' or *.vmtree/*.vmtile files in '%svmaps'. Please place *.map and vmap files in appropriate directories or correct the DataDir value in the mangosd.conf file.", m_dataPath.c_str(), m_dataPath.c_str());
         Log::WaitBeforeContinueIfNeed();
         exit(1);
     }
 
-    ///- Loading strings. Getting no records means core load has to be canceled because no error message can be output.
-    sLog.outString();
-    sLog.outString("Loading MaNGOS strings...");
+    // Loading strings. Getting no records means core load has to be canceled because no error message can be output.
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading MaNGOS strings...");
     if (!sObjectMgr.LoadMangosStrings())
     {
         Log::WaitBeforeContinueIfNeed();
@@ -1221,57 +1316,57 @@ void World::SetInitialWorldSettings()
     // Loads existing IDs in the database.
     sObjectMgr.LoadAllIdentifiers();
 
-    sLog.outString("Loading Instance Statistics...");
-    sLog.outString();
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Instance Statistics...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
     sInstanceStatistics.LoadFromDB();
 
-    ///- Chargements des variables (necessaire pour le OutdoorJcJ)
-    sLog.outString("Loading saved variables ...");
+    // Chargements des variables (necessaire pour le OutdoorJcJ)
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading saved variables ...");
     sObjectMgr.LoadSavedVariable();
 
 
-    ///- Update the realm entry in the database with the realm type from the config file
-    //No SQL injection as values are treated as integers
+    // Update the realm entry in the database with the realm type from the config file
+    // No SQL injection as values are treated as integers
 
     // not send custom type REALM_FFA_PVP to realm list
     uint32 server_type = IsFFAPvPRealm() ? REALM_TYPE_PVP : getConfig(CONFIG_UINT32_GAME_TYPE);
     uint32 realm_zone = getConfig(CONFIG_UINT32_REALM_ZONE);
-    LoginDatabase.PExecute("UPDATE realmlist SET icon = %u, timezone = %u WHERE id = '%u'", server_type, realm_zone, realmID);
+    LoginDatabase.PExecute("UPDATE `realmlist` SET `icon` = %u, `timezone` = %u WHERE `id` = '%u'", server_type, realm_zone, realmID);
 
-    sLog.outString("Loading GM security access ...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading GM security access ...");
     sAccountMgr.Load();
 
-    if (!isMapServer)
-    {
-        ///- Remove the bones (they should not exist in DB though) and old corpses after a restart
-        CharacterDatabase.PExecute("DELETE FROM corpse WHERE corpse_type = '0' OR time < (UNIX_TIMESTAMP()-'%u')", 3 * DAY);
-    }
+    // Remove the bones (they should not exist in DB though) and old corpses after a restart
+    CharacterDatabase.PExecute("DELETE FROM `corpse` WHERE `corpse_type` = '0' OR `time` < (UNIX_TIMESTAMP()-'%u')", 3 * DAY);
 
-    sLog.outString("Loading spells ...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading spells ...");
     sSpellMgr.LoadSpells();
 
     sObjectMgr.LoadFactions();
 
-    sLog.outString("Loading sounds ...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading sounds ...");
     sObjectMgr.LoadSoundEntries();
 
-    sLog.outString("Loading taxi nodes ...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading taxi nodes ...");
     sObjectMgr.LoadTaxiNodes();
 
-    sLog.outString("Loading area triggers ...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading area triggers ...");
     sObjectMgr.LoadAreaTriggers();
 
-    sLog.outString("Loading skill line abilities ...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading skill line abilities ...");
     sObjectMgr.LoadSkillLineAbility();
 
-    sLog.outString("Loading mail text templates ...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading mail text templates ...");
     sObjectMgr.LoadMailTemplate();
 
-    sLog.outString("Loading pet spell data ...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading pet spell data ...");
     sObjectMgr.LoadPetSpellData();
 
-    ///- Load the DBC files
-    sLog.outString("Initialize data stores...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading world safe locs facing values ...");
+    sObjectMgr.LoadWorldSafeLocsFacing();
+
+    // Load the DBC files
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Initialize data stores...");
 
 #ifdef _WIN32
     std::string dbcPath = m_dataPath + std::to_string(SUPPORTED_CLIENT_BUILD) + std::string("\\");
@@ -1283,294 +1378,283 @@ void World::SetInitialWorldSettings()
     DetectDBCLang();
     sObjectMgr.SetDBCLocaleIndex(GetDefaultDbcLocale());    // Get once for all the locale index of DBC language (console/broadcasts)
 
-    sLog.outString("Loading Script Names...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Script Names...");
     sScriptMgr.LoadScriptNames();
 
-    sLog.outString("Loading MapTemplate...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading MapTemplate...");
     sObjectMgr.LoadMapTemplate();
 
-    sLog.outString("Loading AreaTemplate...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading AreaTemplate...");
     sObjectMgr.LoadAreaTemplate();
 
-    sLog.outString("Loading `spell_mod` and `spell_effect_mod`...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading `spell_mod` and `spell_effect_mod`...");
     sSpellModMgr.LoadSpellMods();
     sSpellMgr.AssignInternalSpellFlags();
 
-    sLog.outString("Loading SkillLineAbilityMultiMaps Data...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading SkillLineAbilityMultiMaps Data...");
     sSpellMgr.LoadSkillLineAbilityMaps();
 
-    sLog.outString("Loading SkillRaceClassInfoMultiMap Data...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading SkillRaceClassInfoMultiMap Data...");
     sSpellMgr.LoadSkillRaceClassInfoMap();
 
-    if (!isMapServer)
-    {
-        ///- Clean up and pack instances
-        sLog.outString("Cleaning up instances...");
-        sMapPersistentStateMgr.CleanupInstances();              // must be called before `creature_respawn`/`gameobject_respawn` tables
+    // Clean up and pack instances
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Cleaning up instances...");
+    sMapPersistentStateMgr.CleanupInstances();              // must be called before `creature_respawn`/`gameobject_respawn` tables
 
-        sLog.outString("Packing instances...");
-        sMapPersistentStateMgr.PackInstances();
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Packing instances...");
+    sMapPersistentStateMgr.PackInstances();
 
-        sLog.outString("Packing groups...");
-        sObjectMgr.PackGroupIds();                              // must be after CleanupInstances
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Packing groups...");
+    sObjectMgr.PackGroupIds();                              // must be after CleanupInstances
 
-        sLog.outString("Scheduling normal instance reset...");
-        sMapPersistentStateMgr.ScheduleInstanceResets();        // Must be after cleanup and packing
-    }
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Scheduling normal instance reset...");
+    sMapPersistentStateMgr.ScheduleInstanceResets();        // Must be after cleanup and packing
 
-    ///- Init highest guids before any guid using table loading to prevent using not initialized guids in some code.
+    // Init highest guids before any guid using table loading to prevent using not initialized guids in some code.
     sObjectMgr.SetHighestGuids();                           // must be after packing instances
-    sLog.outString();
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
 
-    sLog.outString("Loading Broadcast Texts...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Broadcast Texts...");
     sObjectMgr.LoadBroadcastTexts();
 
-    sLog.outString("Loading Page Texts...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Page Texts...");
     sObjectMgr.LoadPageTexts();
 
-    sLog.outString("Loading Game Object Templates...");     // must be after LoadPageTexts
-    sObjectMgr.LoadGameobjectInfo();
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Game Object Templates...");     // must be after LoadPageTexts
+    std::set<uint32> transportDisplayIds = sObjectMgr.LoadGameobjectInfo();
+    MMAP::MMapFactory::createOrGetMMapManager()->loadAllGameObjectModels(transportDisplayIds);
 
-    if (!isMapServer)
-    {
-        sLog.outString("Loading Transport templates...");
-        sTransportMgr->LoadTransportTemplates();
-    }
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Transport templates...");
+    sTransportMgr.LoadTransportTemplates();
 
-    sLog.outString("Loading Spell Chain Data...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Spell Chain Data...");
     sSpellMgr.LoadSpellChains();
 
-    sLog.outString("Loading Spell Elixir types...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Spell Elixir types...");
     sSpellMgr.LoadSpellElixirs();
 
-    sLog.outString("Loading Spell Learn Skills...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Spell Learn Skills...");
     sSpellMgr.LoadSpellLearnSkills();                       // must be after LoadSpellChains
 
-    sLog.outString("Loading Spell Learn Spells...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Spell Learn Spells...");
     sSpellMgr.LoadSpellLearnSpells();
 
-    sLog.outString("Loading Spell Proc Event conditions...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Spell Proc Event conditions...");
     sSpellMgr.LoadSpellProcEvents();
 
-    sLog.outString("Loading Spell Bonus Data...");
-    sSpellMgr.LoadSpellBonuses();
-
-    sLog.outString("Loading Spell Proc Item Enchant...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Spell Proc Item Enchant...");
     sSpellMgr.LoadSpellProcItemEnchant();                   // must be after LoadSpellChains
 
-    sLog.outString("Loading Aggro Spells Definitions...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Aggro Spells Definitions...");
     sSpellMgr.LoadSpellThreats();
 
-    sLog.outString("Loading Spell Enchant Charges...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Spell Enchant Charges...");
     sSpellMgr.LoadSpellEnchantCharges();
 
-    sLog.outString("Loading NPC Texts...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading NPC Texts...");
     sObjectMgr.LoadNPCText();
 
-    sLog.outString("Loading Item Random Enchantments Table...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Item Random Enchantments Table...");
     LoadRandomEnchantmentsTable();
 
-    sLog.outString("Loading Items...");                     // must be after LoadRandomEnchantmentsTable and LoadPageTexts
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Items...");                     // must be after LoadRandomEnchantmentsTable and LoadPageTexts
     sObjectMgr.LoadItemPrototypes();
 
-    sLog.outString("Loading Item Texts...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Item Texts...");
     sObjectMgr.LoadItemTexts();
 
-    sLog.outString("Loading Creature Model Based Info Data...");
-    sObjectMgr.LoadCreatureModelInfo();
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Creature Display Info Addon...");
+    sObjectMgr.LoadCreatureDisplayInfoAddon();
 
-    sLog.outString("Loading Equipment templates...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Equipment templates...");
     sObjectMgr.LoadEquipmentTemplates();
 
-    sLog.outString("Loading Creature spells...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Creature spells...");
     sObjectMgr.LoadCreatureSpells();
 
-    sLog.outString("Loading Creature templates...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Creature class level stats...");
+    sObjectMgr.LoadCreatureClassLevelStats();
+
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Creature templates...");
     sObjectMgr.LoadCreatureTemplates();
 
-    sLog.outString("Loading SpellsScriptTarget...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading SpellsScriptTarget...");
     sSpellMgr.LoadSpellScriptTarget();                      // must be after LoadCreatureTemplates and LoadGameobjectInfo
 
-    sLog.outString("Loading ItemRequiredTarget...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading ItemRequiredTarget...");
     sObjectMgr.LoadItemRequiredTarget();
 
-    sLog.outString("Loading Reputation Reward Rates...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Reputation Reward Rates...");
     sObjectMgr.LoadReputationRewardRate();
 
-    sLog.outString("Loading Creature Reputation OnKill Data...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Creature Reputation OnKill Data...");
     sObjectMgr.LoadReputationOnKill();
 
-    sLog.outString("Loading Reputation Spillover Data...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Reputation Spillover Data...");
     sObjectMgr.LoadReputationSpilloverTemplate();
 
-    sLog.outString("Loading Points Of Interest Data...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Points Of Interest Data...");
     sObjectMgr.LoadPointsOfInterest();
 
-    sLog.outString("Loading Pet Create Spells...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Pet Create Spells...");
     sObjectMgr.LoadPetCreateSpells();
 
-    sLog.outString("Loading Creature Data...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Creature Data...");
     sObjectMgr.LoadCreatures();
 
-    sLog.outString("Loading Creature Addon Data...");
-    sLog.outString();
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Creature Addon Data...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
     sObjectMgr.LoadCreatureAddons();                        // must be after LoadCreatureTemplates() and LoadCreatures()
-    sLog.outString(">>> Creature Addon Data loaded");
-    sLog.outString();
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, ">>> Creature Addon Data loaded");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
 
-    sLog.outString("Loading Creature Groups ...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Creature Groups ...");
     sCreatureGroupsManager->Load();
 
-    sLog.outString("Loading Gameobject Data...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Gameobject Data...");
     sObjectMgr.LoadGameobjects();
 
-    sLog.outString("Loading Gameobject Requirements...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Gameobject Requirements...");
     sObjectMgr.LoadGameobjectsRequirements();
 
-    sLog.outString("Loading CreatureLinking Data...");      // must be after Creatures
-    sLog.outString();
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Gameobject Display Info Addon...");
+    sObjectMgr.LoadGameObjectDisplayInfoAddon();
+
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading CreatureLinking Data...");      // must be after Creatures
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
     sCreatureLinkingMgr.LoadFromDB();
 
-    sLog.outString("Loading Objects Pooling Data...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Objects Pooling Data...");
     sPoolMgr.LoadFromDB();
 
-    sLog.outString("Loading Weather Data...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Weather Data...");
     sWeatherMgr.LoadWeatherZoneChances();
 
-    sLog.outString("Loading Quests...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Quests...");
     sObjectMgr.LoadQuests();                                // must be loaded after DBCs, creature_template, item_template, gameobject tables
 
-    sLog.outString("Loading Quests Relations...");
-    sLog.outString();
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Quests Relations...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
     sObjectMgr.LoadQuestRelations();                        // must be after quest load
-    sLog.outString(">>> Quests Relations loaded");
-    sLog.outString();
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, ">>> Quests Relations loaded");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
 
-    sLog.outString("Loading Quests Greetings...");          // must be loaded after creature_template
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Quests Greetings...");          // must be loaded after creature_template
     sObjectMgr.LoadQuestGreetings();
 
-    sLog.outString("Loading Trainer Greetings...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Trainer Greetings...");
     sObjectMgr.LoadTrainerGreetings();
 
-    sLog.outString("Loading Game Event Data...");           // must be after sPoolMgr.LoadFromDB and quests to properly load pool events and quests for events, but before area trigger teleports
-    sLog.outString();
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Game Event Data...");           // must be after sPoolMgr.LoadFromDB and quests to properly load pool events and quests for events, but before area trigger teleports
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
     sGameEventMgr.LoadFromDB();
-    sLog.outString(">>> Game Event Data loaded");
-    sLog.outString();
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, ">>> Game Event Data loaded");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
 
     // Load Conditions
-    sLog.outString("Loading Conditions ...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Conditions ...");
     sObjectMgr.LoadConditions();
 
-    sLog.outString("Loading Creature Respawn Data...");     // must be after LoadCreatures()
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Creature Respawn Data...");     // must be after LoadCreatures()
     sMapPersistentStateMgr.LoadCreatureRespawnTimes();
 
-    sLog.outString("Loading Gameobject Respawn Data...");   // must be after LoadGameobjects()
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Gameobject Respawn Data...");   // must be after LoadGameobjects()
     sMapPersistentStateMgr.LoadGameobjectRespawnTimes();
 
-    sLog.outString("Loading SpellArea Data...");            // must be after quest load
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading SpellArea Data...");            // must be after quest load
     sSpellMgr.LoadSpellAreas();
 
-    sLog.outString("Loading AreaTrigger teleports...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading AreaTrigger teleports...");
     sObjectMgr.LoadAreaTriggerTeleports();                  // must be after item template load
 
-    sLog.outString("Loading Quest Area Triggers...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Quest Area Triggers...");
     sObjectMgr.LoadQuestAreaTriggers();                     // must be after LoadQuests
 
-    sLog.outString("Loading Tavern Area Triggers...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Tavern Area Triggers...");
     sObjectMgr.LoadTavernAreaTriggers();
 
-    sLog.outString("Loading Battleground Entrance Area Triggers...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Battleground Entrance Area Triggers...");
     sObjectMgr.LoadBattlegroundEntranceTriggers();
 
-    sLog.outString("Loading AreaTrigger script names...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading AreaTrigger script names...");
     sScriptMgr.LoadAreaTriggerScripts();
 
-    sLog.outString("Loading event id script names...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading event id script names...");
     sScriptMgr.LoadEventIdScripts();
 
-    sLog.outString("Loading Graveyard-zone links...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Graveyard-zone links...");
     sObjectMgr.LoadGraveyardZones();
 
-    sLog.outString("Loading spell target destination coordinates...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading spell target destination coordinates...");
     sSpellMgr.LoadSpellTargetPositions();
 
-    sLog.outString("Loading SpellAffect definitions...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading SpellAffect definitions...");
     sSpellMgr.LoadSpellAffects();
 
-    sLog.outString("Loading spell pet auras...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading spell pet auras...");
     sSpellMgr.LoadSpellPetAuras();
 
-    sLog.outString("Loading Player Create Info & Level Stats...");
-    sLog.outString();
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Player Create Info & Level Stats...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
     sObjectMgr.LoadPlayerInfo();
-    sLog.outString(">>> Player Create Info & Level Stats loaded");
-    sLog.outString();
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, ">>> Player Create Info & Level Stats loaded");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
 
-    sLog.outString("Loading Exploration BaseXP Data...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Exploration BaseXP Data...");
     sObjectMgr.LoadExplorationBaseXP();
 
-    sLog.outString("Loading Pet Name Parts...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Pet Name Parts...");
     sObjectMgr.LoadPetNames();
 
-    if (!isMapServer)
-    {
-        CharacterDatabaseCleaner::CleanDatabase();
+    CharacterDatabaseCleaner::CleanDatabase();
 
-        sLog.outString("Loading character cache data...");
-        sObjectMgr.LoadPlayerCacheData();
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading character cache data...");
+    sObjectMgr.LoadPlayerCacheData();
 
-        sLog.outString("Loading the max pet number...");
-        sObjectMgr.LoadPetNumber();
-    }
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading the max pet number...");
+    sObjectMgr.LoadPetNumber();
 
-    sLog.outString("Loading pet level stats...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading pet level stats...");
     sObjectMgr.LoadPetLevelInfo();
 
-    if (!isMapServer)
-    {
-        sLog.outString("Loading Player Corpses...");
-        sObjectMgr.LoadCorpses();
-    }
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Player Corpses...");
+    sObjectMgr.LoadCorpses();
 
-    sLog.outString("Loading Loot Tables...");
-    sLog.outString();
-    LoadLootTables();
-    sLog.outString(">>> Loot Tables loaded");
-    sLog.outString();
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Loot Tables...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
+    LootIdSet ids_set;
+    LoadLootTables(ids_set);
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, ">>> Loot Tables loaded");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
 
-    sLog.outString("Loading Skill Fishing base level requirements...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Skill Fishing base level requirements...");
     sObjectMgr.LoadFishingBaseSkillLevel();
 
-    sLog.outString("Loading Npc Text Id...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Npc Text Id...");
     sObjectMgr.LoadNpcGossips();                            // must be after load Creature and LoadNPCText
 
-    sLog.outString("Loading Gossip scripts...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Gossip scripts...");
     sScriptMgr.LoadGossipScripts();                         // must be before gossip menu options
 
-    sLog.outString("Loading Gossip menus...");
-    sObjectMgr.LoadGossipMenu();
+    sObjectMgr.LoadGossipMenus();
 
-    sLog.outString("Loading Gossip menu options...");
-    sObjectMgr.LoadGossipMenuItems();
-
-    sLog.outString("Loading Vendors...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Vendors...");
     sObjectMgr.LoadVendorTemplates();                       // must be after load ItemTemplate
     sObjectMgr.LoadVendors();                               // must be after load CreatureTemplate, VendorTemplate, and ItemTemplate
 
-    sLog.outString("Loading Trainers...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Trainers...");
     sObjectMgr.LoadTrainerTemplates();                      // must be after load CreatureTemplate
     sObjectMgr.LoadTrainers();                              // must be after load CreatureTemplate, TrainerTemplate
 
-    sLog.outString("Loading Waypoint scripts...");          // before loading from creature_movement
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Waypoint scripts...");          // before loading from creature_movement
     sScriptMgr.LoadCreatureMovementScripts();
 
-    sLog.outString("Loading Waypoints...");
-    sLog.outString();
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Waypoints...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
     sWaypointMgr.Load();
 
-    ///- Loading localization data
-    sLog.outString("Loading Localization strings...");
+    // Loading localization data
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Localization strings...");
     sObjectMgr.LoadBroadcastTextLocales();
     sObjectMgr.LoadCreatureLocales();                       // must be after CreatureInfo loading
     sObjectMgr.LoadGameObjectLocales();                     // must be after GameobjectInfo loading
@@ -1580,89 +1664,85 @@ void World::SetInitialWorldSettings()
     sObjectMgr.LoadGossipMenuItemsLocales();                // must be after gossip menu items loading
     sObjectMgr.LoadPointOfInterestLocales();                // must be after POI loading
     sObjectMgr.LoadAreaLocales();
-    sLog.outString(">>> Localization strings loaded");
-    sLog.outString();
+    sObjectMgr.LoadAreaTriggerLocales();
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, ">>> Localization strings loaded");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
 
-    ///- Load dynamic data tables from the database
-    if (!isMapServer)
-    {
-        sLog.outString("Loading Auctions...");
-        sLog.outString();
-        sAuctionMgr.LoadAuctionHouses();
-        sAuctionMgr.LoadAuctionItems();
-        sAuctionMgr.LoadAuctions();
-        sLog.outString(">>> Auctions loaded");
-        sLog.outString();
+    // Load dynamic data tables from the database
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Auctions...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
+    sAuctionMgr.LoadAuctionHouses();
+    sAuctionMgr.LoadAuctionItems();
+    sAuctionMgr.LoadAuctions();
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, ">>> Auctions loaded");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
 
-        sLog.outString("Loading Guilds...");
-        sGuildMgr.LoadGuilds();
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Guilds...");
+    sGuildMgr.LoadGuilds();
 
-        sLog.outString("Loading Petitions...");
-        sGuildMgr.LoadPetitions();
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Petitions...");
+    sGuildMgr.LoadPetitions();
 
-        sLog.outString("Loading Groups...");
-        sObjectMgr.LoadGroups();
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Groups...");
+    sObjectMgr.LoadGroups();
 
-        sLog.outString("Loading ReservedNames...");
-        sObjectMgr.LoadReservedPlayersNames();
-    }
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading ReservedNames...");
+    sObjectMgr.LoadReservedPlayersNames();
 
-    sLog.outString("Loading GameObjects for quests...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading GameObjects for quests...");
     sObjectMgr.LoadGameObjectForQuests();
 
-    sLog.outString("Loading BattleMasters...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading BattleMasters...");
     sBattleGroundMgr.LoadBattleMastersEntry();
 
-    sLog.outString("Loading BattleGround event indexes...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading BattleGround event indexes...");
     sBattleGroundMgr.LoadBattleEventIndexes();
 
-    sLog.outString("Loading GameTeleports...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading GameTeleports...");
     sObjectMgr.LoadGameTele();
 
-    sLog.outString("Loading Taxi path transitions...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Taxi path transitions...");
     sObjectMgr.LoadTaxiPathTransitions();
 
-    if (!isMapServer)
-    {
-        sLog.outString("Loading GM tickets and surveys...");
-        sTicketMgr->Initialize();
-        sTicketMgr->LoadTickets();
-        sTicketMgr->LoadSurveys();
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading GM tickets and surveys...");
+    sTicketMgr->Initialize();
+    sTicketMgr->LoadTickets();
+    sTicketMgr->LoadSurveys();
 
-        ///- Handle outdated emails (delete/return)
-        sLog.outString("Returning old mails...");
-        sObjectMgr.ReturnOrDeleteOldMails(false);
-    }
+    // Handle outdated emails (delete/return)
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Returning old mails...");
+    sObjectMgr.ReturnOrDeleteOldMails(false);
 
-    ///- Load and initialize scripts
-    sLog.outString("Loading Scripts...");
-    sLog.outString();
+    // Load and initialize scripts
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Scripts...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
     sScriptMgr.LoadQuestStartScripts();                     // must be after load Creature/Gameobject(Template/Data) and QuestTemplate
     sScriptMgr.LoadQuestEndScripts();                       // must be after load Creature/Gameobject(Template/Data) and QuestTemplate
     sScriptMgr.LoadSpellScripts();                          // must be after load Creature/Gameobject(Template/Data)
     sScriptMgr.LoadCreatureSpellScripts();
     sScriptMgr.LoadGameObjectScripts();                     // must be after load Creature/Gameobject(Template/Data)
     sScriptMgr.LoadEventScripts();                          // must be after load Creature/Gameobject(Template/Data)
+    sScriptMgr.LoadGenericScripts();
     sScriptMgr.LoadCreatureEventAIScripts();
-    sLog.outString(">>> Scripts loaded");
-    sLog.outString();
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, ">>> Scripts loaded");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
 
-    sLog.outString("Checking all script texts...");         // must be after Load*Scripts calls
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Checking all script texts...");         // must be after Load*Scripts calls
     sScriptMgr.CheckAllScriptTexts();
-    sLog.outString();
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
 
-    sLog.outString("Loading CreatureEventAI Events...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading CreatureEventAI Events...");
     sEventAIMgr.LoadCreatureEventAI_Events();
 
-    sLog.outString("Initializing Scripts...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Initializing Scripts...");
     sScriptMgr.Initialize();
-    sLog.outString();
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
 
-    sLog.outString("Loading aura removal on map change definitions");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading aura removal on map change definitions");
     sAuraRemovalMgr.LoadFromDB();
 
-    ///- Initialize game time and timers
-    sLog.outString("DEBUG:: Initialize game time and timers");
+    // Initialize game time and timers
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "DEBUG:: Initialize game time and timers");
     m_gameTime = time(nullptr);
     m_startTime = m_gameTime;
     m_gameDay = (m_gameTime + m_timeZoneOffset) / DAY;
@@ -1675,11 +1755,11 @@ void World::SetInitialWorldSettings()
     sprintf(isoDate, "%04d-%02d-%02d %02d:%02d:%02d",
             local.tm_year + 1900, local.tm_mon + 1, local.tm_mday, local.tm_hour, local.tm_min, local.tm_sec);
 
-    LoginDatabase.PExecute("INSERT INTO uptime (realmid, starttime, startstring, uptime) VALUES('%u', " UI64FMTD ", '%s', 0)",
-                           realmID, uint64(m_startTime), isoDate);
+    LoginDatabase.PExecute("INSERT INTO `uptime` (`realmid`, `starttime`, `startstring`, `revision`) VALUES('%u', " UI64FMTD ", '%s', '%s')",
+                           realmID, uint64(m_startTime), isoDate, REVISION_HASH);
 
-    if (!isMapServer)
-        m_timers[WUPDATE_AUCTIONS].SetInterval(MINUTE * IN_MILLISECONDS);
+
+    m_timers[WUPDATE_AUCTIONS].SetInterval(MINUTE * IN_MILLISECONDS);
     m_timers[WUPDATE_UPTIME].SetInterval(getConfig(CONFIG_UINT32_UPTIME_UPDATE)*MINUTE * IN_MILLISECONDS);
     //Update "uptime" table based on configuration entry in minutes.
     m_timers[WUPDATE_CORPSES].SetInterval(20 * MINUTE * IN_MILLISECONDS);
@@ -1688,112 +1768,122 @@ void World::SetInitialWorldSettings()
     // Update groups with offline leader after delay in seconds
     m_timers[WUPDATE_GROUPS].SetInterval(IN_MILLISECONDS);
 
-    ///- Initialize static helper structures
+    // Initialize static helper structures
     AIRegistry::Initialize();
-    Player::InitVisibleBits();
 
-    sLog.outString("Loading GameObject models ...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading GameObject models ...");
     LoadGameObjectModelList();
 
-    ///- Initialize MapManager
-    sLog.outString("Starting Map System");
+    // loads GO data
+    sTransportMgr.LoadTransportAnimationAndRotation();
+
+    // Initialize MapManager
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Starting Map System");
     sMapMgr.Initialize();
 
-    ///- Initialize Battlegrounds
-    sLog.outString("Starting BattleGround System");
+    // Initialize Battlegrounds
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Starting BattleGround System");
     sBattleGroundMgr.CreateInitialBattleGrounds();
+    CheckLootTemplates_Reference(ids_set);
 
-    sLog.outString("Starting ZoneScripts");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Starting ZoneScripts");
     sZoneScriptMgr.InitZoneScripts();
 
     //Not sure if this can be moved up in the sequence (with static data loading) as it uses MapManager
-    if (!isMapServer)
-    {
-        sLog.outString("Loading Transports...");
-        sTransportMgr->SpawnContinentTransports();
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Transports...");
+    sTransportMgr.SpawnContinentTransports();
 
-        sLog.outString("Deleting expired bans...");
-        LoginDatabase.Execute("DELETE FROM ip_banned WHERE unbandate<=UNIX_TIMESTAMP() AND unbandate<>bandate");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Deleting expired bans...");
+    LoginDatabase.Execute("DELETE FROM `ip_banned` WHERE `unbandate`<=UNIX_TIMESTAMP() AND `unbandate`<>`bandate`");
 
-        sHonorMaintenancer.Initialize();
-        sHonorMaintenancer.DoMaintenance();
-    }
+    sHonorMaintenancer.Initialize();
+    sHonorMaintenancer.DoMaintenance();
 
-    sLog.outString("Starting Game Event system...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Starting Game Event system...");
     uint32 nextGameEvent = sGameEventMgr.Initialize();
     m_timers[WUPDATE_EVENTS].SetInterval(nextGameEvent);    //depend on next event
 
-    sLog.outString();
-    sLog.outString("Loading disabled spells");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading disabled spells");
     sObjectMgr.LoadSpellDisabledEntrys();
 
-    sLog.outString("Loading anticheat library");
-    sAnticheatLib->LoadAnticheatData();
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading anticheat library");
+    sAnticheatMgr->LoadAnticheatData();
 
-    if (!isMapServer)
-    {
-        sLog.outString("Loading auto broadcast");
-        sAutoBroadCastMgr.load();
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading auto broadcast");
+    sAutoBroadCastMgr.Load();
 
-        sLog.outString("Loading AH bot");
-        sAuctionHouseBotMgr.Load();
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading AH bot");
+    sAuctionHouseBotMgr.Load();
 
-        sLog.outString("Caching player phases (obsolete)");
-        sObjectMgr.LoadPlayerPhaseFromDb();
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Caching player phases (obsolete)");
+    sObjectMgr.LoadPlayerPhaseFromDb();
 
-        sLog.outString("Caching player pets ...");
-        sCharacterDatabaseCache.LoadAll();
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Caching player pets ...");
+    sCharacterDatabaseCache.LoadAll();
 
-        sLog.outString("Loading PlayerBot ..."); // Requires Players cache
-        sPlayerBotMgr.load();
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading PlayerBot ..."); // Requires Players cache
+    sPlayerBotMgr.Load();
 
-        sLog.outString();
-        sLog.outString("Loading faction change ...");
-        sObjectMgr.LoadFactionChangeReputations();
-        sObjectMgr.LoadFactionChangeSpells();
-        sObjectMgr.LoadFactionChangeItems();
-        sObjectMgr.LoadFactionChangeQuests();
-        sObjectMgr.LoadFactionChangeMounts();
-    }
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading faction change ...");
+    sObjectMgr.LoadFactionChangeReputations();
+    sObjectMgr.LoadFactionChangeSpells();
+    sObjectMgr.LoadFactionChangeItems();
+    sObjectMgr.LoadFactionChangeQuests();
+    sObjectMgr.LoadFactionChangeMounts();
 
-    sLog.outString("Loading loot-disabled map list");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading loot-disabled map list");
     sObjectMgr.LoadMapLootDisabled();
 
-    sLog.outString("Loading `cinematic_waypoints`");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading `cinematic_waypoints`");
     sObjectMgr.LoadCinematicsWaypoints();
 
-    sLog.outString("Loading spell groups ...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading spell groups ...");
     sSpellMgr.LoadSpellGroups();
 
-    sLog.outString("Loading spell group stack rules ...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading spell group stack rules ...");
     sSpellMgr.LoadSpellGroupStackRules();
+
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading RBAC for chat commands...");
+    ChatHandler::LoadRbacPermissions();
+
+    sObjectMgr.LoadPlayerPremadeTemplates();
 
     if (getConfig(CONFIG_BOOL_RESTORE_DELETED_ITEMS))
     {
-        sLog.outString("Restoring deleted items to players ...");
+        sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Restoring deleted items to players ...");
         sObjectMgr.RestoreDeletedItems();
     }
 
-    sAutoTestingMgr->Load();
+    if (GetWowPatch() >= WOW_PATCH_103 || !getConfig(CONFIG_BOOL_ACCURATE_LFG))
+    {
+        m_lfgQueueThread.reset(new std::thread([&]()
+        {
+            m_lfgQueue.Update();
+        }));
+    }
+
+    sAnticheatMgr->StartWardenUpdateThread();
 
     m_broadcaster =
-        std::make_unique<MovementBroadcaster>(sWorld.getConfig(CONFIG_UINT32_PACKET_BCAST_THREADS),
-                                              std::chrono::milliseconds(sWorld.getConfig(CONFIG_UINT32_PACKET_BCAST_FREQUENCY)));
+        std::make_unique<MovementBroadcaster>(getConfig(CONFIG_UINT32_PACKET_BCAST_THREADS),
+                                              std::chrono::milliseconds(getConfig(CONFIG_UINT32_PACKET_BCAST_FREQUENCY)));
 
-    if (!isMapServer)
-        m_charDbWorkerThread = new ACE_Based::Thread(new CharactersDatabaseWorkerThread());
+    m_charDbWorkerThread.reset(new std::thread(&CharactersDatabaseWorkerThread));
+    m_asyncPacketsThread.reset(new std::thread(&World::ProcessAsyncPackets, this));
 
-    sLog.outString();
-    sLog.outString("==========================================================");
-    sLog.outString("Current content is set to %s.", GetPatchName());
-    sLog.outString("Supported client build is set to %u.", SUPPORTED_CLIENT_BUILD);
-    sLog.outString("==========================================================");
-    sLog.outString();
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "==========================================================");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Current content is set to %s.", GetPatchName());
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Supported client build is set to %u.", SUPPORTED_CLIENT_BUILD);
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "==========================================================");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
 
-    sLog.outString("%s initialized.", isMapServer ? "Node" : "World");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "World initialized.");
 
     uint32 uStartInterval = WorldTimer::getMSTimeDiff(uStartTime, WorldTimer::getMSTime());
-    sLog.outString("SERVER STARTUP TIME: %i minutes %i seconds", uStartInterval / 60000, (uStartInterval % 60000) / 1000);
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "SERVER STARTUP TIME: %i minutes %i seconds", uStartInterval / 60000, (uStartInterval % 60000) / 1000);
 }
 
 void World::DetectDBCLang()
@@ -1802,7 +1892,7 @@ void World::DetectDBCLang()
 
     if (m_lang_confid != 255 && m_lang_confid >= MAX_DBC_LOCALE)
     {
-        sLog.outError("Incorrect DBC.Locale! Must be >= 0 and < %d (set to 0)", MAX_DBC_LOCALE);
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Incorrect DBC.Locale! Must be >= 0 and < %d (set to 0)", MAX_DBC_LOCALE);
         m_lang_confid = LOCALE_enUS;
     }
 
@@ -1829,70 +1919,87 @@ void World::DetectDBCLang()
 
     if (default_locale >= MAX_DBC_LOCALE)
     {
-        sLog.outError("Unable to determine your DBC Locale! (corrupt DBC?)");
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Unable to determine your DBC Locale! (corrupt DBC?)");
         Log::WaitBeforeContinueIfNeed();
         exit(1);
     }
 
     m_defaultDbcLocale = LocaleConstant(default_locale);
 
-    sLog.outString("Using %s DBC Locale as default. All available DBC locales: %s", localeNames[m_defaultDbcLocale], availableLocalsStr.empty() ? "<none>" : availableLocalsStr.c_str());
-    sLog.outString();
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Using %s DBC Locale as default. All available DBC locales: %s", localeNames[m_defaultDbcLocale], availableLocalsStr.empty() ? "<none>" : availableLocalsStr.c_str());
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
 }
 
-class WorldAsyncTasksExecutor : public ACE_Based::Runnable
+// Only processes packets while session update, the messager, and cli commands processing are NOT running
+void World::ProcessAsyncPackets()
 {
-public:
-    WorldAsyncTasksExecutor() {}
-    void run()
+    while (!sWorld.IsStopped())
     {
-        WorldDatabase.ThreadStart();
-        AsyncTask* task;
-        while (sWorld.GetNextAsyncTask(task))
+        do
         {
-            task->run();
-            delete task;
-        }
-        WorldDatabase.ThreadEnd();
-    }
-};
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
+        } while (!m_canProcessAsyncPackets);
 
-/// Update the World !
+        for (auto const& itr : m_sessions)
+        {
+            WorldSession* pSession = itr.second;
+
+            MapSessionFilter updater(pSession);
+            updater.SetProcessType(PACKET_PROCESS_ASYNC);
+            pSession->ProcessPackets(updater);
+
+            if (!m_canProcessAsyncPackets)
+                break;
+        }
+    }
+}
+
+// Update the World !
 void World::Update(uint32 diff)
 {
-    ///- Update the different timers
-    for (int i = 0; i < WUPDATE_COUNT; ++i)
+    m_currentMSTime = WorldTimer::getMSTime();
+    m_currentTime = std::chrono::time_point_cast<std::chrono::milliseconds>(Clock::now());
+    m_currentDiff = diff;
+    
+    // Update the different timers
+    for (auto& timer : m_timers)
     {
-        if (m_timers[i].GetCurrent() >= 0)
-            m_timers[i].Update(diff);
+        if (timer.GetCurrent() >= 0)
+            timer.Update(diff);
         else
-            m_timers[i].SetCurrent(0);
+            timer.SetCurrent(0);
     }
 
-    ///- Update the game time and check for shutdown time
+    // Update the game time and check for shutdown time
     _UpdateGameTime();
 
-    ///-Update mass mailer tasks if any
+    // Update mass mailer tasks if any
     sMassMailMgr.Update();
 
-    /// <ul><li> Handle auctions when the timer has passed
+    // <ul><li> Handle auctions when the timer has passed
     if (m_timers[WUPDATE_AUCTIONS].Passed())
     {
         m_timers[WUPDATE_AUCTIONS].Reset();
 
         sAuctionHouseBotMgr.Update();
-        ///- Handle expired auctions
+        // Handle expired auctions
         sAuctionMgr.Update();
     }
 
-    /// <li> Handle session updates
+    m_canProcessAsyncPackets = false;
+
+    GetMessager().Execute(this);
+
+    // <li> Handle session updates
     uint32 updateSessionsTime = WorldTimer::getMSTime();
     UpdateSessions(diff);
     updateSessionsTime = WorldTimer::getMSTimeDiffToNow(updateSessionsTime);
     if (getConfig(CONFIG_UINT32_PERFLOG_SLOW_SESSIONS_UPDATE) && updateSessionsTime > getConfig(CONFIG_UINT32_PERFLOG_SLOW_SESSIONS_UPDATE))
-        sLog.out(LOG_PERFORMANCE, "Update sessions: %ums", updateSessionsTime);
+        sLog.Out(LOG_PERFORMANCE, LOG_LVL_MINIMAL, "Update sessions: %ums", updateSessionsTime);
 
-    /// <li> Update uptime table
+    m_canProcessAsyncPackets = true;
+
+    // <li> Update uptime table
     if (m_timers[WUPDATE_UPTIME].Passed())
     {
         uint32 tmpDiff = uint32(m_gameTime - m_startTime);
@@ -1900,29 +2007,37 @@ void World::Update(uint32 diff)
         uint32 maxClientsNum = GetMaxActiveSessionCount();
 
         m_timers[WUPDATE_UPTIME].Reset();
-        LoginDatabase.PExecute("UPDATE uptime SET uptime = %u, onlineplayers = %u, maxplayers = %u WHERE realmid = %u AND starttime = " UI64FMTD, tmpDiff, onlineClientsNum, maxClientsNum, realmID, uint64(m_startTime));
+        LoginDatabase.PExecute("UPDATE `uptime` SET `uptime` = %u, `onlineplayers` = %u, `maxplayers` = %u WHERE `realmid` = %u AND `starttime` = " UI64FMTD, tmpDiff, onlineClientsNum, maxClientsNum, realmID, uint64(m_startTime));
     }
 
-    ///- Update objects (maps, transport, creatures,...)
+    // Update objects (maps, transport, creatures,...)
     uint32 updateMapSystemTime = WorldTimer::getMSTime();
-    std::vector<ACE_Based::Thread*> asyncTaskThreads;
-    int threadsCount = getConfig(CONFIG_UINT32_ASYNC_TASKS_THREADS_COUNT);
-    for (int i = 0; i < threadsCount; ++i)
-        asyncTaskThreads.push_back(new ACE_Based::Thread(new WorldAsyncTasksExecutor()));
-
+    
+    // TODO: find a better place for this
+    if (!m_updateThreads)
+    {
+        m_updateThreads = std::unique_ptr<ThreadPool>( new ThreadPool(
+                    getConfig(CONFIG_UINT32_ASYNC_TASKS_THREADS_COUNT),
+                    ThreadPool::ClearMode::UPPON_COMPLETION)
+                                             );
+        m_updateThreads->start<ThreadPool::MySQL<>>();
+    }
+    std::unique_lock<std::mutex> lock(m_asyncTaskQueueMutex);
+    _asyncTasks.swap(_asyncTasksBusy);
+    std::future<void> job = m_updateThreads->processWorkload(_asyncTasksBusy);
+    _asyncTasks.clear();
+    lock.unlock();
+    
     sMapMgr.Update(diff);
     sBattleGroundMgr.Update(diff);
-    sLFGMgr.Update(diff);
     sGuardMgr.Update(diff);
     sZoneScriptMgr.Update(diff);
-    sAutoTestingMgr->Update(diff);
-    sNodesMgr->OnWorldUpdate(diff);
 
-    ///- Update groups with offline leaders
+    // Update groups with offline leaders
     if (m_timers[WUPDATE_GROUPS].Passed())
     {
         m_timers[WUPDATE_GROUPS].Reset();
-        if (const uint32 delay = getConfig(CONFIG_UINT32_GROUP_OFFLINE_LEADER_DELAY))
+        if (uint32 const delay = getConfig(CONFIG_UINT32_GROUP_OFFLINE_LEADER_DELAY))
         {
             for (ObjectMgr::GroupMap::const_iterator i = sObjectMgr.GetGroupMapBegin(); i != sObjectMgr.GetGroupMapEnd(); ++i)
                 i->second->UpdateOfflineLeader(m_gameTime, delay);
@@ -1930,17 +2045,15 @@ void World::Update(uint32 diff)
     }
 
     uint32 asyncWaitBegin = WorldTimer::getMSTime();
-    for (int i = 0; i < threadsCount; ++i)
-    {
-        asyncTaskThreads[i]->wait();
-        delete asyncTaskThreads[i];
-    }
+
+    if (job.valid())
+        job.wait();
 
     updateMapSystemTime = WorldTimer::getMSTimeDiffToNow(updateMapSystemTime);
     if (getConfig(CONFIG_UINT32_PERFLOG_SLOW_MAPSYSTEM_UPDATE) && updateMapSystemTime > getConfig(CONFIG_UINT32_PERFLOG_SLOW_MAPSYSTEM_UPDATE))
-        sLog.out(LOG_PERFORMANCE, "Update map system: %ums [%ums for async]", updateMapSystemTime, WorldTimer::getMSTimeDiffToNow(asyncWaitBegin));
+        sLog.Out(LOG_PERFORMANCE, LOG_LVL_MINIMAL, "Update map system: %ums [%ums for async]", updateMapSystemTime, WorldTimer::getMSTimeDiffToNow(asyncWaitBegin));
 
-    ///- Sauvegarde des variables internes (table variables) : MaJ par rapport a la DB
+    // Sauvegarde des variables internes (table variables) : MaJ par rapport a la DB
     if (m_timers[WUPDATE_SAVE_VAR].Passed())
     {
         m_timers[WUPDATE_SAVE_VAR].Reset();
@@ -1952,9 +2065,9 @@ void World::Update(uint32 diff)
     UpdateResultQueue();
     asyncQueriesTime = WorldTimer::getMSTimeDiffToNow(asyncQueriesTime);
     if (getConfig(CONFIG_UINT32_PERFLOG_SLOW_ASYNC_QUERIES) && asyncQueriesTime > getConfig(CONFIG_UINT32_PERFLOG_SLOW_ASYNC_QUERIES))
-        sLog.out(LOG_PERFORMANCE, "Update async queries: %ums", asyncQueriesTime);
+        sLog.Out(LOG_PERFORMANCE, LOG_LVL_MINIMAL, "Update async queries: %ums", asyncQueriesTime);
 
-    ///- Erase old corpses
+    // Erase old corpses
     if (m_timers[WUPDATE_CORPSES].Passed())
     {
         m_timers[WUPDATE_CORPSES].Reset();
@@ -1962,7 +2075,7 @@ void World::Update(uint32 diff)
         sObjectAccessor.RemoveOldCorpses();
     }
 
-    ///- Process Game events when necessary
+    // Process Game events when necessary
     if (m_timers[WUPDATE_EVENTS].Passed())
     {
         m_timers[WUPDATE_EVENTS].Reset();                   // to give time for Update() to be processed
@@ -1971,14 +2084,14 @@ void World::Update(uint32 diff)
         m_timers[WUPDATE_EVENTS].Reset();
     }
 
-    /// </ul>
-    ///- Move all creatures with "delayed move" and remove and delete all objects with "delayed remove"
+    // </ul>
+    // Move all creatures with "delayed move" and remove and delete all objects with "delayed remove"
     sMapMgr.RemoveAllObjectsInRemoveList();
 
     // update the instance reset times
     sMapPersistentStateMgr.Update();
 
-    /// Maintenance checker
+    // Maintenance checker
     if (m_MaintenanceTimeChecker < diff)
     {
         sHonorMaintenancer.CheckMaintenanceDay();
@@ -1987,33 +2100,39 @@ void World::Update(uint32 diff)
     else
         m_MaintenanceTimeChecker -= diff;
 
-    //Update PlayerBotMgr
-    sPlayerBotMgr.update(diff);
+    // Update PlayerBotMgr
+    sPlayerBotMgr.Update(diff);
     // Update AutoBroadcast
-    sAutoBroadCastMgr.update(diff);
-    // Update liste des ban si besoin
+    sAutoBroadCastMgr.Update(diff);
+    // Update ban list if necessary
     sAccountMgr.Update(diff);
+
+    m_canProcessAsyncPackets = false;
 
     // And last, but not least handle the issued cli commands
     ProcessCliCommands();
+
+    m_canProcessAsyncPackets = true;
 
     //cleanup unused GridMap objects as well as VMaps
     if (getConfig(CONFIG_BOOL_CLEANUP_TERRAIN))
         sTerrainMgr.Update(diff);
 }
 
-/// Send a packet to all players (except self if mentioned)
-void World::SendGlobalMessage(WorldPacket *packet, WorldSession *self, uint32 team)
+// Send a packet to all players (except self if mentioned)
+void World::SendGlobalMessage(WorldPacket* packet, WorldSession* self, uint32 team)
 {
-    SessionMap::const_iterator itr;
-    for (itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
+    for (const auto& itr : m_sessions)
     {
-        if (itr->second &&
-                itr->second->GetPlayer() &&
-                itr->second->GetPlayer()->IsInWorld() &&
-                itr->second != self &&
-                (team == 0 || itr->second->GetPlayer()->GetTeam() == team))
-            itr->second->SendPacket(packet);
+        if (WorldSession* session = itr.second)
+        {
+            if (session != self)
+            {
+                Player* player = session->GetPlayer();
+                if (player && player->IsInWorld() && (team == TEAM_NONE || player->GetTeam() == team))
+                    session->SendPacket(packet);
+            }
+        }
     }
 }
 
@@ -2065,9 +2184,44 @@ private:
     int32 i_textId;
     va_list* i_args;
 };
+class WorldBroadcastTextBuilder
+{
+public:
+    typedef std::vector<WorldPacket*> WorldPacketList;
+    explicit WorldBroadcastTextBuilder(uint32 textId) : i_textId(textId) {}
+    void operator()(WorldPacketList& data_list, uint32 loc_idx)
+    {
+        char const* text = sObjectMgr.GetBroadcastText(i_textId, loc_idx);
+        do_helper(data_list, (char*)text);
+    }
+private:
+    char* lineFromMessage(char*& pos)
+    {
+        char* start = strtok(pos, "\n");
+        pos = nullptr;
+        return start;
+    }
+    void do_helper(WorldPacketList& data_list, char* text)
+    {
+        char* pos = text;
+
+        while (char* line = lineFromMessage(pos))
+        {
+            WorldPacket* data = new WorldPacket();
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_6_1
+            ChatHandler::BuildChatPacket(*data, CHAT_MSG_BG_SYSTEM_NEUTRAL, line);
+#else
+            ChatHandler::BuildChatPacket(*data, CHAT_MSG_SYSTEM, line);
+#endif
+            data_list.push_back(data);
+        }
+    }
+
+    uint32 i_textId;
+};
 }                                                           // namespace MaNGOS
 
-/// Send a System Message to all players (except self if mentioned)
+// Send a System Message to all players (except self if mentioned)
 void World::SendWorldText(int32 string_id, ...)
 {
     va_list ap;
@@ -2075,29 +2229,47 @@ void World::SendWorldText(int32 string_id, ...)
 
     MaNGOS::WorldWorldTextBuilder wt_builder(string_id, &ap);
     MaNGOS::LocalizedPacketListDo<MaNGOS::WorldWorldTextBuilder> wt_do(wt_builder);
-    for (SessionMap::iterator itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
+    for (const auto& itr : m_sessions)
     {
-        if (!itr->second || !itr->second->GetPlayer() || !itr->second->GetPlayer()->IsInWorld())
-            continue;
-
-        wt_do(itr->second->GetPlayer());
+        if (WorldSession* session = itr.second)
+        {
+            Player* player = session->GetPlayer();
+            if (player && player->IsInWorld())
+                wt_do(player);
+        }
     }
 
     va_end(ap);
 }
 
-void World::SendGMTicketText(const char* text)
+void World::SendBroadcastTextToWorld(uint32 textId)
 {
-    for (SessionMap::iterator itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
+    MaNGOS::WorldBroadcastTextBuilder wt_builder(textId);
+    MaNGOS::LocalizedPacketListDo<MaNGOS::WorldBroadcastTextBuilder> wt_do(wt_builder);
+    for (const auto& itr : m_sessions)
     {
-        if (!itr->second ||
-            !itr->second->GetPlayer() ||
-            !itr->second->GetPlayer()->IsInWorld() ||
-            itr->second->GetSecurity() == SEC_PLAYER ||
-            !itr->second->GetPlayer()->IsAcceptTickets())
-            continue;
+        if (WorldSession* session = itr.second)
+        {
+            Player* player = session->GetPlayer();
+            if (player && player->IsInWorld())
+                wt_do(player);
+        }
+    }
+}
 
-        ChatHandler(itr->second->GetPlayer()).SendSysMessage(text);
+void World::SendGMTicketText(char const* text)
+{
+    for (const auto& itr : m_sessions)
+    {
+        if (WorldSession* session = itr.second)
+        {
+            if (session->GetSecurity() > SEC_PLAYER)
+            {
+                Player* player = session->GetPlayer();
+                if (player && player->IsInWorld() && player->IsAcceptTickets())
+                    ChatHandler(player).SendSysMessage(text);
+            }
+        }
     }
 }
 
@@ -2108,16 +2280,19 @@ void World::SendGMTicketText(int32 string_id, ...)
 
     MaNGOS::WorldWorldTextBuilder wt_builder(string_id, &ap);
     MaNGOS::LocalizedPacketListDo<MaNGOS::WorldWorldTextBuilder> wt_do(wt_builder);
-    for (SessionMap::iterator itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
+    for (const auto& itr : m_sessions)
     {
-        if (!itr->second ||
-            !itr->second->GetPlayer() ||
-            !itr->second->GetPlayer()->IsInWorld() ||
-            itr->second->GetSecurity() == SEC_PLAYER ||
-            !itr->second->GetPlayer()->IsAcceptTickets())
-            continue;
-
-        wt_do(itr->second->GetPlayer());
+        if (WorldSession* session = itr.second)
+        {
+            if (session->GetSecurity() > SEC_PLAYER)
+            {
+                Player* player = session->GetPlayer();
+                if (player && player->IsInWorld() && player->IsAcceptTickets())
+                {
+                    wt_do(player);
+                }
+            }
+        }
     }
 
     va_end(ap);
@@ -2130,19 +2305,26 @@ void World::SendGMText(int32 string_id, ...)
 
     MaNGOS::WorldWorldTextBuilder wt_builder(string_id, &ap);
     MaNGOS::LocalizedPacketListDo<MaNGOS::WorldWorldTextBuilder> wt_do(wt_builder);
-    for (SessionMap::iterator itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
+    for (const auto& itr : m_sessions)
     {
-        if (!itr->second || !itr->second->GetPlayer() || !itr->second->GetPlayer()->IsInWorld() || itr->second->GetSecurity() == SEC_PLAYER)
-            continue;
-
-        wt_do(itr->second->GetPlayer());
+        if (WorldSession* session = itr.second)
+        {
+            if (session->GetSecurity() > SEC_PLAYER)
+            {
+                Player* player = session->GetPlayer();
+                if (player && player->IsInWorld())
+                {
+                    wt_do(player);
+                }
+            }
+        }
     }
 
     va_end(ap);
 }
 
-/// DEPRICATED, only for debug purpose. Send a System Message to all players (except self if mentioned)
-void World::SendGlobalText(const char* text, WorldSession *self)
+// DEPRICATED, only for debug purpose. Send a System Message to all players (except self if mentioned)
+void World::SendGlobalText(char const* text, WorldSession* self)
 {
     WorldPacket data;
 
@@ -2159,69 +2341,75 @@ void World::SendGlobalText(const char* text, WorldSession *self)
     delete [] buf;
 }
 
-/// Send a packet to all players (or players selected team) in the zone (except self if mentioned)
-void World::SendZoneMessage(uint32 zone, WorldPacket *packet, WorldSession *self, uint32 team)
+// Send a packet to all players (or players selected team) in the zone (except self if mentioned)
+void World::SendZoneMessage(uint32 zone, WorldPacket* packet, WorldSession* self, uint32 team)
 {
-    SessionMap::const_iterator itr;
-    for (itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
+    for (const auto& itr : m_sessions)
     {
-        if (itr->second &&
-                itr->second->GetPlayer() &&
-                itr->second->GetPlayer()->IsInWorld() &&
-                itr->second->GetPlayer()->GetZoneId() == zone &&
-                itr->second != self &&
-                (team == 0 || itr->second->GetPlayer()->GetTeam() == team))
-            itr->second->SendPacket(packet);
+        if (WorldSession* session = itr.second)
+        {
+            if (session != self)
+            {
+                Player* player = session->GetPlayer();
+                if (player && player->IsInWorld() &&
+                   (player->GetZoneId() == zone) &&
+                   (team == TEAM_NONE || player->GetTeam() == team))
+                {
+                    session->SendPacket(packet);
+                }
+            }
+        }
     }
 }
 
-/// Send a System Message to all players in the zone (except self if mentioned)
-void World::SendZoneText(uint32 zone, const char* text, WorldSession *self, uint32 team)
+// Send a System Message to all players in the zone (except self if mentioned)
+void World::SendZoneText(uint32 zone, char const* text, WorldSession* self, uint32 team)
 {
     WorldPacket data;
     ChatHandler::BuildChatPacket(data, CHAT_MSG_SYSTEM, text);
     SendZoneMessage(zone, &data, self, team);
 }
 
-/// Kick (and save) all players
+// Kick (and save) all players
 void World::KickAll()
 {
     m_QueuedSessions.clear();                               // prevent send queue update packet and login queued sessions
 
     // session not removed at kick and will removed in next update tick
-    for (SessionMap::const_iterator itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
-        itr->second->KickPlayer();
-    for (SessionSet::const_iterator itr = m_disconnectedSessions.begin(); itr != m_disconnectedSessions.end(); ++itr)
-        (*itr)->KickPlayer();
+    for (const auto& itr : m_sessions)
+        itr.second->KickPlayer();
+    for (const auto& itr : m_disconnectedSessions)
+        (*itr).KickPlayer();
 }
 
-/// Kick (and save) all players with security level less `sec`
+// Kick (and save) all players with security level less `sec`
 void World::KickAllLess(AccountTypes sec)
 {
     // session not removed at kick and will removed in next update tick
-    for (SessionMap::const_iterator itr = m_sessions.begin(); itr != m_sessions.end(); ++itr)
-        if (itr->second->GetSecurity() < sec)
-            itr->second->KickPlayer();
+    for (const auto& itr : m_sessions)
+        if (WorldSession* session = itr.second)
+            if (session->GetSecurity() < sec)
+                session->KickPlayer();
 }
 
-void World::WarnAccount(uint32 accountId, std::string from, std::string reason, const char* type)
+void World::WarnAccount(uint32 accountId, std::string from, std::string reason, char const* type)
 {
     LoginDatabase.escape_string(from);
     reason = std::string(type) + ": " + reason;
     LoginDatabase.escape_string(reason);
 
-    LoginDatabase.PExecute("INSERT INTO account_banned (id, bandate, unbandate, bannedby, banreason, active, realm) VALUES ('%u', UNIX_TIMESTAMP(), UNIX_TIMESTAMP()+1, '%s', '%s', '0', %u)",
+    LoginDatabase.PExecute("INSERT INTO `account_banned` (`id`, `bandate`, `unbandate`, `bannedby`, `banreason`, `active`, `realm`) VALUES ('%u', UNIX_TIMESTAMP(), UNIX_TIMESTAMP()+1, '%s', '%s', '0', %u)",
             accountId, from.c_str(), reason.c_str(), realmID);
 }
 
-void World::BanAccount(uint32 accountId, uint32 duration, std::string reason, std::string author)
+void World::BanAccount(uint32 accountId, uint32 duration, std::string reason, std::string const& author)
 {
     LoginDatabase.escape_string(reason);
     std::string safe_author = author;
     LoginDatabase.escape_string(safe_author);
 
     //No SQL injection as strings are escaped
-    LoginDatabase.PExecute("INSERT INTO account_banned (id, bandate, unbandate, bannedby, banreason, active, realm) VALUES ('%u', UNIX_TIMESTAMP(), UNIX_TIMESTAMP()+%u, '%s', '%s', '1', %u)",
+    LoginDatabase.PExecute("INSERT INTO `account_banned` (`id`, `bandate`, `unbandate`, `bannedby`, `banreason`, `active`, `realm`) VALUES ('%u', UNIX_TIMESTAMP(), UNIX_TIMESTAMP()+%u, '%s', '%s', '1', %u)",
         accountId, duration, safe_author.c_str(), reason.c_str(), realmID);
 
     if (duration > 0)
@@ -2244,8 +2432,8 @@ class BanQueryHolder : public SqlQueryHolder
 public:
     BanQueryHolder(BanMode mode, std::string banTarget, uint32 duration, std::string reason, uint32 realmId, std::string author,
         uint32 authorAccountId)
-        : m_mode(mode), m_banTarget(banTarget), m_duration(duration), m_reason(reason), m_realmId(realmId), m_author(author),
-          m_accountId(authorAccountId)
+        : m_mode(mode), m_duration(duration), m_reason(reason), m_realmId(realmId), 
+          m_author(author), m_banTarget(banTarget), m_accountId(authorAccountId)
     {
     }
 
@@ -2290,7 +2478,7 @@ public:
             return;
         }
 
-        ///- Disconnect all affected players (for IP it can be several)
+        // Disconnect all affected players (for IP it can be several)
         do
         {
             Field* fieldsAccount = result->Fetch();
@@ -2299,7 +2487,7 @@ public:
             if (holder->GetBanMode() != BAN_IP)
             {
                 //No SQL injection as strings are escaped
-                LoginDatabase.PExecute("INSERT INTO account_banned (id, bandate, unbandate, bannedby, banreason, active, realm) VALUES ('%u', UNIX_TIMESTAMP(), UNIX_TIMESTAMP()+%u, '%s', '%s', '1', %u)",
+                LoginDatabase.PExecute("INSERT INTO `account_banned` (`id`, `bandate`, `unbandate`, `bannedby`, `banreason`, `active`, `realm`) VALUES ('%u', UNIX_TIMESTAMP(), UNIX_TIMESTAMP()+%u, '%s', '%s', '1', %u)",
                     account, holder->GetDuration(), holder->GetAuthor().c_str(), holder->GetReason().c_str(), holder->GetRealmId());
                 if (holder->GetDuration() > 0)
                     sAccountMgr.BanAccount(account, time(nullptr) + holder->GetDuration());
@@ -2329,7 +2517,7 @@ public:
     }
 } banHandler;
 
-/// Ban an account or ban an IP address, duration_secs if it is positive used, otherwise permban
+// Ban an account or ban an IP address, duration_secs if it is positive used, otherwise permban
 BanReturn World::BanAccount(BanMode mode, std::string nameOrIP, uint32 duration_secs, std::string reason, std::string author)
 {
     LoginDatabase.escape_string(nameOrIP);
@@ -2337,7 +2525,7 @@ BanReturn World::BanAccount(BanMode mode, std::string nameOrIP, uint32 duration_
     std::string safe_author = author;
     LoginDatabase.escape_string(safe_author);
 
-    PlayerCacheData* authorData = sObjectMgr.GetPlayerDataByName(author);
+    PlayerCacheData const* authorData = sObjectMgr.GetPlayerDataByName(author);
 
     BanQueryHolder* holder = new BanQueryHolder(mode, nameOrIP, duration_secs, reason, realmID, safe_author,
         authorData ? authorData->uiAccount : 0);
@@ -2345,15 +2533,15 @@ BanReturn World::BanAccount(BanMode mode, std::string nameOrIP, uint32 duration_
     holder->SetSize(1);
 
     DatabaseType* db = nullptr;
-    ///- Update the database with ban information
+    // Update the database with ban information
     switch (mode)
     {
         case BAN_IP:
             //No SQL injection as strings are escaped
             db = &LoginDatabase;
 
-            holder->SetPQuery(0, "SELECT id FROM account WHERE last_ip = '%s'", nameOrIP.c_str());
-            LoginDatabase.PExecute("INSERT INTO ip_banned VALUES ('%s',UNIX_TIMESTAMP(),UNIX_TIMESTAMP()+%u,'%s','%s')", nameOrIP.c_str(), duration_secs, safe_author.c_str(), reason.c_str());
+            holder->SetPQuery(0, "SELECT `id` FROM `account` WHERE `last_ip` = '%s'", nameOrIP.c_str());
+            LoginDatabase.PExecute("INSERT INTO `ip_banned` VALUES ('%s',UNIX_TIMESTAMP(),UNIX_TIMESTAMP()+%u,'%s','%s')", nameOrIP.c_str(), duration_secs, safe_author.c_str(), reason.c_str());
 
             if (duration_secs > 0)
                 sAccountMgr.BanIP(nameOrIP, time(nullptr) + duration_secs);
@@ -2363,16 +2551,18 @@ BanReturn World::BanAccount(BanMode mode, std::string nameOrIP, uint32 duration_
         case BAN_ACCOUNT:
             //No SQL injection as string is escaped
             db = &LoginDatabase;
-            holder->SetPQuery(0, "SELECT id FROM account WHERE username = '%s'", nameOrIP.c_str());
+            holder->SetPQuery(0, "SELECT `id` FROM `account` WHERE `username` = '%s'", nameOrIP.c_str());
             break;
         case BAN_CHARACTER:
         {
             db = &CharacterDatabase;
             if (uint32 guid = sObjectMgr.GetPlayerGuidByName(nameOrIP))
-                holder->SetPQuery(0, "SELECT account FROM characters WHERE guid = %u", guid);
+                holder->SetPQuery(0, "SELECT `account` FROM `characters` WHERE `guid` = %u", guid);
             break;
         }
         default:
+            delete holder;
+
             return BAN_SYNTAX_ERROR;
     }
 
@@ -2381,13 +2571,13 @@ BanReturn World::BanAccount(BanMode mode, std::string nameOrIP, uint32 duration_
     return BAN_INPROGRESS;
 }
 
-/// Remove a ban from an account or IP address
-bool World::RemoveBanAccount(BanMode mode, const std::string& source, const std::string& message, std::string nameOrIP)
+// Remove a ban from an account or IP address
+bool World::RemoveBanAccount(BanMode mode, std::string const& source, std::string const& message, std::string nameOrIP)
 {
     if (mode == BAN_IP)
     {
         LoginDatabase.escape_string(nameOrIP);
-        LoginDatabase.PExecute("DELETE FROM ip_banned WHERE ip = '%s'", nameOrIP.c_str());
+        LoginDatabase.PExecute("DELETE FROM `ip_banned` WHERE `ip` = '%s'", nameOrIP.c_str());
         sAccountMgr.UnbanIP(nameOrIP);
     }
     else
@@ -2402,26 +2592,26 @@ bool World::RemoveBanAccount(BanMode mode, const std::string& source, const std:
             return false;
 
         //NO SQL injection as account is uint32
-        LoginDatabase.PExecute("UPDATE account_banned SET active = '0' WHERE id = '%u'", account);
+        LoginDatabase.PExecute("UPDATE `account_banned` SET `active` = '0' WHERE `id` = '%u'", account);
         WarnAccount(account, source, message, "UNBAN");
         sAccountMgr.UnbanAccount(account);
     }
     return true;
 }
 
-/// Update the game time
+// Update the game time
 void World::_UpdateGameTime()
 {
-    ///- update the time
+    // update the time
     time_t thisTime = time(nullptr);
     uint32 elapsed = uint32(thisTime - m_gameTime);
     m_gameTime = thisTime;
     m_gameDay = (m_gameTime + m_timeZoneOffset) / DAY;
 
-    ///- if there is a shutdown timer
+    // if there is a shutdown timer
     if (!m_stopEvent && m_ShutdownTimer > 0 && elapsed > 0)
     {
-        ///- ... and it is overdue, stop the world (set m_stopEvent)
+        // ... and it is overdue, stop the world (set m_stopEvent)
         if (m_ShutdownTimer <= elapsed)
         {
             if (!(m_ShutdownMask & SHUTDOWN_MASK_IDLE) || GetActiveAndQueuedSessionCount() == 0)
@@ -2429,7 +2619,7 @@ void World::_UpdateGameTime()
             else
                 m_ShutdownTimer = 1;                        // minimum timer value to wait idle state
         }
-        ///- ... else decrease it and if necessary display a shutdown countdown to the users
+        // ... else decrease it and if necessary display a shutdown countdown to the users
         else
         {
             m_ShutdownTimer -= elapsed;
@@ -2439,7 +2629,7 @@ void World::_UpdateGameTime()
     }
 }
 
-/// Shutdown the server
+// Shutdown the server
 void World::ShutdownServ(uint32 time, uint32 options, uint8 exitcode)
 {
     // ignore if server shutdown at next tick
@@ -2449,7 +2639,7 @@ void World::ShutdownServ(uint32 time, uint32 options, uint8 exitcode)
     m_ShutdownMask = options;
     m_ExitCode = exitcode;
 
-    ///- If the shutdown time is 0, set m_stopEvent (except if shutdown is 'idle' with remaining sessions)
+    // If the shutdown time is 0, set m_stopEvent (except if shutdown is 'idle' with remaining sessions)
     if (time == 0)
     {
         if (!(options & SHUTDOWN_MASK_IDLE) || GetActiveAndQueuedSessionCount() == 0)
@@ -2457,7 +2647,7 @@ void World::ShutdownServ(uint32 time, uint32 options, uint8 exitcode)
         else
             m_ShutdownTimer = 1;                            //So that the session count is re-evaluated at next world tick
     }
-    ///- Else set the shutdown timer and warn users
+    // Else set the shutdown timer and warn users
     else
     {
         m_ShutdownTimer = time;
@@ -2465,14 +2655,14 @@ void World::ShutdownServ(uint32 time, uint32 options, uint8 exitcode)
     }
 }
 
-/// Display a shutdown message to the user(s)
+// Display a shutdown message to the user(s)
 void World::ShutdownMsg(bool show, Player* player)
 {
     // not show messages for idle shutdown mode
     if (m_ShutdownMask & SHUTDOWN_MASK_IDLE)
         return;
 
-    ///- Display a message every 12 hours, hours, 5 minutes, minute, 5 seconds and finally seconds
+    // Display a message every 12 hours, hours, 5 minutes, minute, 5 seconds and finally seconds
     if (show ||
             (m_ShutdownTimer < 10) ||
             // < 30 sec; every 5 sec
@@ -2491,11 +2681,11 @@ void World::ShutdownMsg(bool show, Player* player)
         ServerMessageType msgid = (m_ShutdownMask & SHUTDOWN_MASK_RESTART) ? SERVER_MSG_RESTART_TIME : SERVER_MSG_SHUTDOWN_TIME;
 
         SendServerMessage(msgid, str.c_str(), player);
-        DEBUG_LOG("Server is %s in %s", (m_ShutdownMask & SHUTDOWN_MASK_RESTART ? "restart" : "shutting down"), str.c_str());
+        sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "Server is %s in %s", (m_ShutdownMask & SHUTDOWN_MASK_RESTART ? "restart" : "shutting down"), str.c_str());
     }
 }
 
-/// Cancel a planned server shutdown
+// Cancel a planned server shutdown
 void World::ShutdownCancel()
 {
     // nothing cancel or too later
@@ -2509,11 +2699,11 @@ void World::ShutdownCancel()
     m_ExitCode = SHUTDOWN_EXIT_CODE;                       // to default value
     SendServerMessage(msgid);
 
-    DEBUG_LOG("Server %s cancelled.", (m_ShutdownMask & SHUTDOWN_MASK_RESTART ? "restart" : "shutdown"));
+    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "Server %s cancelled.", (m_ShutdownMask & SHUTDOWN_MASK_RESTART ? "restart" : "shutdown"));
 }
 
-/// Send a server message to the user(s)
-void World::SendServerMessage(ServerMessageType type, const char *text, Player* player)
+// Send a server message to the user(s)
+void World::SendServerMessage(ServerMessageType type, char const* text, Player* player)
 {
     WorldPacket data(SMSG_SERVER_MESSAGE, 50);              // guess size
     data << uint32(type);
@@ -2527,7 +2717,7 @@ void World::SendServerMessage(ServerMessageType type, const char *text, Player* 
 
 void World::UpdateSessions(uint32 diff)
 {
-    ///- Update player limit if needed
+    // Update player limit if needed
     int32 hardPlayerLimit = getConfig(CONFIG_UINT32_PLAYER_HARD_LIMIT);
     if (hardPlayerLimit)
         m_playerLimit = std::min(hardPlayerLimit, m_playerLimit);
@@ -2548,6 +2738,7 @@ void World::UpdateSessions(uint32 diff)
                 pop_sess->SetInQueue(false);
                 pop_sess->m_idleTime = WorldTimer::getMSTime();
                 pop_sess->SendAuthWaitQue(0);
+                pop_sess->InitWarden();
                 m_QueuedSessions.pop_front();
             }
 
@@ -2558,37 +2749,41 @@ void World::UpdateSessions(uint32 diff)
                 (*iter)->SendAuthWaitQue(position);
         }
 
-    ///- Add new sessions
+    // Add new sessions
     WorldSession* sess;
     while (addSessQueue.next(sess))
         AddSession_(sess);
 
-    ///- Then send an update signal to remaining ones
-    time_t time_now = time(nullptr);
+    // Then send an update signal to remaining ones
+    time_t timeNow = time(nullptr);
     for (SessionMap::iterator itr = m_sessions.begin(), next; itr != m_sessions.end(); itr = next)
     {
         next = itr;
         ++next;
-        ///- and remove not active sessions from the list
-        WorldSession * pSession = itr->second;
+        // and remove not active sessions from the list
+        WorldSession* pSession = itr->second;
         WorldSessionFilter updater(pSession);
 
         if (!pSession->Update(updater))
         {
             if (pSession->PlayerLoading())
-                sLog.outInfo("[CRASH] World::UpdateSession attempt to delete session %u loading a player.", pSession->GetAccountId());
+                sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "[CRASH] World::UpdateSession attempt to delete session %u loading a player.", pSession->GetAccountId());
+            
+            AccountPlayHistory& history = m_accountsPlayHistory[pSession->GetAccountId()];
             if (!RemoveQueuedSession(pSession))
-                m_accountsLastLogout[pSession->GetAccountId()] = time_now;
+                history.logoutTime = timeNow;
+            history.playedTime += (timeNow - pSession->GetCreateTime());
+
             m_sessions.erase(itr);
             delete pSession;
         }
     }
-    ///- Update disconnected sessions
+    // Update disconnected sessions
     for (SessionSet::iterator itr = m_disconnectedSessions.begin(), next; itr != m_disconnectedSessions.end(); itr = next)
     {
         next = itr;
         ++next;
-        WorldSession * pSession = *itr;
+        WorldSession* pSession = *itr;
 
         if (!pSession->UpdateDisconnected(diff))
         {
@@ -2601,14 +2796,12 @@ void World::UpdateSessions(uint32 diff)
 // This handles the issued and queued CLI/RA commands
 void World::ProcessCliCommands()
 {
-    CliCommandHolder::Print* zprint = nullptr;
-    void* callbackArg = nullptr;
     CliCommandHolder* command;
     while (cliCmdQueue.next(command))
     {
-        DEBUG_LOG("CLI command under processing...");
-        zprint = command->m_print;
-        callbackArg = command->m_callbackArg;
+        sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "CLI command under processing...");
+        CliCommandHolder::Print* zprint = command->m_print;
+        void* callbackArg = command->m_callbackArg;
         CliHandler handler(command->m_cliAccountId, command->m_cliAccessLevel, callbackArg, zprint);
         handler.ParseCommands(command->m_command);
 
@@ -2634,21 +2827,18 @@ void World::UpdateResultQueue()
 void World::UpdateRealmCharCount(uint32 accountId)
 {
     CharacterDatabase.AsyncPQuery(this, &World::_UpdateRealmCharCount, accountId,
-                                  "SELECT COUNT(guid) FROM characters WHERE account = '%u'", accountId);
+                                  "SELECT COUNT(`guid`) FROM `characters` WHERE `account` = '%u'", accountId);
 }
 
-void World::_UpdateRealmCharCount(QueryResult *resultCharCount, uint32 accountId)
+void World::_UpdateRealmCharCount(QueryResult* resultCharCount, uint32 accountId)
 {
     if (resultCharCount)
     {
-        Field *fields = resultCharCount->Fetch();
+        Field* fields = resultCharCount->Fetch();
         uint32 charCount = fields[0].GetUInt32();
         delete resultCharCount;
 
-        LoginDatabase.BeginTransaction();
-        LoginDatabase.PExecute("DELETE FROM realmcharacters WHERE acctid= '%u' AND realmid = '%u'", accountId, realmID);
-        LoginDatabase.PExecute("INSERT INTO realmcharacters (numchars, acctid, realmid) VALUES (%u, %u, %u)", charCount, accountId, realmID);
-        LoginDatabase.CommitTransaction();
+        LoginDatabase.PExecute("REPLACE INTO `realmcharacters` (`numchars`, `acctid`, `realmid`) VALUES (%u, %u, %u)", charCount, accountId, realmID);
     }
 }
 
@@ -2663,7 +2853,7 @@ void World::SetPlayerLimit(int32 limit, bool needUpdate)
     m_playerLimit = limit;
 
     if (db_update_need)
-        LoginDatabase.PExecute("UPDATE realmlist SET allowedSecurityLevel = '%u' WHERE id = '%u'",
+        LoginDatabase.PExecute("UPDATE `realmlist` SET `allowedSecurityLevel` = '%u' WHERE `id` = '%u'",
                                uint32(GetPlayerSecurityLimit()), realmID);
 }
 
@@ -2698,7 +2888,7 @@ void World::setConfigPos(eConfigUInt32Values index, char const* fieldname, uint3
     setConfig(index, fieldname, defvalue);
     if (int32(getConfig(index)) < 0)
     {
-        sLog.outError("%s (%i) can't be negative. Using %u instead.", fieldname, int32(getConfig(index)), defvalue);
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "%s (%i) can't be negative. Using %u instead.", fieldname, int32(getConfig(index)), defvalue);
         setConfig(index, defvalue);
     }
 }
@@ -2708,7 +2898,7 @@ void World::setConfigPos(eConfigFloatValues index, char const* fieldname, float 
     setConfig(index, fieldname, defvalue);
     if (getConfig(index) < 0.0f)
     {
-        sLog.outError("%s (%f) can't be negative. Using %f instead.", fieldname, getConfig(index), defvalue);
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "%s (%f) can't be negative. Using %f instead.", fieldname, getConfig(index), defvalue);
         setConfig(index, defvalue);
     }
 }
@@ -2718,7 +2908,7 @@ void World::setConfigMin(eConfigUInt32Values index, char const* fieldname, uint3
     setConfig(index, fieldname, defvalue);
     if (getConfig(index) < minvalue)
     {
-        sLog.outError("%s (%u) must be >= %u. Using %u instead.", fieldname, getConfig(index), minvalue, minvalue);
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "%s (%u) must be >= %u. Using %u instead.", fieldname, getConfig(index), minvalue, minvalue);
         setConfig(index, minvalue);
     }
 }
@@ -2728,7 +2918,7 @@ void World::setConfigMin(eConfigInt32Values index, char const* fieldname, int32 
     setConfig(index, fieldname, defvalue);
     if (getConfig(index) < minvalue)
     {
-        sLog.outError("%s (%i) must be >= %i. Using %i instead.", fieldname, getConfig(index), minvalue, minvalue);
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "%s (%i) must be >= %i. Using %i instead.", fieldname, getConfig(index), minvalue, minvalue);
         setConfig(index, minvalue);
     }
 }
@@ -2738,7 +2928,7 @@ void World::setConfigMin(eConfigFloatValues index, char const* fieldname, float 
     setConfig(index, fieldname, defvalue);
     if (getConfig(index) < minvalue)
     {
-        sLog.outError("%s (%f) must be >= %f. Using %f instead.", fieldname, getConfig(index), minvalue, minvalue);
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "%s (%f) must be >= %f. Using %f instead.", fieldname, getConfig(index), minvalue, minvalue);
         setConfig(index, minvalue);
     }
 }
@@ -2748,12 +2938,12 @@ void World::setConfigMinMax(eConfigUInt32Values index, char const* fieldname, ui
     setConfig(index, fieldname, defvalue);
     if (getConfig(index) < minvalue)
     {
-        sLog.outError("%s (%u) must be in range %u...%u. Using %u instead.", fieldname, getConfig(index), minvalue, maxvalue, minvalue);
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "%s (%u) must be in range %u...%u. Using %u instead.", fieldname, getConfig(index), minvalue, maxvalue, minvalue);
         setConfig(index, minvalue);
     }
     else if (getConfig(index) > maxvalue)
     {
-        sLog.outError("%s (%u) must be in range %u...%u. Using %u instead.", fieldname, getConfig(index), minvalue, maxvalue, maxvalue);
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "%s (%u) must be in range %u...%u. Using %u instead.", fieldname, getConfig(index), minvalue, maxvalue, maxvalue);
         setConfig(index, maxvalue);
     }
 }
@@ -2763,12 +2953,12 @@ void World::setConfigMinMax(eConfigInt32Values index, char const* fieldname, int
     setConfig(index, fieldname, defvalue);
     if (getConfig(index) < minvalue)
     {
-        sLog.outError("%s (%i) must be in range %i...%i. Using %i instead.", fieldname, getConfig(index), minvalue, maxvalue, minvalue);
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "%s (%i) must be in range %i...%i. Using %i instead.", fieldname, getConfig(index), minvalue, maxvalue, minvalue);
         setConfig(index, minvalue);
     }
     else if (getConfig(index) > maxvalue)
     {
-        sLog.outError("%s (%i) must be in range %i...%i. Using %i instead.", fieldname, getConfig(index), minvalue, maxvalue, maxvalue);
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "%s (%i) must be in range %i...%i. Using %i instead.", fieldname, getConfig(index), minvalue, maxvalue, maxvalue);
         setConfig(index, maxvalue);
     }
 }
@@ -2778,12 +2968,12 @@ void World::setConfigMinMax(eConfigFloatValues index, char const* fieldname, flo
     setConfig(index, fieldname, defvalue);
     if (getConfig(index) < minvalue)
     {
-        sLog.outError("%s (%f) must be in range %f...%f. Using %f instead.", fieldname, getConfig(index), minvalue, maxvalue, minvalue);
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "%s (%f) must be in range %f...%f. Using %f instead.", fieldname, getConfig(index), minvalue, maxvalue, minvalue);
         setConfig(index, minvalue);
     }
     else if (getConfig(index) > maxvalue)
     {
-        sLog.outError("%s (%f) must be in range %f...%f. Using %f instead.", fieldname, getConfig(index), minvalue, maxvalue, maxvalue);
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "%s (%f) must be in range %f...%f. Using %f instead.", fieldname, getConfig(index), minvalue, maxvalue, maxvalue);
         setConfig(index, maxvalue);
     }
 }
@@ -2795,7 +2985,7 @@ bool World::configNoReload(bool reload, eConfigUInt32Values index, char const* f
 
     uint32 val = sConfig.GetIntDefault(fieldname, defvalue);
     if (val != getConfig(index))
-        sLog.outError("%s option can't be changed at mangosd.conf reload, using current value (%u).", fieldname, getConfig(index));
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "%s option can't be changed at mangosd.conf reload, using current value (%u).", fieldname, getConfig(index));
 
     return false;
 }
@@ -2807,7 +2997,7 @@ bool World::configNoReload(bool reload, eConfigInt32Values index, char const* fi
 
     int32 val = sConfig.GetIntDefault(fieldname, defvalue);
     if (val != getConfig(index))
-        sLog.outError("%s option can't be changed at mangosd.conf reload, using current value (%i).", fieldname, getConfig(index));
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "%s option can't be changed at mangosd.conf reload, using current value (%i).", fieldname, getConfig(index));
 
     return false;
 }
@@ -2819,7 +3009,7 @@ bool World::configNoReload(bool reload, eConfigFloatValues index, char const* fi
 
     float val = sConfig.GetFloatDefault(fieldname, defvalue);
     if (val != getConfig(index))
-        sLog.outError("%s option can't be changed at mangosd.conf reload, using current value (%f).", fieldname, getConfig(index));
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "%s option can't be changed at mangosd.conf reload, using current value (%f).", fieldname, getConfig(index));
 
     return false;
 }
@@ -2831,7 +3021,7 @@ bool World::configNoReload(bool reload, eConfigBoolValues index, char const* fie
 
     bool val = sConfig.GetBoolDefault(fieldname, defvalue);
     if (val != getConfig(index))
-        sLog.outError("%s option can't be changed at mangosd.conf reload, using current value (%s).", fieldname, getConfig(index) ? "'true'" : "'false'");
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "%s option can't be changed at mangosd.conf reload, using current value (%s).", fieldname, getConfig(index) ? "'true'" : "'false'");
 
     return false;
 }
@@ -2849,17 +3039,26 @@ void World::SetSessionDisconnected(WorldSession* sess)
 {
     SessionMap::iterator itr = m_sessions.find(sess->GetAccountId());
     ASSERT(itr != m_sessions.end());
-    m_accountsLastLogout[sess->GetAccountId()] = time(nullptr);
+
+    AccountPlayHistory& history = m_accountsPlayHistory[sess->GetAccountId()];
+    history.logoutTime = time(nullptr);
+    history.playedTime += (history.logoutTime - sess->GetCreateTime());
+
     m_sessions.erase(itr);
     m_disconnectedSessions.insert(sess);
 }
 
+void World::AddAsyncTask(std::function<void()> task) {
+    std::lock_guard<std::mutex> lock(m_asyncTaskQueueMutex);
+    _asyncTasks.push_back(task);
+}
+
 void World::LogMoneyTrade(ObjectGuid sender, ObjectGuid receiver, uint32 amount, const char* type, uint32 dataInt)
 {
-    if (!LogsDatabase || !sWorld.getConfig(CONFIG_BOOL_LOGSDB_TRADES))
+    if (!LogsDatabase || !getConfig(CONFIG_BOOL_LOGSDB_TRADES))
         return;
     static SqlStatementID insLogMoney;
-    SqlStatement logStmt = LogsDatabase.CreateStatement(insLogMoney, "INSERT INTO logs_trade SET sender=?, senderType=?, senderEntry=?, receiver=?, amount=?, type=?, data=?");
+    SqlStatement logStmt = LogsDatabase.CreateStatement(insLogMoney, "INSERT INTO `logs_trade` SET `sender`=?, `senderType`=?, `senderEntry`=?, `receiver`=?, `amount`=?, `type`=?, `data`=?");
     logStmt.addUInt32(sender.GetCounter());
     logStmt.addUInt32(sender.GetHigh());
     logStmt.addUInt32(sender.GetEntry());
@@ -2870,82 +3069,34 @@ void World::LogMoneyTrade(ObjectGuid sender, ObjectGuid receiver, uint32 amount,
     logStmt.Execute();
 }
 
-void World::LogCharacter(Player* character, const char* action)
-{
-    if (!LogsDatabase || !sWorld.getConfig(CONFIG_BOOL_LOGSDB_CHARACTERS))
-        return;
-    ASSERT(character);
-    static SqlStatementID insLogChar;
-    SqlStatement logStmt = LogsDatabase.CreateStatement(insLogChar, "INSERT INTO logs_characters SET type=?, guid=?, account=?, name=?, ip=?, clientHash=?");
-    logStmt.addString(action);
-    logStmt.addUInt32(character->GetGUIDLow());
-    logStmt.addUInt32(character->GetSession()->GetAccountId());
-    logStmt.addString(character->GetName());
-    logStmt.addString(character->GetSession()->GetRemoteAddress());
-    character->GetSession()->ComputeClientHash();
-    logStmt.addString(character->GetSession()->GetClientHash());
-    logStmt.Execute();
-}
-
-void World::LogCharacter(WorldSession* sess, uint32 lowGuid, std::string const& charName, const char* action)
-{
-    if (!LogsDatabase || !sWorld.getConfig(CONFIG_BOOL_LOGSDB_CHARACTERS))
-        return;
-    ASSERT(sess);
-    static SqlStatementID insLogChar;
-    SqlStatement logStmt = LogsDatabase.CreateStatement(insLogChar, "INSERT INTO logs_characters SET type=?, guid=?, account=?, name=?, ip=?, clientHash=?");
-    logStmt.addString(action);
-    logStmt.addUInt32(lowGuid);
-    logStmt.addUInt32(sess->GetAccountId());
-    logStmt.addString(charName);
-    logStmt.addString(sess->GetRemoteAddress());
-    sess->ComputeClientHash();
-    logStmt.addString(sess->GetClientHash());
-    logStmt.Execute();
-}
-
-void World::LogChat(WorldSession* sess, const char* type, std::string const& msg, PlayerPointer target, uint32 chanId, const char* chanStr)
+void World::LogChat(WorldSession* sess, char const* type, char const* msg, PlayerPointer target, uint32 chanId, char const* chanStr)
 {
     ASSERT(sess);
     PlayerPointer plr = sess->GetPlayerPointer();
     ASSERT(plr);
 
     if (target)
-        sLog.out(LOG_CHAT, "[%s] %s:%u -> %s:%u : %s", type, plr->GetName(), plr->GetObjectGuid().GetCounter(), target->GetName(), target->GetObjectGuid().GetCounter(), msg.c_str());
+        sLog.Player(sess, LOG_CHAT, LOG_LVL_MINIMAL, "[%s] %s:%u -> %s:%u : %s", type, plr->GetName(), plr->GetObjectGuid().GetCounter(), target->GetName(), target->GetObjectGuid().GetCounter(), msg);
     else if (chanId)
-        sLog.out(LOG_CHAT, "[%s:%u] %s:%u : %s", type, chanId, plr->GetName(), plr->GetObjectGuid().GetCounter(), msg.c_str());
+        sLog.Player(sess, LOG_CHAT, LOG_LVL_MINIMAL, "[%s:%u] %s:%u : %s", type, chanId, plr->GetName(), plr->GetObjectGuid().GetCounter(), msg);
     else if (chanStr)
-        sLog.out(LOG_CHAT, "[%s:%s] %s:%u : %s", type, chanStr, plr->GetName(), plr->GetObjectGuid().GetCounter(), msg.c_str());
+        sLog.Player(sess, LOG_CHAT, LOG_LVL_MINIMAL, "[%s:%s] %s:%u : %s", type, chanStr, plr->GetName(), plr->GetObjectGuid().GetCounter(), msg);
     else
-        sLog.out(LOG_CHAT, "[%s] %s:%u : %s", type, plr->GetName(), plr->GetObjectGuid().GetCounter(), msg.c_str());
-
-    if (!LogsDatabase || !sWorld.getConfig(CONFIG_BOOL_LOGSDB_CHAT))
-        return;
-    static SqlStatementID insLogChat;
-    SqlStatement logStmt = LogsDatabase.CreateStatement(insLogChat,
-            "INSERT INTO logs_chat SET type=?, guid=?, target=?, channelId=?, channelName=?, message=?");
-    logStmt.addString(type);
-    logStmt.addUInt32(plr->GetObjectGuid().GetCounter());
-    logStmt.addUInt32(target ? target->GetObjectGuid().GetCounter() : 0);
-    logStmt.addUInt32(chanId);
-    logStmt.addString(chanStr ? chanStr : "");
-    logStmt.addString(msg);
-    logStmt.Execute();
+        sLog.Player(sess, LOG_CHAT, LOG_LVL_MINIMAL, "[%s] %s:%u : %s", type, plr->GetName(), plr->GetObjectGuid().GetCounter(), msg);
 }
 
 void World::LogTransaction(PlayerTransactionData const& data)
 {
-    if (!LogsDatabase || !sWorld.getConfig(CONFIG_BOOL_LOGSDB_TRANSACTIONS))
+    if (!LogsDatabase || !getConfig(CONFIG_BOOL_LOGSDB_TRANSACTIONS))
         return;
 
     static SqlStatementID insLogTransaction;
     SqlStatement logStmt = LogsDatabase.CreateStatement(insLogTransaction,
-        "INSERT INTO logs_transactions SET type=?, guid1=?, money1=?, spell1=?, items1=?, "
-        "guid2=?, money2=?, spell2=?, items2=?");
+        "INSERT INTO `logs_transactions` SET `type`=?, `guid1`=?, `money1`=?, `spell1`=?, `items1`=?, "
+        "`guid2`=?, `money2`=?, `spell2`=?, `items2`=?");
     logStmt.addString(data.type);
-    for (int i = 0; i < 2; ++i)
+    for (const auto& part : data.parts)
     {
-        TransactionPart const& part = data.parts[i];
         logStmt.addUInt32(part.lowGuid);
         logStmt.addUInt32(part.money);
         logStmt.addUInt32(part.spell);
@@ -2971,11 +3122,11 @@ bool World::CanSkipQueue(WorldSession const* sess)
     uint32 grace_period = getConfig(CONFIG_UINT32_LOGIN_QUEUE_GRACE_PERIOD_SECS);
     if (!grace_period)
         return false;
-    auto prev_logout = m_accountsLastLogout.find(sess->GetAccountId());
-    if (prev_logout == m_accountsLastLogout.end())
+    auto prev_logout = m_accountsPlayHistory.find(sess->GetAccountId());
+    if (prev_logout == m_accountsPlayHistory.end())
         return false;
     time_t now = time(nullptr);
-    return (now - prev_logout->second) < grace_period;
+    return (now - prev_logout->second.logoutTime) < grace_period;
 }
 
 uint32 World::InsertLog(std::string const& message, AccountTypes sec)
@@ -3019,7 +3170,7 @@ time_t World::GetWorldUpdateTimerInterval(WorldTimers timer)
     return m_timers[timer].GetInterval();
 }
 
-void SessionPacketSendTask::run()
+void SessionPacketSendTask::operator()()
 {
     if (WorldSession* session = sWorld.FindSession(m_accountId))
     {

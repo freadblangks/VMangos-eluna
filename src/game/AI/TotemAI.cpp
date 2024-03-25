@@ -29,17 +29,17 @@
 #include "GridNotifiersImpl.h"
 #include "CellImpl.h"
 
-int TotemAI::Permissible(const Creature *creature)
+int TotemAI::Permissible(Creature const* creature)
 {
     if (creature->IsTotem())
-        return PERMIT_BASE_PROACTIVE;
+        return PERMIT_BASE_SPECIAL;
 
     return PERMIT_BASE_NO;
 }
 
-TotemAI::TotemAI(Creature *pCreature) : CreatureAI(pCreature)
+TotemAI::TotemAI(Creature* pCreature) : CreatureAI(pCreature)
 {
-    pCreature->addUnitState(UNIT_STAT_IGNORE_MOVE_LOS);
+    pCreature->AddUnitState(UNIT_STAT_NO_SEARCH_FOR_OTHERS);
 
     if (Totem const* pTotem = pCreature->ToTotem())
     {
@@ -50,7 +50,7 @@ TotemAI::TotemAI(Creature *pCreature) : CreatureAI(pCreature)
     {
         m_spellId = m_creature->GetCreatureInfo()->spells[0];
         SpellEntry const* totemSpell = sSpellMgr.GetSpellEntry(m_spellId);
-        if (totemSpell && totemSpell->GetCastTime())
+        if (totemSpell && totemSpell->GetCastTime(m_creature))
             m_totemType = TOTEM_ACTIVE;
         else
         {
@@ -63,15 +63,18 @@ TotemAI::TotemAI(Creature *pCreature) : CreatureAI(pCreature)
     }
 }
 
-void TotemAI::UpdateAI(const uint32 /*diff*/)
+void TotemAI::UpdateAI(uint32 const /*diff*/)
 {
+    if (!m_creature->HasUnitState(UNIT_STAT_ROOT))
+        m_creature->AddUnitState(UNIT_STAT_ROOT);
+
     if (m_totemType != TOTEM_ACTIVE)
         return;
 
-    if (!m_creature->isAlive() || m_creature->IsNonMeleeSpellCasted(false))
+    if (!m_creature->IsAlive() || m_creature->IsNonMeleeSpellCasted(false))
         return;
 
-    SpellEntry const *spellInfo = sSpellMgr.GetSpellEntry(m_spellId);
+    SpellEntry const* spellInfo = sSpellMgr.GetSpellEntry(m_spellId);
     if (!spellInfo)
         return;
 
@@ -83,11 +86,11 @@ void TotemAI::UpdateAI(const uint32 /*diff*/)
 
     // Check owner's attackers for targets.
     if (!victim && owner)
-        victim = owner->getAttackerForHelper();
+        victim = owner->GetAttackerForHelper();
 
     // Search for another target if current is invalid.
     if (!victim || !m_creature->IsWithinDistInMap(victim, max_range) ||
-            !m_creature->IsValidAttackTarget(victim) || !victim->isVisibleForOrDetect(m_creature, m_creature, false))
+            !m_creature->IsValidAttackTarget(victim) || !victim->IsVisibleForOrDetect(m_creature, m_creature, false))
     {
         victim = nullptr;
 

@@ -19,9 +19,9 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-/// \addtogroup realmd Realm Daemon
-/// @{
-/// \file
+// \addtogroup realmd Realm Daemon
+// @{
+// \file
 
 #include "Common.h"
 #include "Database/DatabaseEnv.h"
@@ -69,14 +69,14 @@ bool StartDB();
 void UnhookSignals();
 void HookSignals();
 
-bool stopEvent = false;                                     ///< Setting it to true stops the server
+bool stopEvent = false;                                     // Setting it to true stops the server
 
-DatabaseType LoginDatabase;                                 ///< Accessor to the realm server database
+DatabaseType LoginDatabase;                                 // Accessor to the realm server database
 
-/// Print out the usage string for this program on the console.
+// Print out the usage string for this program on the console.
 void usage(const char *prog)
 {
-    sLog.outString("Usage: \n %s [<options>]\n"
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Usage: \n %s [<options>]\n"
         "    -v, --version            print version and exist\n\r"
         "    -c config_file           use config_file as configuration file\n\r"
         #ifdef WIN32
@@ -92,10 +92,12 @@ void usage(const char *prog)
         ,prog);
 }
 
-/// Launch the realm server
+char const* g_mainLogFileName = "Realmd.log";
+
+// Launch the realm server
 extern int main(int argc, char **argv)
 {
-    ///- Command line parsing
+    // Command line parsing
     char const* cfg_file = _REALMD_CONFIG;
 
     char const *options = ":c:s:";
@@ -134,7 +136,7 @@ extern int main(int argc, char **argv)
 #endif
                 else
                 {
-                    sLog.outError("Runtime-Error: -%c unsupported argument %s", cmd_opts.opt_opt(), mode);
+                    sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Runtime-Error: -%c unsupported argument %s", cmd_opts.opt_opt(), mode);
                     usage(argv[0]);
                     Log::WaitBeforeContinueIfNeed();
                     return 1;
@@ -142,12 +144,12 @@ extern int main(int argc, char **argv)
                 break;
             }
             case ':':
-                sLog.outError("Runtime-Error: -%c option requires an input argument", cmd_opts.opt_opt());
+                sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Runtime-Error: -%c option requires an input argument", cmd_opts.opt_opt());
                 usage(argv[0]);
                 Log::WaitBeforeContinueIfNeed();
                 return 1;
             default:
-                sLog.outError("Runtime-Error: bad format of commandline arguments");
+                sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Runtime-Error: bad format of commandline arguments");
                 usage(argv[0]);
                 Log::WaitBeforeContinueIfNeed();
                 return 1;
@@ -159,11 +161,11 @@ extern int main(int argc, char **argv)
     {
         case 'i':
             if (WinServiceInstall())
-                sLog.outString("Installing service");
+                sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Installing service");
             return 1;
         case 'u':
             if (WinServiceUninstall())
-                sLog.outString("Uninstalling service");
+                sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Uninstalling service");
             return 1;
         case 'r':
             WinServiceRun();
@@ -173,7 +175,7 @@ extern int main(int argc, char **argv)
 
     if (!sConfig.SetSource(cfg_file))
     {
-        sLog.outError("Could not find configuration file %s.", cfg_file);
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Could not find configuration file %s.", cfg_file);
         Log::WaitBeforeContinueIfNeed();
         return 1;
     }
@@ -190,35 +192,33 @@ extern int main(int argc, char **argv)
     }
 #endif
 
-    sLog.Initialize();
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Core revision: %s [realm-daemon]", _FULLVERSION);
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "<Ctrl-C> to stop.\n" );
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Using configuration file %s.", cfg_file);
 
-    sLog.outString("Core revision: %s [realm-daemon]", _FULLVERSION);
-    sLog.outString("<Ctrl-C> to stop.\n" );
-    sLog.outString("Using configuration file %s.", cfg_file);
-
-    ///- Check the version of the configuration file
+    // Check the version of the configuration file
     uint32 confVersion = sConfig.GetIntDefault("ConfVersion", 0);
     if (confVersion < _REALMDCONFVERSION)
     {
-        sLog.outError("*****************************************************************************");
-        sLog.outError(" WARNING: Your realmd.conf version indicates your conf file is out of date!");
-        sLog.outError("          Please check for updates, as your current default values may cause");
-        sLog.outError("          strange behavior.");
-        sLog.outError("*****************************************************************************");
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "*****************************************************************************");
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, " WARNING: Your realmd.conf version indicates your conf file is out of date!");
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "          Please check for updates, as your current default values may cause");
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "          strange behavior.");
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "*****************************************************************************");
         Log::WaitBeforeContinueIfNeed();
     }
 
-    DETAIL_LOG("%s (Library: %s)", OPENSSL_VERSION_TEXT, SSLeay_version(SSLEAY_VERSION));
+    sLog.Out(LOG_BASIC, LOG_LVL_DETAIL, "%s (Library: %s)", OPENSSL_VERSION_TEXT, SSLeay_version(SSLEAY_VERSION));
     if (SSLeay() < 0x009080bfL )
     {
-        DETAIL_LOG("WARNING: Outdated version of OpenSSL lib. Logins to server may not work!");
-        DETAIL_LOG("WARNING: Minimal required version [OpenSSL 0.9.8k]");
+        sLog.Out(LOG_BASIC, LOG_LVL_DETAIL, "WARNING: Outdated version of OpenSSL lib. Logins to server may not work!");
+        sLog.Out(LOG_BASIC, LOG_LVL_DETAIL, "WARNING: Minimal required version [OpenSSL 0.9.8k]");
     }
 
-    DETAIL_LOG("Using ACE: %s", ACE_VERSION);
+    sLog.Out(LOG_BASIC, LOG_LVL_DETAIL, "Using ACE: %s", ACE_VERSION);
 
 #ifdef USE_SENDGRID
-    DETAIL_LOG("Using CURL version %s", curl_version());
+    sLog.Out(LOG_BASIC, LOG_LVL_DETAIL, "Using CURL version %s", curl_version());
 
     // not checking the SendMail config option here to make sure config reloads will work (in the future?)
     MailerService mailer;
@@ -231,24 +231,24 @@ extern int main(int argc, char **argv)
     ACE_Reactor::instance(new ACE_Reactor(new ACE_TP_Reactor(), true), true);
 #endif
 
-    sLog.outBasic("Max allowed open files is %d", ACE::max_handles());
+    sLog.Out(LOG_BASIC, LOG_LVL_BASIC, "Max allowed open files is %d", ACE::max_handles());
 
-    /// realmd PID file creation
+    // realmd PID file creation
     std::string pidfile = sConfig.GetStringDefault("PidFile", "");
     if(!pidfile.empty())
     {
         uint32 pid = CreatePIDFile(pidfile);
         if( !pid )
         {
-            sLog.outError( "Cannot create PID file %s.\n", pidfile.c_str() );
+            sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Cannot create PID file %s.\n", pidfile.c_str() );
             Log::WaitBeforeContinueIfNeed();
             return 1;
         }
 
-        sLog.outString( "Daemon PID: %u\n", pid );
+        sLog.Out(LOG_BASIC, LOG_LVL_BASIC, "Daemon PID: %u\n", pid );
     }
 
-    ///- Initialize the database connection
+    // Initialize the database connection
     if(!StartDB())
     {
         Log::WaitBeforeContinueIfNeed();
@@ -258,20 +258,26 @@ extern int main(int argc, char **argv)
     // Ensure the table used for geolocking has some data in it, if enabled
     if (sConfig.GetBoolDefault("GeoLocking", false))
     {
-        auto result = std::unique_ptr<QueryResult>(LoginDatabase.Query("SELECT 1 FROM geoip LIMIT 1"));
+        auto result = std::unique_ptr<QueryResult>(LoginDatabase.Query("SELECT 1 FROM `geoip` LIMIT 1"));
 
         if (!result)
         {
-            sLog.outError("The geoip table cannot be empty when geolocking is enabled.");
+            sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "The geoip table cannot be empty when geolocking is enabled.");
             return 1;
         }
     }
 
-    ///- Get the list of realms for the server
+    // Get the list of realms for the server
     sRealmList.Initialize(sConfig.GetIntDefault("RealmsStateUpdateDelay", 20));
     if (sRealmList.size() == 0)
     {
-        sLog.outError("No valid realms specified.");
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "No valid realms specified.");
+        Log::WaitBeforeContinueIfNeed();
+        return 1;
+    }
+    if (ExpectedRealmdClientBuilds.size() == 0)
+    {
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "No valid client builds specified.");
         Log::WaitBeforeContinueIfNeed();
         return 1;
     }
@@ -279,11 +285,11 @@ extern int main(int argc, char **argv)
     // cleanup query
     // set expired bans to inactive
     LoginDatabase.BeginTransaction();
-    LoginDatabase.Execute("UPDATE account_banned SET active = 0 WHERE unbandate<=UNIX_TIMESTAMP() AND unbandate<>bandate");
-    LoginDatabase.Execute("DELETE FROM ip_banned WHERE unbandate<=UNIX_TIMESTAMP() AND unbandate<>bandate");
+    LoginDatabase.Execute("UPDATE `account_banned` SET `active` = 0 WHERE `unbandate`<=UNIX_TIMESTAMP() AND `unbandate`<>`bandate`");
+    LoginDatabase.Execute("DELETE FROM `ip_banned` WHERE `unbandate`<=UNIX_TIMESTAMP() AND `unbandate`<>`bandate`");
     LoginDatabase.CommitTransaction();
 
-    ///- Launch the listening network socket
+    // Launch the listening network socket
     ACE_Acceptor<AuthSocket, ACE_SOCK_Acceptor> acceptor;
 
     uint16 rmport = sConfig.GetIntDefault("RealmServerPort", DEFAULT_REALMSERVER_PORT);
@@ -293,15 +299,15 @@ extern int main(int argc, char **argv)
 
     if(acceptor.open(bind_addr, ACE_Reactor::instance(), ACE_NONBLOCK) == -1)
     {
-        sLog.outError("MaNGOS realmd can not bind to %s:%d", bind_ip.c_str(), rmport);
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "MaNGOS realmd can not bind to %s:%d", bind_ip.c_str(), rmport);
         Log::WaitBeforeContinueIfNeed();
         return 1;
     }
 
-    ///- Catch termination signals
+    // Catch termination signals
     HookSignals();
 
-    ///- Handle affinity for multiple processors and process priority on Windows
+    // Handle affinity for multiple processors and process priority on Windows
     #ifdef WIN32
     {
         HANDLE hProcess = GetCurrentProcess();
@@ -318,17 +324,17 @@ extern int main(int argc, char **argv)
 
                 if(!curAff )
                 {
-                    sLog.outError("Processors marked in UseProcessors bitmask (hex) %x not accessible for realmd. Accessible processors bitmask (hex): %x",Aff,appAff);
+                    sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Processors marked in UseProcessors bitmask (hex) %x not accessible for realmd. Accessible processors bitmask (hex): %x",Aff,appAff);
                 }
                 else
                 {
                     if(SetProcessAffinityMask(hProcess,curAff))
-                        sLog.outString("Using processors (bitmask, hex): %x", curAff);
+                        sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Using processors (bitmask, hex): %x", curAff);
                     else
-                        sLog.outError("Can't set used processors (hex): %x", curAff);
+                        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Can't set used processors (hex): %x", curAff);
                 }
             }
-            sLog.outString();
+            sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
         }
 
         bool Prio = sConfig.GetBoolDefault("ProcessPriority", false);
@@ -336,10 +342,10 @@ extern int main(int argc, char **argv)
         if(Prio)
         {
             if(SetPriorityClass(hProcess,HIGH_PRIORITY_CLASS))
-                sLog.outString("realmd process priority class set to HIGH");
+                sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "realmd process priority class set to HIGH");
             else
-                sLog.outError("Can't set realmd process priority class.");
-            sLog.outString();
+                sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Can't set realmd process priority class.");
+            sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
         }
     }
     #endif
@@ -354,7 +360,7 @@ extern int main(int argc, char **argv)
     #ifndef WIN32
     detachDaemon();
     #endif
-    ///- Wait for termination signal
+    // Wait for termination signal
     while (!stopEvent)
     {
         // dont move this outside the loop, the reactor will modify it
@@ -366,7 +372,7 @@ extern int main(int argc, char **argv)
         if( (++loopCounter) == numLoops )
         {
             loopCounter = 0;
-            DETAIL_LOG("Ping MySQL to keep connection alive");
+            sLog.Out(LOG_BASIC, LOG_LVL_DETAIL, "Ping MySQL to keep connection alive");
             LoginDatabase.Ping();
         }
 #ifdef WIN32
@@ -375,17 +381,17 @@ extern int main(int argc, char **argv)
 #endif
     }
 
-    ///- Wait for the delay thread to exit
+    // Wait for the delay thread to exit
     LoginDatabase.HaltDelayThread();
 
-    ///- Remove signal handling before leaving
+    // Remove signal handling before leaving
     UnhookSignals();
 
-    sLog.outString( "Halting process..." );
+    sLog.Out(LOG_BASIC, LOG_LVL_BASIC, "Halting process..." );
     return 0;
 }
 
-/// Handle termination signals
+// Handle termination signals
 /** Put the global variable stopEvent to 'true' if a termination signal is caught **/
 void OnSignal(int s)
 {
@@ -405,13 +411,13 @@ void OnSignal(int s)
     signal(s, OnSignal);
 }
 
-/// Initialize connection to the database
+// Initialize connection to the database
 bool StartDB()
 {
     std::string dbstring = sConfig.GetStringDefault("LoginDatabaseInfo", "");
     if(dbstring.empty())
     {
-        sLog.outError("Database not specified");
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Database not specified");
         return false;
     }
 
@@ -444,20 +450,20 @@ bool StartDB()
     }
     else
     {
-        sLog.outError("Incorrectly formatted database connection string for logon database");
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Incorrectly formatted database connection string for logon database");
         return false;
     }
 
-    sLog.outString("Database: %s", dbStringLog.c_str() );
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Database: %s", dbStringLog.c_str() );
     if(!LoginDatabase.Initialize(dbstring.c_str()))
     {
-        sLog.outError("Cannot connect to database");
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Cannot connect to database");
         return false;
     }
 
     if (!LoginDatabase.CheckRequiredMigrations(MIGRATIONS_LOGON))
     {
-        ///- Wait for already started DB delay threads to end
+        // Wait for already started DB delay threads to end
         LoginDatabase.HaltDelayThread();
         return false;
     }
@@ -465,7 +471,7 @@ bool StartDB()
     return true;
 }
 
-/// Define hook 'OnSignal' for all termination signals
+// Define hook 'OnSignal' for all termination signals
 void HookSignals()
 {
     signal(SIGINT, OnSignal);
@@ -475,7 +481,7 @@ void HookSignals()
     #endif
 }
 
-/// Unhook the signals before leaving
+// Unhook the signals before leaving
 void UnhookSignals()
 {
     signal(SIGINT, 0);
@@ -485,4 +491,4 @@ void UnhookSignals()
     #endif
 }
 
-/// @}
+// @}

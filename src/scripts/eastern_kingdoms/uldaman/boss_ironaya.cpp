@@ -45,21 +45,21 @@ struct boss_ironayaAI : public ScriptedAI
     bool hasCastedKnockaway;
     bool hasMoved;
 
-    void Reset()
+    void Reset() override
     {
         hasCastedKnockaway = false;
         hasCastedWstomp = false;
     }
 
-    void Aggro(Unit *who)
+    void Aggro(Unit *who) override
     {
         DoScriptText(SAY_AGGRO, m_creature);
         m_creature->SetInCombatWithZone();
     }
 
-    void UpdateAI(const uint32 diff)
+    void UpdateAI(uint32 const diff) override
     {
-        if (m_creature->getFaction() == FACTION_AWAKE && !hasMoved)
+        if (!m_creature->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PLAYER | UNIT_FLAG_IMMUNE_TO_NPC) && !hasMoved)
         {
             if (Unit* target = Unit::GetUnit(*me, instance->GetData64(0)))
             {
@@ -69,7 +69,7 @@ struct boss_ironayaAI : public ScriptedAI
         }
 
         //Return since we have no target
-        if (!m_creature->SelectHostileTarget() || !m_creature->getVictim())
+        if (!m_creature->SelectHostileTarget() || !m_creature->GetVictim())
         {
             return;
         }
@@ -77,20 +77,17 @@ struct boss_ironayaAI : public ScriptedAI
         //If we are <50% hp do knockaway ONCE
         if (!hasCastedKnockaway && m_creature->GetHealthPercent() < 50.0f)
         {
-            m_creature->CastSpell(m_creature->getVictim(), SPELL_KNOCKAWAY, false);
+            m_creature->CastSpell(m_creature->GetVictim(), SPELL_KNOCKAWAY, false);
+            m_creature->GetThreatManager().modifyThreatPercent(m_creature->GetVictim(), -100);
 
             // current aggro target is knocked away pick new target
-            Unit* Target = m_creature->SelectAttackingTarget(ATTACKING_TARGET_TOPAGGRO, 0);
+            Unit* pTarget = m_creature->SelectAttackingTarget(ATTACKING_TARGET_TOPAGGRO, 0);
 
-            if (!Target || Target == m_creature->getVictim())
-            {
-                Target = m_creature->SelectAttackingTarget(ATTACKING_TARGET_TOPAGGRO, 1);
-            }
+            if (!pTarget || pTarget == m_creature->GetVictim())
+                pTarget = m_creature->SelectAttackingTarget(ATTACKING_TARGET_TOPAGGRO, 1);
 
-            if (Target)
-            {
-                m_creature->TauntApply(Target);
-            }
+            if (pTarget)
+                AttackStart(pTarget);
 
             //Shouldn't cast this again
             hasCastedKnockaway = true;
@@ -121,7 +118,7 @@ CreatureAI* GetAI_boss_ironaya(Creature* pCreature)
 
 void AddSC_boss_ironaya()
 {
-    Script *newscript;
+    Script* newscript;
     newscript = new Script;
     newscript->Name = "boss_ironaya";
     newscript->GetAI = &GetAI_boss_ironaya;

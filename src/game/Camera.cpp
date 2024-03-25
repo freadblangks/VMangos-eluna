@@ -40,7 +40,7 @@ Camera::~Camera()
     m_source->GetViewPoint().Detach(this);
 }
 
-void Camera::ReceivePacket(WorldPacket *data)
+void Camera::ReceivePacket(WorldPacket* data)
 {
     m_owner.SendDirectMessage(data);
 }
@@ -55,7 +55,7 @@ void Camera::UpdateForCurrentViewPoint()
     UpdateVisibilityForOwner();
 }
 
-void Camera::SetView(WorldObject *obj, bool update_far_sight_field /*= true*/)
+void Camera::SetView(WorldObject* obj, bool update_far_sight_field /*= true*/)
 {
     MANGOS_ASSERT(obj);
 
@@ -64,13 +64,13 @@ void Camera::SetView(WorldObject *obj, bool update_far_sight_field /*= true*/)
 
     if (!m_owner.IsInMap(obj))
     {
-        sLog.outError("Camera::SetView, viewpoint is not in map with camera's owner");
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Camera::SetView, viewpoint is not in map with camera's owner");
         return;
     }
 
     if (!obj->isType(TypeMask(TYPEMASK_DYNAMICOBJECT | TYPEMASK_UNIT)))
     {
-        sLog.outError("Camera::SetView, viewpoint type is not available for client");
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Camera::SetView, viewpoint type is not available for client");
         return;
     }
 
@@ -87,7 +87,12 @@ void Camera::SetView(WorldObject *obj, bool update_far_sight_field /*= true*/)
     m_source->GetViewPoint().Attach(this);
 
     if (update_far_sight_field)
-        m_owner.SetGuidValue(PLAYER_FARSIGHT, (m_source == &m_owner ? ObjectGuid() : m_source->GetObjectGuid()));
+    {
+        if (m_source != &m_owner)
+            m_owner.UpdateVisibilityOf(m_source, m_source);
+
+        m_owner.ScheduleCameraUpdate(m_source == &m_owner ? ObjectGuid() : m_source->GetObjectGuid());
+    }
 
     UpdateForCurrentViewPoint();
 }
@@ -135,16 +140,16 @@ void Camera::UpdateVisibilityOf(WorldObject* target)
 }
 
 template<class T>
-void Camera::UpdateVisibilityOf(T * target, UpdateData &data, std::set<WorldObject*>& vis)
+void Camera::UpdateVisibilityOf(T* target, UpdateData& data, std::set<WorldObject*>& vis)
 {
     m_owner.template UpdateVisibilityOf<T>(m_source, target, data, vis);
 }
 
-template void Camera::UpdateVisibilityOf(Player*        , UpdateData& , std::set<WorldObject*>&);
-template void Camera::UpdateVisibilityOf(Creature*      , UpdateData& , std::set<WorldObject*>&);
-template void Camera::UpdateVisibilityOf(Corpse*        , UpdateData& , std::set<WorldObject*>&);
-template void Camera::UpdateVisibilityOf(GameObject*    , UpdateData& , std::set<WorldObject*>&);
-template void Camera::UpdateVisibilityOf(DynamicObject* , UpdateData& , std::set<WorldObject*>&);
+template void Camera::UpdateVisibilityOf(Player*       , UpdateData&, std::set<WorldObject*>&);
+template void Camera::UpdateVisibilityOf(Creature*     , UpdateData&, std::set<WorldObject*>&);
+template void Camera::UpdateVisibilityOf(Corpse*       , UpdateData&, std::set<WorldObject*>&);
+template void Camera::UpdateVisibilityOf(GameObject*   , UpdateData&, std::set<WorldObject*>&);
+template void Camera::UpdateVisibilityOf(DynamicObject*, UpdateData&, std::set<WorldObject*>&);
 
 void Camera::UpdateVisibilityForOwner()
 {
@@ -153,9 +158,9 @@ void Camera::UpdateVisibilityForOwner()
     if (!m_source->FindMap())
         return;
 
-    GetOwner()->m_visibleGUIDs_lock.acquire_read();
+    std::shared_lock<std::shared_timed_mutex> lock(GetOwner()->m_visibleGUIDs_lock);
     MaNGOS::VisibleNotifier notifier(*this); // Will copy m_clientGUIDs
-    GetOwner()->m_visibleGUIDs_lock.release();
+    lock.unlock();
     Cell::VisitAllObjects(m_source, notifier, m_source->GetMap()->GetVisibilityDistance());
     notifier.Notify();
 }
@@ -165,5 +170,5 @@ void Camera::UpdateVisibilityForOwner()
 ViewPoint::~ViewPoint()
 {
     if (!m_cameras.empty())
-        sLog.outError("ViewPoint destructor called, but some cameras referenced to it");
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "ViewPoint destructor called, but some cameras referenced to it");
 }

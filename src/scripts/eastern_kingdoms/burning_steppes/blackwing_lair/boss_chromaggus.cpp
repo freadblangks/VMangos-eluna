@@ -26,7 +26,7 @@ EndScriptData */
 
 enum
 {
-    EMOTE_GENERIC_FRENZY_KILL   = -1000001,
+    EMOTE_GENERIC_FRENZY_KILL   = 7797,
     EMOTE_SHIMMER               = -1469003,
 
     // These spells are actually called elemental shield
@@ -60,15 +60,7 @@ enum
     SPELL_ENRAGE                = 28747
 };
 
-static const uint32 aPossibleBreaths[MAX_BREATHS] = {SPELL_INCINERATE, SPELL_TIME_LAPSE, SPELL_CORROSIVE_ACID, SPELL_IGNITE_FLESH, SPELL_FROST_BURN};
-
-struct TimeLapseInfo
-{
-    TimeLapseInfo(ObjectGuid const targetGuid, float const targetThreat, uint32 const targetHealth) : m_targetGuid(targetGuid), m_targetThreat(targetThreat), m_targetHealth(targetHealth) { }
-    ObjectGuid const m_targetGuid;
-    float const m_targetThreat;
-    uint32 const m_targetHealth;
-};
+static uint32 const aPossibleBreaths[MAX_BREATHS] = {SPELL_INCINERATE, SPELL_TIME_LAPSE, SPELL_CORROSIVE_ACID, SPELL_IGNITE_FLESH, SPELL_FROST_BURN};
 
 struct boss_chromaggusAI : public ScriptedAI
 {
@@ -89,7 +81,7 @@ struct boss_chromaggusAI : public ScriptedAI
                 ++idx2;
             m_uiBreathTwoSpell = aPossibleBreaths[idx2 % NUM_BREATHS];
         }
-        pCreature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_PASSIVE);
+        pCreature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_SPAWNING | UNIT_FLAG_IMMUNE_TO_NPC);
         m_bEngagedOnce = false;
         Reset();
     }
@@ -110,33 +102,32 @@ struct boss_chromaggusAI : public ScriptedAI
     bool m_bEnraged;
     bool m_bEngagedOnce;
 
-    std::vector<TimeLapseInfo*> m_vTimeLapseInfo;
     typedef std::vector<ObjectGuid> AfflictionGuids;
     AfflictionGuids m_lRedAfflictionPlayerGUID;
     AfflictionGuids m_lChromaticPlayerGUID;
 
-    void Reset()
+    void Reset() override
     {
         m_uiMovetoLeverTimer = 2000;
 
         m_uiCurrentVulnerabilitySpell = 0;                  // We use this to store our last vulnerability spell so we can remove it later
 
-        m_uiShimmerTimer    = 0;                            // Time till we change vurlnerabilites
-        m_uiBreathOneTimer  = 30000;                        // First breath is 30 seconds
-        m_uiBreathTwoTimer  = 60000;                        // Second is 1 minute so that we can alternate
-        m_uiAfflictionTimer = 4000;                        // This is special - 5 seconds means that we cast this on 1 pPlayer every 5 sconds
-        m_uiFrenzyTimer     = 15000;
+        m_uiShimmerTimer    = 0;        // Vulnurability is applied at pull. Changes every 20 secs.
+        m_uiBreathOneTimer  = 30000;    // First breath happens in 30 secs. Repeats every 60 secs.
+        m_uiBreathTwoTimer  = 60000;    // Second breath happens in 60 secs. Repeats every 60 secs.
+        m_uiAfflictionTimer = 7500;     // Afflictions are applied every 7.5 secs.
+        m_uiFrenzyTimer     = 15000;    // Frenzy happens every 15 secs.
 
         m_bEnraged          = false;
         m_lRedAfflictionPlayerGUID.clear();
 
-        for (AfflictionGuids::const_iterator itr = m_lChromaticPlayerGUID.begin(); itr != m_lChromaticPlayerGUID.end(); ++itr)
+        for (const auto& guid : m_lChromaticPlayerGUID)
         {
-            if (Player* pTarget = m_creature->GetMap()->GetPlayer(*itr))
+            if (Player* pTarget = m_creature->GetMap()->GetPlayer(guid))
             {
                 pTarget->RemoveAurasDueToSpell(23175);
                 pTarget->RemoveAurasDueToSpell(23177);
-                pTarget->DealDamage(pTarget, pTarget->GetHealth(), NULL, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, NULL, false);
+                pTarget->DealDamage(pTarget, pTarget->GetHealth(), nullptr, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, nullptr, false);
             }
         }
         m_lChromaticPlayerGUID.clear();
@@ -144,66 +135,58 @@ struct boss_chromaggusAI : public ScriptedAI
         if (GameObject* pGO = m_creature->GetMap()->GetGameObject(m_pInstance->GetData64(DATA_DOOR_CHROMAGGUS_SIDE)))
         {
             if (pGO->GetGoState() == GO_STATE_ACTIVE) // Door open
-                m_creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_NON_ATTACKABLE);
+                m_creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_SPAWNING);
             else
-                m_creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_PASSIVE);
+                m_creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_SPAWNING | UNIT_FLAG_IMMUNE_TO_NPC);
         }
-
-        for (std::vector<TimeLapseInfo*>::iterator itr = m_vTimeLapseInfo.begin(); itr != m_vTimeLapseInfo.end(); ++itr)
-            delete *itr;
-        m_vTimeLapseInfo.clear();
     }
 
-    void MoveInLineOfSight(Unit *pUnit)
+    void MoveInLineOfSight(Unit *pUnit) override
     {
-        if (!pUnit || m_creature->getVictim())
+        if (!pUnit || m_creature->GetVictim())
             return;
 
         if (m_bEngagedOnce && pUnit->IsPlayer() && m_creature->GetDistance2d(pUnit) < 55.0f && m_creature->IsWithinLOSInMap(pUnit)
-          && pUnit->isTargetableForAttack() && pUnit->isInAccessablePlaceFor(m_creature))
+          && pUnit->IsTargetableBy(m_creature) && pUnit->IsInAccessablePlaceFor(m_creature))
             AttackStart(pUnit);
     }
 
-    void Aggro(Unit* /*pWho*/)
+    void Aggro(Unit* /*pWho*/) override
     {
         if (m_pInstance)
             m_pInstance->SetData(TYPE_CHROMAGGUS, IN_PROGRESS);
 
-        m_creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_PASSIVE);
+        m_creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_SPAWNING | UNIT_FLAG_IMMUNE_TO_NPC);
         m_creature->SetInCombatWithZone();
     }
 
-    void JustDied(Unit* /*pKiller*/)
+    void JustDied(Unit* /*pKiller*/) override
     {
         if (m_pInstance)
             m_pInstance->SetData(TYPE_CHROMAGGUS, DONE);
-        for (std::vector<TimeLapseInfo*>::iterator itr = m_vTimeLapseInfo.begin(); itr != m_vTimeLapseInfo.end(); ++itr)
-            delete *itr;
-        m_vTimeLapseInfo.clear();
     }
 
-    void JustReachedHome()
+    void JustReachedHome() override
     {
         if (m_pInstance)
             m_pInstance->SetData(TYPE_CHROMAGGUS, FAIL);
     }
 
-    void SpellHitTarget(Unit* pTarget, const SpellEntry* pSpell)
+    void SpellHitTarget(Unit* pTarget, SpellEntry const* pSpell) override
     {
         if (!pTarget)
             return;
 
+        /* Better to do this in SpellAuras.cpp
         if (pSpell->Id == SPELL_TIME_LAPSE)
         {
             if (SpellAuraHolder* holder = pTarget->GetSpellAuraHolder(SPELL_TIME_LAPSE))
                 holder->SetTargetSecondaryThreatFocus(true);
-            if (pTarget->GetTypeId() != TYPEID_PLAYER)
-                return;
-            m_vTimeLapseInfo.push_back(new TimeLapseInfo(pTarget->GetObjectGuid(), m_creature->getThreatManager().getThreat(pTarget), pTarget->GetHealth()));
         }
+        */
     }
 
-    void MovementInform(uint32 uiType, uint32 uiPointId)
+    void MovementInform(uint32 uiType, uint32 uiPointId) override
     {
         if (uiType != POINT_MOTION_TYPE)
             return;
@@ -212,11 +195,11 @@ struct boss_chromaggusAI : public ScriptedAI
         {
             case 0:
                 // walk to Flamegor's room on first pull of lever
-                m_creature->GetMotionMaster()->MovePoint(1, -7379.223f, -1002.1122f, 477.0402f, 3.7662f);
+                m_creature->GetMotionMaster()->MovePoint(1, -7379.223f, -1002.1122f, 477.0402f, 0, 0.0f, 3.7662f);
                 break;
             case 1:
                 // didn't find anyone! walk back to home position
-                m_creature->GetMotionMaster()->MovePoint(2, -7484.609385f, -1075.678101f, 477.144623f, 0.616172f);
+                m_creature->GetMotionMaster()->MovePoint(2, -7484.609385f, -1075.678101f, 477.144623f, 0, 0.0f, 0.616172f);
                 break;
             case 2:
                 m_creature->GetMotionMaster()->MoveTargetedHome();
@@ -224,9 +207,9 @@ struct boss_chromaggusAI : public ScriptedAI
         }
     }
 
-    void UpdateAI(const uint32 uiDiff)
+    void UpdateAI(uint32 const uiDiff) override
     {
-        if (!m_creature->isInCombat() && !m_bEngagedOnce)
+        if (!m_creature->IsInCombat() && !m_bEngagedOnce)
         {
             if (GameObject* pGO = m_creature->GetMap()->GetGameObject(m_pInstance->GetData64(DATA_DOOR_CHROMAGGUS_SIDE)))
             {
@@ -241,33 +224,19 @@ struct boss_chromaggusAI : public ScriptedAI
                         m_creature->SetHomePosition(x, y, z, o);
                         m_creature->SetWalk(true);
                         m_creature->GetMotionMaster()->MovePoint(0, x, y, z, MOVE_PATHFINDING);
-                        m_creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_PASSIVE);
+                        m_creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_SPAWNING | UNIT_FLAG_IMMUNE_TO_NPC);
                         m_bEngagedOnce = true;
                     }
                     else
                         m_uiMovetoLeverTimer -= uiDiff;
                 }
                 else if (!m_creature->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE))
-                    m_creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_PASSIVE);
+                    m_creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_SPAWNING | UNIT_FLAG_IMMUNE_TO_NPC);
             }
         }
 
-        if (!m_creature->SelectHostileTarget() || !m_creature->getVictim())
+        if (!m_creature->SelectHostileTarget() || !m_creature->GetVictim())
             return;
-
-        for (std::vector<TimeLapseInfo*>::iterator itr = m_vTimeLapseInfo.begin(); itr != m_vTimeLapseInfo.end(); ++itr)
-            if (Player* pTarget = m_creature->GetMap()->GetPlayer((*itr)->m_targetGuid))
-            {
-                if (!pTarget->HasAura(SPELL_TIME_LAPSE) && pTarget->isAlive())
-                {
-                    if ((*itr)->m_targetHealth >= (pTarget->GetMaxHealth() / 2))
-                        pTarget->SetHealth(pTarget->GetMaxHealth());
-                    delete *itr;
-                    m_vTimeLapseInfo.erase(itr--);
-                }
-            }
-            else
-                m_vTimeLapseInfo.erase(itr--);
 
         // Shimmer Timer Timer
         if (m_uiShimmerTimer < uiDiff)
@@ -302,7 +271,7 @@ struct boss_chromaggusAI : public ScriptedAI
                 m_uiCurrentVulnerabilitySpell = uiSpell;
 
                 DoScriptText(EMOTE_SHIMMER, m_creature);
-                m_uiShimmerTimer = 45000;
+                m_uiShimmerTimer = 20000;
             }
         }
         else
@@ -351,66 +320,61 @@ struct boss_chromaggusAI : public ScriptedAI
                     break;
             }
 
-            std::vector<ObjectGuid> m_vPossibleVictim;
-            ThreatList const& tList = m_creature->getThreatManager().getThreatList();
-            for (ThreatList::const_iterator itr = tList.begin(); itr != tList.end(); ++itr)
-                if (Player* target = m_creature->GetMap()->GetPlayer((*itr)->getUnitGuid()))
-                    m_vPossibleVictim.push_back(target->GetObjectGuid());
-
-            int affli_rand = urand(0, 18);
-            for (int i = 0; i < affli_rand; ++i)
+            for (uint32 i = 0; i < urand(11, 15); ++i) // Affliction is applied 11-15 times per cast. Creatures such as pets can be targetted
             {
-                if (m_vPossibleVictim.empty())
-                    break;
-                std::vector<ObjectGuid>::iterator it = m_vPossibleVictim.begin() + urand(0, m_vPossibleVictim.size() - 1);
-                if (Player* pPlayer = m_creature->GetMap()->GetPlayer(*it))
+                if (Unit* afflictionTarget = m_creature->SelectAttackingTarget(ATTACKING_TARGET_RANDOM, 0))
                 {
+                    if (afflictionTarget->HasAura(SPELL_CHROMATIC_MUT_1)) // To make sure mutated players are not being targeted with affliction.
+                        continue;
+
                     // Cast affliction
-                    if (DoCastSpellIfCan(pPlayer, m_uiSpellAfflict, CF_TRIGGERED) == CAST_OK)
+                    if (DoCastSpellIfCan(afflictionTarget, m_uiSpellAfflict, CF_TRIGGERED) == CAST_OK)
                     {
-                        if (m_uiSpellAfflict == SPELL_BROODAF_RED)
-                            m_lRedAfflictionPlayerGUID.push_back(pPlayer->GetObjectGuid());
+                        if (m_uiSpellAfflict == SPELL_BROODAF_RED && afflictionTarget->GetTypeId() == TYPEID_PLAYER)
+                            m_lRedAfflictionPlayerGUID.push_back(afflictionTarget->GetObjectGuid());
                     }
                     // Chromatic mutation if target is effected by all afflictions
-                    if (pPlayer->HasAura(SPELL_BROODAF_BLUE)
-                            && pPlayer->HasAura(SPELL_BROODAF_BLACK)
-                            && pPlayer->HasAura(SPELL_BROODAF_RED)
-                            && pPlayer->HasAura(SPELL_BROODAF_BRONZE)
-                            && pPlayer->HasAura(SPELL_BROODAF_GREEN))
+                    if (afflictionTarget->HasAura(SPELL_BROODAF_BLUE)
+                            && afflictionTarget->HasAura(SPELL_BROODAF_BLACK)
+                            && afflictionTarget->HasAura(SPELL_BROODAF_RED)
+                            && afflictionTarget->HasAura(SPELL_BROODAF_BRONZE)
+                            && afflictionTarget->HasAura(SPELL_BROODAF_GREEN))
                     {
-                        pPlayer->RemoveAurasDueToSpell(SPELL_BROODAF_BLUE);
-                        pPlayer->RemoveAurasDueToSpell(SPELL_BROODAF_BLACK);
-                        pPlayer->RemoveAurasDueToSpell(SPELL_BROODAF_RED);
-                        pPlayer->RemoveAurasDueToSpell(SPELL_BROODAF_BRONZE);
-                        pPlayer->RemoveAurasDueToSpell(SPELL_BROODAF_GREEN);
+                        afflictionTarget->RemoveAurasDueToSpell(SPELL_BROODAF_BLUE);
+                        afflictionTarget->RemoveAurasDueToSpell(SPELL_BROODAF_BLACK);
+                        afflictionTarget->RemoveAurasDueToSpell(SPELL_BROODAF_RED);
+                        afflictionTarget->RemoveAurasDueToSpell(SPELL_BROODAF_BRONZE);
+                        afflictionTarget->RemoveAurasDueToSpell(SPELL_BROODAF_GREEN);
 
-                        if (DoCastSpellIfCan(pPlayer, SPELL_CHROMATIC_MUT_1) == CAST_OK)
+                        if (afflictionTarget->GetTypeId() == TYPEID_PLAYER) // Only players are mutated
                         {
-                            // More Chromatic Mutation buffs
-                            pPlayer->AddAura(23175); //Mod DMG 500% + Mod Haste Melee 100 + Mod Haste Spell 300
-                            pPlayer->AddAura(23177); //Max Health 10000 + Mod healing 1000%
-                            m_lChromaticPlayerGUID.push_back(pPlayer->GetObjectGuid());
+                                afflictionTarget->AddAura(SPELL_CHROMATIC_MUT_1, ADD_AURA_NO_OPTION, m_creature); // Main MC aura
+                                afflictionTarget->AddAura(23175); // Mod DMG 500% + Mod Haste Melee 100 + Mod Haste Spell 300
+                                afflictionTarget->AddAura(23177); // Max Health 10000 + Mod healing 1000%
+                                m_lChromaticPlayerGUID.push_back(afflictionTarget->GetObjectGuid());
                         }
+                        else    // Pets die instantly
+                            afflictionTarget->DealDamage(afflictionTarget, afflictionTarget->GetHealth(), nullptr, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, nullptr, false);
+
                     }
                 }
-                m_vPossibleVictim.erase(it);
             }
-            m_uiAfflictionTimer = 4000;
+            m_uiAfflictionTimer = 7500;
         }
         else
             m_uiAfflictionTimer -= uiDiff;
 
-        // If player dies from a direct hit or dot while he had the aura SPELL_BROODAF_RED
+        // If player dies while he had the aura SPELL_BROODAF_RED
         for (AfflictionGuids::iterator itr = m_lRedAfflictionPlayerGUID.begin(); itr != m_lRedAfflictionPlayerGUID.end();)
         {
             Player* pTarget = m_creature->GetMap()->GetPlayer(*itr);
-            if (pTarget && pTarget->isAlive() && !pTarget->HasAura(SPELL_BROODAF_RED, EFFECT_INDEX_0))
+            if (pTarget && pTarget->IsAlive() && !pTarget->HasAura(SPELL_BROODAF_RED, EFFECT_INDEX_0))
             {
                 itr = m_lRedAfflictionPlayerGUID.erase(itr);
                 continue;
             }
 
-            if (!pTarget || pTarget->isDead())
+            if (!pTarget || pTarget->IsDead())
             {
                 if (DoCastSpellIfCan(m_creature, SPELL_CHROMA_HEAL) == CAST_OK) //Heal 150000 HP
                     m_lRedAfflictionPlayerGUID.erase(itr);
@@ -419,12 +383,12 @@ struct boss_chromaggusAI : public ScriptedAI
             ++itr;
         }
 
-        // If player dies from a direct hit or dot while he had the aura SPELL_CHROMATIC_MUT_1
+        // If player dies while he had the aura SPELL_CHROMATIC_MUT_1
         for (AfflictionGuids::iterator itr = m_lChromaticPlayerGUID.begin(); itr != m_lChromaticPlayerGUID.end();)
         {
             if (Player* pTarget = m_creature->GetMap()->GetPlayer(*itr))
             {
-                if (pTarget->isDead())
+                if (pTarget->IsDead())
                 {
                     pTarget->RemoveAurasDueToSpell(23175);
                     pTarget->RemoveAurasDueToSpell(23177);

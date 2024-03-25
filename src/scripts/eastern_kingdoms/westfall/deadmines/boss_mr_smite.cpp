@@ -77,7 +77,7 @@ struct boss_mr_smiteAI : public ScriptedAI
 
     void AttackedBy(Unit* pAttacker) override
     {
-        if (m_creature->getVictim())
+        if (m_creature->GetVictim())
             return;
 
         if (m_uiPhase > PHASE_3)
@@ -114,7 +114,7 @@ struct boss_mr_smiteAI : public ScriptedAI
         {
             if (uiMotionType == POINT_MOTION_TYPE)
             {
-                if (Unit* target = m_creature->getVictim())
+                if (Unit* target = m_creature->GetVictim())
                     m_creature->GetMotionMaster()->MoveChase(target);
             }
             return;
@@ -167,17 +167,17 @@ struct boss_mr_smiteAI : public ScriptedAI
         if (m_creature->GetHealthPercent() < 33.0f)
         {
             // It's Hammer, go Hammer!
-            m_creature->SetVirtualItem(VIRTUAL_ITEM_SLOT_0, EQUIP_ID_HAMMER);
-            m_creature->SetVirtualItem(VIRTUAL_ITEM_SLOT_1, 0);
-            m_creature->SetVirtualItem(VIRTUAL_ITEM_SLOT_2, 0);
+            m_creature->SetVirtualItem(BASE_ATTACK, EQUIP_ID_HAMMER);
+            m_creature->SetVirtualItem(OFF_ATTACK, 0);
+            m_creature->SetVirtualItem(RANGED_ATTACK, 0);
             DoCastSpellIfCan(m_creature, SPELL_SMITE_HAMMER);
         }
         else
         {
             // It's double Axe.
-            m_creature->SetVirtualItem(VIRTUAL_ITEM_SLOT_0, EQUIP_ID_AXE);
-            m_creature->SetVirtualItem(VIRTUAL_ITEM_SLOT_1, EQUIP_ID_AXE);
-            m_creature->SetVirtualItem(VIRTUAL_ITEM_SLOT_2, 0);
+            m_creature->SetVirtualItem(BASE_ATTACK, EQUIP_ID_AXE);
+            m_creature->SetVirtualItem(OFF_ATTACK, EQUIP_ID_AXE);
+            m_creature->SetVirtualItem(RANGED_ATTACK, 0);
         }
 
         m_creature->SetStandState(UNIT_STAND_STATE_STAND);
@@ -204,9 +204,9 @@ struct boss_mr_smiteAI : public ScriptedAI
         AttackStart(pVictim);
     }
 
-    void UpdateAI(const uint32 uiDiff) override
+    void UpdateAI(uint32 const uiDiff) override
     {
-        Unit * target = m_creature->getVictim();
+        Unit * target = m_creature->GetVictim();
         if (!m_creature->SelectHostileTarget() || !target)
         {
             if (m_uiEquipTimer)
@@ -263,7 +263,7 @@ struct boss_mr_smiteAI : public ScriptedAI
             {
                 if (m_uiThrashTimer < uiDiff)//instead of the aura, because the aura procs too much
                 {
-                    if (DoCastSpellIfCan(m_creature->getVictim(), SPELL_THRASH) == CAST_OK)
+                    if (DoCastSpellIfCan(m_creature->GetVictim(), SPELL_THRASH) == CAST_OK)
                         m_uiThrashTimer = urand(1500, 4000);
                 }
                 else
@@ -291,7 +291,7 @@ struct boss_mr_smiteAI : public ScriptedAI
             {
                 if (m_uiSlamTimer < uiDiff)
                 {
-                    if (DoCastSpellIfCan(m_creature->getVictim(), SPELL_SMITE_SLAM) == CAST_OK)
+                    if (DoCastSpellIfCan(m_creature->GetVictim(), SPELL_SMITE_SLAM) == CAST_OK)
                         m_uiSlamTimer = 11000;
                 }
                 else
@@ -301,7 +301,7 @@ struct boss_mr_smiteAI : public ScriptedAI
                 break;
             }
         }
-        if (equiping == false && !m_creature->IsWithinMeleeRange(target) && m_creature->IsWithinDistInMap(target, m_creature->GetMeleeReach() * 2)) //test Alita GetDistance
+        if (!equiping && !m_creature->CanReachWithMeleeAutoAttack(target) && m_creature->IsWithinDistInMap(target, m_creature->GetMeleeReach() * 2)) //test Alita GetDistance
         {
             float x, y, z;
             m_creature->GetRandomAttackPoint(target, x, y, z);

@@ -1,9 +1,9 @@
-##################################4##########
+############################################
 # MaNGOS realmd configuration file         #
 ############################################
 
 [RealmdConf]
-ConfVersion=2010062001
+ConfVersion=2020010501
 
 ###################################################################################################################
 # REALMD SETTINGS
@@ -21,6 +21,11 @@ ConfVersion=2010062001
 #         Important: Logs dir must exists, or all logs be disable
 #         Default: "" - no log directory prefix. if used log names aren't absolute paths
 #                       then logs will be stored in the current directory of the running program.
+#
+#    PatchesDir
+#         Folder to serve client patches.
+#         Important: Patches dir must contain mpq files like this: <build><lang>.mpq e.g. 65535enGB.mpq
+#         Default: "./patches"
 #
 #    MaxPingTime
 #         Settings for maximum database-ping interval (minutes between pings)
@@ -63,13 +68,6 @@ ConfVersion=2010062001
 #        Server file level of logging
 #        0 = Minimum; 1 = Error; 2 = Detail; 3 = Full/Debug
 #        Default: 0
-#
-#    LogColors
-#        Color for messages (format "normal_color details_color debug_color error_color)
-#        Colors: 0 - BLACK, 1 - RED, 2 - GREEN,  3 - BROWN, 4 - BLUE, 5 - MAGENTA, 6 -  CYAN, 7 - GREY,
-#                8 - YELLOW, 9 - LRED, 10 - LGREEN, 11 - LBLUE, 12 - LMAGENTA, 13 - LCYAN, 14 - WHITE
-#        Default: "" - none colors
-#                 "13 7 11 9" - for example :)
 #
 #    UseProcessors
 #        Used processors mask for multi-processors system (Used only at Windows)
@@ -150,10 +148,15 @@ ConfVersion=2010062001
 #        The SendGrid template GUID for geolocking emails
 #        Default: ""
 #
+#    MaxSessionDuration
+#        Maximum time in seconds that sessions can stay open
+#        Default: 300 (5 minutes)
+#
 ###################################################################################################################
 
 LoginDatabaseInfo = "127.0.0.1;3306;mangos;mangos;realmd"
 LogsDir = ""
+PatchesDir = "./patches"
 MaxPingTime = 30
 RealmServerPort = 3724
 BindIP = "0.0.0.0"
@@ -163,7 +166,6 @@ LogTime = 0
 LogFile = "Realmd.log"
 LogTimestamp = 0
 LogFileLevel = 0
-LogColors = ""
 UseProcessors = 0
 ProcessPriority = 1
 WaitAtStartupError = 0
@@ -181,3 +183,4 @@ MailFrom = ""
 MailCertChecks = 1
 SendGridKey = ""
 GeolockGUID = ""
+MaxSessionDuration = 300

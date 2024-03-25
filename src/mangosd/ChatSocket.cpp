@@ -28,7 +28,6 @@
 #include "Log.h"
 #include "ChatSocket.h"
 #include "World.h"
-#include "Config/Config.h"
 #include "Util.h"
 #include "SharedDefines.h"
 #include "ObjectAccessor.h"
@@ -36,6 +35,7 @@
 #include "ObjectMgr.h"
 #include "AccountMgr.h"
 #include "Chat.h"
+#include "Opcodes.h"
 
 #define DEBUG_OUT_CHAT(...) //sLog.outString(__VA_ARGS__)
 
@@ -54,7 +54,7 @@ protected:
     std::stringstream& m_buff;
 };
 
-/// OfflineChatSocket constructor
+// OfflineChatSocket constructor
 OfflineChatSocket::OfflineChatSocket() : OfflineChatHandler(),
     pendingCommands(0, USYNC_THREAD, "pendingCommands"),
     outActive(false),
@@ -65,18 +65,18 @@ OfflineChatSocket::OfflineChatSocket() : OfflineChatHandler(),
     reference_counting_policy ().value (ACE_Event_Handler::Reference_Counting_Policy::ENABLED);
 }
 
-/// OfflineChatSocket destructor
+// OfflineChatSocket destructor
 OfflineChatSocket::~OfflineChatSocket()
 {
     peer().close();
 }
 
-/// Accept an incoming connection
+// Accept an incoming connection
 int OfflineChatSocket::open(void* )
 {
     if (reactor ()->register_handler(this, ACE_Event_Handler::READ_MASK | ACE_Event_Handler::WRITE_MASK) == -1)
     {
-        sLog.outError ("OfflineChatSocket::open: unable to register client handler errno = %s", ACE_OS::strerror (errno));
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "OfflineChatSocket::open: unable to register client handler errno = %s", ACE_OS::strerror (errno));
         return -1;
     }
 
@@ -84,7 +84,7 @@ int OfflineChatSocket::open(void* )
 
     if (peer ().get_remote_addr (remote_addr) == -1)
     {
-        sLog.outError ("OfflineChatSocket::open: peer ().get_remote_addr errno = %s", ACE_OS::strerror (errno));
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "OfflineChatSocket::open: peer ().get_remote_addr errno = %s", ACE_OS::strerror (errno));
         return -1;
     }
     return 0;
@@ -106,7 +106,7 @@ int OfflineChatSocket::handle_close (ACE_HANDLE h, ACE_Reactor_Mask)
 {
     if(closing_)
         return -1;
-    ACE_GUARD_RETURN (ACE_Thread_Mutex, Guard, outBufferLock, -1);
+    std::unique_lock<std::mutex> lock (outBufferLock);
 
     closing_ = true;
 
@@ -118,7 +118,7 @@ int OfflineChatSocket::handle_close (ACE_HANDLE h, ACE_Reactor_Mask)
 
 int OfflineChatSocket::handle_output (ACE_HANDLE)
 {
-    ACE_GUARD_RETURN (ACE_Thread_Mutex, Guard, outBufferLock, -1);
+    std::unique_lock<std::mutex> lock (outBufferLock);
 
     if(closing_)
         return -1;
@@ -127,7 +127,7 @@ int OfflineChatSocket::handle_output (ACE_HANDLE)
     {
         if(reactor()->cancel_wakeup(this, ACE_Event_Handler::WRITE_MASK) == -1)
         {
-            sLog.outError ("OfflineChatSocket::handle_output: error while cancel_wakeup");
+            sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "OfflineChatSocket::handle_output: error while cancel_wakeup");
             return -1;
         }
         outActive = false;
@@ -149,19 +149,19 @@ int OfflineChatSocket::handle_output (ACE_HANDLE)
     return 0;
 }
 
-/// Read data from the network
+// Read data from the network
 std::string TrimLeft(const std::string& s)
 {
-    size_t startpos = s.find_first_not_of(" ");
+    size_t startpos = s.find_first_not_of(' ');
     return (startpos == std::string::npos) ? "" : s.substr(startpos);
 }
 
 int OfflineChatSocket::handle_input(ACE_HANDLE)
 {
-    DEBUG_LOG("OfflineChatSocket::handle_input");
+    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "OfflineChatSocket::handle_input");
     if (closing_)
     {
-        sLog.outError("Called OfflineChatSocket::handle_input with closing_ = true");
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Called OfflineChatSocket::handle_input with closing_ = true");
         return -1;
     }
 
@@ -169,12 +169,12 @@ int OfflineChatSocket::handle_input(ACE_HANDLE)
 
     if (readBytes <= 0)
     {
-        DEBUG_LOG("read %i bytes in OfflineChatSocket::handle_input", readBytes);
+        sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "read %i bytes in OfflineChatSocket::handle_input", readBytes);
         return -1;
     }
     DEBUG_OUT_CHAT("OfflineChatSocket::handle_input %i bytes read", readBytes);
 
-    ///- Discard data after line break or line feed
+    // Discard data after line break or line feed
     bool endofpacket = false;
     for (; readBytes > 0 ; --readBytes)
     {
@@ -231,7 +231,7 @@ int OfflineChatSocket::handle_input(ACE_HANDLE)
 
     // Let's login the player, if not already online
     uint32 acc = sObjectMgr.GetPlayerAccountIdByGUID(playerGuid);
-    QueryResult* auth = LoginDatabase.PQuery("SELECT 1 FROM account WHERE id=%u AND sessionkey=\"%s\"", acc, sessionKey.c_str());
+    QueryResult* auth = LoginDatabase.PQuery("SELECT 1 FROM `account` WHERE `id`=%u AND `sessionkey`=\"%s\"", acc, sessionKey.c_str());
     if (!auth)
     {
         sendf("err_auth\n");
@@ -263,7 +263,7 @@ int OfflineChatSocket::handle_input(ACE_HANDLE)
             sendf("err_loading\n");
             return 0;
         }
-        if (!sPlayerBotMgr.addBot(playerGuid, true))
+        if (!sPlayerBotMgr.AddBot(playerGuid, true))
         {
             sendf("err_internal\n");
             return 0;
@@ -276,12 +276,12 @@ int OfflineChatSocket::handle_input(ACE_HANDLE)
         // Retrieve messages in queue
         if (messageType == OFFLINE_CHAT_GET_MESSAGES)
         {
-            out << player->GetSession()->_chatBotHistory.str();
-            player->GetSession()->_chatBotHistory.str("");
+            out << player->GetSession()->m_chatBotHistory.str();
+            player->GetSession()->m_chatBotHistory.str("");
         }
         else if (messageType == OFFLINE_CHAT_GM_COMMAND)
         {
-            if (message == "")
+            if (message.empty())
             {
                 sendf("err_empty\n");
                 return 0;
@@ -292,7 +292,7 @@ int OfflineChatSocket::handle_input(ACE_HANDLE)
         else
         {
             // Or just queue a normal chat packet
-            WorldPacket* data = new WorldPacket(CMSG_MESSAGECHAT, 100);
+            std::unique_ptr<WorldPacket> data = std::make_unique<WorldPacket>(CMSG_MESSAGECHAT, 100);
             uint32 lang = player->GetTeam() == ALLIANCE ? LANG_COMMON : LANG_ORCISH;
             *data << messageType;
             *data << lang;
@@ -322,7 +322,7 @@ int OfflineChatSocket::handle_input(ACE_HANDLE)
                     sendf("err_packet\n");
                     return 0;
             }
-            player->GetSession()->QueuePacket(data);
+            player->GetSession()->QueuePacket(std::move(data));
             DEBUG_OUT_CHAT(">> Queue packet.");
         }
     }
@@ -331,10 +331,10 @@ int OfflineChatSocket::handle_input(ACE_HANDLE)
     return 0;
 }
 
-/// Output function
+// Output function
 int OfflineChatSocket::sendf(const char* msg)
 {
-    ACE_GUARD_RETURN (ACE_Thread_Mutex, Guard, outBufferLock, -1);
+    std::unique_lock<std::mutex> lock (outBufferLock);
 
     if (closing_)
         return -1;
@@ -352,7 +352,7 @@ int OfflineChatSocket::sendf(const char* msg)
         if (reactor ()->schedule_wakeup
             (this, ACE_Event_Handler::WRITE_MASK) == -1)
         {
-            sLog.outError ("OfflineChatSocket::sendf error while schedule_wakeup");
+            sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "OfflineChatSocket::sendf error while schedule_wakeup");
             return -1;
         }
         outActive = true;

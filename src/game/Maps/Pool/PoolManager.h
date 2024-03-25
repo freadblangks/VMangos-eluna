@@ -44,7 +44,7 @@ struct PoolTemplateData
 
     MapEntry const* mapEntry;                               // Map id used for pool creature/gameobject spams. In case non-instanceable map
                                                             // it can be not unique but base at sharing same pool system dynamic data in this case this is not important.
-                                                            // NULL is no spawns by some reason
+                                                            // nullptr is no spawns by some reason
     uint32  MaxLimit;
     uint32  PoolFlags;
     uint32  InstanceId;
@@ -130,7 +130,7 @@ class PoolGroup
         PoolObject* RollOne(SpawnedPoolData& spawns, uint32 triggerFrom);
         void DespawnObject(MapPersistentState& mapState, uint32 guid=0);
         void Despawn1Object(MapPersistentState& mapState, uint32 guid);
-        void SpawnObject(MapPersistentState& mapState, uint32 limit, uint32 triggerFrom, bool instantly);
+        void SpawnObject(MapPersistentState& mapState, uint32 limit, uint32 triggerFrom, bool instantly, uint16 motherPool);
         void SetExcludeObject(uint32 guid, bool state);
 
         void Spawn1Object(MapPersistentState& mapState, PoolObject* obj, bool instantly);

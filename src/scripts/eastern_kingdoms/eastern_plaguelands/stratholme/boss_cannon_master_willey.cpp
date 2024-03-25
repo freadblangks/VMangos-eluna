@@ -107,7 +107,7 @@ struct boss_cannon_master_willeyAI : public ScriptedAI
     uint32 m_uiShootTimer;
     uint32 m_uiSummonRiflemanTimer;
 
-    void Reset()
+    void Reset() override
     {
         ToggleGate(OPEN);
 
@@ -125,7 +125,7 @@ struct boss_cannon_master_willeyAI : public ScriptedAI
         ToggleGate(CLOSED);
     }
 
-    void JustDied(Unit* Victim)
+    void JustDied(Unit* Victim) override
     {
         ToggleGate(OPEN);
     }
@@ -150,22 +150,22 @@ struct boss_cannon_master_willeyAI : public ScriptedAI
     {
         std::list<Creature*> RiflemanList;
         GetCreatureListWithEntryInGrid(RiflemanList, m_creature, NPC_CRIMSON_RIFLEMAN, 200.0f);
-        for (std::list<Creature*>::iterator itr = RiflemanList.begin(); itr != RiflemanList.end(); ++itr)            
-            (*itr)->ForcedDespawn();
+        for (const auto& itr : RiflemanList)
+            itr->ForcedDespawn();
         
         ScriptedAI::EnterEvadeMode();
     }
 
-    void UpdateAI(const uint32 diff) override
+    void UpdateAI(uint32 const diff) override
     {
         //Return since we have no target
-        if (!m_creature->SelectHostileTarget() || !m_creature->getVictim())
+        if (!m_creature->SelectHostileTarget() || !m_creature->GetVictim())
             return;
 
         // Pummel
         if (m_uiPummelTimer < diff)
         {
-            if (DoCastSpellIfCan(m_creature->getVictim(), SPELL_PUMMEL) == CAST_OK)
+            if (DoCastSpellIfCan(m_creature->GetVictim(), SPELL_PUMMEL) == CAST_OK)
                 m_uiPummelTimer = 12000;
         }
         else 
@@ -174,7 +174,7 @@ struct boss_cannon_master_willeyAI : public ScriptedAI
         // Knock Away
         if (m_uiKnockAwayTimer < diff)
         {
-            if (DoCastSpellIfCan(m_creature->getVictim(), SPELL_KNOCK_AWAY) == CAST_OK)
+            if (DoCastSpellIfCan(m_creature->GetVictim(), SPELL_KNOCK_AWAY) == CAST_OK)
                 m_uiKnockAwayTimer = urand(15000, 20000);
         }
         else 
@@ -240,7 +240,7 @@ struct boss_cannon_master_willeyAI : public ScriptedAI
         // Shoot
         if (m_uiShootTimer < diff)
         {
-            if (DoCastSpellIfCan(m_creature->getVictim(), SPELL_SHOOT) == CAST_OK)
+            if (DoCastSpellIfCan(m_creature->GetVictim(), SPELL_SHOOT) == CAST_OK)
                 m_uiShootTimer = urand(2500, 3500);
         }
         else 
@@ -248,21 +248,21 @@ struct boss_cannon_master_willeyAI : public ScriptedAI
 
         if (!IsCombatMovementEnabled())
         { //Melee
-            if (!m_bInMelee && (m_creature->GetDistance2d(m_creature->getVictim()) < 8.0f || m_creature->GetDistance2d(m_creature->getVictim()) > 27.0f || !m_creature->IsWithinLOSInMap(m_creature->getVictim())))
+            if (!m_bInMelee && (m_creature->GetDistance2d(m_creature->GetVictim()) < 8.0f || m_creature->GetDistance2d(m_creature->GetVictim()) > 27.0f || !m_creature->IsWithinLOSInMap(m_creature->GetVictim())))
             {
                 SetCombatMovement(true);
-                DoStartMovement(m_creature->getVictim());
+                DoStartMovement(m_creature->GetVictim());
                 m_bInMelee = true;
                 return;
             }
         }
         else
         { //Range
-            if (m_bInMelee && m_creature->GetDistance2d(m_creature->getVictim()) >= 8.0f && m_creature->GetDistance2d(m_creature->getVictim()) <= 27.0f && m_creature->IsWithinLOSInMap(m_creature->getVictim()))
+            if (m_bInMelee && m_creature->GetDistance2d(m_creature->GetVictim()) >= 8.0f && m_creature->GetDistance2d(m_creature->GetVictim()) <= 27.0f && m_creature->IsWithinLOSInMap(m_creature->GetVictim()))
             {
                 SetCombatMovement(false);
                 m_bInMelee = false;
-                DoStartNoMovement(m_creature->getVictim());
+                DoStartNoMovement(m_creature->GetVictim());
                 return;
             }
         }
@@ -281,23 +281,20 @@ CreatureAI* GetAI_boss_cannon_master_willey(Creature* pCreature)
 
 enum
 {
-    NPC_CANNONBALL    = 160018,
+    GO_CANNONBALL    = 176211,
     SPELL_CANNON_FIRE = 17278
 };
 
 bool GO_scarlet_cannon(Player* pPlayer, GameObject* pGo)
 {
-    if (Creature* pCannonBall = pPlayer->SummonCreature(NPC_CANNONBALL, 3534.661f, -2966.512f, 125.001f, 0.592f, TEMPSUMMON_TIMED_DESPAWN, 5000)) // Trigger Cannonball
-    {
-        pCannonBall->CastSpell(pCannonBall, SPELL_CANNON_FIRE, false);
-        pCannonBall->ForcedDespawn(200);
-    }
+    if (GameObject* pCannonBall = pPlayer->SummonGameObject(GO_CANNONBALL, 3534.3f, -2966.74f, 125.001f, 0.279252f, 0, 0, 0.139173f, 0.990268f, 1))
+        pCannonBall->Use(pPlayer);
     return false;
 };
 
 void AddSC_boss_cannon_master_willey()
 {
-    Script *newscript;
+    Script* newscript;
     newscript = new Script;
     newscript->Name = "boss_cannon_master_willey";
     newscript->GetAI = &GetAI_boss_cannon_master_willey;

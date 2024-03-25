@@ -15,26 +15,49 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
+# CMake policies
+cmake_minimum_required(VERSION 3.1...3.20)
+
 project(MaNGOS)
 
-# CMake policies
-cmake_minimum_required(VERSION 3.0)
+# Allow -DACE_ROOT, -DTBB_ROOT, etc.
+if(${CMAKE_VERSION} VERSION_GREATER "3.11")
+  cmake_policy(SET CMP0074 NEW)
+endif()
 
 set(CMAKE_MODULE_PATH
   ${CMAKE_MODULE_PATH}
   ${CMAKE_SOURCE_DIR}/cmake
 )
 
-option(DEBUG "Debug mode" 0)
 set(SUPPORTED_CLIENT_BUILD "CLIENT_BUILD_1_12_1" CACHE STRING "Client version the core will support")
-option(USE_STD_MALLOC "Use standard malloc instead of TBB" 0)
-option(TBB_DEBUG "Use TBB debug librairies" 0)
-option(USE_ANTICHEAT "Use anticheat" 0)
-option(SCRIPTS "Compile scripts" 1)
-option(USE_EXTRACTORS "Compile extractors" 0)
-option(USE_LIBCURL "Compile with libcurl for email support" 0)
+option(USE_STD_MALLOC "Use standard malloc instead of TBB" OFF)
+option(BUILD_FOR_HOST_CPU "Build specifically for the host CPU via `-march=native` (might not run on different machines)" ON)
+option(TBB_DEBUG "Use TBB debug librairies" OFF)
+option(USE_ANTICHEAT "Use anticheat" OFF)
+option(USE_SCRIPTS "Compile scripts" ON)
+option(USE_EXTRACTORS "Compile extractors" OFF)
+option(USE_LIBCURL "Compile with libcurl for email support" OFF)
+option(USE_REALMMERGE "Compile helper tool for merging character databases" OFF)
+
+if(UNIX)
+  option(DEBUG_SYMBOLS "Include Debug Symbols" ON)
+endif()
 
 find_package(PCHSupport)
+if(${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.16")
+  option(USE_PCH "Use precompiled headers" ON)
+endif()
+
+if(PCHSupport_FOUND AND (${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.16"))
+    if(MSVC)
+      option(USE_PCH_OLD "Use old precompiled headers implementation" ON)
+    else()
+      option(USE_PCH_OLD "Use old precompiled headers implementation" OFF)
+    endif()
+else()
+  unset(USE_PCH_OLD CACHE)
+endif()
 
 if(USE_LIBCURL)
   find_package(CURL REQUIRED)
@@ -46,18 +69,18 @@ endif()
 # Force out-of-source build
 string(COMPARE EQUAL "${CMAKE_SOURCE_DIR}" "${CMAKE_BINARY_DIR}" BUILDING_IN_SOURCE)
 if(BUILDING_IN_SOURCE)
-  message(FATAL_ERRO
+  message(FATAL_ERROR
     "This project requires an out of source build. Remove the file 'CMakeCache.txt' found in this directory before continuing, create a separate build directory and run 'cmake <srcs> [options]' from there."
   )
 endif()
 
 if(WIN32)
-  if(NOT MSVC)
-    message(FATAL_ERROR "Under Windows other compiler than Microsoft Visual Studio are not supported.")
-  elseif(MSVC_VERSION LESS 1900)
-    message(FATAL_ERROR "Only Visual Studio 2015 or newer is supported")
+  if(MSVC)
+    if(MSVC_VERSION LESS 1900)
+      message(FATAL_ERROR "Only Visual Studio 2015 or newer is supported")
+    endif()
   endif()
-  
+
   # Added by Giperion, in WIN32 output all compiled files in one directory
   set( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin )
   set( CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/lib )
@@ -73,18 +96,13 @@ message(STATUS
   "\nThis script builds the MaNGOS server.
   Options that can be used in order to configure the process:
     PREFIX: Path where the server should be installed to
-    PCH: Use precompiled headers
-    DEBUG: Debug mode
+    USE_PCH: Use precompiled headers
   To set an option simply type -D<OPTION>=<VALUE> after 'cmake <srcs>'.
-  For example: cmake .. -DDEBUG=1 -DPREFIX=/opt/mangos\n"
+  For example: cmake .. -DPREFIX=/opt/mangos\n"
 ) # TODO: PLATFORM: Sets the architecture for compile (X86,X64)
 
-# Override configuration-types - we don't use anything else than debug and release
-if(CMAKE_CONFIGURATION_TYPES)
-  set(CMAKE_CONFIGURATION_TYPES Release Debug)
-  set(CMAKE_CONFIGURATION_TYPES "${CMAKE_CONFIGURATION_TYPES}" CACHE STRING
-    "Reset the configurations to what we need"
-    FORCE)
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
 endif()
 
 # Find out what system we use to include the needed libs
@@ -97,12 +115,16 @@ if(WIN32)
 endif()
 
 # Add options for compile of mangos
-if(PCHSupport_FOUND)
-  if(WIN32)
-    option(PCH "Use precompiled headers" 1)
-  else()
-    option(PCH "Use precompiled headers" 0)
+if((${CMAKE_VERSION} VERSION_LESS "3.16") OR USE_PCH_OLD)
+  if(PCHSupport_FOUND)
+    if(WIN32)
+      option(USE_PCH "Use precompiled headers" ON)
+    else()
+      option(USE_PCH "Use precompiled headers" OFF)
+    endif()
   endif()
+else()
+  option(USE_PCH "Use precompiled headers" ON)
 endif()
 
 # Set up the install-prefix
@@ -128,15 +150,15 @@ if(WIN32)
   set(LIBS_DIR ${CMAKE_INSTALL_PREFIX})
 else()
   set(BIN_DIR ${CMAKE_INSTALL_PREFIX}/bin)
-  set(CONF_DIR ${CMAKE_INSTALL_PREFIX}/etc)
+  set(CONF_DIR ${CMAKE_INSTALL_PREFIX}/etc CACHE PATH "Set custom configuration directory")
   set(LIBS_DIR ${CMAKE_INSTALL_PREFIX}/lib)
 endif()
 
 # Set RPATH-handing (CMake parameters)
-set(CMAKE_SKIP_BUILD_RPATH 0)
-set(CMAKE_BUILD_WITH_INSTALL_RPATH 0)
+set(CMAKE_SKIP_BUILD_RPATH OFF)
+set(CMAKE_BUILD_WITH_INSTALL_RPATH OFF)
 set(CMAKE_INSTALL_RPATH ${LIBS_DIR})
-set(CMAKE_INSTALL_RPATH_USE_LINK_PATH 1)
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH ON)
 
 # Find needed packages and if necessery abort if something important is missing
 unset(ACE_INCLUDE_DIR CACHE)
@@ -176,24 +198,24 @@ if(NOT USE_STD_MALLOC)
       ${TBB_LIBRARIES}
     )
   endif()
-  
+
   if (WIN32)
     list (GET TBB_LIBRARIES 1 TBB_SINGLE_FILEDIRECTORY)
     get_filename_component(TBB_LIB_DIRECTORY "${TBB_SINGLE_FILEDIRECTORY}" DIRECTORY)
     link_directories(${TBB_LIB_DIRECTORY})
   endif()
-  
+
 endif()
 
 # Win32 delifered packages
 if(WIN32)
-  set(MYSQL_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/dep/include/mysql)
-  set(MYSQL_LIBRARY ${CMAKE_SOURCE_DIR}/dep/lib/${DEP_ARCH}_release/libmySQL.lib)
-  set(MYSQL_DEBUG_LIBRARY ${CMAKE_SOURCE_DIR}/dep/lib/${DEP_ARCH}_debug/libmySQL.lib)
-  set(OPENSSL_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/dep/include-windows/openssl)
-  set(OPENSSL_LIBRARIES ${CMAKE_SOURCE_DIR}/dep/lib/${DEP_ARCH}_release/libeay32.lib)
-  set(OPENSSL_DEBUG_LIBRARIES ${CMAKE_SOURCE_DIR}/dep/lib/${DEP_ARCH}_debug/libeay32.lib)
-  # zlib is build
+  set(MYSQL_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/dep/windows/include/mysql)
+  set(MYSQL_LIBRARY ${CMAKE_SOURCE_DIR}/dep/windows/lib/${DEP_ARCH}_release/libmySQL.lib)
+  set(MYSQL_DEBUG_LIBRARY ${CMAKE_SOURCE_DIR}/dep/windows/lib/${DEP_ARCH}_debug/libmySQL.lib)
+  set(OPENSSL_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/dep/windows/include/openssl)
+  set(OPENSSL_LIBRARIES ${CMAKE_SOURCE_DIR}/dep/windows/lib/${DEP_ARCH}_release/libeay32.lib)
+  set(OPENSSL_DEBUG_LIBRARIES ${CMAKE_SOURCE_DIR}/dep/windows/lib/${DEP_ARCH}_debug/libeay32.lib)
+  set(ZLIB_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/dep/windows/include/zlib)
 endif()
 
 # *nix-specific packages
@@ -234,7 +256,7 @@ else()
     OUTPUT_STRIP_TRAILING_WHITESPACE
     ERROR_QUIET
   )
-  
+
   if(NOT rev_hash)
     # No valid ways available to find/set the revision/hash, so let's force some defaults
     message(STATUS "
@@ -243,7 +265,7 @@ else()
     set(rev_date "1970-01-01 00:00:00 +0000")
     set(rev_hash "unknown")
   endif()
-  
+
   configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/revision.h.cmake ${CMAKE_CURRENT_SOURCE_DIR}/src/shared/revision.h)
 endif()
 
@@ -259,16 +281,18 @@ message(STATUS "Supported version: ${supported_build}")
 message(STATUS "Install server to: ${CMAKE_INSTALL_PREFIX}")
 message(STATUS "")
 
-if(PCH AND NOT PCHSupport_FOUND)
-  set(PCH 0 CACHE BOOL
-    "Use precompiled headers"
-    FORCE)
-  message(STATUS
-    "No PCH for your system possible but PCH was set to 1. Resetting it."
-  )
+if(${CMAKE_VERSION} VERSION_LESS "3.16")
+  if(USE_PCH AND NOT PCHSupport_FOUND)
+    set(USE_PCH OFF CACHE BOOL
+        "Use precompiled headers"
+        FORCE)
+    message(WARNING
+      "No PCH for your system possible but USE_PCH was set to ON. Resetting it.\nUpdate to cmake 3.16 or newer to use PCH."
+      )
+  endif()
 endif()
 
-if(PCH)
+if(USE_PCH)
   message(STATUS "Use PCH               : Yes")
 else()
   message(STATUS "Use PCH               : No")
@@ -294,25 +318,25 @@ endif()
 message(STATUS "Memory allocation     : ${ALLOC_LIB_INFO_STRING} ${TBB_LIBRARIES}")
 message(STATUS "Detected compiler     : ${CMAKE_CXX_COMPILER_ID}")
 
-if(DEBUG)
-  message(STATUS "Build in debug-mode   : Yes")
-  set(CMAKE_BUILD_TYPE Debug)
+if(BUILD_FOR_HOST_CPU)
+  message(STATUS "Build for host CPU    : Yes (default)")
 else()
-  set(CMAKE_BUILD_TYPE Release)
-  message(STATUS "Build in debug-mode   : No  (default)")
+  message(STATUS "Build for host CPU    : No")
 endif()
+
+message(STATUS "Build type            : ${CMAKE_BUILD_TYPE}")
 
 if(USE_ANTICHEAT)
-  message(STATUS "Use anticheat    : Yes")
+  message(STATUS "Use anticheat         : Yes")
   set(DEFINITIONS ${DEFINITIONS} USE_ANTICHEAT)
 else()
-  message(STATUS "Use anticheat    : No  (default)")
+  message(STATUS "Use anticheat         : No  (default)")
 endif()
 
-if(SCRIPTS)
-  message(STATUS "Build scripts    : Yes (default)")
+if(USE_SCRIPTS)
+  message(STATUS "Build scripts         : Yes (default)")
 else()
-  message(STATUS "Build scripts    : No")
+  message(STATUS "Build scripts         : No")
 endif()
 
 if(UNIX)
@@ -322,7 +346,7 @@ if(UNIX)
   else()
     message(STATUS "Debug symbols         : Disabled")
   endif()
-  
+
   if(GCC_SANITIZE)
     set(BUILD_ADDITIONAL_FLAGS "${BUILD_ADDITIONAL_FLAGS} -fno-omit-frame-pointer -fno-optimize-sibling-calls")
     set(BUILD_ADDITIONAL_FLAGS "${BUILD_ADDITIONAL_FLAGS} -fsanitize=address")
@@ -337,7 +361,11 @@ if(UNIX)
     #set(BUILD_ADDITIONAL_FLAGS "${BUILD_ADDITIONAL_FLAGS} -fsanitize=unsigned-integer-overflow")
   endif()
 
-  set(BUILD_ADDITIONAL_FLAGS "${BUILD_ADDITIONAL_FLAGS} -std=c++14 --no-warnings -fexceptions -fnon-call-exceptions -march=native -O3 -pipe ")
+  set(BUILD_ADDITIONAL_FLAGS "${BUILD_ADDITIONAL_FLAGS} --no-warnings -fexceptions -fnon-call-exceptions -pipe")
+  if(BUILD_FOR_HOST_CPU)
+    set(BUILD_ADDITIONAL_FLAGS "${BUILD_ADDITIONAL_FLAGS} -march=native")
+  endif()
+  set(CMAKE_CXX_STANDARD 14)
   if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     if(PROFILE_GENERATE)
       set(BUILD_ADDITIONAL_FLAGS "${BUILD_ADDITIONAL_FLAGS} -fprofile-generate")
@@ -366,8 +394,8 @@ elseif(WIN32)
   endif()
 endif()
 
-set(DEFINITIONS_RELEASE ${DEFINITIONS_RELEASE} NDEBUG MANGOS_BUILD_OPTIONS="${CMAKE_CXX_FLAGS_RELEASE}")
-set(DEFINITIONS_DEBUG ${DEFINITIONS_DEBUG} _DEBUG MANGOS_BUILD_OPTIONS="${CMAKE_CXX_FLAGS_DEBUG}")
+set(DEFINITIONS_RELEASE ${DEFINITIONS_RELEASE} NDEBUG)
+set(DEFINITIONS_DEBUG ${DEFINITIONS_DEBUG} _DEBUG MANGOS_DEBUG)
 
 # Some small tweaks for Visual Studio 7 and above.
 if(MSVC)
@@ -375,7 +403,7 @@ if(MSVC)
   #if(PLATFORM MATCHES X86)
   #  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /LARGEADDRESSAWARE")
   #endif()
-  
+
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /bigobj")
 endif()
 
@@ -387,15 +415,15 @@ set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 if(WIN32)
   install(
     FILES
-      ${CMAKE_SOURCE_DIR}/dep/lib/${DEP_ARCH}_release/libeay32.dll
-      ${CMAKE_SOURCE_DIR}/dep/lib/${DEP_ARCH}_release/libmySQL.dll
+      ${CMAKE_SOURCE_DIR}/dep/windows/lib/${DEP_ARCH}_release/libeay32.dll
+      ${CMAKE_SOURCE_DIR}/dep/windows/lib/${DEP_ARCH}_release/libmySQL.dll
     DESTINATION ${LIBS_DIR}
     CONFIGURATIONS Release
   )
   install(
     FILES
-      ${CMAKE_SOURCE_DIR}/dep/lib/${DEP_ARCH}_debug/libeay32.dll
-      ${CMAKE_SOURCE_DIR}/dep/lib/${DEP_ARCH}_debug/libmySQL.dll
+      ${CMAKE_SOURCE_DIR}/dep/windows/lib/${DEP_ARCH}_debug/libeay32.dll
+      ${CMAKE_SOURCE_DIR}/dep/windows/lib/${DEP_ARCH}_debug/libmySQL.dll
     DESTINATION ${LIBS_DIR}
     CONFIGURATIONS Debug
   )
@@ -403,13 +431,13 @@ if(WIN32)
     # Copy dll's Windows needs
     install(
       FILES
-        ${CMAKE_SOURCE_DIR}/dep/lib/win32_release/dbghelp.dll
+        ${CMAKE_SOURCE_DIR}/dep/windows/lib/win32_release/dbghelp.dll
       DESTINATION ${LIBS_DIR}
       CONFIGURATIONS Release
     )
     install(
       FILES
-        ${CMAKE_SOURCE_DIR}/dep/lib/win32_debug/dbghelp.dll
+        ${CMAKE_SOURCE_DIR}/dep/windows/lib/win32_debug/dbghelp.dll
       DESTINATION ${LIBS_DIR}
       CONFIGURATIONS Debug
     )
@@ -424,11 +452,6 @@ if(XCODE)
   endif()
 endif()
 
-add_subdirectory(dep)
-
-if (USE_EXTRACTORS)
-    add_subdirectory(contrib)
-endif()
 
 # Add definitions for all build types
 # Don't place this above 'dep' subdirectory! Because of defines build will crash.
@@ -452,11 +475,20 @@ if (USE_LIBCURL)
   set(DEFINITIONS ${DEFINITIONS} USE_SENDGRID)
 endif()
 
-set_directory_properties(PROPERTIES COMPILE_DEFINITIONS "${DEFINITIONS}")
-set_directory_properties(PROPERTIES COMPILE_DEFINITIONS_RELEASE "${DEFINITIONS_RELEASE}")
-set_directory_properties(PROPERTIES COMPILE_DEFINITIONS_DEBUG "${DEFINITIONS_DEBUG}")
+set_property(DIRECTORY PROPERTY COMPILE_DEFINITIONS ${DEFINITIONS})
+set_property(DIRECTORY APPEND PROPERTY
+  COMPILE_DEFINITIONS $<$<CONFIG:Debug>:${DEFINITIONS_DEBUG}>
+)
+set_property(DIRECTORY APPEND PROPERTY
+  COMPILE_DEFINITIONS $<$<CONFIG:Release>:${DEFINITIONS_RELEASE}>
+)
 
 message(STATUS "Build flags (RELEASE) : ${CMAKE_CXX_FLAGS_RELEASE}")
 message(STATUS "Build flags (DEBUG)   : ${CMAKE_CXX_FLAGS_DEBUG}")
 
 add_subdirectory(src)
+add_subdirectory(dep)
+
+if (USE_EXTRACTORS OR USE_REALMMERGE)
+    add_subdirectory(contrib)
+endif()

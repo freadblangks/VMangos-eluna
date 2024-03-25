@@ -263,7 +263,7 @@ struct rcConfig
 };
 
 /// Defines the number of bits allocated to rcSpan::smin and rcSpan::smax.
-static const int RC_SPAN_HEIGHT_BITS = 13;
+static const int RC_SPAN_HEIGHT_BITS = 16;
 /// Defines the maximum value for rcSpan::smin and rcSpan::smax.
 static const int RC_SPAN_MAX_HEIGHT = (1 << RC_SPAN_HEIGHT_BITS) - 1;
 
@@ -277,7 +277,7 @@ struct rcSpan
 {
 	unsigned int smin : RC_SPAN_HEIGHT_BITS; ///< The lower limit of the span. [Limit: < #smax]
 	unsigned int smax : RC_SPAN_HEIGHT_BITS; ///< The upper limit of the span. [Limit: <= #RC_SPAN_MAX_HEIGHT]
-	unsigned int area : 6;                   ///< The area id assigned to the span.
+	unsigned char area;                      ///< The area id assigned to the span.
 	rcSpan* next;                            ///< The next span higher up in column.
 };
 
@@ -332,6 +332,8 @@ struct rcCompactSpan
 /// @ingroup recast
 struct rcCompactHeightfield
 {
+	rcCompactHeightfield();
+	~rcCompactHeightfield();
 	int width;					///< The width of the heightfield. (Along the x-axis in cell units.)
 	int height;					///< The height of the heightfield. (Along the z-axis in cell units.)
 	int spanCount;				///< The number of spans in the heightfield.
@@ -376,6 +378,8 @@ struct rcHeightfieldLayer
 /// @see rcAllocHeightfieldLayerSet, rcFreeHeightfieldLayerSet 
 struct rcHeightfieldLayerSet
 {
+	rcHeightfieldLayerSet();
+	~rcHeightfieldLayerSet();
 	rcHeightfieldLayer* layers;			///< The layers in the set. [Size: #nlayers]
 	int nlayers;						///< The number of layers in the set.
 };
@@ -395,6 +399,8 @@ struct rcContour
 /// @ingroup recast
 struct rcContourSet
 {
+	rcContourSet();
+	~rcContourSet();
 	rcContour* conts;	///< An array of the contours in the set. [Size: #nconts]
 	int nconts;			///< The number of contours in the set.
 	float bmin[3];  	///< The minimum bounds in world space. [(x, y, z)]
@@ -411,6 +417,8 @@ struct rcContourSet
 /// @ingroup recast
 struct rcPolyMesh
 {
+	rcPolyMesh();
+	~rcPolyMesh();
 	unsigned short* verts;	///< The mesh vertices. [Form: (x, y, z) * #nverts]
 	unsigned short* polys;	///< Polygon and neighbor data. [Length: #maxpolys * 2 * #nvp]
 	unsigned short* regs;	///< The region id assigned to each polygon. [Length: #maxpolys]
@@ -864,6 +872,22 @@ bool rcRasterizeTriangle(rcContext* ctx, const float* v0, const float* v1, const
 bool rcRasterizeTriangles(rcContext* ctx, const float* verts, const int nv,
 						  const int* tris, const unsigned char* areas, const int nt,
 						  rcHeightfield& solid, const int flagMergeThr = 1);
+
+/// Rasterizes and sort an indexed triangle mesh into the specified heightfield.
+///  @ingroup recast
+///  @param[in,out]	ctx				The build context to use during the operation.
+///  @param[in]		verts			The vertices. [(x, y, z) * @p nv]
+///  @param[in]		nv				The number of vertices.
+///  @param[in]		tris			The triangle indices. [(vertA, vertB, vertC) * @p nt]
+///  @param[in]		areas			The area id's of the triangles. [Limit: <= #RC_WALKABLE_AREA] [Size: @p nt]
+///  @param[in]		nt				The number of triangles.
+///  @param[in,out]	solid			An initialized heightfield.
+///  @param[in]		flagMergeThr	The distance where the walkable flag is favored over the non-walkable flag. 
+///  								[Limit: >= 0] [Units: vx]
+///  @returns True if the operation completed successfully.
+bool SortAndRasterizeTriangles(rcContext* ctx, const float* verts, const int nv,
+	const int* tris, const unsigned char* areas, const int nt,
+	rcHeightfield& solid, const int flagMergeThr = 1);
 
 /// Rasterizes an indexed triangle mesh into the specified heightfield.
 ///  @ingroup recast

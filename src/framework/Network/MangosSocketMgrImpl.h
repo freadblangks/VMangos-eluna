@@ -8,18 +8,54 @@
 #include <ace/TP_Reactor.h>
 #include <ace/Dev_Poll_Reactor.h>
 #include <ace/Guard_T.h>
-#include <ace/Atomic_Op.h>
 #include <ace/os_include/arpa/os_inet.h>
 #include <ace/os_include/netinet/os_tcp.h>
 #include <ace/os_include/sys/os_types.h>
 #include <ace/os_include/sys/os_socket.h>
+#include <ace/Acceptor.h>
+#include <ace/SOCK_Acceptor.h>
 
 #include <set>
+#include <atomic>
 
 #include "Log.h"
 #include "Common.h"
 #include "Config/Config.h"
 #include "Database/DatabaseEnv.h"
+
+template <typename SocketType>
+class MangosSocketAcceptor : public ACE_Acceptor<SocketType, ACE_SOCK_Acceptor>
+{
+public:
+    MangosSocketAcceptor(void) { }
+    virtual ~MangosSocketAcceptor(void)
+    {
+        if (this->reactor())
+            this->reactor()->cancel_timer(this, 1);
+    }
+
+protected:
+
+    virtual int handle_timeout(const ACE_Time_Value &current_time, const void *act = 0)
+    {
+        sLog.Out(LOG_BASIC, LOG_LVL_BASIC, "Resuming acceptor");
+        this->reactor()->cancel_timer(this, 1);
+        return this->reactor()->register_handler(this, ACE_Event_Handler::ACCEPT_MASK);
+    }
+
+    virtual int handle_accept_error(void)
+    {
+#if defined(ENFILE) && defined(EMFILE)
+        if (errno == ENFILE || errno == EMFILE)
+        {
+            sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Out of file descriptors, suspending incoming connections for 10 seconds");
+            this->reactor()->remove_handler(this, ACE_Event_Handler::ACCEPT_MASK | ACE_Event_Handler::DONT_CALL);
+            this->reactor()->schedule_timer(this, NULL, ACE_Time_Value(10));
+        }
+#endif
+        return 0;
+    }
+};
 
 /**
 * This is a helper class to WorldSocketMgr ,that manages
@@ -85,12 +121,12 @@ public:
 
     long Connections()
     {
-        return static_cast<long>(m_Connections.value());
+        return m_Connections;
     }
 
     int AddSocket(SocketType* sock)
     {
-        ACE_GUARD_RETURN(ACE_Thread_Mutex, Guard, m_NewSockets_Lock, -1);
+        std::unique_lock<std::mutex> lock(m_NewSockets_Lock);
 
         ++m_Connections;
         sock->AddReference();
@@ -108,7 +144,7 @@ public:
 protected:
     void AddNewSockets()
     {
-        ACE_GUARD(ACE_Thread_Mutex, Guard, m_NewSockets_Lock);
+        std::unique_lock<std::mutex> lock(m_NewSockets_Lock);
 
         if (m_NewSockets.empty())
             return;
@@ -131,7 +167,7 @@ protected:
 
     virtual int svc()
     {
-        DEBUG_LOG("Network Thread Starting");
+        sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "Network Thread Starting");
 
         WorldDatabase.ThreadStart();
 
@@ -168,13 +204,13 @@ protected:
 
         WorldDatabase.ThreadEnd();
 
-        DEBUG_LOG("Network Thread Exitting");
+        sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "Network Thread Exitting");
 
         return 0;
     }
 
 private:
-    typedef ACE_Atomic_Op<ACE_SYNCH_MUTEX, int> AtomicInt;
+    using AtomicInt = std::atomic<int>;
     typedef std::set<SocketType*> SocketSet;
 
     ACE_Reactor* m_Reactor;
@@ -185,7 +221,7 @@ private:
     SocketSet m_Sockets;
 
     SocketSet m_NewSockets;
-    ACE_Thread_Mutex m_NewSockets_Lock;
+    std::mutex m_NewSockets_Lock;
 };
 
 template <typename SocketType>
@@ -194,10 +230,10 @@ MangosSocketMgr<SocketType>::MangosSocketMgr():
     m_NetThreadsCount(0),
     m_SockOutKBuff(-1),
     m_SockOutUBuff(65536),
-    m_Interval(10000),
     m_UseNoDelay(true),
-    m_Acceptor(0),
-    m_port(0)
+    m_Interval(10000),
+    m_port(0),
+    m_Acceptor(0)
 {
 }
 
@@ -225,22 +261,21 @@ int MangosSocketMgr<SocketType>::StartReactiveIO(ACE_UINT16 port, const char* ad
     if (StartThreadsIfNeeded() == -1)
         return -1;
 
-    BASIC_LOG("Max allowed socket connections %d", ACE::max_handles());
+    sLog.Out(LOG_BASIC, LOG_LVL_BASIC, "Max allowed socket connections %d", ACE::max_handles());
 
     if (m_SockOutUBuff <= 0)
     {
-        sLog.outError("Network.OutUBuff is wrong in your config file");
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Network.OutUBuff is wrong in your config file");
         return -1;
     }
 
-    typename SocketType::Acceptor* acc = new typename SocketType::Acceptor;
-    m_Acceptor = acc;
+    m_Acceptor = new MangosSocketAcceptor<SocketType>();
 
     ACE_INET_Addr listen_addr(port, address);
 
-    if (acc->open(listen_addr, m_NetThreads[0].GetReactor(), ACE_NONBLOCK) == -1)
+    if (m_Acceptor->open(listen_addr, m_NetThreads[0].GetReactor(), ACE_NONBLOCK) == -1)
     {
-        sLog.outError("Failed to open acceptor, check if the port is free");
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Failed to open acceptor, check if the port is free");
         return -1;
     }
 
@@ -263,12 +298,7 @@ template <typename SocketType>
 void MangosSocketMgr<SocketType>::StopNetwork()
 {
     if (m_Acceptor)
-    {
-        typename SocketType::Acceptor* acc = dynamic_cast<typename SocketType::Acceptor*>(m_Acceptor);
-
-        if (acc)
-            acc->close();
-    }
+        m_Acceptor->close();
 
     if (m_NetThreadsCount != 0)
     {
@@ -276,7 +306,10 @@ void MangosSocketMgr<SocketType>::StopNetwork()
             m_NetThreads[i].Stop();
     }
 
+    // Avoid hanging on shutdown on some unix systems.
+#ifdef _WIN32
     Wait();
+#endif
 }
 
 template <typename SocketType>
@@ -297,7 +330,7 @@ int MangosSocketMgr<SocketType>::OnSocketOpen(SocketType* sock)
     {
         if (sock->peer().set_option(SOL_SOCKET, SO_SNDBUF, (void*)&m_SockOutKBuff, sizeof(int)) == -1 && errno != ENOTSUP)
         {
-            sLog.outError("MangosSocketMgr<SocketType>::OnSocketOpen set_option SO_SNDBUF");
+            sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "MangosSocketMgr<SocketType>::OnSocketOpen set_option SO_SNDBUF");
             return -1;
         }
     }
@@ -309,7 +342,7 @@ int MangosSocketMgr<SocketType>::OnSocketOpen(SocketType* sock)
     {
         if (sock->peer().set_option(ACE_IPPROTO_TCP, TCP_NODELAY, (void*)&ndoption, sizeof(int)) == -1)
         {
-            sLog.outError("MangosSocketMgr<SocketType>::OnSocketOpen: peer().set_option TCP_NODELAY errno = %s", ACE_OS::strerror(errno));
+            sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "MangosSocketMgr<SocketType>::OnSocketOpen: peer().set_option TCP_NODELAY errno = %s", ACE_OS::strerror(errno));
             return -1;
         }
     }
@@ -345,7 +378,7 @@ int MangosSocketMgr<SocketType>::Connect(int port, std::string const& address, S
     if (connector.connect(handler,addr) == -1)
     {
         // Handler is already deleted.
-        handler = NULL;
+        handler = nullptr;
         return -1;
     }
     // Now add a reactor so our connnection gets updated

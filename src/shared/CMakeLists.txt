@@ -30,7 +30,7 @@ set (shared_SRCS
     revision.h
     ServiceWin32.h
     SystemConfig.h
-    Threading.h
+    ThreadPool.h
     Timer.h
     Util.h
     WheatyExceptionReport.h
@@ -63,13 +63,17 @@ set (shared_SRCS
     Database/SqlPreparedStatement.h
     Database/SQLStorage.h
     Database/SQLStorageImpl.h
+    Multithreading/Messager.h
+    SRP6/SRP6.h
+    nonstd/optional.hpp
+    ByteBuffer.cpp
     Common.cpp
     DelayExecutor.cpp
     Log.cpp
     PosixDaemon.cpp
     ProgressBar.cpp
     ServiceWin32.cpp
-    Threading.cpp
+    ThreadPool.cpp
     Util.cpp
     Duration.h
     WheatyExceptionReport.cpp
@@ -92,6 +96,8 @@ set (shared_SRCS
     Database/SqlOperations.cpp
     Database/SqlPreparedStatement.cpp
     Database/SQLStorage.cpp
+    Multithreading/Messager.cpp
+    SRP6/SRP6.cpp
 )
 
 if(USE_LIBCURL)
@@ -112,6 +118,13 @@ if(WIN32)
     revision.h
     migrations_list.h
   )
+  
+  if (NOT MSVC)
+    list(REMOVE_ITEM shared_SRCS
+      WheatyExceptionReport.cpp
+      WheatyExceptionReport.h
+    )
+  endif()
   
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /D__ACE_INLINE__")
 else()
@@ -151,7 +164,6 @@ include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_SOURCE_DIR}/dep/include
   ${CMAKE_SOURCE_DIR}/src/framework
-  ${CMAKE_SOURCE_DIR}/dep/libsvm
   ${CMAKE_BINARY_DIR}
   ${ACE_INCLUDE_DIR}
   ${MYSQL_INCLUDE_DIR}
@@ -160,7 +172,7 @@ include_directories(
 
 if(WIN32)
   include_directories(
-    ${CMAKE_SOURCE_DIR}/dep/include-windows
+    ${CMAKE_SOURCE_DIR}/dep/windows/include
   )
 endif()
 
@@ -172,5 +184,9 @@ if(UNIX)
   find_package(Threads)
   target_link_libraries(shared ${ACE_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 endif(UNIX)
+
+if(MINGW)
+  target_link_libraries(shared ${ACE_LIBRARIES} -lws2_32)
+endif()
 
 SET_TARGET_PROPERTIES (shared PROPERTIES FOLDER "Game Libs")

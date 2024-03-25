@@ -23,7 +23,7 @@ struct HonorStanding
     float  cp;
 
     // create the standing order
-    bool operator < (const HonorStanding& hs) const
+    bool operator < (HonorStanding const& hs) const
     {
         return cp > hs.cp;
     }
@@ -34,8 +34,9 @@ typedef std::vector<HonorStanding> HonorStandingList;
 struct WeeklyScore
 {
     WeeklyScore()
-        : level(0), account(0), hk(0), dk(0), standing(0), highestRank(0),
-            cp(0.0f), oldRp(0.0f), newRp(0.0f), earning(0.0f) {}
+        : level(0), account(0), hk(0), dk(0), 
+          cp(0.0f), oldRp(0.0f), newRp(0.0f), earning(0.0f), 
+          standing(0), highestRank(0) {}
 
     uint8  level;
     uint32 account;
@@ -54,7 +55,7 @@ typedef std::unordered_map<uint32, WeeklyScore> WeeklyScoresHash;
 class HonorMaintenancer
 {
     public:
-        HonorMaintenancer() : m_markerToStart(false), m_lastMaintenanceDay(0), m_nextMaintenanceDay(0) {}
+        HonorMaintenancer() : m_lastMaintenanceDay(0), m_nextMaintenanceDay(0), m_markerToStart(false) {}
         ~HonorMaintenancer() {}
 
         void Initialize();
@@ -65,6 +66,7 @@ class HonorMaintenancer
         void DistributeRankPoints(Team team);
         void InactiveDecayRankPoints();
         void FlushRankPoints();
+        void SetCityRanks();
         void CreateCalculationReport();
 
         float GetStandingCPByPosition(HonorStandingList& standingList, uint32 position);
@@ -123,7 +125,7 @@ struct HonorCP
 struct HonorRankInfo
 {
     HonorRankInfo()
-        : rank(0), visualRank(0), minRP(0.0f), maxRP(0.0f), positive(true) {}
+        : rank(0), visualRank(0), maxRP(0.0f), minRP(0.0f), positive(true) {}
 
     uint8 rank;        // internal range [0..18]
     int8  visualRank;  // number visualized in rank bar [-4..14]
@@ -134,13 +136,20 @@ struct HonorRankInfo
 
 typedef std::list<HonorCP> HonorCPMap;
 
-#define MIN_HONOR_KILLS 15
+#define MIN_HONOR_KILLS_PRE_1_10 25
+#define MIN_HONOR_KILLS_POST_1_10 15
 #define NEGATIVE_HONOR_RANK_COUNT 4
 #define POSITIVE_HONOR_RANK_COUNT 15
 #define HONOR_RANK_COUNT 19
 
-extern char const* AlliancePvPRankNames[];
-extern char const* HordePvPRankNames[];
+// World of Warcraft Client Patch 1.7.0 (2005-09-13)
+// - Racial "Leaders" have been strengthened, and are now worth slightly
+//   less honor.
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_6_1
+#define RACIAL_LEADER_HONOR 488.0f
+#else
+#define RACIAL_LEADER_HONOR 500.0f // guess
+#endif
 
 class HonorMgr
 {

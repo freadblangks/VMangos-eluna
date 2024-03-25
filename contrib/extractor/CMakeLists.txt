@@ -14,20 +14,22 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-cmake_minimum_required (VERSION 2.6)
+cmake_minimum_required(VERSION 2.6...3.20)
 project (MANGOS_MAP_EXTRACTOR)
 
 include_directories (${CMAKE_SOURCE_DIR}/dep/libmpq)
 include_directories (loadlib)
+include_directories (
+     ../../src/game/Maps
+)
 
 add_executable (mapextractor
     dbcfile.cpp
-    mpq_libmpq.cpp
     System.cpp
     loadlib/loadlib.cpp 
     loadlib/adt.cpp
     loadlib/wdt.cpp
-	)
+    )
 
 SET_TARGET_PROPERTIES (mapextractor PROPERTIES FOLDER Extractors)
 

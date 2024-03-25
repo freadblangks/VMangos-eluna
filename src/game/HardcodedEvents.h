@@ -6,8 +6,6 @@
 
 #include "GameEventMgr.h"
 #include "ObjectMgr.h"
-#include "PlayerBotAI.h"
-#include "AdvancedPlayerBotAI.h"
 
 /*
  * Elemental Invasion
@@ -65,50 +63,6 @@ private:
 };
 
 /*
- * Leprithus (rare) & Rotten Ghouls spawn at night
- */
-
-enum LeprithusEventState
-{
-    LEPRITHUS_EVENT_NONE = 0,
-    LEPRITHUS_EVENT_ONGOING = 150
-};
-
-struct Leprithus : WorldEvent
-{
-    Leprithus() : WorldEvent(LEPRITHUS_EVENT_ONGOING) {}
-
-    void Update() override;
-    void Enable() override;
-    void Disable() override;
-
-private:
-    LeprithusEventState GetLeprithusState();
-};
-
-/*
- * Moonbrook graveyard vultures(Fleshrippers) spawn at daylight
- */
-
-enum MoonbrookEventState
-{
-    MOONBROOK_EVENT_NONE = 0,
-    MOONBROOK_EVENT_ONGOING = 151
-};
-
-struct Moonbrook : WorldEvent
-{
-    Moonbrook() : WorldEvent(MOONBROOK_EVENT_ONGOING) {}
-
-    void Update() override;
-    void Enable() override;
-    void Disable() override;
-
-private:
-    MoonbrookEventState GetMoonbrookState();
-};
-
-/*
  * Dragons of Nightmare
  */
 
@@ -133,9 +87,9 @@ struct DragonsOfNightmare : WorldEvent
     static void CheckSingleVariable(uint32 idx, uint32& value);
 
 private:
-    void GetAliveCountAndUpdateRespawnTime(std::vector<ObjectGuid> &dragons, uint32 &alive, time_t respawnTime);
-    bool LoadDragons(std::vector<ObjectGuid> &dragonGUIDs);
-    //void GetExistingDragons(std::vector<ObjectGuid> &dragonGUIDs, std::vector<Creature*> &existingDragons);
+    void GetAliveCountAndUpdateRespawnTime(std::vector<ObjectGuid>& dragons, uint32& alive, time_t respawnTime);
+    bool LoadDragons(std::vector<ObjectGuid>& dragonGUIDs);
+    //void GetExistingDragons(std::vector<ObjectGuid>& dragonGUIDs, std::vector<Creature*>& existingDragons);
     void PermutateDragons();
 };
 
@@ -152,7 +106,7 @@ enum DarkmoonState
     DARKMOON_H2 = 5,
 };
 
-static const uint16 DMFValidEvent[] =
+static uint16 const DMFValidEvent[] =
 {
     DARKMOON_A2_INSTALLATION, DARKMOON_A2,
     DARKMOON_H2_INSTALLATION, DARKMOON_H2
@@ -167,7 +121,7 @@ struct DarkmoonFaire : WorldEvent
     void Disable() override;
 
 private:
-    uint32 FindMonthFirstMonday(bool &foireAlly, struct tm *timeinfo);
+    uint32 FindMonthFirstMonday(bool& foireAlly, struct tm *timeinfo);
     DarkmoonState GetDarkmoonState();
 };
 
@@ -178,14 +132,18 @@ private:
 enum
 {
     EVENT_FIREWORKS         = 6,
-    EVENT_LUNAR_FIREWORKS   = 76,
+    EVENT_NEW_YEAR          = 34,
+    EVENT_LUNAR_NEW_YEAR    = 38,
+    EVENT_TOASTING_GOBLETS  = 39,
+    EVENT_JULY_4TH          = 41,
+    EVENT_SEPTEMBER_30TH    = 42,
 
-    FIREWORKS_DURATION      = 5
+    FIREWORKS_DURATION      = 10
 };
 
-struct LunarFestivalFirework : WorldEvent
+struct FireworksShow : WorldEvent
 {
-    LunarFestivalFirework() : WorldEvent(EVENT_FIREWORKS) {}
+    FireworksShow() : WorldEvent(EVENT_FIREWORKS) {}
 
     void Update() override;
     void Enable() override;
@@ -195,66 +153,16 @@ private:
     bool IsHourBeginning(uint8 minutes = FIREWORKS_DURATION) const;
 };
 
-enum EventSilithusWarEffortState
+struct ToastingGoblets : WorldEvent
 {
-    EVENT_SILITHUS_WE_START = 98
-};
-
-
-struct RaceClassCombo
-{
-    int Race;
-    int Class;
-
-    RaceClassCombo(int InRace, int InClass)
-        : Race(InRace), Class(InClass)
-    {}
-};
-
-class BattlePlayerAI : public AdvancedPlayerBotAI
-{
-public:
-    explicit BattlePlayerAI(Player* pPlayer, uint8 _race_, uint8 _class_, uint32 mapId, uint32 instanceId, float x, float y, float z, float o) :
-        AdvancedPlayerBotAI(pPlayer, _race_, _class_, mapId, instanceId, x, y, z, o)
-    {
-    }
-
-    virtual ~BattlePlayerAI ()
-    {
-    }
-
-    virtual void OnPlayerLogin();
-
-};
-
-struct BotEventInfo
-{
-    BattlePlayerAI* pBot;
-
-    BotEventInfo()
-        : BotEventInfo(nullptr)
-    {}
-
-    BotEventInfo(BattlePlayerAI* InBot)
-        : pBot(InBot)
-    {}
-};
-
-struct SilithusWarEffortBattle : WorldEvent
-{
-    SilithusWarEffortBattle();
+    ToastingGoblets() : WorldEvent(EVENT_TOASTING_GOBLETS) {}
 
     void Update() override;
     void Enable() override;
     void Disable() override;
 
 private:
-
-    std::vector <RaceClassCombo> AvaliableCombos;
-    std::vector <BotEventInfo> Bots;
-
-    std::vector <Creature*> SummonedMobs;
-    const WorldLocation EventPos = WorldLocation(1, -8065.42f, 1527.93f, 2.61001f);
+    bool ShouldEnable() const;
 };
 
 struct ScourgeInvasionEvent : WorldEvent
@@ -262,53 +170,66 @@ struct ScourgeInvasionEvent : WorldEvent
     ScourgeInvasionEvent();
 
     void Update() override;
+    uint32 GetZoneTime(uint32 zoneId);
+    void LogNextZoneTime();
+    void EnableAndStartEvent(uint16 event_id);
+    void DisableAndStopEvent(uint16 event_id);
+    void HandleDefendedZones();
     void Enable() override;
     void Disable() override;
     uint32 GetNextUpdateDelay() override;
 
 private:
-    struct InvasionXYZ {
-        InvasionXYZ(float x, float y, float z)
-            : x(x), y(y), z(z) {}
-        float x, y, z;
-    };
-
-    struct InvasionNecropolis {
-        InvasionNecropolis(float x, float y, float z, float o)
-            : x(x), y(y), z(z), o(o) {}
-        float x, y, z, o;
-        std::vector<InvasionXYZ> shards;
-
-        ObjectGuid relayGuid;
-    };
-
     struct InvasionZone
     {
         uint32 map;
         uint32 zoneId;
         uint32 remainingVar;
-        std::vector<InvasionNecropolis> points;
+        uint32 necroAmount;
+        ObjectGuid mouthGuid;
+        std::vector<Position> mouth;
+    };
+
+    struct CityAttack
+    {
+        uint32 map;
+        uint32 zoneId;
+        ObjectGuid pallidGuid;
+        std::vector<Position> pallid;
     };
 
     bool invasion1Loaded;
     bool invasion2Loaded;
+    bool invasion3Loaded;
+    bool invasion4Loaded;
+    bool invasion5Loaded;
+    bool invasion6Loaded;
 
-    void HandleActiveZone(uint32 attackTimeVar, uint32 attackZoneVar, uint32 remainingVar, time_t now, uint32 zoneId);
+    bool undercityLoaded;
+    bool stormwindLoaded;
 
-    bool OnEnable(uint32 attackZoneVar, uint32 attackTimeVar);
+    void HandleActiveZone(uint32 attackTimeVar, uint32 zoneId, uint32 remainingVar, time_t now);
+    void HandleActiveCity(uint32 attackTimeVar, time_t now, uint32 zoneId);
+
+    bool OnEnable(uint32 zoneId, uint32 attackTimeVar);
 
     void StartNewInvasionIfTime(uint32 timeVariable, uint32 zoneVariable);
+    void StartNewCityAttackIfTime(uint32 timeVariable, uint32 zoneVariable);
     bool ResumeInvasion(uint32 zoneId);
-    bool SummonNecropolis(Map* pMap, InvasionNecropolis& point);
+    bool SummonMouth(Map* pMap, InvasionZone* zone, Position position);
+    bool SummonPallid(Map* pMap, CityAttack* zone, Position position, uint32 spawnLoc);
 
-    Map* GetMap(uint32 mapId, const InvasionNecropolis& invZone);
+    Map* GetMap(uint32 mapId, Position const& invZone);
     bool isValidZoneId(uint32 zoneId);
-    InvasionZone* GetZone(uint32 zoneId);
-    uint32 GetNewRandomZone(uint32 curr1, uint32 curr2);
+    bool isActiveZone(uint32 zoneId);
+    uint32 GetActiveZones();
+    InvasionZone* GetInvasionZone(uint32 zoneId);
+    CityAttack* GetCityZone(uint32 zoneId);
 
     void UpdateWorldState();
 
     std::vector<InvasionZone> invasionPoints;
+    std::vector<CityAttack> attackPoints;
     int previousRemainingCounts[6];
 };
 
@@ -328,6 +249,40 @@ enum WarEffortEventStage
     WAR_EFFORT_STAGE_FINALBATTLE    = 11,
     WAR_EFFORT_STAGE_COMPLETE       = 12
 };
+
+inline char const* WarEffortStageToString(uint32 stage)
+{
+    switch (stage)
+    {
+        case WAR_EFFORT_STAGE_COLLECTION:
+            return "Collection of Materials";
+        case WAR_EFFORT_STAGE_READY:
+            return "Material Collection Ready";
+        case WAR_EFFORT_STAGE_MOVE_1:
+            return "Moving to Silithus Day 1";
+        case WAR_EFFORT_STAGE_MOVE_2:
+            return "Moving to Silithus Day 2";
+        case WAR_EFFORT_STAGE_MOVE_3:
+            return "Moving to Silithus Day 3";
+        case WAR_EFFORT_STAGE_MOVE_4:
+            return "Moving to Silithus Day 4";
+        case WAR_EFFORT_STAGE_MOVE_5:
+            return "Moving to Silithus Day 5";
+        case WAR_EFFORT_STAGE_GONG_WAIT:
+            return "Waiting for Gong to be Rung";
+        case WAR_EFFORT_STAGE_GONG_RUNG:
+            return "Gong has been Rung";
+        case WAR_EFFORT_STAGE_BATTLE:
+            return "Battle at Gate";
+        case WAR_EFFORT_STAGE_CH_ATTACK:
+            return "Cenarion Hold Attack";
+        case WAR_EFFORT_STAGE_FINALBATTLE:
+            return "Final Battle";
+        case WAR_EFFORT_STAGE_COMPLETE:
+            return "Completed";
+    }
+    return "UNKNOWN";
+}
 
 enum WarEffortEnums
 {

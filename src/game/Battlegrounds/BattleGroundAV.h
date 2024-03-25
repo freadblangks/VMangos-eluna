@@ -36,7 +36,7 @@
 #define BG_AV_SCORE_NEAR_LOSE               120
 
 // description: KILL = bonushonor kill one kill is 21honor worth at 0
-// REP reputation, RES = ressources a team will lose
+// REP reputation, RES = resources a team will lose
 #define BG_AV_KILL_BOSS                     6
 #define BG_AV_REP_BOSS                      350
 #define BG_AV_REP_BOSS_HOLIDAY              525
@@ -126,8 +126,6 @@ enum BG_AV_ASSAULT
 
 enum BG_AV_Sounds
 {
-    BG_AV_SOUND_NEAR_LOSE               = 8456,             // not confirmed yet
-
     BG_AV_SOUND_ALLIANCE_ASSAULTS       = 8212,             // tower,grave + enemy boss if someone tries to attack him
     BG_AV_SOUND_HORDE_ASSAULTS          = 8174,
     BG_AV_SOUND_ALLIANCE_GOOD           = 8173,             // if something good happens for the team:  wins(maybe only through killing the boss), captures mine or grave, destroys tower and defends grave
@@ -200,9 +198,60 @@ enum BG_AV_Nodes
 // towers defenders are set to (30-37)
 // event2 depends on armor scraps state
 
+enum BG_AV_Event_Control_State
+{
+    ALLIANCE_ASSAULTED  = 0,
+    ALLIANCE_CONTROLLED = 1,
+    HORDE_ASSAULTED     = 2,
+    HORDE_CONTROLLED    = 3,
+    NEUTRAL_ASSAULTED   = 4,
+    NEUTRAL_CONTROLLED  = 5,
+};
 
 enum BG_AV_Events
 {
+    // Graveyards GOs
+    BG_AV_STORMPIKE_AID_STATION_GY = 0,
+    BG_AV_STORMPIKE_GY = 1,
+    BG_AV_STONEHEARTH_GY = 2,
+    BG_AV_SNOWFALL_GY = 3,
+    BG_AV_ICEBLOOD_GY = 4,
+    BG_AV_FROSTWOLF_GY = 5,
+    BG_AV_FROSTWOLF_RELIEF_HUT_GY = 6,
+
+    // Alliance Bunkers GOs
+    BG_AV_DUN_BALDAR_SOUTH_BUNKER = 7,
+    BG_AV_DUN_BALDAR_NORTH_BUNKER = 8,
+    BG_AV_ICEWING_BUNKER          = 9,
+    BG_AV_STONEHEARTH_BUNKER      = 10,
+
+    // Horde Towers GOs
+    BG_AV_ICEBLOOD_TOWER          = 11,
+    BG_AV_TOWER_POINT_TOWER       = 12,
+    BG_AV_EAST_FROSTWOLF_TOWER    = 13,
+    BG_AV_WEST_FROSTWOLF_TOWER    = 14,
+
+    // Graveyards Guards
+    BG_AV_STORMPIKE_AID_STATION_GY_GUARDS = 15,
+    BG_AV_STORMPIKE_GY_GUARDS             = 16,
+    BG_AV_STONEHEARTH_GY_GUARDS           = 17,
+    BG_AV_SNOWFALL_GY_GUARDS              = 18,
+    BG_AV_ICEBLOOD_GY_GUARDS              = 19,
+    BG_AV_FROSTWOLF_GY_GUARDS             = 20,
+    BG_AV_FROSTWOLF_RELIEF_HUT_GY_GUARDS  = 21,
+    
+    // Alliance Bunkers Marshals
+    BG_AV_DUN_BALDAR_SOUTH_BUNKER_MARSHALS = 22,
+    BG_AV_DUN_BALDAR_NORTH_BUNKER_MARSHALS = 23,
+    BG_AV_ICEWING_BUNKER_MARSHALS          = 24,
+    BG_AV_STONEHEARTH_BUNKER_MARSHALS      = 25,
+
+    // Horde Towers Marshals
+    BG_AV_ICEBLOOD_TOWER_MARSHALS       = 26,
+    BG_AV_TOWER_POINT_TOWER_MARSHALS    = 27,
+    BG_AV_EAST_FROSTWOLF_TOWER_MARSHALS = 28,
+    BG_AV_WEST_FROSTWOLF_TOWER_MARSHALS = 29,
+
     BG_AV_MINE_BOSSES           = 46,                          // + mineid will be exact event
     BG_AV_MINE_BOSSES_NORTH     = 46,
     BG_AV_MINE_BOSSES_SOUTH     = 47,
@@ -253,7 +302,7 @@ enum BG_AV_Graveyards
     BG_AV_GRAVE_MAIN_HORDE         = 610
 };
 
-const uint32 BG_AV_GraveyardIds[9]= {
+uint32 const BG_AV_GraveyardIds[9]= {
     BG_AV_GRAVE_STORM_AID,
     BG_AV_GRAVE_STORM_GRAVE,
     BG_AV_GRAVE_STONE_GRAVE,
@@ -294,13 +343,13 @@ enum BattleGroundAVTeamIndex
 #define BG_AV_TEAMS_COUNT 3
 
 // alliance_control horde_control neutral_control
-const uint32 BG_AV_MineWorldStates[2][BG_AV_TEAMS_COUNT] = {
+uint32 const BG_AV_MineWorldStates[2][BG_AV_TEAMS_COUNT] = {
     {1358, 1359, 1360},
     {1355, 1356, 1357}
 };
 
 // alliance_control alliance_assault h_control h_assault
-const uint32 BG_AV_NodeWorldStates[BG_AV_NODES_MAX][4] = {
+uint32 const BG_AV_NodeWorldStates[BG_AV_NODES_MAX][4] = {
     // Stormpike first aid station
     {1326,1325,1328,1327},
     // Stormpike Graveyard
@@ -386,14 +435,14 @@ enum BG_AV_GameObjects
 
 struct BG_AV_NodeInfo
 {
-    BattleGroundAVTeamIndex TotalOwner;
-    BattleGroundAVTeamIndex Owner;
-    BattleGroundAVTeamIndex PrevOwner;
-    BattleGroundAVTeamIndex PrevOtherOwner;
-    BG_AV_States State;
-    BG_AV_States PrevState;
-    uint32       Timer;
-    bool         Tower;
+    BattleGroundAVTeamIndex totalOwner;
+    BattleGroundAVTeamIndex owner;
+    BattleGroundAVTeamIndex prevOwner;
+    BattleGroundAVTeamIndex prevOtherOwner;
+    BG_AV_States state;
+    BG_AV_States prevState;
+    uint32       timer;
+    bool         tower;
 };
 
 inline BG_AV_Nodes &operator++(BG_AV_Nodes &i)
@@ -404,15 +453,15 @@ inline BG_AV_Nodes &operator++(BG_AV_Nodes &i)
 class BattleGroundAVScore : public BattleGroundScore
 {
     public:
-        BattleGroundAVScore() : GraveyardsAssaulted(0), GraveyardsDefended(0), TowersAssaulted(0), TowersDefended(0), SecondaryObjectives(0), LieutnantCount(0), SecondaryNPC(0) {};
-        virtual ~BattleGroundAVScore() {};
-        uint32 GraveyardsAssaulted;
-        uint32 GraveyardsDefended;
-        uint32 TowersAssaulted;
-        uint32 TowersDefended;
-        uint32 SecondaryObjectives;
-        uint32 LieutnantCount;
-        uint32 SecondaryNPC;
+        BattleGroundAVScore() : graveyardsAssaulted(0), graveyardsDefended(0), towersAssaulted(0), towersDefended(0), secondaryObjectives(0), lieutnantCount(0), secondaryNPC(0) {};
+        ~BattleGroundAVScore() override {};
+        uint32 graveyardsAssaulted;
+        uint32 graveyardsDefended;
+        uint32 towersAssaulted;
+        uint32 towersDefended;
+        uint32 secondaryObjectives;
+        uint32 lieutnantCount;
+        uint32 secondaryNPC;
 };
 
 class BattleGroundAV : public BattleGround
@@ -421,40 +470,40 @@ class BattleGroundAV : public BattleGround
 
     public:
         BattleGroundAV();
-        ~BattleGroundAV();
-        void Update(uint32 diff);
+        ~BattleGroundAV() override;
+        void Update(uint32 diff) override;
 
         /* inherited from BattlegroundClass */
-        virtual void AddPlayer(Player *plr);
+        void AddPlayer(Player* plr) override;
 
-        virtual void StartingEventCloseDoors();
-        virtual void StartingEventOpenDoors();
+        void StartingEventCloseDoors() override;
+        void StartingEventOpenDoors() override;
         // world states
-        virtual void FillInitialWorldStates(WorldPacket& data, uint32& count);
+        void FillInitialWorldStates(WorldPacket& data, uint32& count) override;
 
-        void RemovePlayer(Player *plr, ObjectGuid guid);
-        void HandleAreaTrigger(Player *Source, uint32 Trigger);
-        virtual void Reset();
+        void RemovePlayer(Player* plr, ObjectGuid guid) override;
+        bool HandleAreaTrigger(Player* source, uint32 trigger) override;
+        void Reset() override;
 
         void ResetTamedEvent(uint32 teamIdx);
-        SpellCastResult CheckSpellCast(Player* caster, SpellEntry const* spell);
+        SpellCastResult CheckSpellCast(Player* caster, SpellEntry const* spell) override;
 
         /*general stuff*/
         void UpdateScore(BattleGroundTeamIndex teamIdx, int32 points);
-        void UpdatePlayerScore(Player *Source, uint32 type, uint32 value);
-        void UpgradeArmor(Object* questGiver, Player *player);
-        uint32 GetActualArmorRessources(uint32 m_faction_id);
+        void UpdatePlayerScore(Player* source, uint32 type, uint32 value) override;
+        void UpgradeArmor(Object* questGiver, Player* player);
+        uint32 GetActualArmorRessources(uint32 factionId);
         /*handle stuff*/ // these are functions which get called from extern scripts
-        virtual void EventPlayerClickedOnFlag(Player *source, GameObject* target_obj);
-        void HandleKillPlayer(Player* player, Player *killer);
-        void HandleKillUnit(Creature *creature, Player *killer);
+        void EventPlayerClickedOnFlag(Player* source, GameObject* targetGo) override;
+        void HandleKillPlayer(Player* pVictim, Player* pKiller) override;
+        void HandleKillUnit(Creature* creature, Player* killer) override;
 
         /** Challenge handler : air or ground assault, world boss assault */
-        bool   isSnivvle;
-        uint32 m_ui_Snivvle;
+        bool   m_snivvleDone;
+        uint32 m_snivvleTimer;
 
-        uint32 m_ui_buff_h;
-        uint32 m_ui_buff_a;
+        uint32 m_buffTimerHorde;
+        uint32 m_buffTimerAlliance;
 
         uint32 m_reinforcementLevel[BG_TEAMS_COUNT];
         uint32 m_challengeStatus[BG_TEAMS_COUNT][BG_AV_NB_CHALLENGES];
@@ -462,34 +511,34 @@ class BattleGroundAV : public BattleGround
         uint32 m_challengeMinReputationNeeded [BG_AV_NB_ASSAULTS]; // Static values
         uint32 m_challengeTimerStart [BG_AV_NB_ASSAULTS]; // Static values
         bool   m_challengePlayerGoStatus [BG_TEAMS_COUNT][BG_AV_NB_ASSAULTS];
-        uint32 getReinforcementLevelGroundUnit (uint32 faction_id);
-        void   setReinforcementLevelGroundUnit (uint32 faction_id, uint32 ressources);
-        bool   isAerialChallengeInvocationReady (uint32 faction_id, uint32 aerial_id);
-        bool   isGroundChallengeInvocationReady (uint32 faction_id);
-        bool   isCavalryChallengeInvocationReady (uint32 faction_id);
-        bool   isWorldBossChallengeInvocationReady (uint32 faction_id);
-        void   setPlayerGoStatus (uint32 faction_id, uint32 challenge_type, bool av_value);
-        uint32 getPlayerGoStatus (uint32 faction_id, uint32 challenge_type);
-        uint32 getMinReputationNeeded (uint32 challenge_type);
-        uint32 getTimerNeeded (uint32 challenge_type);
-        void   resetAerialChallengeInvocation (uint32 faction_id, uint32 aerial_id);
-        void   resetGroundChallengeInvocation (uint32 faction_id);
-        void   resetCavalryChallengeInvocation (uint32 faction_id);
-        void   resetWorldBossChallengeInvocation (uint32 faction_id);
-        uint32 getChallengeInvocationCounter (uint32 faction_id, uint32 challenge_type);
-        uint32 getChallengeInvocationGoals (uint32 faction_id, uint32 challenge_type);
+        uint32 getReinforcementLevelGroundUnit (uint32 factionId);
+        void   setReinforcementLevelGroundUnit (uint32 factionId, uint32 resources);
+        bool   isAerialChallengeInvocationReady (uint32 factionId, uint32 aerialId);
+        bool   isGroundChallengeInvocationReady (uint32 factionId);
+        bool   isCavalryChallengeInvocationReady (uint32 factionId);
+        bool   isWorldBossChallengeInvocationReady (uint32 factionId);
+        void   setPlayerGoStatus (uint32 factionId, uint32 challengeType, bool avValue);
+        uint32 getPlayerGoStatus (uint32 factionId, uint32 challengeType);
+        uint32 getMinReputationNeeded (uint32 challengeType);
+        uint32 getTimerNeeded (uint32 challengeType);
+        void   resetAerialChallengeInvocation (uint32 factionId, uint32 aerialId);
+        void   resetGroundChallengeInvocation (uint32 factionId);
+        void   resetCavalryChallengeInvocation (uint32 factionId);
+        void   resetWorldBossChallengeInvocation (uint32 factionId);
+        uint32 getChallengeInvocationCounter (uint32 factionId, uint32 challengeType);
+        uint32 getChallengeInvocationGoals (uint32 factionId, uint32 challengeType);
         void   initializeChallengeInvocationGoals (void);
-        void   setChallengeInvocationCounter (uint32 faction_id, uint32 challenge_type, uint32 effort_done);
+        void   setChallengeInvocationCounter (uint32 factionId, uint32 challengeType, uint32 effortDone);
 
-        void HandleQuestComplete(Unit* questGiver, uint32 questid, Player *player);
+        void HandleQuestComplete(Unit* questGiver, uint32 questid, Player* player);
         bool PlayerCanDoMineQuest(int32 GOId, Team team);
 
-        void EndBattleGround(Team winner);
+        void EndBattleGround(Team winner) override;
 
-        virtual WorldSafeLocsEntry const* GetClosestGraveYard(Player *plr);
+        WorldSafeLocsEntry const* GetClosestGraveYard(Player* plr) override;
 
         static BattleGroundAVTeamIndex GetAVTeamIndexByTeamId(Team team) { return BattleGroundAVTeamIndex(GetTeamIndexByTeamId(team)); }
-        void HandleCommand(Player* player, ChatHandler* handler, char* args);
+        void HandleCommand(Player* player, ChatHandler* handler, char* args) override;
     private:
         /* Nodes occupying */
         void EventPlayerAssaultsPoint(Player* player, BG_AV_Nodes node);
@@ -504,41 +553,41 @@ class BattleGroundAV : public BattleGround
         void PopulateNode(BG_AV_Nodes node);
         void PopulateMineNode(uint8 mine, BattleGroundAVTeamIndex teamIdx, uint32 oldUpgradeAdvance);
 
-        uint32 GetNodeName(BG_AV_Nodes node);
-        const bool IsTower(BG_AV_Nodes node) { return (node >= BG_AV_NODES_MAX) ? false : m_Nodes[node].Tower; }
-        const bool IsGrave(BG_AV_Nodes node) { return (node >= BG_AV_NODES_MAX) ? false : !m_Nodes[node].Tower; }
+        static uint32 GetNodeName(BG_AV_Nodes node);
+        bool IsTower(BG_AV_Nodes node) const { return (node >= BG_AV_NODES_MAX) ? false : m_nodes[node].tower; }
+        bool IsGrave(BG_AV_Nodes node) const { return (node >= BG_AV_NODES_MAX) ? false : !m_nodes[node].tower; }
 
         /*mine*/
         void ChangeMineOwner(uint8 mine, BattleGroundAVTeamIndex teamIdx);
 
         /*worldstates*/
-        uint8 GetWorldStateType(uint8 state, BattleGroundAVTeamIndex teamIdx) const { return teamIdx * BG_AV_MAX_STATES + state; }
+        static uint8 GetWorldStateType(uint8 state, BattleGroundAVTeamIndex teamIdx) { return teamIdx * BG_AV_MAX_STATES + state; }
         void SendMineWorldStates(uint32 mine);
         void UpdateNodeWorldState(BG_AV_Nodes node);
 
         void CompleteQuestForAll(uint32 questId);
 
         /*variables */
-        uint32 m_Team_QuestStatus[BG_TEAMS_COUNT][9];       // [x][y] x=team y=questcounter
+        uint32 m_teamQuestStatus[BG_TEAMS_COUNT][9];       // [x][y] x=team y=questcounter
 
-        BG_AV_NodeInfo m_Nodes[BG_AV_NODES_MAX];
+        BG_AV_NodeInfo m_nodes[BG_AV_NODES_MAX];
 
         // only for worldstates needed
-        BattleGroundAVTeamIndex m_Mine_Owner[BG_AV_MAX_MINES];
-        BattleGroundAVTeamIndex m_Mine_PrevOwner[BG_AV_MAX_MINES];
-        int32 m_Mine_Timer[BG_AV_MAX_MINES];
-        uint32 m_Mine_Reclaim_Timer[BG_AV_MAX_MINES];
+        BattleGroundAVTeamIndex m_mineOwner[BG_AV_MAX_MINES];
+        BattleGroundAVTeamIndex m_minePrevOwner[BG_AV_MAX_MINES];
+        int32 m_mineTimer[BG_AV_MAX_MINES];
+        uint32 m_mineReclaimTimer[BG_AV_MAX_MINES];
 
-        bool m_IsInformedNearLose[BG_TEAMS_COUNT];
+        bool m_isInformedNearLose[BG_TEAMS_COUNT];
 
-        uint32 m_RepTowerDestruction;
-        uint32 m_RepCommander;
-        uint32 m_RepCaptain;
-        uint32 m_RepBoss;
-        uint32 m_RepOwnedGrave;
-        uint32 m_RepOwnedMine;
-        uint32 m_RepSurviveCaptain;
-        uint32 m_RepSurviveTower;
+        uint32 m_repTowerDestruction;
+        uint32 m_repCommander;
+        uint32 m_repCaptain;
+        uint32 m_repBoss;
+        uint32 m_repOwnedGrave;
+        uint32 m_repOwnedMine;
+        uint32 m_repSurviveCaptain;
+        uint32 m_repSurviveTower;
         ObjectGuid m_shredderOwners[BG_TEAMS_COUNT];
 };
 

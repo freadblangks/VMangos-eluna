@@ -21,39 +21,39 @@
 
 #include "Common.h"
 #include "Log.h"
+#include "Opcodes.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
 #include "CreatureAI.h"
 #include "ObjectGuid.h"
 #include "Player.h"
+#include "Map.h"
 
-void WorldSession::HandleAttackSwingOpcode(WorldPacket & recv_data)
+void WorldSession::HandleAttackSwingOpcode(WorldPacket& recv_data)
 {
     ObjectGuid guid;
     recv_data >> guid;
 
-    DEBUG_FILTER_LOG(LOG_FILTER_COMBAT, "WORLD: Recvd CMSG_ATTACKSWING Message %s", guid.GetString().c_str());
-
     if (!guid.IsUnit())
         return;
 
-    Unit *pEnemy = _player->GetMap()->GetUnit(guid);
+    Unit* pEnemy = _player->GetMap()->GetUnit(guid);
 
     if (!pEnemy)
     {
         // stop attack state at client
-        SendAttackStop(NULL);
+        SendAttackStop(nullptr);
         return;
     }
 
-    if (_player->IsFriendlyTo(pEnemy) || pEnemy->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_NOT_SELECTABLE))
+    if (_player->IsFriendlyTo(pEnemy) || pEnemy->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING | UNIT_FLAG_NOT_SELECTABLE))
     {
         // stop attack state at client
         SendAttackStop(pEnemy);
         return;
     }
 
-    if (!pEnemy->isAlive())
+    if (!pEnemy->IsAlive())
     {
         // client can generate swing to known dead target if autoswitch between autoshot and autohit is enabled in client options
         // stop attack state at client
@@ -64,21 +64,31 @@ void WorldSession::HandleAttackSwingOpcode(WorldPacket & recv_data)
     _player->Attack(pEnemy, true);
 }
 
-void WorldSession::HandleAttackStopOpcode(WorldPacket & /*recv_data*/)
+void WorldSession::HandleAttackStopOpcode(WorldPacket& /*recv_data*/)
 {
     GetPlayer()->AttackStop();
+
+    /*
+    I wanted to take a moment to provide some clarification around what changed in 1.13.3 with Reckoning.
+    There were several systemic issues with extra attack procs behaving incorrectly, which we fixed in the patch.
+    A secondary effect of these fixes were two notable changes to Reckoning:
+    - Reckoning stacks are lost when you mount up.
+    - Reckoning stacks are lost when you initiate an auto-attack against a target and cancel it before it goes off.
+    However, both of these behaviors were correct behaviors in the 1.12 reference client and as such are considered bug fixes.
+    https://us.forums.blizzard.com/en/wow/t/reckoning-is-broken-after-yesterdays-patch/386476/123
+    */
+    GetPlayer()->ResetExtraAttacks();
 }
 
-void WorldSession::HandleSetSheathedOpcode(WorldPacket & recv_data)
+void WorldSession::HandleSetSheathedOpcode(WorldPacket& recv_data)
 {
     uint32 sheathed;
     recv_data >> sheathed;
-
-    //DEBUG_LOG( "WORLD: Recvd CMSG_SETSHEATHED Message guidlow:%u value1:%u", GetPlayer()->GetGUIDLow(), sheathed );
-
     if (sheathed >= MAX_SHEATH_STATE)
         return;
 
+    GetPlayer()->InterruptSpellsWithChannelFlags(AURA_INTERRUPT_SHEATHING_CANCELS);
+    GetPlayer()->RemoveAurasWithInterruptFlags(AURA_INTERRUPT_SHEATHING_CANCELS);
     GetPlayer()->SetSheath(SheathState(sheathed));
 }
 

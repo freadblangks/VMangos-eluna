@@ -15,9 +15,8 @@
  */
 
 /* ScriptData
-SDName: Boss_Jin'do the Hexxer
-SD%Complete: 85
-SDComment: Mind Control not working because of core bug. Shades visible for all.
+SDName: Boss Jin'do the Hexxer
+SD%Complete: 100
 SDCategory: Zul'Gurub
 EndScriptData */
 
@@ -30,9 +29,10 @@ enum
 
     SPELL_BRAIN_WASH_TOTEM          = 24262,
     SPELL_POWERFULL_HEALING_WARD    = 24309,
-    SPELL_HEX                       = 24053,
+    SPELL_HEX                       = 17172,
     SPELL_DELUSIONS_OF_JINDO        = 24306,
     SPELL_SHADE_OF_JINDO            = 24308,
+    SPELL_BANISH                    = 24466,
     // Brainwash Totem spells
     SPELL_BRAINWASH                 = 24261,
     // Healing Ward spells
@@ -56,27 +56,29 @@ struct boss_jindoAI : public ScriptedAI
 
     ScriptedInstance* m_pInstance;
 
-    uint32 BrainWashTotem_Timer;
-    uint32 HealingWard_Timer;
-    uint32 Hex_Timer;
-    uint32 Delusions_Timer;
-    uint32 Teleport_Timer;
+    uint32 m_brainWashTotemTimer;
+    uint32 m_healingWardTimer;
+    uint32 m_hexTimer;
+    uint32 m_delusionsTimer;
+    uint32 m_summonShadeTimer;
+    uint32 m_banishTimer;
 
-    uint32 CheckBrainWash_Timer;
+    uint32 m_checkBrainWashTimer;
 
-    uint64 HexGuid;
-    float HexAggro;
+    ObjectGuid m_hexGuid;
+    ObjectGuid m_delusionGuid;
+    float m_hexAggro;
 
-    std::list<uint64> BrainWashedPlayerGuid;
-    std::list<float> BrainWashedPlayerAggro;
-    std::list<ObjectGuid> summonedCreatures;
+    std::list<uint64> m_brainWashedPlayerGuids;
+    std::list<float> m_brainWashedPlayersAggro;
+    std::list<ObjectGuid> m_summonedCreatures;
 
     void DespawnAllSummons()
     {
-        while (!summonedCreatures.empty())
+        while (!m_summonedCreatures.empty())
         {
-            ObjectGuid const& g = *(summonedCreatures.begin());
-            summonedCreatures.pop_front();
+            ObjectGuid const& g = *(m_summonedCreatures.begin());
+            m_summonedCreatures.pop_front();
             switch (g.GetEntry())
             {
                 case NPC_BRAINWASH_TOTEM:
@@ -90,25 +92,34 @@ struct boss_jindoAI : public ScriptedAI
         while (Creature* Crea = m_creature->FindNearestCreature(NPC_BRAINWASH_TOTEM, 150.0f))
             Crea->DisappearAndDie();
     }
-    void JustSummoned(Creature* c)
+    void JustSummoned(Creature* c) override
     {
-        summonedCreatures.push_back(c->GetObjectGuid());
+        if (c->GetEntry() == NPC_SHADE)
+        {
+            // Adds the boss' enemies to its threat list.
+            c->AddThreatsOf(m_creature);
+            if (Unit* pTarget = m_creature->GetMap()->GetUnit(m_delusionGuid))
+                if (c->IsValidAttackTarget(pTarget) && pTarget->HasAura(SPELL_DELUSIONS_OF_JINDO))
+                    c->AI()->AttackStart(pTarget);
+        }
+
+        m_summonedCreatures.push_back(c->GetObjectGuid());
         ScriptedAI::JustSummoned(c);
     }
-    void Reset()
+    void Reset() override
     {
-        BrainWashTotem_Timer    = 22000;
-        HealingWard_Timer       = 12000;
-        Hex_Timer               = 8000;
-        Delusions_Timer         = 10000;
-        Teleport_Timer          = 5000;
-        CheckBrainWash_Timer    = 1000;
+        m_brainWashTotemTimer    = urand(10, 20) * IN_MILLISECONDS;
+        m_healingWardTimer       = urand(20, 30) * IN_MILLISECONDS;
+        m_hexTimer               = urand(20, 50) * IN_MILLISECONDS;
+        m_delusionsTimer         = urand(3, 6) * IN_MILLISECONDS;
+        m_summonShadeTimer       = urand(6, 8) * IN_MILLISECONDS;
+        m_banishTimer            = urand(15, 30) * IN_MILLISECONDS;
+        m_checkBrainWashTimer    = 1000;
 
-        HexGuid                 = 0;
-        HexAggro                = 0;
+        m_hexAggro                = 0;
 
-        BrainWashedPlayerGuid.clear();
-        BrainWashedPlayerAggro.clear();
+        m_brainWashedPlayerGuids.clear();
+        m_brainWashedPlayersAggro.clear();
 
         DespawnAllSummons();
 
@@ -116,28 +127,28 @@ struct boss_jindoAI : public ScriptedAI
             m_pInstance->SetData(TYPE_JINDO, NOT_STARTED);
     }
 
-    void SpellHitTarget(Unit* pCaster, const SpellEntry* pSpell)
+    void SpellHitTarget(Unit* pCaster, SpellEntry const* pSpell) override
     {
         if (pSpell->Id == SPELL_HEX)
         {
             if (pCaster->GetTypeId() != TYPEID_PLAYER)
                 return;
 
-            HexGuid = pCaster->GetGUID();
-            HexAggro = m_creature->getThreatManager().getThreat(pCaster);
+            m_hexGuid = pCaster->GetObjectGuid();
+            m_hexAggro = m_creature->GetThreatManager().getThreat(pCaster);
 
-            m_creature->getThreatManager().modifyThreatPercent(pCaster, -100);
+            m_creature->GetThreatManager().modifyThreatPercent(pCaster, -100);
         }
     }
 
-    void JustDied(Unit* pKiller)
+    void JustDied(Unit* pKiller) override
     {
         DespawnAllSummons();
         if (m_pInstance)
             m_pInstance->SetData(TYPE_JINDO, DONE);
     }
 
-    void Aggro(Unit *who)
+    void Aggro(Unit *who) override
     {
         DoScriptText(SAY_AGGRO, m_creature);
         if (m_pInstance)
@@ -151,53 +162,55 @@ struct boss_jindoAI : public ScriptedAI
             Skeleton->AI()->AttackStart(initialTarget);
     }
 
-    void UpdateAI(const uint32 diff)
+    void UpdateAI(uint32 const diff) override
     {
-        if (!m_creature->SelectHostileTarget() || !m_creature->getVictim())
+        if (!m_creature->SelectHostileTarget() || !m_creature->GetVictim())
             return;
 
-        if (HexGuid)
+        if (m_hexGuid)
         {
-            Player* hexPlayer = m_creature->GetMap()->GetPlayer(HexGuid);
+            Player* hexPlayer = m_creature->GetMap()->GetPlayer(m_hexGuid);
             if (hexPlayer && !hexPlayer->HasAura(SPELL_HEX))
             {
-                m_creature->getThreatManager().addThreatDirectly(hexPlayer, HexAggro);
-                HexGuid = 0;
-                HexAggro = 0;
+                m_creature->GetThreatManager().addThreatDirectly(hexPlayer, m_hexAggro);
+                m_hexGuid.Clear();
+                m_hexAggro = 0;
             }
             else if (!hexPlayer)
-                HexGuid = HexAggro = 0;
+            {
+                m_hexGuid.Clear();
+                m_hexAggro = 0;
+            }
         }
 
-        //BrainWashTotem_Timer
-        if (BrainWashTotem_Timer < diff)
+        if (m_brainWashTotemTimer < diff)
         {
-            // Il faut au moins 2 personnes dans le threatlist de Jin'do, sinon il va reset !
+            // You need at least 2 people in Jin'do's threatlist, otherwise he will reset!
             if (m_creature->SelectAttackingTarget(ATTACKING_TARGET_TOPAGGRO, 1))
                 if (DoCastSpellIfCan(m_creature, SPELL_BRAIN_WASH_TOTEM) == CAST_OK)
-                    BrainWashTotem_Timer = urand(18000, 22000);
+                    m_brainWashTotemTimer = urand(10, 30) * IN_MILLISECONDS;
         }
         else
-            BrainWashTotem_Timer -= diff;
+            m_brainWashTotemTimer -= diff;
 
-        // Ustaag : gestion de l'aggro des joueurs MC
-        if (!BrainWashedPlayerGuid.empty() && !BrainWashedPlayerAggro.empty())
+        // Ustaag : Mind controlled player aggro management
+        if (!m_brainWashedPlayerGuids.empty() && !m_brainWashedPlayersAggro.empty())
         {
-            if (CheckBrainWash_Timer < diff)
+            if (m_checkBrainWashTimer < diff)
             {
                 uint64 PlayerBrainWashedGuid = 0;
                 bool PlayerDead = false;
                 bool AuraRemoved = false;
 
                 uint32 var = 0;
-                for (std::list<uint64>::const_iterator itr = BrainWashedPlayerGuid.begin(); itr != BrainWashedPlayerGuid.end(); itr++)
+                for (auto const& guid : m_brainWashedPlayerGuids)
                 {
-                    if (Player* pTarget = m_creature->GetMap()->GetPlayer((*itr)))
+                    if (Player* pTarget = m_creature->GetMap()->GetPlayer(guid))
                     {
-                        if ((pTarget->isAlive() && !pTarget->HasAura(24261, EFFECT_INDEX_0)) || pTarget->isDead()) // SPELL_BRAINWASH 24261
+                        if ((pTarget->IsAlive() && !pTarget->HasAura(SPELL_BRAINWASH, EFFECT_INDEX_0)) || pTarget->IsDead())
                         {
-                            PlayerBrainWashedGuid = *itr;
-                            if (pTarget->isDead())
+                            PlayerBrainWashedGuid = guid;
+                            if (pTarget->IsDead())
                                 PlayerDead = true;
                             else
                                 AuraRemoved = true;
@@ -209,78 +222,82 @@ struct boss_jindoAI : public ScriptedAI
 
                 if (PlayerDead || AuraRemoved)
                 {
-                    std::list<float>::const_iterator Iter = BrainWashedPlayerAggro.begin();
+                    std::list<float>::const_iterator Iter = m_brainWashedPlayersAggro.begin();
                     for (uint32 i = 0; i < var; ++i)
                         ++Iter;
                     Player* playerBrainWashed = m_creature->GetMap()->GetPlayer(PlayerBrainWashedGuid);
                     if (AuraRemoved)
                     {
-                        m_creature->getThreatManager().modifyThreatPercent(playerBrainWashed, -100);
-                        m_creature->getThreatManager().addThreatDirectly(playerBrainWashed, (*Iter));
+                        m_creature->GetThreatManager().modifyThreatPercent(playerBrainWashed, -100);
+                        m_creature->GetThreatManager().addThreatDirectly(playerBrainWashed, (*Iter));
                     }
 
-                    BrainWashedPlayerGuid.remove(PlayerBrainWashedGuid);
-                    BrainWashedPlayerAggro.remove(*Iter);
+                    m_brainWashedPlayerGuids.remove(PlayerBrainWashedGuid);
+                    m_brainWashedPlayersAggro.remove(*Iter);
                 }
             }
             else
-                CheckBrainWash_Timer -= diff;
+                m_checkBrainWashTimer -= diff;
         }
 
-        //HealingWard_Timer
-        if (HealingWard_Timer < diff)
+        if (m_healingWardTimer < diff)
         {
             if (!m_creature->FindNearestCreature(NPC_POWERFULL_HEALING_WARD, 200.0f))
             {
                 DoCastSpellIfCan(m_creature, SPELL_POWERFULL_HEALING_WARD);
                 //m_creature->SummonCreature(NPC_POWERFULL_HEALING_WARD, m_creature->GetPositionX() + 3, m_creature->GetPositionY() - 2, m_creature->GetPositionZ(), 0, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 15000);
-                HealingWard_Timer = urand(18000, 22000);
+                m_healingWardTimer = urand(20, 30) * IN_MILLISECONDS;
             }
         }
         else
-            HealingWard_Timer -= diff;
+            m_healingWardTimer -= diff;
 
-        //Hex_Timer
-        if (Hex_Timer < diff)
+        if (m_hexTimer < diff)
         {
-            if (DoCastSpellIfCan(m_creature->getVictim(), SPELL_HEX) == CAST_OK)
-                Hex_Timer = urand(12000, 20000);
+            if (DoCastSpellIfCan(m_creature->GetVictim(), SPELL_HEX) == CAST_OK)
+                m_hexTimer = urand(20, 60) * IN_MILLISECONDS;
         }
         else
-            Hex_Timer -= diff;
+            m_hexTimer -= diff;
 
-        //Casting the delusion curse with a shade. So shade will attack the same target with the curse.
-        if (Delusions_Timer < diff)
+        // Casting the delusion curse with a shade. So shade will attack the same target with the curse.
+        if (m_delusionsTimer < diff)
         {
             if (Unit* target = m_creature->SelectAttackingTarget(ATTACKING_TARGET_RANDOM, 0, nullptr, SELECT_FLAG_PLAYER))
             {
                 if (DoCastSpellIfCan(target, SPELL_DELUSIONS_OF_JINDO) == CAST_OK)
                 {
-                    Creature *Shade = m_creature->SummonCreature(NPC_SHADE, target->GetPositionX(), target->GetPositionY(), target->GetPositionZ(), 0, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 15000);
-                    if (Shade)
-                    {
-                        // Ajoute les ennemis du boss dans sa liste de menace.
-                        Shade->AddThreatsOf(m_creature);
-                        Shade->AI()->AttackStart(target);
-                    }
-                    Delusions_Timer = urand(4000, 12000);
+                    m_delusionGuid = target->GetObjectGuid();
+                    m_delusionsTimer = urand(3, 9) * IN_MILLISECONDS;
                 }
             }
 
         }
-        else Delusions_Timer -= diff;
+        else
+            m_delusionsTimer -= diff;
 
-        //Teleporting a random gamer and spawning 9 skeletons that will attack this gamer
-        if (Teleport_Timer < diff)
+        if (m_summonShadeTimer < diff)
         {
-            Unit* target = m_creature->SelectAttackingTarget(ATTACKING_TARGET_RANDOM, 0);
-            if (target && target->GetTypeId() == TYPEID_PLAYER)
-                DoTeleportPlayer(target, -11583.7783f, -1249.4278f, 77.5471f, 4.745f);
-
-            Teleport_Timer = urand(15000, 23000);
+            if (Unit* pTarget = m_creature->GetMap()->GetUnit(m_delusionGuid))
+            {
+                if (DoCastSpellIfCan(pTarget, SPELL_SHADE_OF_JINDO) == CAST_OK)
+                    m_summonShadeTimer = urand(7, 8) * IN_MILLISECONDS;
+            }
         }
         else
-            Teleport_Timer -= diff;
+            m_summonShadeTimer -= diff;
+
+        // Teleporting a random player and spawning 9 skeletons that will attack
+        if (m_banishTimer < diff)
+        {
+            if (Player* target = ToPlayer(m_creature->SelectAttackingTarget(ATTACKING_TARGET_RANDOM, 0, SPELL_BANISH, SELECT_FLAG_PLAYER)))
+            {
+                if (DoCastSpellIfCan(target, SPELL_BANISH) == CAST_OK)
+                    m_banishTimer = urand(15, 35) * IN_MILLISECONDS;
+            }
+        }
+        else
+            m_banishTimer -= diff;
 
         DoMeleeAttackIfReady();
     }
@@ -299,30 +316,30 @@ struct mob_shade_of_jindoAI : public ScriptedAI
 
     uint32 ShadowShock_Timer;
 
-    void Reset()
+    void Reset() override
     {
         ShadowShock_Timer = 1000;
         m_creature->AddAura(SPELL_INVISIBLE, ADD_AURA_PERMANENT);
     }
 
-    void DamageTaken(Unit *done_by, uint32 &damage)
+    void DamageTaken(Unit *done_by, uint32 &damage) override
     {
         if (done_by && !done_by->HasAura(SPELL_DELUSIONS_OF_JINDO))
             damage = 0;
     }
 
-    void UpdateAI(const uint32 diff)
+    void UpdateAI(uint32 const diff) override
     {
-        if (!m_creature->SelectHostileTarget() || !m_creature->getVictim())
+        if (!m_creature->SelectHostileTarget() || !m_creature->GetVictim())
             return;
 
-        if (m_creature->getVictim()->HasAura(SPELL_HEX))
-            m_creature->getThreatManager().modifyThreatPercent(m_creature->getVictim(), -100);
+        if (m_creature->GetVictim()->HasAura(SPELL_HEX))
+            m_creature->GetThreatManager().modifyThreatPercent(m_creature->GetVictim(), -100);
 
         //ShadowShock_Timer
         if (ShadowShock_Timer < diff)
         {
-            DoCastSpellIfCan(m_creature->getVictim(), SPELL_SHADOWSHOCK);
+            DoCastSpellIfCan(m_creature->GetVictim(), SPELL_SHADOWSHOCK);
             ShadowShock_Timer = 2000;
         }
         else
@@ -345,52 +362,51 @@ struct mob_brain_wash_totemAI : public ScriptedAI
     uint64 PlayerMCGuid;
     uint32 CheckTimer;
 
-    void Reset()
+    void Reset() override
     {
         PlayerMCGuid = 0;
         CheckTimer = 0;
 
-        m_creature->AddAura(23198, ADD_AURA_PERMANENT); // Avoidance : pas touché par les AOE
-        m_creature->addUnitState(UNIT_STAT_ROOT);
+        m_creature->AddAura(23198, ADD_AURA_PERMANENT); // Avoidance : immunity to AoE
+        m_creature->AddUnitState(UNIT_STAT_ROOT);
         SetCombatMovement(false);
     }
 
-    void UpdateAI(const uint32 diff)
+    void UpdateAI(uint32 const diff) override
     {
-        if (!m_creature->SelectHostileTarget() || !m_creature->getVictim() || !m_pInstance)
+        if (!m_creature->SelectHostileTarget() || !m_creature->GetVictim() || !m_pInstance)
         {
             m_creature->DisappearAndDie();
             return;
         }
 
-        m_creature->addUnitState(UNIT_STAT_ROOT);
+        m_creature->AddUnitState(UNIT_STAT_ROOT);
 
-        if (!m_creature->isInCombat())
+        if (!m_creature->IsInCombat())
             m_creature->SetInCombatWithZone();
 
-        // Deja en train de CM le joueur
+        // Already mind controlled the player
         if (PlayerMCGuid)
             if (Player* pPlayer = m_creature->GetMap()->GetPlayer(PlayerMCGuid))
-                if (pPlayer->isAlive() && pPlayer->HasAura(24261, EFFECT_INDEX_0))
+                if (pPlayer->IsAlive() && pPlayer->HasAura(SPELL_BRAINWASH, EFFECT_INDEX_0))
                     return;
-
 
         if (Creature* pJindo = m_creature->GetMap()->GetCreature(m_pInstance->GetData64(DATA_JINDO)))
         {
             // Il faut au moins 2 personnes dans le threatlist de Jin'do, sinon il va reset !
             if (pJindo->SelectAttackingTarget(ATTACKING_TARGET_TOPAGGRO, 1))
             {
-                Unit* pTarget = pJindo ? pJindo->SelectAttackingTarget(ATTACKING_TARGET_RANDOM, 0) : NULL;
-                if (pTarget && pTarget->isAlive() && pTarget->IsPlayer() && !pTarget->HasAura(SPELL_HEX) && !pTarget->HasAura(SPELL_BRAINWASH))
+                Unit* pTarget = pJindo ? pJindo->SelectAttackingTarget(ATTACKING_TARGET_RANDOM, 0) : nullptr;
+                if (pTarget && pTarget->IsAlive() && pTarget->IsPlayer() && !pTarget->HasAura(SPELL_HEX) && !pTarget->HasAura(SPELL_BRAINWASH))
                 {
                     if (boss_jindoAI* pJindoAI = dynamic_cast<boss_jindoAI*>(pJindo->AI()))
                     {
-                        pJindoAI->BrainWashedPlayerGuid.push_back(pTarget->GetGUID());
-                        pJindoAI->BrainWashedPlayerAggro.push_back(pJindo->getThreatManager().getThreat(pTarget));
+                        pJindoAI->m_brainWashedPlayerGuids.push_back(pTarget->GetGUID());
+                        pJindoAI->m_brainWashedPlayersAggro.push_back(pJindo->GetThreatManager().getThreat(pTarget));
                         if (DoCastSpellIfCan(pTarget, SPELL_BRAINWASH) == CAST_OK)
                         {
                             PlayerMCGuid = pTarget->GetGUID();
-                            pJindoAI->CheckBrainWash_Timer = 1000;
+                            pJindoAI->m_checkBrainWashTimer = 1000;
                         }
                     }
                 }
@@ -417,7 +433,7 @@ CreatureAI* GetAI_mob_brain_wash(Creature* pCreature)
 // UPDATE `creature_template` SET `ai_name` = '', `script_name` = 'mob_brain_wash' WHERE `entry` = 15112;
 void AddSC_boss_jindo()
 {
-    Script *newscript;
+    Script* newscript;
 
     newscript = new Script;
     newscript->Name = "boss_jindo";

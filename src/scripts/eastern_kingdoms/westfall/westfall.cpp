@@ -32,13 +32,13 @@ EndContentData */
 ## npc_daphne_stilwell
 ######*/
 
-enum
+enum DaphneStilwellData
 {
-    SAY_DS_START        = -1000293,
-    SAY_DS_DOWN_1       = -1000294,
-    SAY_DS_DOWN_2       = -1000295,
-    SAY_DS_DOWN_3       = -1000296,
-    SAY_DS_PROLOGUE     = -1000297,
+    SAY_DS_START        = 2360,
+    SAY_DS_DOWN_1       = 5269,
+    SAY_DS_DOWN_2       = 2369,
+    SAY_DS_DOWN_3       = 2358,
+    SAY_DS_PROLOGUE     = 3090,
 
     SPELL_SHOOT         = 6660,
     QUEST_TOME_VALOR    = 1651,
@@ -57,7 +57,7 @@ struct npc_daphne_stilwellAI : public npc_escortAI
     uint32 m_uiWPHolder;
     uint32 m_uiShootTimer;
 
-    void Reset()
+    void Reset() override
     {
         if (HasEscortState(STATE_ESCORT_ESCORTING))
         {
@@ -80,14 +80,14 @@ struct npc_daphne_stilwellAI : public npc_escortAI
         m_uiShootTimer = 0;
     }
 
-    void WaypointReached(uint32 uiPoint)
+    void WaypointReached(uint32 uiPoint) override
     {
         m_uiWPHolder = uiPoint;
 
         switch (uiPoint)
         {
             case 4:
-                SetEquipmentSlots(false, 20728, EQUIP_NO_CHANGE, 20728);
+                m_creature->SetVirtualItem(BASE_ATTACK, 6946);
                 m_creature->SetSheath(SHEATH_STATE_RANGED);
                 m_creature->HandleEmoteCommand(EMOTE_STATE_USESTANDING_NOSHEATHE);
                 break;
@@ -129,7 +129,7 @@ struct npc_daphne_stilwellAI : public npc_escortAI
         }
     }
 
-    void AttackStart(Unit* pWho)
+    void AttackStart(Unit* pWho) override
     {
         if (!pWho)
             return;
@@ -144,22 +144,22 @@ struct npc_daphne_stilwellAI : public npc_escortAI
         }
     }
 
-    void JustSummoned(Creature* pSummoned)
+    void JustSummoned(Creature* pSummoned) override
     {
         pSummoned->AI()->AttackStart(m_creature);
     }
 
-    void UpdateEscortAI(const uint32 uiDiff)
+    void UpdateEscortAI(uint32 const uiDiff) override
     {
-        if (!m_creature->SelectHostileTarget() || !m_creature->getVictim())
+        if (!m_creature->SelectHostileTarget() || !m_creature->GetVictim())
             return;
 
         if (m_uiShootTimer < uiDiff)
         {
             m_uiShootTimer = 1000;
 
-            if (!m_creature->IsWithinMeleeRange(m_creature->getVictim()))
-                DoCastSpellIfCan(m_creature->getVictim(), SPELL_SHOOT);
+            if (!m_creature->CanReachWithMeleeAutoAttack(m_creature->GetVictim()))
+                DoCastSpellIfCan(m_creature->GetVictim(), SPELL_SHOOT);
 
         }
         else
@@ -169,7 +169,7 @@ struct npc_daphne_stilwellAI : public npc_escortAI
     }
 };
 
-bool QuestAccept_npc_daphne_stilwell(Player* pPlayer, Creature* pCreature, const Quest* pQuest)
+bool QuestAccept_npc_daphne_stilwell(Player* pPlayer, Creature* pCreature, Quest const* pQuest)
 {
     if (pQuest->GetQuestId() == QUEST_TOME_VALOR)
     {
@@ -187,88 +187,13 @@ CreatureAI* GetAI_npc_daphne_stilwell(Creature* pCreature)
     return new npc_daphne_stilwellAI(pCreature);
 }
 
-/*######
-## npc_defias_traitor
-######*/
-
-#define SAY_START                   -1000101
-#define SAY_PROGRESS                -1000102
-#define SAY_END                     -1000103
-#define SAY_AGGRO_1                 -1000104
-#define SAY_AGGRO_2                 -1000105
-
-#define QUEST_DEFIAS_BROTHERHOOD    155
-
-struct npc_defias_traitorAI : public npc_escortAI
-{
-    npc_defias_traitorAI(Creature* pCreature) : npc_escortAI(pCreature)
-    {
-        Reset();
-    }
-
-    void WaypointReached(uint32 i)
-    {
-        switch (i)
-        {
-            case 35:
-                SetRun(false);
-                break;
-            case 36:
-                if (Player* pPlayer = GetPlayerForEscort())
-                    DoScriptText(SAY_PROGRESS, m_creature, pPlayer);
-                break;
-            case 44:
-                if (Player* pPlayer = GetPlayerForEscort())
-                {
-                    DoScriptText(SAY_END, m_creature, pPlayer);
-                    pPlayer->GroupEventHappens(QUEST_DEFIAS_BROTHERHOOD, m_creature);
-                }
-                break;
-        }
-    }
-
-    void Aggro(Unit* who)
-    {
-        DoScriptText(urand(0, 1) ? SAY_AGGRO_1 : SAY_AGGRO_2, m_creature, who);
-    }
-
-    void Reset() { }
-};
-
-bool QuestAccept_npc_defias_traitor(Player* pPlayer, Creature* pCreature, const Quest* pQuest)
-{
-    if (pQuest->GetQuestId() == QUEST_DEFIAS_BROTHERHOOD)
-    {
-        DoScriptText(SAY_START, pCreature, pPlayer);
-
-        if (npc_defias_traitorAI* pEscortAI = dynamic_cast<npc_defias_traitorAI*>(pCreature->AI()))
-        {
-            pEscortAI->SetMaxAssistDistance(15.0f);
-            pEscortAI->Start(true, pPlayer->GetGUID(), pQuest);
-        }
-    }
-
-    return true;
-}
-
-CreatureAI* GetAI_npc_defias_traitor(Creature* pCreature)
-{
-    return new npc_defias_traitorAI(pCreature);
-}
-
 void AddSC_westfall()
 {
-    Script *newscript;
+    Script* newscript;
 
     newscript = new Script;
     newscript->Name = "npc_daphne_stilwell";
     newscript->GetAI = &GetAI_npc_daphne_stilwell;
     newscript->pQuestAcceptNPC = &QuestAccept_npc_daphne_stilwell;
-    newscript->RegisterSelf();
-
-    newscript = new Script;
-    newscript->Name = "npc_defias_traitor";
-    newscript->GetAI = &GetAI_npc_defias_traitor;
-    newscript->pQuestAcceptNPC = &QuestAccept_npc_defias_traitor;
     newscript->RegisterSelf();
 }

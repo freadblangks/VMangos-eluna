@@ -23,9 +23,6 @@
 #define DATABASEENV_H
 
 #include "Common.h"
-#include "Log.h"
-#include "Errors.h"
-
 #include "Database/Field.h"
 #include "Database/QueryResult.h"
 
@@ -45,7 +42,7 @@ typedef DatabasePostgre DatabaseType;
 #include "Database/DatabaseMysql.h"
 typedef DatabaseMysql DatabaseType;
 #define _LIKE_           "LIKE"
-#define _TABLE_SIM_      "`"
+#define _TABLE_SIM_      '`'
 #define _CONCAT2_(A,B)   "CONCAT( " A ", " B ")"
 #define _CONCAT3_(A,B,C) "CONCAT( " A " , " B " , " C " )"
 #define _OFFSET_         "LIMIT %d,1"

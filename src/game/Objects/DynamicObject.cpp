@@ -20,28 +20,26 @@
  */
 
 #include "Common.h"
-#include "UpdateMask.h"
-#include "Opcodes.h"
 #include "World.h"
 #include "ObjectAccessor.h"
-#include "Database/DatabaseEnv.h"
 #include "GridNotifiers.h"
 #include "CellImpl.h"
 #include "GridNotifiersImpl.h"
 #include "SpellMgr.h"
 
-DynamicObject::DynamicObject() : WorldObject(), m_effIndex(EFFECT_INDEX_0), m_spellId(0), m_aliveDuration(0), m_positive(false), m_radius(0)
+DynamicObject::DynamicObject() : WorldObject(), m_spellId(0), m_effIndex(EFFECT_INDEX_0), m_aliveDuration(0), m_radius(0), m_positive(false), m_channeled(false)
 {
     m_objectType |= TYPEMASK_DYNAMICOBJECT;
     m_objectTypeId = TYPEID_DYNAMICOBJECT;
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_8_4
     m_updateFlag = (UPDATEFLAG_ALL | UPDATEFLAG_HAS_POSITION);
-
+#endif
     m_valuesCount = DYNAMICOBJECT_END;
 }
 
 void DynamicObject::AddToWorld()
 {
-    ///- Register the dynamicObject for guid lookup
+    // Register the dynamicObject for guid lookup
     if (!IsInWorld())
         GetMap()->InsertObject<DynamicObject>(GetObjectGuid(), this);
 
@@ -50,7 +48,7 @@ void DynamicObject::AddToWorld()
 
 void DynamicObject::RemoveFromWorld()
 {
-    ///- Remove the dynamicObject from the accessor
+    // Remove the dynamicObject from the accessor
     if (IsInWorld())
     {
         GetMap()->EraseObject<DynamicObject>(GetObjectGuid());
@@ -68,7 +66,7 @@ bool DynamicObject::Create(uint32 guidlow, WorldObject* caster, uint32 spellId, 
 
     if (!IsPositionValid())
     {
-        sLog.outError("DynamicObject (spell %u eff %u) not created. Suggested coordinates isn't valid (X: %f Y: %f)", spellId, effIndex, GetPositionX(), GetPositionY());
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "DynamicObject (spell %u eff %u) not created. Suggested coordinates isn't valid (X: %f Y: %f)", spellId, effIndex, GetPositionX(), GetPositionY());
         return false;
     }
 
@@ -109,7 +107,7 @@ bool DynamicObject::Create(uint32 guidlow, WorldObject* caster, uint32 spellId, 
     SpellEntry const* spellProto = sSpellMgr.GetSpellEntry(spellId);
     if (!spellProto)
     {
-        sLog.outError("DynamicObject (spell %u) not created. Spell not exist!", spellId, GetPositionX(), GetPositionY());
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "DynamicObject (spell %u) not created. Spell not exist!", spellId, GetPositionX(), GetPositionY());
         return false;
     }
 
@@ -120,10 +118,13 @@ bool DynamicObject::Create(uint32 guidlow, WorldObject* caster, uint32 spellId, 
     m_positive = spellProto->IsPositiveEffect(m_effIndex);
     m_channeled = spellProto->IsChanneledSpell();
 
+    if (type == DYNAMIC_OBJECT_FARSIGHT_FOCUS)
+        m_isActiveObject = true;
+
     return true;
 }
 
-WorldObject* DynamicObject::GetCaster() const
+SpellCaster* DynamicObject::GetCaster() const
 {
     if (ObjectGuid guid = GetCasterGuid())
     {
@@ -157,21 +158,21 @@ Unit* DynamicObject::GetUnitCaster() const
     return nullptr;
 }
 
-uint32 DynamicObject::getFaction() const
+Player* DynamicObject::GetAffectingPlayer() const
 {
-    return GetCaster()->getFaction();
+    return ::ToPlayer(GetUnitCaster());
 }
 
-uint32 DynamicObject::getLevel() const
+uint32 DynamicObject::GetFactionTemplateId() const
 {
-    return GetCaster()->getLevel();
+    return GetCaster()->GetFactionTemplateId();
 }
 
 void DynamicObject::Update(uint32 update_diff, uint32 p_time)
 {
     WorldObject::Update(update_diff, p_time);
     // caster can be not in world at time dynamic object update, but dynamic object not yet deleted in Unit destructor
-    WorldObject* caster = GetCaster();
+    SpellCaster* caster = GetCaster();
     if (!caster)
     {
         Delete();
@@ -193,8 +194,8 @@ void DynamicObject::Update(uint32 update_diff, uint32 p_time)
     if (m_aliveDuration == 0 && (!m_channeled || (caster->IsUnit() && static_cast<Unit*>(caster)->GetChannelObjectGuid() != GetObjectGuid())))
         deleteThis = true;
 
-    for (AffectedMap::iterator iter = m_affected.begin(); iter != m_affected.end(); ++iter)
-        iter->second += update_diff;
+    for (auto& iter : m_affected)
+        iter.second += update_diff;
 
     // have radius and work as persistent effect
     if (m_radius)
@@ -224,8 +225,18 @@ void DynamicObject::Update(uint32 update_diff, uint32 p_time)
 
 void DynamicObject::Delete()
 {
-    SendObjectDeSpawnAnim(GetObjectGuid());
+    SendObjectDeSpawnAnim();
     AddObjectToRemoveList();
+}
+
+void DynamicObject::AddAffected(Unit* unit)
+{
+    m_affected[unit->GetObjectGuid()] = 0;
+}
+
+void DynamicObject::RemoveAffected(Unit* unit)
+{
+    m_affected.erase(unit->GetObjectGuid());
 }
 
 void DynamicObject::Delay(int32 delaytime)
@@ -233,10 +244,10 @@ void DynamicObject::Delay(int32 delaytime)
     m_aliveDuration -= delaytime;
     for (AffectedMap::iterator iter = m_affected.begin(); iter != m_affected.end();)
     {
-        Unit *target = GetMap()->GetUnit(iter->first);
+        Unit* target = GetMap()->GetUnit(iter->first);
         if (target)
         {
-            SpellAuraHolder *holder = target->GetSpellAuraHolder(m_spellId, GetCasterGuid());
+            SpellAuraHolder* holder = target->GetSpellAuraHolder(m_spellId, GetCasterGuid());
             if (!holder)
             {
                 ++iter;
@@ -267,7 +278,7 @@ void DynamicObject::Delay(int32 delaytime)
     }
 }
 
-bool DynamicObject::isVisibleForInState(WorldObject const* pDetector, WorldObject const* viewPoint, bool inVisibleList) const
+bool DynamicObject::IsVisibleForInState(WorldObject const* pDetector, WorldObject const* viewPoint, bool inVisibleList) const
 {
     if (!IsInWorld() || !pDetector->IsInWorld())
         return false;
@@ -277,7 +288,7 @@ bool DynamicObject::isVisibleForInState(WorldObject const* pDetector, WorldObjec
         return true;
 
     // normal case
-    return IsWithinDistInMap(viewPoint, GetMap()->GetVisibilityDistance() + (inVisibleList ? World::GetVisibleObjectGreyDistance() : 0.0f) + GetVisibilityModifier(), false);
+    return IsWithinDistInMap(viewPoint, std::max(GetMap()->GetVisibilityDistance() + (inVisibleList ? World::GetVisibleObjectGreyDistance() : 0.0f), GetVisibilityModifier()), false);
 }
 
 bool DynamicObject::IsHostileTo(WorldObject const* target) const

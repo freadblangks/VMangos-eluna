@@ -10,7 +10,7 @@
 #include "ScriptedAI.h"
 #include "GridSearchers.h"
 
-ScriptedAI::ScriptedAI(Creature* pCreature) : CreatureAI(pCreature),
+ScriptedAI::ScriptedAI(Creature* pCreature) : BasicAI(pCreature),
     me(pCreature),
     m_uiEvadeCheckCooldown(2500),
     m_uiHomeArea(m_creature->GetAreaId())
@@ -19,47 +19,9 @@ ScriptedAI::ScriptedAI(Creature* pCreature) : CreatureAI(pCreature),
 
     if (auto cData = m_creature->GetCreatureData())
     {
-        if (cData->spawnFlags & SPAWN_FLAG_EVADE_OUT_HOME_AREA)
+        if (cData->spawn_flags & SPAWN_FLAG_EVADE_OUT_HOME_AREA)
             m_bEvadeOutOfHomeArea = true;
     }
-}
-
-void ScriptedAI::MoveInLineOfSight(Unit* pWho)
-{
-    if (!m_creature->IsWithinDistInMap(pWho, m_creature->GetAttackDistance(pWho)))
-        return;
-
-    if (m_creature->CanInitiateAttack() && pWho->isTargetableForAttack() && m_creature->IsHostileTo(pWho))
-    {
-        if (pWho->isInAccessablePlaceFor(m_creature) && m_creature->IsWithinLOSInMap(pWho))
-        {
-            if (!m_creature->getVictim())
-                AttackStart(pWho);
-            else if (m_creature->GetMap()->IsDungeon())
-            {
-                pWho->SetInCombatWith(m_creature);
-                m_creature->AddThreat(pWho);
-            }
-        }
-    }
-}
-
-void ScriptedAI::AttackStart(Unit* pWho)
-{
-    if (!pWho)
-        return;
-
-    if (m_creature->Attack(pWho, true))
-    {
-        m_creature->AddThreat(pWho);
-        m_creature->SetInCombatWith(pWho);
-        pWho->SetInCombatWith(m_creature);
-
-        if (m_bCombatMovement)
-            m_creature->GetMotionMaster()->MoveChase(pWho);
-    }
-    else
-        DEBUG_UNIT(m_creature, DEBUG_AI, "AttackStart %s impossible.", pWho->GetName());
 }
 
 void ScriptedAI::EnterCombat(Unit* pEnemy)
@@ -74,29 +36,19 @@ void ScriptedAI::Aggro(Unit* pEnemy)
 {
 }
 
-void ScriptedAI::UpdateAI(const uint32 uiDiff)
-{
-    //Check if we have a current target
-    m_creature->SelectHostileTarget();
-
-    if (!m_CreatureSpells.empty() && m_creature->isInCombat())
-        UpdateSpellsList(uiDiff);
-
-    DoMeleeAttackIfReady();
-}
-
 void ScriptedAI::EnterEvadeMode()
 {
+    m_creature->ClearComboPointHolders();
     m_creature->RemoveAurasAtReset();
     m_creature->DeleteThreatList();
     m_creature->CombatStop(true);
     m_creature->LoadCreatureAddon(true);
 
-    if (m_creature->isAlive())
+    if (m_creature->IsAlive())
         m_creature->GetMotionMaster()->MoveTargetedHome();
 
     // Prevent raid loot loss on grid unload
-    if (!m_creature->IsWorldBoss() || !m_creature->isDead())
+    if (!m_creature->IsWorldBoss() || !m_creature->IsDead())
         m_creature->SetLootRecipient(nullptr);
 
     // Reset back to default spells template. This also resets timers.
@@ -128,7 +80,7 @@ void ScriptedAI::DoStartNoMovement(Unit* pVictim)
 
 void ScriptedAI::DoStopAttack()
 {
-    if (m_creature->getVictim())
+    if (m_creature->GetVictim())
         m_creature->AttackStop();
 }
 
@@ -147,7 +99,7 @@ void ScriptedAI::DoPlaySoundToSet(WorldObject* pSource, uint32 uiSoundId)
 
     if (!sObjectMgr.GetSoundEntry(uiSoundId))
     {
-        sLog.outError("Invalid soundId %u used in DoPlaySoundToSet (Source: TypeId %u, GUID %u)", uiSoundId, pSource->GetTypeId(), pSource->GetGUIDLow());
+        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Invalid soundId %u used in DoPlaySoundToSet (Source: TypeId %u, GUID %u)", uiSoundId, pSource->GetTypeId(), pSource->GetGUIDLow());
         return;
     }
 
@@ -169,20 +121,7 @@ Creature* ScriptedAI::DoSpawnCreature(uint32 id, float dist, uint32 type, uint32
 
 void ScriptedAI::DoResetThreat()
 {
-    if (!m_creature->CanHaveThreatList() || m_creature->getThreatManager().isThreatListEmpty())
-    {
-        sLog.outError("DoResetThreat called for creature that either cannot have threat list or has empty threat list (m_creature entry = %d)", m_creature->GetEntry());
-        return;
-    }
-
-    ThreatList const& tList = m_creature->getThreatManager().getThreatList();
-    for (ThreatList::const_iterator itr = tList.begin();itr != tList.end(); ++itr)
-    {
-        Unit* pUnit = m_creature->GetMap()->GetUnit( (*itr)->getUnitGuid());
-
-        if (pUnit && m_creature->getThreatManager().getThreat(pUnit))
-            m_creature->getThreatManager().modifyThreatPercent(pUnit, -100);
-    }
+    m_creature->DoResetThreat();
 }
 
 void ScriptedAI::DoTeleportPlayer(Unit* pUnit, float fX, float fY, float fZ, float fO)
@@ -190,7 +129,7 @@ void ScriptedAI::DoTeleportPlayer(Unit* pUnit, float fX, float fY, float fZ, flo
     if (!pUnit || pUnit->GetTypeId() != TYPEID_PLAYER)
     {
         if (pUnit)
-            sLog.outError("Creature %u (Entry: %u) Tried to teleport non-player unit (Type: %u GUID: %u) to x: %f y:%f z: %f o: %f. Aborted.", m_creature->GetGUID(), m_creature->GetEntry(), pUnit->GetTypeId(), pUnit->GetGUID(), fX, fY, fZ, fO);
+            sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Creature %u (Entry: %u) Tried to teleport non-player unit (Type: %u GUID: %u) to x: %f y:%f z: %f o: %f. Aborted.", m_creature->GetGUID(), m_creature->GetEntry(), pUnit->GetTypeId(), pUnit->GetGUID(), fX, fY, fZ, fO);
 
         return;
     }
@@ -270,7 +209,7 @@ enum
     NPC_VARIMATHRAS = 2425
 };
 
-bool ScriptedAI::EnterEvadeIfOutOfCombatArea(const uint32 uiDiff)
+bool ScriptedAI::EnterEvadeIfOutOfCombatArea(uint32 const uiDiff)
 {
     if (m_uiEvadeCheckCooldown < uiDiff)
         m_uiEvadeCheckCooldown = 2500;
@@ -280,7 +219,7 @@ bool ScriptedAI::EnterEvadeIfOutOfCombatArea(const uint32 uiDiff)
         return false;
     }
 
-    if (m_creature->IsInEvadeMode() || !m_creature->getVictim())
+    if (m_creature->IsInEvadeMode() || !m_creature->GetVictim())
         return false;
 
     float fX = m_creature->GetPositionX();
@@ -303,7 +242,7 @@ bool ScriptedAI::EnterEvadeIfOutOfCombatArea(const uint32 uiDiff)
                 return false;
             break;
         default:
-            sLog.outError("EnterEvadeIfOutOfCombatArea used for creature entry %u, but does not have any definition.", m_creature->GetEntry());
+            sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "EnterEvadeIfOutOfCombatArea used for creature entry %u, but does not have any definition.", m_creature->GetEntry());
             return false;
     }
 
@@ -317,20 +256,11 @@ void ScriptedAI::EnterEvadeIfOutOfHomeArea()
         return;
 
     if (m_creature->GetAreaId() != m_uiHomeArea)
-    {
-        std::ostringstream log;
-        log << "Home area left, evading.";
-        m_creature->LogScriptInfo(log);
-
         EnterEvadeMode();
-    }
 }
 
 void Scripted_NoMovementAI::AttackStart(Unit* pWho)
 {
-    if (!pWho)
-        return;
-
     if (m_creature->Attack(pWho, true))
     {
         m_creature->AddThreat(pWho);
@@ -343,7 +273,7 @@ void Scripted_NoMovementAI::AttackStart(Unit* pWho)
 
 void ScriptedAI::DoGoHome()
 {
-    if (!m_creature->getVictim() && m_creature->isAlive())
+    if (!m_creature->GetVictim() && m_creature->IsAlive())
         m_creature->GetMotionMaster()->MoveTargetedHome();
 }
 
@@ -352,13 +282,13 @@ void ScriptedAI::DoGoHome()
 float ScriptedAI::DoGetThreat(Unit* pUnit)
 {
     if (!pUnit) return 0.0f;
-    return me->getThreatManager().getThreat(pUnit);
+    return me->GetThreatManager().getThreat(pUnit);
 }
 
 void ScriptedAI::DoModifyThreatPercent(Unit* pUnit, int32 pct)
 {
     if (!pUnit) return;
-    me->getThreatManager().modifyThreatPercent(pUnit, pct);
+    me->GetThreatManager().modifyThreatPercent(pUnit, pct);
 }
 
 void ScriptedAI::DoTeleportTo(float fX, float fY, float fZ)
@@ -366,43 +296,43 @@ void ScriptedAI::DoTeleportTo(float fX, float fY, float fZ)
     me->NearTeleportTo(fX, fY, fZ, me->GetOrientation());
 }
 
-void ScriptedAI::DoTeleportTo(const float fPos[4])
+void ScriptedAI::DoTeleportTo(float const fPos[4])
 {
     me->NearTeleportTo(fPos[0], fPos[1], fPos[2], fPos[3]);
 }
 
 void ScriptedAI::DoTeleportAll(float fX, float fY, float fZ, float fO)
 {
-    Map *map = me->GetMap();
+    Map* map = me->GetMap();
     if (!map->IsDungeon())
         return;
 
-    Map::PlayerList const &PlayerList = map->GetPlayers();
-    for (Map::PlayerList::const_iterator i = PlayerList.begin(); i != PlayerList.end(); ++i)
-        if (Player* i_pl = i->getSource())
-            if (i_pl->isAlive())
+    Map::PlayerList const& PlayerList = map->GetPlayers();
+    for (const auto& i : PlayerList)
+        if (Player* i_pl = i.getSource())
+            if (i_pl->IsAlive())
                 i_pl->TeleportTo(me->GetMapId(), fX, fY, fZ, fO, TELE_TO_NOT_LEAVE_COMBAT);
 }
 
 void ScriptedAI::EnterVanish()
 {
     m_creature->SetVisibility(VISIBILITY_OFF);
-    m_creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_NON_ATTACKABLE);
+    m_creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_SPAWNING);
     m_creature->InterruptSpellsCastedOnMe(true);
     m_creature->InterruptAttacksOnMe();
     m_creature->AttackStop();
     m_creature->InterruptSpell(CURRENT_AUTOREPEAT_SPELL);
     // DoResetThreat :
-    if (!m_creature->CanHaveThreatList() || m_creature->getThreatManager().isThreatListEmpty())
+    if (!m_creature->CanHaveThreatList() || m_creature->GetThreatManager().isThreatListEmpty())
         return;
 
-    ThreatList const& tList = m_creature->getThreatManager().getThreatList();
-    for (ThreatList::const_iterator itr = tList.begin(); itr != tList.end(); ++itr)
+    ThreatList const& tList = m_creature->GetThreatManager().getThreatList();
+    for (const auto itr : tList)
     {
-        Unit* pUnit = m_creature->GetMap()->GetUnit((*itr)->getUnitGuid());
+        Unit* pUnit = m_creature->GetMap()->GetUnit(itr->getUnitGuid());
 
-        if (pUnit && m_creature->getThreatManager().getThreat(pUnit))
-            m_creature->getThreatManager().modifyThreatPercent(pUnit, -100);
+        if (pUnit && m_creature->GetThreatManager().getThreat(pUnit))
+            m_creature->GetThreatManager().modifyThreatPercent(pUnit, -100);
     }
 }
 

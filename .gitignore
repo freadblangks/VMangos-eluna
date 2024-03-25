@@ -27,7 +27,11 @@
 *.opendb
 *.exp
 *.res
+CMakeSettings.json
+/out/
 
+# CLion files
+cmake-build-*
 
 #
 # Top-level generic files
@@ -58,6 +62,11 @@ callgrind.out.*
 #
 # stgit directories
 patches-*
+
+#
+# Github stuff
+#
+!.github/
 
 #
 # VS binaries output
@@ -97,6 +106,10 @@ patch
 php
 
 sql/migrations/*.py
+sql/migrations/characters_db_updates.sql
+sql/migrations/logon_db_updates.sql
+sql/migrations/logs_db_updates.sql
+sql/migrations/world_db_updates.sql
 
 # Generating by CMake
 revision.h

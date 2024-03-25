@@ -29,22 +29,22 @@ class TemporarySummon : public Creature
 {
     public:
         explicit TemporarySummon(ObjectGuid summoner = ObjectGuid());
-        virtual ~TemporarySummon();
+        ~TemporarySummon() override;
 
         void Update(uint32 update_diff, uint32 time) override;
-        void Summon(TempSummonType type, uint32 lifetime);
-        void MANGOS_DLL_SPEC UnSummon(uint32 delayDespawnTime = 0);
+        void Summon(TempSummonType type, uint32 lifetime, CreatureAiSetter pFuncAiSetter = nullptr);
+        void UnSummon(uint32 delayDespawnTime = 0);
         void CleanupsBeforeDelete() override;
         void SaveToDB();
         ObjectGuid const& GetSummonerGuid() const { return m_summoner ; }
         Unit* GetSummoner() const { return ObjectAccessor::GetUnit(*this, m_summoner); }
+        TempSummonType GetDespawnType() const { return m_type; }
     private:
         TempSummonType m_type;
         uint32 m_timer;
         uint32 m_lifetime;
         ObjectGuid m_summoner;
         bool m_justDied = false;
-        uint32 m_forceTargetUpdateTimer;
         bool m_unSummonInformed;
         void InformSummonerOfDespawn();
 };

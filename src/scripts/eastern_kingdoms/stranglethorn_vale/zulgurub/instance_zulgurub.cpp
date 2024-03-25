@@ -24,9 +24,6 @@ EndScriptData */
 #include "scriptPCH.h"
 #include "zulgurub.h"
 
-#define ZG_LOG sLog.outDebug
-//#define ZG_LOG sLog.outError(
-
 #define BOSS_GRILEK                     15082
 #define BOSS_HAZZARAH                   15083
 #define BOSS_RENATAKI                   15084
@@ -46,23 +43,50 @@ void instance_zulgurub::Initialize()
     m_uiGahzrankaGUID = 0;
 }
 
-// each time High Priest dies lower Hakkar's HP
-void instance_zulgurub::LowerHakkarHitPoints()
+void instance_zulgurub::UpdateHakkarPowerStacks()
 {
     if (Creature* pHakkar = instance->GetCreature(m_uiHakkarGUID))
     {
-        if (pHakkar->isAlive())
+        if (pHakkar->IsAlive())
         {
-            pHakkar->SetMaxHealth(pHakkar->GetMaxHealth() - 50000);
-            pHakkar->SetHealth(pHakkar->GetHealth() - 50000);
+            uint32 neededStacks = 0;
+            for (uint8 i = 0; i < 5; ++i)
+            {
+                if (m_auiEncounter[i] != DONE)
+                    neededStacks++;
+            }
+
+            uint32 currentStacks = 0;
+            if (SpellAuraHolder* pAura = pHakkar->GetSpellAuraHolder(SPELL_HAKKAR_POWER))
+                currentStacks = pAura->GetStackAmount();
+
+            if (neededStacks == currentStacks)
+                return;
+
+            if (neededStacks == 0)
+            {
+                pHakkar->RemoveAurasDueToSpell(SPELL_HAKKAR_POWER);
+                return;
+            }
+
+            if (currentStacks == 0)
+            {
+                for (uint8 i = 0; i < neededStacks; ++i)
+                    pHakkar->CastSpell(pHakkar, SPELL_HAKKAR_POWER, true);
+            }
+            else
+            {
+                if (SpellAuraHolder* pAura = pHakkar->GetSpellAuraHolder(SPELL_HAKKAR_POWER))
+                    pAura->SetStackAmount(neededStacks);
+            }
         }
     }
 }
 
 bool instance_zulgurub::IsEncounterInProgress() const
 {
-    for (uint8 i = 0; i < ZULGURUB_MAX_ENCOUNTER; ++i)
-        if (m_auiEncounter[i] == IN_PROGRESS || m_auiEncounter[i] == SPECIAL)
+    for (uint32 i : m_auiEncounter)
+        if (i == IN_PROGRESS || i == SPECIAL)
             return true;
     return false;
 }
@@ -80,27 +104,30 @@ void instance_zulgurub::OnCreatureCreate(Creature* pCreature)
             break;
         case NPC_THEKAL:
             HandleLoadCreature(TYPE_THEKAL, m_uiThekalGUID, pCreature);
+            UpdateHakkarPowerStacks();
             break;
         case NPC_JINDO:
             m_uiJindoGUID = pCreature->GetGUID();
             break;
         case NPC_HAKKAR:
             HandleLoadCreature(TYPE_HAKKAR, m_uiHakkarGUID, pCreature);
-            for (uint8 i = 0; i < 5; ++i)
-            {
-                if (m_auiEncounter[i] == DONE)
-                    LowerHakkarHitPoints();
-            }
+            UpdateHakkarPowerStacks();
             break;
         case NPC_VENOXIS:
             HandleLoadCreature(TYPE_VENOXIS, nullGuid, pCreature);
+            UpdateHakkarPowerStacks();
             break;
         case NPC_ARLOKK:
             HandleLoadCreature(TYPE_ARLOKK, nullGuid, pCreature);
+            UpdateHakkarPowerStacks();
             break;
         case NPC_MARLI:
             HandleLoadCreature(TYPE_MARLI, nullGuid, pCreature);
             m_uiMarliGUID = pCreature->GetGUID();
+            UpdateHakkarPowerStacks();
+            break;
+        case NPC_JEKLIK:
+            UpdateHakkarPowerStacks();
             break;
         case NPC_RAZZASHI_SKITTERER:
         case NPC_RAZZASHI_VENOMBROOD:
@@ -129,33 +156,28 @@ void instance_zulgurub::SetData(uint32 uiType, uint32 uiData)
 {
     switch (uiType)
     {
+        case TYPE_HAKKAR_POWER:
+            UpdateHakkarPowerStacks();
+            break;
         case TYPE_ARLOKK:
             m_auiEncounter[0] = uiData;
-            if (uiData == DONE)
-                LowerHakkarHitPoints();
             break;
         case TYPE_JEKLIK:
             m_auiEncounter[1] = uiData;
-            if (uiData == DONE)
-                LowerHakkarHitPoints();
             break;
         case TYPE_VENOXIS:
             m_auiEncounter[2] = uiData;
-            if (uiData == DONE)
-                LowerHakkarHitPoints();
             break;
         case TYPE_MARLI:
             m_auiEncounter[3] = uiData;
-            if (uiData == DONE)
-                LowerHakkarHitPoints();
             if (uiData == IN_PROGRESS)
             {
                 Creature *Marli = instance->GetCreature(m_uiMarliGUID);
-                Unit* pVictim = Marli->getVictim();
-                for (std::list<uint64>::const_iterator itr = m_lMarliTrashGUIDList.begin(); itr != m_lMarliTrashGUIDList.end(); itr++)
+                Unit* pVictim = Marli->GetVictim();
+                for (const auto& guid : m_lMarliTrashGUIDList)
                 {
-                    if (Creature* MarliTrash = instance->GetCreature(*itr))
-                        if (MarliTrash->isAlive() && !MarliTrash->isInCombat())
+                    if (Creature* MarliTrash = instance->GetCreature(guid))
+                        if (MarliTrash->IsAlive() && !MarliTrash->IsInCombat())
                             if (MarliTrash->GetMapId() == 309 && MarliTrash->GetZoneId() == 1977 && MarliTrash->GetAreaId() == 3379)
                                 MarliTrash->AI()->AttackStart(pVictim);
                 }
@@ -163,8 +185,6 @@ void instance_zulgurub::SetData(uint32 uiType, uint32 uiData)
             break;
         case TYPE_THEKAL:
             m_auiEncounter[4] = uiData;
-            if (uiData == DONE)
-                LowerHakkarHitPoints();
             break;
         case TYPE_LORKHAN:
             m_auiEncounter[5] = uiData;
@@ -211,12 +231,12 @@ void instance_zulgurub::SetData(uint32 uiType, uint32 uiData)
     }
 }
 
-const char* instance_zulgurub::Save()
+char const* instance_zulgurub::Save()
 {
     return strInstData.c_str();
 }
 
-void instance_zulgurub::Load(const char* chrIn)
+void instance_zulgurub::Load(char const* chrIn)
 {
     if (!chrIn)
     {
@@ -228,10 +248,10 @@ void instance_zulgurub::Load(const char* chrIn)
 
     LoadSaveData(chrIn, m_auiEncounter, 11);
 
-    for (uint8 i = 0; i < ZULGURUB_MAX_ENCOUNTER; ++i)
+    for (uint32 & i : m_auiEncounter)
     {
-        if (m_auiEncounter[i] == IN_PROGRESS)
-            m_auiEncounter[i] = NOT_STARTED;
+        if (i == IN_PROGRESS)
+            i = NOT_STARTED;
     }
     if (!m_randomBossSpawned)
         SpawnRandomBoss();
@@ -304,7 +324,7 @@ void instance_zulgurub::Create()
 
 void instance_zulgurub::OnCreatureDeath(Creature * pCreature)
 {
-    ZG_LOG("OnCreatureDeath %u", pCreature->GetEntry());
+    sLog.Out(LOG_SCRIPTS, LOG_LVL_DEBUG, "OnCreatureDeath %u", pCreature->GetEntry());
     if (pCreature->GetEntry() >= 15082 && pCreature->GetEntry() <= 15085)
         SetData(TYPE_RANDOM_BOSS, DONE);
 
@@ -322,7 +342,7 @@ uint32 instance_zulgurub::GenerateRandomBoss()
     uint32 weekmod = ((dayCount - (dayCount % 14)) / 14) % 3;
     uint32 bossId = 15082 + weekmod;
     randomBossEntry = bossId;
-    ZG_LOG("GenerateRandomBoss %u -> %u", weekmod, bossId);
+    sLog.Out(LOG_SCRIPTS, LOG_LVL_DEBUG, "GenerateRandomBoss %u -> %u", weekmod, bossId);
     return bossId;
 }
 
@@ -344,15 +364,15 @@ void instance_zulgurub::SpawnRandomBoss()
 Unit* instance_zulgurub::Thekal_GetUnitThatCanRez()
 {
     if (Unit *pLorKhan = instance->GetUnit(GetData64(DATA_LORKHAN)))
-        if (pLorKhan->isAlive())
+        if (pLorKhan->IsAlive())
             return pLorKhan;
     if (Unit *pZath = instance->GetUnit(GetData64(DATA_ZATH)))
-        if (pZath->isAlive())
+        if (pZath->IsAlive())
             return pZath;
     if (Unit *pThekal = instance->GetUnit(GetData64(DATA_THEKAL)))
-        if (pThekal->isAlive())
+        if (pThekal->IsAlive())
             return pThekal;
-    return NULL;
+    return nullptr;
 }
 
 InstanceData* GetInstanceData_instance_zulgurub(Map* pMap)
@@ -360,78 +380,19 @@ InstanceData* GetInstanceData_instance_zulgurub(Map* pMap)
     return new instance_zulgurub(pMap);
 }
 
-struct npc_brazierAI: public ScriptedAI
+enum
 {
-    npc_brazierAI(Creature* pCreature) : ScriptedAI(pCreature)
-    {
-        Reset();
-    }
-
-    uint32 Timer;
-    uint32 Var;
-
-    void Reset()
-    {
-        Timer = 0;
-        Var = 0;
-    }
-
-    void UseGo(int Nombre)
-    {
-        int var = 0;
-        while (var < Nombre)
-        {
-            std::list<GameObject*> GOListe;
-            GetGameObjectListWithEntryInGrid(GOListe, m_creature, 180252, 100.0f);
-            std::list<GameObject*>::iterator itr = GOListe.begin();
-            if (itr == GOListe.end())
-                return;
-
-            std::advance(itr, rand() % GOListe.size());
-            if (GameObject* GO = *itr)
-            {
-                GO->Use(m_creature);
-                GOListe.erase(itr);
-                var++;
-            }
-        }
-    }
-
-    void UpdateAI(const uint32 uiDiff)
-    {
-        if (Var > 24)
-            m_creature->ForcedDespawn();
-
-        if (Timer < uiDiff)
-        {
-            if (Var > 3)
-                UseGo(4);
-            else if (Var < 10)
-                UseGo(12);
-            else
-                UseGo(6);
-            Timer = 1000;
-            Var++;
-            return;
-        }
-        else Timer -= uiDiff;
-    }
+    TABLET_GRILEK1 = 180358,
+    TABLET_HAZZARAH1 = 180364,
+    TABLET_RENATAKI1 = 180365,
+    TABLET_WUSHOOLAY1 = 180393,
+    TABLET_GRILEK2 = 987654,
+    TABLET_HAZZARAH2 = 987655,
+    TABLET_RENATAKI2 = 987656,
+    TABLET_WUSHOOLAY2 = 987657,
+    TABLET_ALCHEMIST_SPELL = 24266,
 };
 
-CreatureAI* GetAI_npc_brazier(Creature* pCreature)
-{
-    return new npc_brazierAI(pCreature);
-}
-
-#define TABLET_GRILEK1			180358
-#define TABLET_HAZZARAH1		180364
-#define TABLET_RENATAKI1		180365
-#define TABLET_WUSHOOLAY1		180393
-#define TABLET_GRILEK2			987654
-#define TABLET_HAZZARAH2		987655
-#define TABLET_RENATAKI2		987656
-#define TABLET_WUSHOOLAY2		987657
-#define TABLET_ALCHEMIST_SPELL	24266
 
 bool OnGossipHello_go_table_madness(Player* pPlayer, GameObject* pGo)
 {
@@ -462,7 +423,6 @@ bool OnGossipHello_go_table_madness(Player* pPlayer, GameObject* pGo)
     //char sMessage[200];
     //sprintf(sMessage, "boss ID=%d",randomBoss);
     //pPlayer->Say(sMessage,0);
-		
     switch(pGo->GetEntry())
     {
         case TABLET_GRILEK1:
@@ -470,28 +430,28 @@ bool OnGossipHello_go_table_madness(Player* pPlayer, GameObject* pGo)
             if (randomBoss == BOSS_GRILEK)
                 pPlayer->SEND_GOSSIP_MENU(7669, pGo->GetGUID());
             else
-                pPlayer->SEND_GOSSIP_MENU(7643, pGo->GetGUID());			
+                pPlayer->SEND_GOSSIP_MENU(7643, pGo->GetGUID());
             break;
-	case TABLET_HAZZARAH1:
-	case TABLET_HAZZARAH2:
+    case TABLET_HAZZARAH1:
+    case TABLET_HAZZARAH2:
             if (randomBoss == BOSS_HAZZARAH)
-                pPlayer->SEND_GOSSIP_MENU(7675, pGo->GetGUID());
+                pPlayer->SEND_GOSSIP_MENU(7671, pGo->GetGUID());
             else
-                pPlayer->SEND_GOSSIP_MENU(7670, pGo->GetGUID());			
+                pPlayer->SEND_GOSSIP_MENU(7670, pGo->GetGUID());
             break;
-	case TABLET_RENATAKI1:
-	case TABLET_RENATAKI2:
+    case TABLET_RENATAKI1:
+    case TABLET_RENATAKI2:
             if (randomBoss == BOSS_RENATAKI)
                 pPlayer->SEND_GOSSIP_MENU(7673, pGo->GetGUID());
             else
-                pPlayer->SEND_GOSSIP_MENU(7672, pGo->GetGUID());			
+                pPlayer->SEND_GOSSIP_MENU(7672, pGo->GetGUID());
             break;
-	case TABLET_WUSHOOLAY1:
-	case TABLET_WUSHOOLAY2:
+    case TABLET_WUSHOOLAY1:
+    case TABLET_WUSHOOLAY2:
             if (randomBoss == BOSS_WUSHOOLAY)
-                pPlayer->SEND_GOSSIP_MENU(7682, pGo->GetGUID());
+                pPlayer->SEND_GOSSIP_MENU(7675, pGo->GetGUID());
             else
-                pPlayer->SEND_GOSSIP_MENU(7674, pGo->GetGUID());			
+                pPlayer->SEND_GOSSIP_MENU(7674, pGo->GetGUID());
             break;
     }
     return true;
@@ -536,11 +496,6 @@ void AddSC_instance_zulgurub()
     newscript = new Script;
     newscript->Name = "go_table_madness";
     newscript->pGOHello = &OnGossipHello_go_table_madness;
-    newscript->RegisterSelf();
-
-    newscript = new Script;
-    newscript->Name = "npc_brazier";
-    newscript->GetAI = &GetAI_npc_brazier;
     newscript->RegisterSelf();
 
     newscript = new Script;

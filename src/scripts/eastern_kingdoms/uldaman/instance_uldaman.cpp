@@ -55,7 +55,7 @@ struct instance_uldaman : public ScriptedInstance
     std::vector<uint64> vEarthenGuardian;
     std::vector<uint64> vArchaedasWallMinions; //Minions lined up around the wall
 
-    void Initialize()
+    void Initialize() override
     {
         memset(&m_auiEncounter, 0, sizeof(m_auiEncounter));
         uiArchaedasGUID = 0;
@@ -75,11 +75,11 @@ struct instance_uldaman : public ScriptedInstance
         vEarthenGuardian.reserve(6);
     }
 
-    bool IsEncounterInProgress() const
+    bool IsEncounterInProgress() const override
     {
-        for (uint8 i = 0; i < ULDAMAN_MAX_ENCOUNTER; ++i)
+        for (uint32 i : m_auiEncounter)
         {
-            if (m_auiEncounter[i] == IN_PROGRESS)
+            if (i == IN_PROGRESS)
             {
                 return true;
             }
@@ -89,7 +89,7 @@ struct instance_uldaman : public ScriptedInstance
     }
 
 
-    void OnCreatureCreate(Creature* pCreature)
+    void OnCreatureCreate(Creature* pCreature) override
     {
         switch (pCreature->GetEntry())
         {
@@ -137,9 +137,9 @@ struct instance_uldaman : public ScriptedInstance
         }
     }
 
-    void OnObjectCreate(GameObject* pGo)
+    void OnObjectCreate(GameObject* pGo) override
     {
-        //sLog.outError("%s %u",pGo->GetNameForLocaleIdx(0),pGo->GetEntry());
+        //sLog.Out(LOG_SCRIPTS, LOG_LVL_ERROR, "%s %u",pGo->GetNameForLocaleIdx(0),pGo->GetEntry());
         switch (pGo->GetEntry())
         {
             case GO_ALTAR_ARCHAEDAS:
@@ -180,9 +180,8 @@ struct instance_uldaman : public ScriptedInstance
 
     void SetFrozenState(Creature* creature)
     {
-        creature->setFaction(FACTION_STONED);
+        creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PLAYER | UNIT_FLAG_IMMUNE_TO_NPC | UNIT_FLAG_NOT_SELECTABLE);
         creature->RemoveAllAuras();
-        creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
         if (!creature->HasAura(SPELL_STONED))
         {
             creature->CastSpell(creature, SPELL_STONED, false);
@@ -191,41 +190,37 @@ struct instance_uldaman : public ScriptedInstance
 
     void SetUnFrozenState(Creature* creature)
     {
-        creature->setFaction(FACTION_AWAKE);
+        creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PLAYER | UNIT_FLAG_IMMUNE_TO_NPC | UNIT_FLAG_NOT_SELECTABLE);
         if (creature->HasAura(SPELL_STONED))
         {
             creature->RemoveAurasDueToSpell(SPELL_STONED);
         }
-        creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
-        //creature->clearUnitState(UNIT_STAT_ROOT | UNIT_STAT_PENDING_ROOT);
-        //creature->RemoveFlag(UNIT_FIELD_FLAGS,
-    //                    UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_NON_ATTACKABLE);
     }
 
     void RespawnMinion(uint64 guid)
     {
         Creature* target = instance->GetCreature(guid);
-        if (!target || (target->isAlive() && target->getFaction() == FACTION_STONED))
+        if (!target || (target->IsAlive() && target->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PLAYER | UNIT_FLAG_IMMUNE_TO_NPC)))
             return;
-        if (target->isAlive())
+        if (target->IsAlive())
         {
             target->SetDeathState(JUST_DIED);
             target->RemoveCorpse();
         }
         target->Respawn();
-        target->setFaction(FACTION_STONED);
+        target->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PLAYER | UNIT_FLAG_IMMUNE_TO_NPC);
     }
 
     void DespawnMinion(uint64 guid)
     {
         Creature* target = instance->GetCreature(guid);
-        if (!target || target->isDead())
+        if (!target || target->IsDead())
             return;
         target->SetDeathState(JUST_DIED);
         target->RemoveCorpse();
     }
 
-    void SetData64(uint32 type, uint64 data)
+    void SetData64(uint32 type, uint64 data) override
     {
         // Ironaya's waker
         if (type == 0)
@@ -250,7 +245,7 @@ struct instance_uldaman : public ScriptedInstance
         }
     }
 
-    uint64 GetData64(uint32 uiData)
+    uint64 GetData64(uint32 uiData) override
     {
         if (uiData == 0) return uiWhoWokeIronayaGUID;
         if (uiData == 1) return vVaultWarder[0]; // VaultWarder1
@@ -268,7 +263,7 @@ struct instance_uldaman : public ScriptedInstance
         return 0;
     }
 
-    void SetData(uint32 uiType, uint32 uiData)
+    void SetData(uint32 uiType, uint32 uiData) override
     {
         switch (uiType)
         {
@@ -304,19 +299,19 @@ struct instance_uldaman : public ScriptedInstance
                         /** Check the list of Stone Keeper created at instance creation */
                         Creature* target = nullptr;
                         bool encounterDone = true;
-                        for (const auto& it : vStoneKeeper)
+                        for (const auto& guid : vStoneKeeper)
                         {
-                            Creature* current = instance->GetCreature(it);
+                            Creature* current = instance->GetCreature(guid);
 
                             /* Do nothing if one is already alive and awaken */
-                            if (current && current->isAlive() && current->getFaction() == FACTION_AWAKE)
+                            if (current && current->IsAlive() && !current->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PLAYER | UNIT_FLAG_IMMUNE_TO_NPC))
                             {
                                 target = nullptr;
                                 encounterDone = false;
                                 break;
                             }
                             /* Save a creature that can be awaken for later */
-                            if (!target && current && current->isAlive() && current->getFaction() != FACTION_AWAKE)
+                            if (!target && current && current->IsAlive() && current->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PLAYER | UNIT_FLAG_IMMUNE_TO_NPC))
                             {
                                 target = current;
                             }
@@ -326,6 +321,7 @@ struct instance_uldaman : public ScriptedInstance
                             encounterDone = false;
                             /** Creature become alive */
                             SetUnFrozenState(target);
+                            target->SetFactionTemporary(470, TEMPFACTION_RESTORE_RESPAWN | TEMPFACTION_RESTORE_COMBAT_STOP);
                             if (Unit* victim = target->SelectNearestTarget(80.0f))
                             {
                                 target->AI()->AttackStart(victim);
@@ -341,19 +337,19 @@ struct instance_uldaman : public ScriptedInstance
                     }
                     case FAIL:
                         m_auiEncounter[ULDAMAN_ENCOUNTER_STONE_KEEPERS] = uiData;
-                        for (const auto& it : vStoneKeeper)
+                        for (const auto& guid : vStoneKeeper)
                         {
-                            Creature* target = instance->GetCreature(it);
+                            Creature* target = instance->GetCreature(guid);
                             if (!target)
                             {
                                 continue;
                             }
-                            if (target->isDead())
+                            if (target->IsDead())
                             {
                                 target->Respawn();
                                 SetFrozenState(target);
                             }
-                            else if (target->getFaction() == FACTION_AWAKE)
+                            else if (!target->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PLAYER | UNIT_FLAG_IMMUNE_TO_NPC))
                             {
                                 target->SetDeathState(JUST_DIED);
                                 target->RemoveCorpse();
@@ -415,7 +411,7 @@ struct instance_uldaman : public ScriptedInstance
                                 SetData(DATA_ANCIENT_DOOR, IN_PROGRESS);
                             if (archaedas)
                             {
-                                if (archaedas->isAlive() && archaedas->getFaction() != FACTION_AWAKE)
+                                if (archaedas->IsAlive() && archaedas->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PLAYER | UNIT_FLAG_IMMUNE_TO_NPC))
                                 {
                                     archaedas->CastSpell(archaedas, SPELL_ARCHAEDAS_AWAKEN, false);
                                     SetUnFrozenState(archaedas);
@@ -427,12 +423,12 @@ struct instance_uldaman : public ScriptedInstance
                             for (const auto& i : vArchaedasWallMinions)
                             {
                                 Creature* target = instance->GetCreature(i);
-                                if (!target || !target->isAlive() || target->getFaction() == FACTION_AWAKE)
+                                if (!target || !target->IsAlive() || !target->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PLAYER | UNIT_FLAG_IMMUNE_TO_NPC))
                                 {
                                     continue;
                                 }
                                 archaedas->CastSpell(target, SPELL_AWAKEN_EARTHEN_DWARF, false);
-                                target->setFaction(FACTION_AWAKE);
+                                target->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PLAYER | UNIT_FLAG_IMMUNE_TO_NPC | UNIT_FLAG_NOT_SELECTABLE);
                                 break; // only want the first one we find
                             }
                         }
@@ -483,7 +479,11 @@ struct instance_uldaman : public ScriptedInstance
                             if (target && target->IsDespawned())
                                 target->Respawn();
                         }
-                        SetData(DATA_ANCIENT_DOOR, DONE); // open the vault door
+                        // Open the Vault door
+                        SetData(DATA_ANCIENT_DOOR, DONE);
+                        // Summon Ancient Treasure
+                        instance->SummonGameObject(GO_ANCIENT_TREASURE, 153.39f, 289.091f, -52.2262f, 2.68781f,
+                                0, 0, 0.97437f, 0.224951f, -1, 0);
                         break;
                     default:
                         m_auiEncounter[ULDAMAN_ENCOUNTER_ARCHAEDAS] = uiData;
@@ -503,12 +503,12 @@ struct instance_uldaman : public ScriptedInstance
         }
     }
 
-    const char* Save() override
+    char const* Save() override
     {
         return strInstData.c_str();
     }
 
-    void Load(const char* chrIn) override
+    void Load(char const* chrIn) override
     {
         if (!chrIn)
         {
@@ -519,13 +519,13 @@ struct instance_uldaman : public ScriptedInstance
         OUT_LOAD_INST_DATA(chrIn);
         std::istringstream loadStream(chrIn);
         loadStream >> m_auiEncounter[0] >> m_auiEncounter[1] >> m_auiEncounter[2];
-        for (uint8 i = 0; i < ULDAMAN_MAX_ENCOUNTER; ++i)
-            if (m_auiEncounter[i] != DONE)
-                m_auiEncounter[i] = NOT_STARTED;
+        for (uint32 & i : m_auiEncounter)
+            if (i != DONE)
+                i = NOT_STARTED;
         OUT_LOAD_INST_DATA_COMPLETE;
     }
 
-    uint32 GetData(uint32 uiType)
+    uint32 GetData(uint32 uiType) override
     {
         if (uiType == ULDAMAN_ENCOUNTER_IRONAYA_DOOR) return m_auiEncounter[ULDAMAN_ENCOUNTER_IRONAYA_DOOR];
         if (uiType == ULDAMAN_ENCOUNTER_STONE_KEEPERS) return m_auiEncounter[ULDAMAN_ENCOUNTER_STONE_KEEPERS];
@@ -534,7 +534,7 @@ struct instance_uldaman : public ScriptedInstance
         return 0;
     }
 
-    void Update(uint32 uiDiff)
+    void Update(uint32 uiDiff) override
     {
         if (!bKeystoneCheck)
         {
@@ -546,6 +546,7 @@ struct instance_uldaman : public ScriptedInstance
             if (!ironaya)
                 return;
             SetUnFrozenState(ironaya);
+            ironaya->SetFactionTemplateId(415);
             DoOpenDoor(uiIronayaSealDoor);
             bKeystoneCheck = false;
         }

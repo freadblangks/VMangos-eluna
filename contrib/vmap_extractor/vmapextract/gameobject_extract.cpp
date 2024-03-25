@@ -1,6 +1,6 @@
 #include "model.h"
 #include "dbcfile.h"
-#include "adtfile.h"
+#include "wmo.h"
 #include "vmapexport.h"
 
 #include <algorithm>
@@ -8,10 +8,13 @@
 
 bool ExtractSingleModel(std::string& origPath, std::string& fixedName, StringSet& failedPaths)
 {
-    char const* ext = GetExtension(GetPlainName(origPath.c_str()));
+    if (origPath.length() < 4)
+        return false;
+
+    std::string extension = GetExtension(GetPlainName(origPath.c_str()));
 
     // < 3.1.0 ADT MMDX section store filename.mdx filenames for corresponded .m2 file
-    if (!strcmp(ext, ".mdx"))
+    if (extension == ".mdx" || extension == ".MDX" || extension == ".mdl" || extension == ".MDL")
     {
         // replace .mdx -> .m2
         origPath.erase(origPath.length() - 2, 2);
@@ -19,8 +22,14 @@ bool ExtractSingleModel(std::string& origPath, std::string& fixedName, StringSet
     }
     // >= 3.1.0 ADT MMDX section store filename.m2 filenames for corresponded .m2 file
     // nothing do
+	
+    // Fix a few models with spaces instead of underscores in their filenames (razorfen leanto03)
+    std::string s = GetPlainName(origPath.c_str());
+    std::transform(s.begin(), s.end(), s.begin(), [](char ch) {
+        return ch == ' ' ? '_' : ch;
+        });
 
-    fixedName = GetPlainName(origPath.c_str());
+    fixedName = s;
 
     std::string output(szWorkDirWmo);                       // Stores output filename (possible changed)
     output += "/";

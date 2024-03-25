@@ -38,7 +38,6 @@ struct boss_garrAI : ScriptedAI
 
     uint32 m_uiAntiMagicPulseTimer;
     uint32 m_uiMagmaShacklesTimer;
-    uint32 m_uiCheckAddsTimer;
     uint32 m_uiExplodeTimer;
     std::list<ObjectGuid> m_lFiresworn;
 
@@ -46,12 +45,12 @@ struct boss_garrAI : ScriptedAI
 
     void Reset() override
     {
-        m_uiAntiMagicPulseTimer = 25000;                       //These times are probably wrong
-        m_uiMagmaShacklesTimer  = 15000;
-        m_uiCheckAddsTimer      = 2000;
-        m_uiExplodeTimer        = urand(3000, 6000);
+        m_uiAntiMagicPulseTimer = 15000;
+        m_uiMagmaShacklesTimer  = 10000;
 
-        if (m_pInstance && m_creature->isAlive())
+        m_uiExplodeTimer        = 360000; // 6 Minutes
+
+        if (m_creature->IsAlive() && m_pInstance && m_pInstance->GetData(TYPE_GARR) != DONE)
             m_pInstance->SetData(TYPE_GARR, NOT_STARTED);
     }
 
@@ -62,7 +61,10 @@ struct boss_garrAI : ScriptedAI
             if (m_pInstance->GetData(TYPE_GARR) != DONE)
                 m_pInstance->SetData(TYPE_GARR, IN_PROGRESS);
             else
+            {
                 m_creature->DeleteLater();
+                return;
+            }
 
             m_creature->SetInCombatWithZone();
 
@@ -71,9 +73,9 @@ struct boss_garrAI : ScriptedAI
             GetCreatureListWithEntryInGrid(firesworn, m_creature, NPC_FIRESWORN, 150.0f);
             m_lFiresworn.clear();
 
-            for (auto itr = firesworn.begin(); itr != firesworn.end(); ++itr)
+            for (const auto& itr : firesworn)
             {
-                m_lFiresworn.push_back((*itr)->GetObjectGuid());
+                m_lFiresworn.push_back(itr->GetObjectGuid());
             }
         }
     }
@@ -87,25 +89,7 @@ struct boss_garrAI : ScriptedAI
     void FireswornJustDied(ObjectGuid fireswornGuid)
     {
         m_lFiresworn.remove(fireswornGuid);
-
-        std::ostringstream log;
-
-        CanCastResult result = DoCastSpellIfCan(m_creature, SPELL_ENRAGE, CF_TRIGGERED);
-
-        if (result == CAST_OK)
-        {
-            if (auto enrageAura = m_creature->GetAura(SPELL_ENRAGE, EFFECT_INDEX_0))
-            {
-                auto amount = enrageAura->GetStackAmount();              
-                log << "Enrage stacks: <" << amount << ">.";               
-            }
-        }
-        else
-        {
-            log << "Failed to cast <Enrage> with reason <" << result << ">.";
-        }
-
-        m_creature->LogScriptInfo(log);
+        DoCastSpellIfCan(m_creature, SPELL_ENRAGE, CF_TRIGGERED);
     }
 
     bool DoExplodeFiresworn() const
@@ -117,28 +101,26 @@ struct boss_garrAI : ScriptedAI
         std::advance(itr, rand() % m_lFiresworn.size());
 
         if (auto pFiresworn = m_creature->GetMap()->GetCreature(*itr))
-        { 
-            DoScriptText(EMOTE_MASSIVE_ERUPTION, m_creature);
-            m_creature->CastSpell(pFiresworn, SPELL_ERUPTION_TRIGGER, true);
-            return true;
+        {
+            if (!pFiresworn->HasAuraType(SPELL_AURA_MOD_STUN)) // If the add is not banished, explode it
+            {
+                m_creature->CastSpell(pFiresworn, SPELL_ERUPTION_TRIGGER, true);
+                return true;
+            }
         }
-
-        std::ostringstream log;
-        log << "Unable to access Firesworn.";
-        m_creature->LogScriptInfo(log);
 
         return false;
     }
 
-    void UpdateAI(const uint32 diff) override
+    void UpdateAI(uint32 const diff) override
     {
-        if (!m_creature->SelectHostileTarget() || !m_creature->getVictim())
+        if (!m_creature->SelectHostileTarget() || !m_creature->GetVictim())
             return;
 
         if (m_uiAntiMagicPulseTimer < diff)
         {
             if (DoCastSpellIfCan(m_creature, SPELL_ANTIMAGICPULSE) == CAST_OK)
-                m_uiAntiMagicPulseTimer = urand(10000, 15000);
+                m_uiAntiMagicPulseTimer = 20000;
         }
         else
             m_uiAntiMagicPulseTimer -= diff;
@@ -146,21 +128,19 @@ struct boss_garrAI : ScriptedAI
         if (m_uiMagmaShacklesTimer < diff)
         {
             if (DoCastSpellIfCan(m_creature, SPELL_MAGMASHACKLES) == CAST_OK)
-                m_uiMagmaShacklesTimer = urand(8000, 12000);
+                m_uiMagmaShacklesTimer = 15000;
         }
         else
             m_uiMagmaShacklesTimer -= diff;
 
-        if (m_creature->GetHealthPercent() < 50.0f)
+        if (m_uiExplodeTimer < diff)
         {
-            if (m_uiExplodeTimer < diff)
-            {
-                if (DoExplodeFiresworn())
-                    m_uiExplodeTimer = urand(10000, 20000);
-            }
-            else
-                m_uiExplodeTimer -= diff;
+            DoScriptText(EMOTE_MASSIVE_ERUPTION, m_creature); // he should say this even if there's no available adds
+            DoExplodeFiresworn();
+            m_uiExplodeTimer = 20000;
         }
+        else
+            m_uiExplodeTimer -= diff;
 
         DoMeleeAttackIfReady();
     }
@@ -205,45 +185,31 @@ struct mob_fireswornAI : ScriptedAI
 
         if (Creature* pGarr = m_pInstance->GetSingleCreatureFromStorage(NPC_GARR))
         {
-            if (pGarr->isAlive())
+            if (pGarr->IsAlive())
             {
                 if (auto pGarrAI = static_cast<boss_garrAI*>(pGarr->AI()))
-                    pGarrAI->FireswornJustDied(m_creature->GetObjectGuid());                
+                    pGarrAI->FireswornJustDied(m_creature->GetObjectGuid());
             }
-        }
-        else
-        {
-            std::ostringstream log;
-            log << "Failed to obtain Garr from storage.";
-            m_creature->LogScriptInfo(log);
         }
 
         if (!m_bForceExplosion)
         {
             m_creature->CastSpell(m_creature, SPELL_ADD_ERUPTION, true);
-
-            std::ostringstream log;
-            log << "Explode by myself.";
-            m_creature->LogScriptInfo(log);
         }
     }
 
-    void SpellHit(Unit* /*pCaster*/, const SpellEntry* pSpell) override
+    void SpellHit(SpellCaster* /*pCaster*/, SpellEntry const* pSpell) override
     {
         if (pSpell->Id == SPELL_ERUPTION_TRIGGER)
         {
-            std::ostringstream log;
-            log << "Ordered to explode.";
-            m_creature->LogScriptInfo(log);
-
             m_bForceExplosion = true;
             m_creature->CastSpell(m_creature, SPELL_MASSIVE_ERUPTION, true);
         }
     }
 
-    void UpdateAI(const uint32 diff) override
+    void UpdateAI(uint32 const diff) override
     {
-        if (!m_creature->SelectHostileTarget() || !m_creature->getVictim())
+        if (!m_creature->SelectHostileTarget() || !m_creature->GetVictim())
             return;
 
         if (m_uiAnxietyTimer < diff)
@@ -257,27 +223,11 @@ struct mob_fireswornAI : ScriptedAI
                 {
                     if (m_creature->GetDistance2d(pGarr) > 45.0f)
                     {
-                        CanCastResult result = DoCastSpellIfCan(m_creature, SPELL_SEPARATION_ANXIETY);
-                        std::ostringstream log;
+                        SpellCastResult result = DoCastSpellIfCan(m_creature, SPELL_SEPARATION_ANXIETY);
 
                         if (result == CAST_OK)
-                        {
-                            m_uiAnxietyTimer = 5000;                           
-                            log << "I'm in <Separation Anxiety>.";
-                        }
-                        else
-                        {
-                            log << "Failed to cast <Separation Anxiety> with reason <" << result << ">.";
-                        }
-
-                        m_creature->LogScriptInfo(log);
+                            m_uiAnxietyTimer = 5000;
                     }
-                }
-                else
-                {
-                    std::ostringstream log;
-                    log << "Failed to obtain Garr from storage.";
-                    m_creature->LogScriptInfo(log);
                 }
             }
         }
@@ -300,7 +250,7 @@ CreatureAI* GetAI_mob_firesworn(Creature* pCreature)
 
 void AddSC_boss_garr()
 {
-    Script *newscript;
+    Script* newscript;
 
     newscript = new Script;
     newscript->Name = "boss_garr";

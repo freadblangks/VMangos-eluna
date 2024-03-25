@@ -23,7 +23,9 @@
 #define MANGOS_FORMULAS_H
 
 #include "World.h"
-#include "ObjectMgr.h"
+#include "Creature.h"
+#include "Player.h"
+#include "Map.h"
 
 namespace MaNGOS
 {
@@ -91,125 +93,92 @@ namespace MaNGOS
             }
             return 0;
         }
-        inline uint32 BaseGain(uint32 pl_level, uint32 mob_level)
+
+        inline uint32 BaseGain(uint32 ownerLevel, uint32 unitLevel, uint32 mob_level)
         {
-            const uint32 nBaseExp = 45;
-            return (pl_level * 5 + nBaseExp) * BaseGainLevelFactor(pl_level, mob_level);
+            uint32 const nBaseExp = 45;
+            return (ownerLevel * 5 + nBaseExp) * BaseGainLevelFactor(unitLevel, mob_level);
         }
 
-        inline uint32 Gain(Player *pPlayer, Unit *pUnit)
+        inline uint32 Gain(Unit* pUnit, Creature* pCreature)
         {
-            if (Creature* pCreature = ToCreature(pUnit))
-            {
-                // Some objects and totems are marked as pets, need some aditional checks
-                bool isPet = pCreature->IsPet() &&
-                    pCreature->GetCreatureInfo()->type != CREATURE_TYPE_CRITTER &&
-                    pCreature->GetCreatureInfo()->type != CREATURE_TYPE_NOT_SPECIFIED &&
-                    pCreature->GetCreatureInfo()->type != CREATURE_TYPE_TOTEM &&
-                    pCreature->GetCreatureInfo()->health_min > 50;
+            if (pCreature->GetUInt32Value(UNIT_CREATED_BY_SPELL) &&
+               ((pCreature->GetCreatureInfo()->type == CREATURE_TYPE_CRITTER) ||
+                (pCreature->GetCreatureInfo()->type == CREATURE_TYPE_NOT_SPECIFIED) ||
+                (pCreature->GetCreatureInfo()->type == CREATURE_TYPE_TOTEM) ||
+                (pCreature->GetCreatureInfo()->health_multiplier <= 0.1f)))
+                return 0;
 
-                if (pCreature->GetUInt32Value(UNIT_CREATED_BY_SPELL) && !isPet)
-                    return 0;
-
-                if (pCreature->GetCreatureInfo()->flags_extra & CREATURE_FLAG_EXTRA_NO_XP_AT_KILL)
-                    return 0;
-
-                if (pCreature->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NO_KILL_REWARD))
-                    return 0;
-
-                uint32 xp_gain = BaseGain(pPlayer->getLevel(), pUnit->getLevel());
-                if (!xp_gain)
-                    return 0;
-
-                if (pCreature->IsElite())
-                {
-                    if (pCreature->GetMap()->IsNonRaidDungeon())
-                        xp_gain *= 2.5;
-                    else
-                        xp_gain *= 2;
-
-                    xp_gain *= sWorld.getConfig(CONFIG_FLOAT_RATE_XP_KILL_ELITE);
-                }
-
-                if (isPet)
-                    xp_gain *= 0.75f;
-
-                xp_gain *= pCreature->GetCreatureInfo()->xp_multiplier;
-                xp_gain *= pCreature->GetXPModifierDueToDamageOrigin();
-
-                float personalRate = pPlayer->GetPersonalXpRate();
-
-                if (personalRate >= 0.0f)
-                    xp_gain *= personalRate;
-                else
-                    xp_gain *= sWorld.getConfig(CONFIG_FLOAT_RATE_XP_KILL);
-
-                return (uint32)xp_gain;
-            }
+            if (pCreature->HasUnitState(UNIT_STAT_NO_KILL_REWARD))
+                return 0;
             
-            return 0;
-        }
+            uint32 ownerLevel = pUnit->GetLevel();
+            uint32 unitLevel = pUnit->GetLevel();
+            if (pUnit->IsPet())
+            {
+                if (Unit* pOwner = pUnit->GetOwner())
+                {
+                    ownerLevel = pOwner->GetLevel();
 
-        inline uint32 PetGain(Pet *pPet, Unit *pUnit)
-        {
-            bool isPet = pUnit->GetTypeId() == TYPEID_UNIT && pUnit->IsPet() &&
-                ((Creature*)pUnit)->GetCreatureInfo()->type != CREATURE_TYPE_CRITTER &&
-                ((Creature*)pUnit)->GetCreatureInfo()->type != CREATURE_TYPE_NOT_SPECIFIED &&
-                ((Creature*)pUnit)->GetCreatureInfo()->type != CREATURE_TYPE_TOTEM &&
-                ((Creature*)pUnit)->GetCreatureInfo()->health_min > 50;
+                    // World of Warcraft Client Patch 1.7.0 (2005-09-13)
+                    // - Hunter pets now gain experience based on the level difference between
+                    //   them and their target rather than the difference between the Hunters
+                    //   and their target.This will make it much easier to level up a low
+                    //   level pet.Keep in mind that the Hunter must still kill creatures
+                    //   from which he / she will gain experience.
+                    if (sWorld.GetWowPatch() < WOW_PATCH_107)
+                        unitLevel = pOwner->GetLevel();
+                }
+            }
 
-            if(pUnit->GetTypeId()==TYPEID_UNIT && (
-                (pUnit->GetUInt32Value(UNIT_CREATED_BY_SPELL) && !isPet) ||
-                (((Creature*)pUnit)->GetCreatureInfo()->flags_extra & CREATURE_FLAG_EXTRA_NO_XP_AT_KILL) ||
-                pUnit->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NO_KILL_REWARD)))
+            float xp_gain = BaseGain(ownerLevel, unitLevel, pCreature->GetLevel());
+            if (!xp_gain)
                 return 0;
 
-            uint32 xp_gain= BaseGain(pPet->getLevel(), pUnit->getLevel());
-            if( xp_gain == 0 )
-                return 0;
+            if (pCreature->IsElite())
+            {
+                if (pCreature->GetMap()->IsNonRaidDungeon())
+                    xp_gain *= 2.5;
+                else
+                    xp_gain *= 2;
 
-            if(pUnit->GetTypeId()==TYPEID_UNIT && ((Creature*)pUnit)->IsElite())
-                xp_gain *= 2;
+                xp_gain *= sWorld.getConfig(CONFIG_FLOAT_RATE_XP_KILL_ELITE);
+            }
 
-            if(isPet)
+            if (pCreature->IsPet())
                 xp_gain *= 0.75f;
 
-            float personalRate = -1.0f;
+            xp_gain *= pCreature->GetCreatureInfo()->xp_multiplier;
+            xp_gain *= pCreature->GetXPModifierDueToDamageOrigin();
 
-            if (Player* pOwner = ToPlayer(pPet->GetOwner()))
-                personalRate = pOwner->GetPersonalXpRate();
+            Player* pPlayer = pUnit->GetCharmerOrOwnerPlayerOrPlayerItself();
+            float personalRate = pPlayer ? pPlayer->GetPersonalXpRate() : -1.0f;
 
             if (personalRate >= 0.0f)
                 xp_gain *= personalRate;
             else
                 xp_gain *= sWorld.getConfig(CONFIG_FLOAT_RATE_XP_KILL);
 
-            return (uint32)xp_gain;
+            return std::nearbyint(xp_gain);
         }
 
-        inline float xp_in_group_rate(uint32 count, bool isRaid)
+        inline float xp_in_group_rate(uint32 count, bool /*isRaid*/)
         {
-            if(isRaid)
+            // TODO: this formula is completely guesswork only based on a logical assumption
+            switch (count)
             {
-                // FIX ME: must apply decrease modifiers dependent from raid size
-                return 1.0f;
-            }
-            else
-            {
-                switch(count)
-                {
-                    case 0:
-                    case 1:
-                    case 2:
-                        return 1.0f;
-                    case 3:
-                        return 1.166f;
-                    case 4:
-                        return 1.3f;
-                    case 5:
-                    default:
-                        return 1.4f;
-                }
+                case 0:
+                case 1:
+                case 2:
+                    return 1.0f;
+                case 3:
+                    return 1.166f;
+                case 4:
+                    return 1.3f;
+                case 5:
+                    return 1.4f;
+                default:
+                    return std::max(1.f - count * 0.05f, 0.01f);
             }
         }
     }
@@ -225,7 +194,7 @@ namespace MaNGOS
             // [-PROGRESSIVE] Total kills per day cahnged in 1.12 (http://wow.gamepedia.com/Patch_1.12.0#General)
             // Honorable Kills now diminish at a rate 10% per kill rather than 25% per kill.
             float penalty = 4.0f;
-            if (sWorld.GetWowPatch() >= WOW_PATCH_112 && sWorld.getConfig(CONFIG_BOOL_ACCURATE_PVP_REWARDS))
+            if (sWorld.GetWowPatch() >= WOW_PATCH_112 || !sWorld.getConfig(CONFIG_BOOL_ACCURATE_PVP_REWARDS))
                 penalty = 10.0f;
 
             double sameVictimPenalty = totalKills >= static_cast<uint32>(penalty) ? 0 : 1 - totalKills / penalty;

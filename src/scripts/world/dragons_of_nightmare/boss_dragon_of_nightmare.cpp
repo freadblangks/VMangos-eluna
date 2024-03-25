@@ -56,8 +56,11 @@ void boss_dragon_of_nightmareAI::JustDied(Unit* pKiller)
     ScriptedAI::JustDied(pKiller);
 }
 
-void boss_dragon_of_nightmareAI::UpdateAI(const uint32 uiDiff)
+void boss_dragon_of_nightmareAI::UpdateAI(uint32 const uiDiff)
 {
+    if (!m_creature->SelectHostileTarget() || !m_creature->GetVictim())
+        return;
+
     if (m_uiAuraOfNatureTimer <= uiDiff)
     {
         if (DoCastSpellIfCan(m_creature, SPELL_AURA_OF_NATURE) == CAST_OK)
@@ -65,9 +68,6 @@ void boss_dragon_of_nightmareAI::UpdateAI(const uint32 uiDiff)
     }
     else
         m_uiAuraOfNatureTimer -= uiDiff;
-
-    if (!m_creature->SelectHostileTarget() || !m_creature->getVictim())
-        return;
 
     EnterEvadeIfOutOfHomeArea();
 
@@ -77,7 +77,7 @@ void boss_dragon_of_nightmareAI::UpdateAI(const uint32 uiDiff)
     if (!UpdateDragonAI(uiDiff))
         return;
 
-    auto pTarget = m_creature->getVictim();
+    auto pTarget = m_creature->GetVictim();
 
     if (!m_creature->CanReachWithMeleeAutoAttack(pTarget) || !m_creature->IsWithinLOSInMap(pTarget))
     {
@@ -129,9 +129,7 @@ struct npc_dream_fogAI : ScriptedPetAI
 {
     explicit npc_dream_fogAI(Creature* pCreature) : ScriptedPetAI(pCreature)
     {
-        if (m_creature->GetCharmInfo())
-            m_creature->GetCharmInfo()->SetReactState(REACT_AGGRESSIVE);
-
+        m_creature->SetReactState(REACT_AGGRESSIVE);
         npc_dream_fogAI::Reset();
         npc_dream_fogAI::ResetCreature();
     }
@@ -158,7 +156,7 @@ struct npc_dream_fogAI : ScriptedPetAI
             {
                 if (Unit* pTarget = ((Creature*)pOwner)->SelectAttackingTarget(ATTACKING_TARGET_RANDOM, 0, nullptr, SELECT_FLAG_PLAYER_NOT_GM))
                 {
-                    if (pTarget != m_creature->getVictim())
+                    if (pTarget != m_creature->GetVictim())
                         return pTarget;
                 }
             }
@@ -171,22 +169,22 @@ struct npc_dream_fogAI : ScriptedPetAI
     {
         if (Unit* pTarget = GetNextTarget())
         {
-            if (m_creature->getVictim() && m_creature->getThreatManager().getThreat(m_creature->getVictim()))
-                m_creature->getThreatManager().modifyThreatPercent(m_creature->getVictim(), -100);
+            if (m_creature->GetVictim() && m_creature->GetThreatManager().getThreat(m_creature->GetVictim()))
+                m_creature->GetThreatManager().modifyThreatPercent(m_creature->GetVictim(), -100);
 
             AttackStart(pTarget);
             m_uiChangeTargetTimer = urand(6000, 10000);
         }
     }
 
-    void UpdatePetAI(const uint32 uiDiff) override
+    void UpdatePetAI(uint32 const uiDiff) override
     {
         if (m_uiChangeTargetTimer <= uiDiff)
             ChangeTarget();
         else
             m_uiChangeTargetTimer -= uiDiff;
 
-        if (m_creature->IsWithinDistInMap(m_creature->getVictim(), CONTACT_DISTANCE))
+        if (m_creature->IsWithinDistInMap(m_creature->GetVictim(), CONTACT_DISTANCE))
             m_uiChangeTargetTimer = urand(4000, 8000);
     }
 };
@@ -258,7 +256,7 @@ CreatureAI* GetAI_boss_dragon_of_nightmare(Creature* pCreature)
 
 void AddSC_dragons_of_nightmare()
 {
-    Script *pNewScript;
+    Script* pNewScript;
 
     pNewScript = new Script;
     pNewScript->Name = "npc_dream_fog";

@@ -29,7 +29,7 @@ EndScriptData */
 enum LazyPeon
 {
     QUEST_LAZY_PEONS                              = 5441,
-    GO_LUMBERPILE                                 = 175784,        //300046,
+    GO_LUMBERPILE                                 = 175784,
     SPELL_BUFF_SLEEP                              = 17743,
     SPELL_AWAKEN_PEON                             = 19938,
     SAY_SPELL_HIT                                 = -1000600,
@@ -67,14 +67,14 @@ struct LazyPeonAI : public ScriptedAI
     uint8      state;
     ObjectGuid playerGuid;
 
-    void DoAction(const uint32 state)
+    void OnScriptEventHappened(uint32 uiEvent, uint32 /*uiData*/, WorldObject* /*pInvoker*/) override
     {
-        this->state = state;
+        this->state = uiEvent;
     }
 
-    void Reset() {}
+    void Reset() override {}
 
-    void SpellHit(Unit* caster, SpellEntry const* spell)
+    void SpellHit(SpellCaster* caster, SpellEntry const* spell) override
     {
         if (spell->Id == SPELL_AWAKEN_PEON && m_creature->GetEntry() == LAZY_PEON_ENTRY && m_creature->HasAura(SPELL_BUFF_SLEEP))
         {
@@ -86,7 +86,7 @@ struct LazyPeonAI : public ScriptedAI
         }
     }
 
-    void UpdateAI(const uint32 diff)
+    void UpdateAI(uint32 const diff) override
     {
         switch (state)
         {
@@ -155,7 +155,7 @@ struct LazyPeonAI : public ScriptedAI
         }
     }
 
-    void MovementInform(uint32 MovementType, uint32 id)
+    void MovementInform(uint32 MovementType, uint32 id) override
     {
         if (MovementType == POINT_MOTION_TYPE && id == 1)
         {
@@ -197,7 +197,7 @@ CreatureAI* GetAI_LazyPeon(Creature* pCreature)
 
 void AddSC_durotar()
 {
-    Script *newscript;
+    Script* newscript;
 
     newscript = new Script;
     newscript->Name = "LazyPeons";

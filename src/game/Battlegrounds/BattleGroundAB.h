@@ -26,6 +26,8 @@
 #include "BattleGround.h"
 #include "World.h"
 
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_6_1
+
 enum BG_AB_WorldStates
 {
     BG_AB_OP_OCCUPIED_BASES_HORDE       = 1778,
@@ -64,9 +66,9 @@ enum BG_AB_WorldStates
 */
 };
 
-const uint32 BG_AB_OP_NODESTATES[5] =    {1767, 1782, 1772, 1792, 1787};
+uint32 const BG_AB_OP_NODESTATES[5] =    {1767, 1782, 1772, 1792, 1787};
 
-const uint32 BG_AB_OP_NODEICONS[5]  =    {1842, 1846, 1845, 1844, 1843};
+uint32 const BG_AB_OP_NODEICONS[5]  =    {1842, 1846, 1845, 1844, 1843};
 
 enum BG_AB_ObjectType
 {
@@ -137,7 +139,8 @@ enum BG_AB_Sounds
     BG_AB_SOUND_NODE_CAPTURED_HORDE     = 8213,
     BG_AB_SOUND_NODE_ASSAULTED_ALLIANCE = 8212,
     BG_AB_SOUND_NODE_ASSAULTED_HORDE    = 8174,
-    BG_AB_SOUND_NEAR_VICTORY            = 8456
+    BG_AB_SOUND_NEAR_VICTORY_ALLIANCE   = 8457,
+    BG_AB_SOUND_NEAR_VICTORY_HORDE      = 8456
 };
 
 enum BG_AB_NodeOccupiedCredit
@@ -160,19 +163,19 @@ enum BG_AB_NodeOccupiedCredit
 #define GET_AB_WEEKEND_REP_INTERVAL (sWorld.GetWowPatch() > WOW_PATCH_109 ? AB_WEEKEND_REPUTATION_INTERVAL_POST_1_10 : AB_WEEKEND_REPUTATION_INTERVAL_PRE_1_10)
 
 // Tick intervals and given points: case 0,1,2,3,4,5 captured nodes
-const uint32 BG_AB_TickIntervals[6] = {0, 12000, 9000, 6000, 3000, 1000};
-const uint32 BG_AB_TickPoints[6] = {0, 10, 10, 10, 10, 30};
+uint32 const BG_AB_TickIntervals[6] = {0, 12000, 9000, 6000, 3000, 1000};
+uint32 const BG_AB_TickPoints[6] = {0, 10, 10, 10, 10, 30};
 
 // Honor granted depending on player's level
-const uint32 BG_AB_PerTickHonor[MAX_BATTLEGROUND_BRACKETS] = {41, 68, 113, 189, 198};
-const uint32 BG_AB_WinMatchHonor[MAX_BATTLEGROUND_BRACKETS] = {41, 68, 113, 189, 198};
+uint32 const BG_AB_PerTickHonor[MAX_BATTLEGROUND_BRACKETS] = {41, 68, 113, 189, 198};
+uint32 const BG_AB_WinMatchHonor[MAX_BATTLEGROUND_BRACKETS] = {41, 68, 113, 189, 198};
 
 // WorldSafeLocs ids for 5 nodes, and for ally, and horde starting location
-const uint32 BG_AB_GraveyardIds[7] = {895, 894, 893, 897, 896, 898, 899};
+uint32 const BG_AB_GraveyardIds[7] = {895, 894, 893, 897, 896, 898, 899};
 
 // x, y, z, o
 // Nostalrius: Modified to retail 5.4.8 positions.
-const float BG_AB_BuffPositions[BG_AB_NODES_MAX][4] = {
+float const BG_AB_BuffPositions[BG_AB_NODES_MAX][4] = {
     {1185.566f, 1184.629f, -56.36329f, 2.303831f},         // stables
     {989.939026f, 1008.75f, -42.60327f, 0.8203033f},       // blacksmith
     {818.0089f, 842.3543f, -56.54062f, 3.176533f},         // farm
@@ -183,10 +186,10 @@ const float BG_AB_BuffPositions[BG_AB_NODES_MAX][4] = {
 class BattleGroundABScore : public BattleGroundScore
 {
     public:
-        BattleGroundABScore(): BasesAssaulted(0), BasesDefended(0) {};
+        BattleGroundABScore(): basesAssaulted(0), basesDefended(0) {};
         virtual ~BattleGroundABScore() {};
-        uint32 BasesAssaulted;
-        uint32 BasesDefended;
+        uint32 basesAssaulted;
+        uint32 basesDefended;
 };
 
 class BattleGroundAB : public BattleGround
@@ -198,23 +201,23 @@ class BattleGroundAB : public BattleGround
         ~BattleGroundAB();
 
         void Update(uint32 diff);
-        void AddPlayer(Player *plr);
+        void AddPlayer(Player* player);
         virtual void StartingEventCloseDoors();
         virtual void StartingEventOpenDoors();
-        void RemovePlayer(Player *plr, ObjectGuid guid);
-        void HandleAreaTrigger(Player *Source, uint32 Trigger);
+        void RemovePlayer(Player* player, ObjectGuid guid);
+        bool HandleAreaTrigger(Player* source, uint32 trigger);
         virtual bool SetupBattleGround();
         virtual void Reset();
         void EndBattleGround(Team winner);
         virtual WorldSafeLocsEntry const* GetClosestGraveYard(Player* player);
 
         /* Scorekeeping */
-        virtual void UpdatePlayerScore(Player *Source, uint32 type, uint32 value);
+        virtual void UpdatePlayerScore(Player* source, uint32 type, uint32 value);
 
         virtual void FillInitialWorldStates(WorldPacket& data, uint32& count);
 
         /* Nodes occupying */
-        virtual void EventPlayerClickedOnFlag(Player *source, GameObject* target_obj);
+        virtual void EventPlayerClickedOnFlag(Player* source, GameObject* targetGo);
 
     private:
         /* Gameobject spawning/despawning */
@@ -226,7 +229,7 @@ class BattleGroundAB : public BattleGround
         // TODO: working, scripted peons spawning
         void _NodeOccupied(uint8 node,Team team);
 
-        int32 _GetNodeNameId(uint8 node);
+        static int32 _GetNodeNameId(uint8 node);
 
         /* Nodes info:
             0: neutral
@@ -234,14 +237,15 @@ class BattleGroundAB : public BattleGround
             2: horde contested
             3: ally occupied
             4: horde occupied     */
-        uint8               m_Nodes[BG_AB_NODES_MAX];
+        uint8               m_nodes[BG_AB_NODES_MAX];
         uint8               m_prevNodes[BG_AB_NODES_MAX];   // used for performant wordlstate-updating
-        uint32              m_NodeTimers[BG_AB_NODES_MAX];
+        uint32              m_nodeTimers[BG_AB_NODES_MAX];
         uint32              m_lastTick[BG_TEAMS_COUNT];
-        uint32              m_HonorScoreTics[BG_TEAMS_COUNT];
-        uint32              m_ReputationScoreTics[BG_TEAMS_COUNT];
-        bool                m_IsInformedNearVictory;
-        uint32              m_HonorTics;
-        uint32              m_ReputationTics;
+        uint32              m_honorScoreTics[BG_TEAMS_COUNT];
+        uint32              m_reputationScoreTics[BG_TEAMS_COUNT];
+        bool                m_isInformedNearVictory;
+        uint32              m_honorTics;
+        uint32              m_reputationTics;
 };
+#endif
 #endif

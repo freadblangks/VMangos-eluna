@@ -23,7 +23,7 @@
 #define __NPCHANDLER_H
 
 // GCC have alternative #pragma pack(N) syntax and old gcc version not support pack(push,N), also any gcc version not support it at some platform
-#if defined( __GNUC__ )
+#if defined(__GNUC__)
 #pragma pack(1)
 #else
 #pragma pack(push,1)
@@ -31,14 +31,13 @@
 
 struct PageText
 {
-    uint32 Page_ID;
-    char * Text;
-
-    uint32 Next_Page;
+    uint32 entry;
+    char const* text;
+    uint32 next_page;
 };
 
 // GCC have alternative #pragma pack() syntax and old gcc version not support pack(pop), also any gcc version not support it at some platform
-#if defined( __GNUC__ )
+#if defined(__GNUC__)
 #pragma pack()
 #else
 #pragma pack(pop)
@@ -46,7 +45,7 @@ struct PageText
 
 struct PageTextLocale
 {
-    std::vector<std::string> Text;
+    std::vector<std::string> text;
 };
 
 #define MAX_NPC_TEXT_OPTIONS 8

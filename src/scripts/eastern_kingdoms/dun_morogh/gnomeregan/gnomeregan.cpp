@@ -26,6 +26,7 @@ npc_blastmaster_emi_shortfuse
 EndContentData */
 
 #include "scriptPCH.h"
+#include "CreatureGroups.h"
 #include "gnomeregan.h"
 
 /*######
@@ -34,38 +35,38 @@ EndContentData */
 
 enum
 {
-    SAY_START                   = -1090000,
-    SAY_INTRO_1                 = -1090001,
-    SAY_INTRO_2                 = -1090002,
-    SAY_INTRO_3                 = -1090003,
-    SAY_INTRO_4                 = -1090004,
-    SAY_LOOK_1                  = -1090005,
-    SAY_HEAR_1                  = -1090006,
-    SAY_AGGRO_1                 = -1090007,
-    SAY_CHARGE_1                = -1090008,
-    SAY_CHARGE_2                = -1090009,
-    SAY_BLOW_1_10               = -1090010,
-    SAY_BLOW_1_5                = -1090011,
-    SAY_BLOW_1                  = -1090012,
-    SAY_FINISH_1                = -1090013,
-    SAY_LOOK_2                  = -1090014,
-    SAY_HEAR_2                  = -1090015,
-    SAY_CHARGE_3                = -1090016,
-    SAY_CHARGE_4                = -1090017,
-    SAY_BLOW_2_10               = -1090018,
-    SAY_BLOW_2_5                = -1090019,
-    SAY_BLOW_SOON               = -1090020,
-    SAY_BLOW_2                  = -1090021,
-    SAY_FINISH_2                = -1090022,
+    SAY_START                   = 4050,
+    SAY_INTRO_1                 = 4051,
+    SAY_INTRO_2                 = 4052,
+    SAY_INTRO_3                 = 4129,
+    SAY_INTRO_4                 = 4130,
+    SAY_LOOK_1                  = 4131,
+    SAY_HEAR_1                  = 4132,
+    SAY_AGGRO_1                 = 5161,
+    SAY_CHARGE_1                = 4133,
+    SAY_CHARGE_2                = 4134,
+    SAY_BLOW_1_10               = 4135,
+    SAY_BLOW_1_5                = 4136,
+    SAY_BLOW_1                  = 4137,
+    SAY_FINISH_1                = 4206,
+    SAY_LOOK_2                  = 4207,
+    SAY_HEAR_2                  = 4208,
+    SAY_CHARGE_3                = 4209,
+    SAY_CHARGE_4                = 4325,
+    SAY_BLOW_2_10               = 4326,
+    SAY_BLOW_2_5                = 4327,
+    SAY_BLOW_SOON               = 4329,
+    SAY_BLOW_2                  = 4137,
+    SAY_FINISH_2                = 4446,
 
-    SAY_AGGRO_2                 = -1090028,
+    SAY_AGGRO_2                 = 5164,
 
-    SAY_GRUBBIS_SPAWN           = -1090023,
+    SAY_GRUBBIS_SPAWN           = 4328,
 
     GOSSIP_ITEM_START           = 4084,
 
-    SPELL_EXPLOSION_NORTH       = 12159,
-    SPELL_EXPLOSION_SOUTH       = 12158,
+    SPELL_EXPLOSION_NORTH       = 12158,
+    SPELL_EXPLOSION_SOUTH       = 12159,
     SPELL_FIREWORKS_RED         = 11542,
 
     //GO_EXPLOSIVE_CHARGE         = 144065, //A USE
@@ -157,17 +158,19 @@ struct npc_blastmaster_emi_shortfuseAI : public npc_escortAI
             m_bSouthernCaveInOpened = m_bNorthernCaveInOpened = false;
             m_luiSummonedMobGUIDs.clear();
         }
+
+        m_creature->EnableMoveInLosEvent();
     }
 
     void DoSummonPack(uint8 uiIndex)
     {
-        for (uint8 i = 0; i < MAX_SUMMON_POSITIONS; ++i)
+        for (const auto& i : asSummonInfo)
         {
             // This requires order of the array
-            if (asSummonInfo[i].uiPosition > uiIndex)
+            if (i.uiPosition > uiIndex)
                 break;
-            if (asSummonInfo[i].uiPosition == uiIndex)
-                m_creature->SummonCreature(asSummonInfo[i].uiEntry, asSummonInfo[i].fX, asSummonInfo[i].fY, asSummonInfo[i].fZ, asSummonInfo[i].fO, TEMPSUMMON_DEAD_DESPAWN, 0);
+            if (i.uiPosition == uiIndex)
+                m_creature->SummonCreature(i.uiEntry, i.fX, i.fY, i.fZ, i.fO, TEMPSUMMON_DEAD_DESPAWN, 0);
         }
     }
 
@@ -186,10 +189,6 @@ struct npc_blastmaster_emi_shortfuseAI : public npc_escortAI
                 }
                 break;
             }
-            case NPC_GRUBBIS:
-                // Movement of Grubbis and Add to be handled by DB waypoints
-                DoScriptText(SAY_GRUBBIS_SPAWN, pSummoned);
-                break;
             case NPC_CHOMPER: //chomper must be invoqued after grubbis
                 pSummoned->JoinCreatureGroup(pSummoned->FindNearestCreature(NPC_GRUBBIS, 10, true), 3, ((pSummoned->GetAngle(m_creature) - m_creature->GetOrientation()) + 2 * M_PI_F), (OPTION_FORMATION_MOVE | OPTION_AGGRO_TOGETHER));
                 break;
@@ -255,9 +254,9 @@ struct npc_blastmaster_emi_shortfuseAI : public npc_escortAI
         if (m_bNorthernCaveInOpened)                        // close northern cave-in door
             m_pInstance->DoUseDoorOrButton(m_pInstance->GetData64(GO_CAVE_IN_NORTH));
 
-        for (GuidList::const_iterator itr = m_luiSummonedMobGUIDs.begin(); itr != m_luiSummonedMobGUIDs.end(); ++itr)
+        for (const auto& guid : m_luiSummonedMobGUIDs)
         {
-            if (Creature* pSummoned = m_creature->GetMap()->GetCreature(*itr))
+            if (Creature* pSummoned = m_creature->GetMap()->GetCreature(guid))
                 pSummoned->ForcedDespawn();
         }
     }
@@ -348,7 +347,7 @@ struct npc_blastmaster_emi_shortfuseAI : public npc_escortAI
     void UpdateEscortAI(uint32 const uiDiff) override
     {
         // the phases are handled OOC (keeps them in sync with the waypoints)
-        if (m_uiPhaseTimer && !m_creature->getVictim())
+        if (m_uiPhaseTimer && !m_creature->GetVictim())
         {
             if (m_uiPhaseTimer <= uiDiff)
             {
@@ -366,7 +365,7 @@ struct npc_blastmaster_emi_shortfuseAI : public npc_escortAI
                         m_uiPhaseTimer = 3500;              // 6s delay, but 2500ms for escortstarting
                         break;
                     case 3:
-                        Start(false, m_playerGuid, NULL, false, false);
+                        Start(false, m_playerGuid, nullptr, false, false);
                         m_uiPhaseTimer = 0;
                         break;
 
@@ -544,10 +543,19 @@ struct npc_blastmaster_emi_shortfuseAI : public npc_escortAI
                         break;
                     case 33:
                         DoSummonPack(7);                    // Summon Grubbis and add
+                        m_uiPhaseTimer = 1000;
+                        break;
+                    case 34:
+                        if (m_pInstance)
+                        {
+                            if (Creature* grubbis = m_creature->FindNearestCreature(NPC_GRUBBIS, 100.0f))
+                            {
+                                DoScriptText(SAY_GRUBBIS_SPAWN, grubbis);
+                            }
+                        }
                         m_uiPhaseTimer = 0;
                         break;
-
-                    case 34:                                // 1 sek after Death of Grubbis
+                    case 35:                                // 1 sek after Death of Grubbis
                         if (m_pInstance)
                         {
                             if (GameObject* pDoor = m_creature->GetMap()->GetGameObject(m_pInstance->GetData64(GO_CAVE_IN_NORTH)))
@@ -556,23 +564,23 @@ struct npc_blastmaster_emi_shortfuseAI : public npc_escortAI
                         m_creature->HandleEmote(EMOTE_ONESHOT_CHEER);
                         m_uiPhaseTimer = 5000;
                         break;
-                    case 35:
+                    case 36:
                         DoScriptText(SAY_BLOW_SOON, m_creature);
                         m_uiPhaseTimer = 5000;
                         break;
-                    case 36:
+                    case 37:
                         DoScriptText(SAY_BLOW_2, m_creature);
                         m_uiPhaseTimer = 2000;
                         break;
-                    case 37:
+                    case 38:
                         m_creature->HandleEmote(EMOTE_ONESHOT_POINT);
                         m_uiPhaseTimer = 1000;
                         break;
-                    case 38:
+                    case 39:
                         DoCastSpellIfCan(m_creature, SPELL_EXPLOSION_NORTH);
                         m_uiPhaseTimer = 500;
                         break;
-                    case 39:
+                    case 40:
                         // Close northern cave-in and let charges explode
                         if (m_pInstance)
                         {
@@ -582,7 +590,7 @@ struct npc_blastmaster_emi_shortfuseAI : public npc_escortAI
                         }
                         m_uiPhaseTimer = 8000;
                         break;
-                    case 40:
+                    case 41:
                         DoCastSpellIfCan(m_creature, SPELL_FIREWORKS_RED);
                         DoScriptText(SAY_FINISH_2, m_creature);
                         m_uiPhaseTimer = 0;
@@ -594,7 +602,7 @@ struct npc_blastmaster_emi_shortfuseAI : public npc_escortAI
                 m_uiPhaseTimer -= uiDiff;
         }
 
-        if (!m_creature->SelectHostileTarget() || !m_creature->getVictim())
+        if (!m_creature->SelectHostileTarget() || !m_creature->GetVictim())
             return;
 
         DoMeleeAttackIfReady();
@@ -648,14 +656,14 @@ enum
 
     SPELL_EXPLOSION             = 27745, //spell de Clank.
 
-    SAY_KERNOBEE_START          = -1780204,
-    SAY_BOMB_START              = -1780205,
-    SAY_BOMB_SEE_END            = -1780206,
-    SAY_KERNOBEE_SEE_END        = -1780207,
-    SAY_KERNOBEE_END            = -1780208,
+    SAY_KERNOBEE_START          = 3881,
+    SAY_BOMB_START              = 3927,
+    SAY_BOMB_SEE_END            = 3949,
+    SAY_KERNOBEE_SEE_END        = 3948,
+    SAY_KERNOBEE_END            = 3929,
 };
 
-static const float aKernobeePositions[3][3] =
+static float const aKernobeePositions[3][3] =
 {
     { -390.82f, 42.34f, -154.795f},                          // I can see the end!
     { -330.92f, -3.03f, -152.85f},                          // End position
@@ -678,7 +686,13 @@ struct npc_kernobeeAI : public FollowerAI
 
     void Reset() override {}
 
-    void UpdateFollowerAI(const uint32 uiDiff)
+    void JustRespawned() override
+    {
+        m_creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_NPC);
+        FollowerAI::JustRespawned();
+    }
+
+    void UpdateFollowerAI(uint32 const uiDiff) override
     {
         FollowerAI::UpdateFollowerAI(uiDiff);               // Do combat handling
         if (nextStep == 5) //HasFollowState(STATE_FOLLOW_COMPLETE)
@@ -713,7 +727,7 @@ struct npc_kernobeeAI : public FollowerAI
                 m_nextStepTimer -= uiDiff;
         }
 
-        if (m_creature->isInCombat() || !HasFollowState(STATE_FOLLOW_INPROGRESS) || HasFollowState(STATE_FOLLOW_COMPLETE))
+        if (m_creature->IsInCombat() || !HasFollowState(STATE_FOLLOW_INPROGRESS) || HasFollowState(STATE_FOLLOW_COMPLETE))
             return;
 
         if (nextStep == 1) /*HasFollowState(STATE_FOLLOW_PAUSED)*/
@@ -724,7 +738,7 @@ struct npc_kernobeeAI : public FollowerAI
                 {
                     m_creature->SetWalk(true);//speed influences speed of follower
                     SetFollowPaused(false);
-                    m_nextStepTimer = 5 * MINUTE * IN_MILLISECONDS;;
+                    m_nextStepTimer = 5 * MINUTE * IN_MILLISECONDS;
                     nextStep = 2;
                 }
                 else
@@ -795,8 +809,8 @@ struct npc_kernobeeAI : public FollowerAI
                 if (Creature* crea = m_creature->GetMap()->GetCreature(bombGuid))
                 {
                     crea->CastSpell(crea, SPELL_EXPLOSION, true);
-                    crea->DealDamage(m_creature, m_creature->GetHealth(), NULL, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, NULL, false);
-                    crea->DealDamage(crea, crea->GetHealth(), NULL, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, NULL, false);
+                    crea->DealDamage(m_creature, m_creature->GetHealth(), nullptr, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, nullptr, false);
+                    crea->DealDamage(crea, crea->GetHealth(), nullptr, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, nullptr, false);
                     nextStep = 4;
                     m_nextStepTimer = 200;
                 }
@@ -810,9 +824,9 @@ struct npc_kernobeeAI : public FollowerAI
             {
                 if (Creature* crea = m_creature->GetMap()->GetCreature(bombGuid))
                 {
-                    crea->DealDamage(crea, crea->GetHealth(), NULL, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, NULL, false);
+                    crea->DealDamage(crea, crea->GetHealth(), nullptr, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, nullptr, false);
                     nextStep = 0;
-                    crea->DealDamage(m_creature, m_creature->GetHealth(), NULL, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, NULL, false);
+                    crea->DealDamage(m_creature, m_creature->GetHealth(), nullptr, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, nullptr, false);
                 }
             }
             else
@@ -820,7 +834,7 @@ struct npc_kernobeeAI : public FollowerAI
         }
     }
 
-    void JustDied(Unit* pKiller)
+    void JustDied(Unit* pKiller) override
     {
         FollowerAI::JustDied(pKiller);
         QuestReset();
@@ -835,10 +849,11 @@ struct npc_kernobeeAI : public FollowerAI
         canSeeEnd = false;
         nextStep = 0;
     }
-    void StartQuest(Player* pPlayer, const Quest* pQuest)
+    void StartQuest(Player* pPlayer, Quest const* pQuest)
     {
         DoScriptText(SAY_KERNOBEE_START, m_creature);
         m_creature->SetStandState(UNIT_STAND_STATE_STAND);
+        m_creature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_NPC);
         StartFollow(pPlayer, 0/*FACTION_ESCORT_N_FRIEND_PASSIVE*/, pQuest);
         if (bombGuid = ((instance_gnomeregan*)m_creature->GetInstanceData())->GetData64(NPC_ALARM_A_BOMB_2600))
         {
@@ -860,7 +875,7 @@ CreatureAI* GetAI_npc_kernobee(Creature* pCreature)
     return new npc_kernobeeAI(pCreature);
 }
 
-bool QuestAccept_npc_kernobee(Player* pPlayer, Creature* pCreature, const Quest* pQuest)
+bool QuestAccept_npc_kernobee(Player* pPlayer, Creature* pCreature, Quest const* pQuest)
 {
     if (pQuest->GetQuestId() == QUEST_A_FINE_MESS)
     {

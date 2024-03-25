@@ -25,13 +25,10 @@
 #include "Common.h"
 #include "Database/SQLStorage.h"
 
-extern SQLStorage sCreatureStorage;
 extern SQLStorage sCreatureDataAddonStorage;
-extern SQLStorage sCreatureInfoAddonStorage;
-extern SQLStorage sCreatureModelStorage;
-extern SQLStorage sEquipmentStorage;
+extern SQLStorage sCreatureDisplayInfoAddonStorage;
+extern SQLStorage sGameObjectDisplayInfoAddonStorage;
 extern SQLStorage sPageTextStore;
-extern SQLStorage sItemStorage;
 extern SQLStorage sMapStorage;
 extern SQLStorage sConditionStorage;
 extern SQLStorage sAreaStorage;

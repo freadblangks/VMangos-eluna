@@ -23,72 +23,49 @@
 #define MANGOS_CREATUREAI_H
 
 #include "Common.h"
-#include "Platform/Define.h"
-#include "Policies/Singleton.h"
 #include "Dynamic/ObjectRegistry.h"
 #include "Dynamic/FactoryHolder.h"
 #include "ObjectGuid.h"
-#include "ObjectMgr.h"
-
-#include "Utilities/EventMap.h"
+#include "CreatureDefines.h"
+#include "SpellDefines.h"
 
 class WorldObject;
 class GameObject;
 class Unit;
 class Creature;
 class Player;
+class SpellCaster;
 class SpellEntry;
 class ChatHandler;
 struct Loot;
 
-#define TIME_INTERVAL_LOOK   5000
-#define VISIBILITY_RANGE    10000
-
-enum CanCastResult
-{
-    CAST_OK                     = 0,
-    CAST_FAIL_IS_CASTING        = 1,
-    CAST_FAIL_OTHER             = 2,
-    CAST_FAIL_TOO_FAR           = 3,
-    CAST_FAIL_TOO_CLOSE         = 4,
-    CAST_FAIL_POWER             = 5,
-    CAST_FAIL_STATE             = 6,
-    CAST_FAIL_TARGET_AURA       = 7,
-    CAST_FAIL_NOT_IN_LOS        = 8
-};
+#define CAST_OK SPELL_CAST_OK
 
 struct CreatureAISpellsEntry : CreatureSpellsEntry
 {
     uint32 cooldown;
-    CreatureAISpellsEntry(const CreatureSpellsEntry& EntryStruct) : CreatureSpellsEntry(EntryStruct), cooldown(urand(EntryStruct.delayInitialMin, EntryStruct.delayInitialMax)) {}
+    CreatureAISpellsEntry(CreatureSpellsEntry const& EntryStruct) : CreatureSpellsEntry(EntryStruct), cooldown(urand(EntryStruct.delayInitialMin, EntryStruct.delayInitialMax)) {}
 };
 
-class MANGOS_DLL_SPEC CreatureAI
+class CreatureAI
 {
     public:
-        explicit CreatureAI(Creature* creature) : m_creature(creature), m_bUseAiAtControl(false), m_uLastAlertTime(0), m_uiCastingDelay(0), m_bMeleeAttack(true), m_bCombatMovement(true)
-        {
-            SetSpellsList(creature->GetCreatureInfo()->spell_list_id);
-        }
+        explicit CreatureAI(Creature* creature);
 
         virtual ~CreatureAI();
-        virtual void OnRemoveFromWorld() {}
+
+        // == Information about AI ========================
+
+        virtual void GetAIInformation(ChatHandler& /*reader*/) {}
 
         virtual uint32 GetData(uint32 /*type*/) { return 0; }
 
-        virtual void InformGuid(const ObjectGuid /*guid*/, uint32 /*type*/=0) {}
-        virtual void DoAction(const uint32 /*type*/=0) {}
-        virtual void DoAction(Unit* /*pUnit*/, uint32 /*type*/) {}
-
-        ///== Information about AI ========================
-        virtual void GetAIInformation(ChatHandler& /*reader*/) {}
-
-        ///== Reactions At =================================
+        // == Reactions At =================================
 
         // Called when an unit moves within visibility distance
         virtual void MoveInLineOfSight(Unit*) {}
 
-        // Called for reaction at enter to combat if not in combat yet (enemy can be NULL)
+        // Called for reaction at enter to combat if not in combat yet (enemy can be nullptr)
         virtual void EnterCombat(Unit* /*enemy*/) {}
 
         // Called for reaction at stopping attack at no attackers or targets
@@ -104,12 +81,12 @@ class MANGOS_DLL_SPEC CreatureAI
         virtual void HealedBy(Unit* /*healer*/, uint32& /*amount_healed*/) {}
 
         // Called at any Damage to any victim (before damage apply)
-        virtual void DamageDeal(Unit* /*done_to*/, uint32 & /*damage*/) {}
+        virtual void DamageDeal(Unit* /*done_to*/, uint32& /*damage*/) {}
 
         // Called at any Damage from any attacker (before damage apply)
         // Note: it for recalculation damage or special reaction at damage
         // for attack reaction use AttackedBy called for not DOT damage in Unit::DealDamage also
-        virtual void DamageTaken(Unit* /*done_by*/, uint32 & /*damage*/) {}
+        virtual void DamageTaken(Unit* /*done_by*/, uint32& /*damage*/) {}
 
         // Called when the creature is killed
         virtual void JustDied(Unit*) {}
@@ -136,10 +113,10 @@ class MANGOS_DLL_SPEC CreatureAI
         virtual void SummonedCreatureDespawn(Creature* /*unit*/) {}
 
         // Called when hit by a spell
-        virtual void SpellHit(Unit*, const SpellEntry*) {}
+        virtual void SpellHit(SpellCaster*, SpellEntry const*) {}
 
         // Called when spell hits creature's target
-        virtual void SpellHitTarget(Unit*, const SpellEntry*) {}
+        virtual void SpellHitTarget(Unit*, SpellEntry const*) {}
 
         // Called when the creature is target of hostile action: swing, hostile spell landed, fear/etc)
         virtual void AttackedBy(Unit* attacker);
@@ -160,25 +137,34 @@ class MANGOS_DLL_SPEC CreatureAI
         virtual void OwnerAttackedBy(Unit* /*attacker*/) {}
         virtual void OwnerAttacked(Unit* /*target*/) {}
 
-        ///== Triggered Actions Requested ==================
+        // Called by another script
+        virtual void OnScriptEventHappened(uint32 /*uiEvent*/ = 0, uint32 /*uiData*/ = 0, WorldObject* /*pInvoker*/ = nullptr) {};
+
+        // Called before being removed from the map
+        virtual void OnRemoveFromWorld() {}
+
+        // called when the corpse of this creature gets removed
+        virtual void CorpseRemoved(uint32& /*respawnDelay*/) {}
+
+        // == Triggered Actions Requested ==================
 
         // Called when creature attack expected (if creature can and no have current victim)
         // Note: for reaction at hostile action must be called AttackedBy function.
-        virtual void AttackStart(Unit*) {}
+        virtual void AttackStart(Unit*);
 
         // Called at World update tick
-        virtual void UpdateAI(const uint32 /*diff*/) {}
+        virtual void UpdateAI(uint32 const /*diff*/) {}
 
         // Like UpdateAI, but only when the creature is a dead corpse
-        virtual void UpdateAI_corpse(const uint32 /*uiDiff*/) {}
+        virtual void UpdateAI_corpse(uint32 const /*uiDiff*/) {}
 
-        // Called by scripted map events
-        virtual void MapScriptEventHappened(ScriptedEvent* /*pEvent*/, uint32 /*uiData*/) {};
+        // Triggers an alert when a Unit moves near stealth detection range.
+        virtual void OnMoveInStealth(Unit* who);
 
-        ///== State checks =================================
-
-        // called when the corpse of this creature gets removed
-        virtual void CorpseRemoved(uint32 & /*respawnDelay*/) {}
+        // Will auto attack if the swing timer is ready.
+        bool DoMeleeAttackIfReady();
+        
+        // == State checks =================================
 
         // Is corpse looting allowed ?
         virtual bool CanBeLooted() const { return true; }
@@ -192,42 +178,30 @@ class MANGOS_DLL_SPEC CreatureAI
         // Does the creature melee attack.
         bool IsMeleeAttackEnabled() const { return m_bMeleeAttack; }
 
-        // Triggers an alert when a Unit moves near stealth detection range.
-        virtual void TriggerAlert(Unit const* who);
+        // == Helper functions =============================
+
+        // Attempts to cast a spell and returns the result.
+        SpellCastResult DoCastSpellIfCan(Unit* pTarget, uint32 uiSpell, uint32 uiCastFlags = 0);
 
         // TrinityCore
         void DoCast(Unit* victim, uint32 spellId, bool triggered = false);
         void DoCastAOE(uint32 spellId, bool triggered = false);
-        bool UpdateVictim();
-        bool UpdateVictimWithGaze();
-        void SetGazeOn(Unit* target);
-
-        ///== Helper functions =============================
-
-        // Will auto attack if the swing timer is ready.
-        bool DoMeleeAttackIfReady();
-
-        // Attempts to cast a spell and returns the result.
-        CanCastResult DoCastSpellIfCan(Unit* pTarget, uint32 uiSpell, uint32 uiCastFlags = 0, ObjectGuid uiOriginalCasterGUID = ObjectGuid());
-
-        // Helper functions for cast spell
-        virtual CanCastResult CanCastSpell(Unit* pTarget, const SpellEntry* pSpell, bool isTriggered);
 
         // Clears any group/raid icons this creature may have
         void ClearTargetIcon();
 
         // Assigns a creature_spells list to the AI.
         void SetSpellsList(uint32 entry);
-        void SetSpellsList(const CreatureSpellsList* pSpellsList);
+        void SetSpellsList(CreatureSpellsList const* pSpellsList);
 
         // Goes through the creature's spells list to update timers and cast spells.
-        void UpdateSpellsList(const uint32 uiDiff);
-        void DoSpellsListCasts(const uint32 uiDiff);
+        void UpdateSpellsList(uint32 const uiDiff);
+        void DoSpellsListCasts(uint32 const uiDiff);
 
         // Enables or disables melee attacks.
         void SetMeleeAttack(bool enabled);
 
-        // Enables or disabled combat movement.
+        // Enables or disables combat movement.
         void SetCombatMovement(bool enabled);
         
         // Pointer to controlled by AI creature
@@ -235,7 +209,9 @@ class MANGOS_DLL_SPEC CreatureAI
         bool SwitchAiAtControl() const { return !m_bUseAiAtControl; }
         void SetUseAiAtControl(bool v) { m_bUseAiAtControl = v; }
     protected:
-        ///== Fields =======================================
+        bool CanTriggerAlert(Unit const* who);
+        void TriggerAlertDirect(Unit const* who);
+        // == Fields =======================================
         bool   m_bUseAiAtControl;
         bool   m_bMeleeAttack;                                  // If we allow melee auto attack
         bool   m_bCombatMovement;                               // If we allow targeted movement gen (chasing target)
@@ -246,27 +222,25 @@ class MANGOS_DLL_SPEC CreatureAI
 
 struct SelectableAI : FactoryHolder<CreatureAI>, Permissible<Creature>
 {
-    explicit SelectableAI(const char* id) : FactoryHolder<CreatureAI>(id) {}
+    explicit SelectableAI(char const* id) : FactoryHolder<CreatureAI>(id) {}
 };
 
 template<class REAL_AI>
 struct CreatureAIFactory : SelectableAI
 {
-    explicit CreatureAIFactory(const char* name) : SelectableAI(name) {}
+    explicit CreatureAIFactory(char const* name) : SelectableAI(name) {}
 
     CreatureAI* Create(void*) const override;
 
-    int Permit(const Creature* c) const override { return REAL_AI::Permissible(c); }
+    int Permit(Creature const* c) const override { return REAL_AI::Permissible(c); }
 };
 
 enum Permitions
 {
     PERMIT_BASE_NO                 = -1,
     PERMIT_BASE_IDLE               = 1,
-    PERMIT_BASE_REACTIVE           = 100,
-    PERMIT_BASE_PROACTIVE          = 200,
-    PERMIT_BASE_FACTION_SPECIFIC   = 400,
-    PERMIT_BASE_SPECIAL            = 800
+    PERMIT_BASE_NORMAL             = 100,
+    PERMIT_BASE_SPECIAL            = 200
 };
 
 typedef FactoryHolder<CreatureAI> CreatureAICreator;

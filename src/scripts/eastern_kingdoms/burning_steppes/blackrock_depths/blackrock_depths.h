@@ -58,12 +58,15 @@ enum
 
     DATA_ARENA_CHALLENGER      = 42,
 
-    MAX_ENCOUNTER              = 20,
+    TYPE_FLAMELASH             = 43,
+    MAX_ENCOUNTER              = 21,
 
     EVENT_BAR_PATRONS          = 100,
 
     FACTION_DARK_IRON          = 54,
+    FACTION_ARENA_NEUTRAL      = 15,
 
+    NPC_MAGMUS                 = 9938,
     NPC_EMPEROR                = 9019,
     NPC_PRINCESS               = 8929,
     NPC_HIGH_PRIESTESS         = 10076,
@@ -99,6 +102,8 @@ enum
     GO_JAIL_DOOR_SHILL         = 170569,
 
     // Ambassador Flamelash
+    NPC_FLAMELASH              = 9156,
+    NPC_BURNING_SPIRIT         = 9178,
     GO_DWARF_RUNE_A01          = 170578,
     GO_DWARF_RUNE_B01          = 170579,
     GO_DWARF_RUNE_C01          = 170580,
@@ -106,6 +111,8 @@ enum
     GO_DWARF_RUNE_E01          = 170582,
     GO_DWARF_RUNE_F01          = 170583,
     GO_DWARF_RUNE_G01          = 170584,
+    DWARF_RUNES_MAX            = 7,
+    BURNING_SPIRIT_MAX         = 30, // What is a good maximum and should there be any?
 
     // Grim Guzzler
     NPC_PLUGGER_SPAZZRING      = 9499,
@@ -128,10 +135,15 @@ enum
 
     NPC_FIREGUARD_DESTROYER    = 8911,
     NPC_ANVILRAGE_OFFICER      = 8895,
+    NPC_ANVILRAGE_SOLDIER      = 8893,
+    NPC_ANVILRAGE_MEDIC        = 8894,
 
     NPC_SHADOWFORGE_SENATOR    = 8904,
+    NPC_SHADOWFORGE_PEASANT    = 8896,
+    NPC_SHADOWFORGE_CITIZEN    = 8902,
     NPC_GRIMSTONE              = 10096,
     NPC_THELDREN               = 16059,
+    NPC_THELDREN_KILL_CREDIT   = 16166,
 
     GO_ARENA1                  = 161525,
     GO_ARENA2                  = 161522,
@@ -170,17 +182,28 @@ enum
 };
 
 // Random emotes for Grim Guzzler patrons
-static const uint32 aPatronsEmotes[] =
+static uint32 const aPatronsEmotes[] =
 {
     EMOTE_ONESHOT_EXCLAMATION, EMOTE_ONESHOT_CHEER, EMOTE_ONESHOT_CHEER, EMOTE_ONESHOT_LAUGH, EMOTE_ONESHOT_LAUGH, EMOTE_ONESHOT_LAUGH
 };
 
 // Used to summon the patrol in Grim Guzzler
-static const float aBarPatrolPositions[2][4] = {
+static float const aBarPatrolPositions[2][4] = {
     {872.7059f, -232.5491f, -43.7525f, 2.069044f},
     {865.5645f, -219.7471f, -43.7033f, 2.033881f}
 };
 
-static const uint32 aBarPatrolId[3] = {NPC_FIREGUARD_DESTROYER, NPC_ANVILRAGE_OFFICER, NPC_ANVILRAGE_OFFICER};
+static uint32 const aBarPatrolId[3] = {NPC_FIREGUARD_DESTROYER, NPC_ANVILRAGE_OFFICER, NPC_ANVILRAGE_OFFICER};
+
+struct ArenaCylinder
+{
+    float m_fCenterX;
+    float m_fCenterY;
+    float m_fCenterZ;
+    uint32 m_uiRadius;
+    uint32 m_uiHeight;
+};
+
+static const ArenaCylinder aArenaCrowdVolume = { 595.78f, -188.65f, -38.63f, 69, 10 };
 
 #endif

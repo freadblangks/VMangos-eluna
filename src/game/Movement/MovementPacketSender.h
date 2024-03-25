@@ -18,11 +18,13 @@
 #ifndef MOVEMENT_SENDER_H
 #define MOVEMENT_SENDER_H
 
-#include "Unit.h"
+#include "Object.h"
+#include "UnitDefines.h"
 
 class Player;
 class Unit;
 class MovementInfo;
+struct PlayerMovementPendingChange;
 
 //!
 //!   movement flag changes for player controlled units:
@@ -88,10 +90,14 @@ namespace MovementPacketSender
         /* speed change */
         void AddSpeedChangeToController(Unit* unit, UnitMoveType mtype, float newRate);
         void SendSpeedChangeToController(Unit* unit, Player* mover, PlayerMovementPendingChange& pendingChange);
-        void SendSpeedChangeToObservers(Unit* unit, UnitMoveType mtype, float newRate);
+        void SendSpeedChangeToObservers(Unit* unit, UnitMoveType mtype, float newSpeed);
         void SendSpeedChangeToAll(Unit* unit, UnitMoveType mtype, float newRate);
 
-        /* knocback */
+        /* teleport */
+        void SendTeleportToController(Unit* unit, float x, float y, float z, float ang);
+        void SendTeleportToObservers(Unit* unit, float x, float y, float z, float ang);
+
+        /* knockback */
         void SendKnockBackToController(Unit* unit, float vcos, float vsin, float speedXY, float speedZ);
         void SendKnockBackToObservers(Unit* unit, float vcos, float vsin, float speedXY, float speedZ);
 

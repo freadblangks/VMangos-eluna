@@ -35,25 +35,25 @@ enum
 {
     QUEST_WILLIX_THE_IMPORTER  = 1144,
 
-    SAY_WILLIX_READY           = -1047000,
-    SAY_WILLIX_1               = -1047001,
-    SAY_WILLIX_2               = -1047002,
-    SAY_WILLIX_3               = -1047003,
-    SAY_WILLIX_4               = -1047004,
-    SAY_WILLIX_5               = -1047005,
-    SAY_WILLIX_6               = -1047006,
-    SAY_WILLIX_7               = -1047007,
-    SAY_WILLIX_END             = -1047008,
+    SAY_WILLIX_READY           = 1482,
+    SAY_WILLIX_1               = 1483,
+    SAY_WILLIX_2               = 1484,
+    SAY_WILLIX_3               = 1485,
+    SAY_WILLIX_4               = 1486,
+    SAY_WILLIX_5               = 1487,
+    SAY_WILLIX_6               = 1488,
+    SAY_WILLIX_7               = 1490,
+    SAY_WILLIX_END             = 1493,
 
-    SAY_WILLIX_AGGRO_1         = -1047009,
-    SAY_WILLIX_AGGRO_2         = -1047010,
-    SAY_WILLIX_AGGRO_3         = -1047011,
-    SAY_WILLIX_AGGRO_4         = -1047012,
+    SAY_WILLIX_AGGRO_1         = 1546,
+    SAY_WILLIX_AGGRO_2         = 1544,
+    SAY_WILLIX_AGGRO_3         = 1545,
+    SAY_WILLIX_AGGRO_4         = 1547,
 
     NPC_RAGING_AGAMAR          = 4514
 };
 
-static const float aBoarSpawn[4][3] =
+static float const aBoarSpawn[4][3] =
 {
     {2151.420f, 1733.18f, 52.10f},
     {2144.463f, 1726.89f, 51.93f},
@@ -69,6 +69,12 @@ struct npc_willix_the_importerAI : public npc_escortAI
     }
 
     void Reset() override {}
+
+    void JustRespawned() override
+    {
+        m_creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_NPC);
+        npc_escortAI::JustRespawned();
+    }
 
     // Exact use of these texts remains unknown, it seems that he should only talk when he initiates the attack or he is the first who is attacked by a npc
     void Aggro(Unit* pWho) override
@@ -143,7 +149,7 @@ CreatureAI* GetAI_npc_willix_the_importer(Creature* pCreature)
     return new npc_willix_the_importerAI(pCreature);
 }
 
-bool QuestAccept_npc_willix_the_importer(Player* pPlayer, Creature* pCreature, const Quest* pQuest)
+bool QuestAccept_npc_willix_the_importer(Player* pPlayer, Creature* pCreature, Quest const* pQuest)
 {
     if (pQuest->GetQuestId() == QUEST_WILLIX_THE_IMPORTER)
     {
@@ -153,6 +159,7 @@ bool QuestAccept_npc_willix_the_importer(Player* pPlayer, Creature* pCreature, c
             pEscortAI->Start(false, pPlayer->GetGUID(), pQuest);
             DoScriptText(SAY_WILLIX_READY, pCreature, pPlayer);
             pCreature->SetFactionTemporary(FACTION_ESCORT_N_NEUTRAL_PASSIVE, TEMPFACTION_RESTORE_RESPAWN);
+            pCreature->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_NPC);
         }
     }
 
@@ -169,9 +176,9 @@ enum
     NPC_SNUFFLENOSE_GOPHER      = 4781,
     GO_BLUELEAF_TUBER           = 20920,
 
-    SAY_GOPHER_SPAWN            = -1780223,
-    SAY_GOPHER_COMMAND          = -1780224,
-    SAY_GOPHER_FOUND            = -1780225
+    SAY_GOPHER_SPAWN            = 1638,
+    SAY_GOPHER_COMMAND          = 1591,
+    SAY_GOPHER_FOUND            = 1592
 };
 
 struct npc_snufflenose_gopherAI : public FollowerAI
@@ -197,7 +204,7 @@ struct npc_snufflenose_gopherAI : public FollowerAI
 
     void Reset() override
     {
-        m_creature->setFaction(35);
+        m_creature->SetFactionTemplateId(35);
         m_bIsMovementActive  = false;
         m_followPausedTimer = 3000;
     }
@@ -234,14 +241,14 @@ struct npc_snufflenose_gopherAI : public FollowerAI
             return;
 
         lTubersInRange.sort(ObjectDistanceOrder(m_creature));
-        GameObject* pNearestTuber = NULL;
+        GameObject* pNearestTuber = nullptr;
 
         // Always need to find new ones
-        for (std::list<GameObject*>::const_iterator itr = lTubersInRange.begin(); itr != lTubersInRange.end(); ++itr)
+        for (const auto itr : lTubersInRange)
         {
-            if (IsValidTuber(*itr))
+            if (IsValidTuber(itr))
             {
-                pNearestTuber = *itr;
+                pNearestTuber = itr;
                 break;
             }
 
@@ -273,18 +280,15 @@ struct npc_snufflenose_gopherAI : public FollowerAI
             return false;
 
         // Check if tuber is in list of already found tubers
-        for (std::list<ObjectGuid>::const_iterator itr2 = m_foundTubers.begin(); itr2 != m_foundTubers.end(); ++itr2)
-            if (tuber->GetObjectGuid() == (*itr2))
+        for (const auto& guid : m_foundTubers)
+            if (tuber->GetObjectGuid() == guid)
                 return false;
 
         // Check that tuber is not more than 15 yards above or below current position
-        if (fabs(viewPoint->GetPositionZ() - tuber->GetPositionZ()) > 15)
-            return false;
-
-        return true;
+        return fabs(viewPoint->GetPositionZ() - tuber->GetPositionZ()) <= 15;
     }
 
-    void UpdateAI(const uint32 uiDiff) override
+    void UpdateAI(uint32 const uiDiff) override
     {
         if (m_bIsMovementActive)
             return;
@@ -344,75 +348,9 @@ bool EffectDummyCreature_npc_snufflenose_gopher(WorldObject* pCaster, uint32 uiS
     return false;
 }
 
-enum
-{
-    SPELL_DEFENSIVE_STANCE       =   7164,
-    SPELL_IMPROVED_BLOCKING      =   3248,
-    SPELL_SHIELD_BASH            =   11972,
-
-};
-
-struct RazorfenDefenderAI : public ScriptedAI
-{
-    RazorfenDefenderAI(Creature* pCreature) : ScriptedAI(pCreature)
-    {
-        Reset();
-    }
-
-    uint32 m_uiImprovedBlocking_Timer;
-    uint32 m_uiShieldBash_Timer;
-
-    void Reset()
-    {
-        m_uiImprovedBlocking_Timer = 1000;
-        m_uiShieldBash_Timer      = 6600;
-        DoCastSpellIfCan(m_creature, SPELL_DEFENSIVE_STANCE, true);
-    }
-
-    void Aggro(Unit* pWho)
-    {
-        m_creature->SetInCombatWithZone();
-    }
-
-    void UpdateAI(const uint32 uiDiff)
-    {
-        if (!m_creature->SelectHostileTarget() || !m_creature->getVictim())
-            return;
-
-        if (m_uiShieldBash_Timer < uiDiff)
-        {
-            if (DoCastSpellIfCan(m_creature->getVictim(), SPELL_SHIELD_BASH) == CAST_OK)
-                m_uiShieldBash_Timer = 8100;
-        }
-        else
-            m_uiShieldBash_Timer -= uiDiff;
-
-        if (m_uiImprovedBlocking_Timer < uiDiff)
-        {
-            if (DoCastSpellIfCan(m_creature, SPELL_IMPROVED_BLOCKING, true) == CAST_OK)
-                m_uiImprovedBlocking_Timer = urand(6000, 9000);
-        }
-        else
-            m_uiImprovedBlocking_Timer -= uiDiff;
-
-        DoMeleeAttackIfReady();
-    }
-};
-
-CreatureAI* GetAI_RazorfenDefenderAI(Creature* pCreature)
-{
-    return new RazorfenDefenderAI(pCreature);
-}
-
 void AddSC_razorfen_kraul()
 {
     Script* pNewScript;
-
-    pNewScript = new Script;
-    pNewScript->Name = "razorfen_defender";
-    pNewScript->GetAI = &GetAI_RazorfenDefenderAI;
-    pNewScript->RegisterSelf();
-
 
     pNewScript = new Script;
     pNewScript->Name = "npc_willix_the_importer";

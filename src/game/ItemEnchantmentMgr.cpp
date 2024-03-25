@@ -56,7 +56,7 @@ void LoadRandomEnchantmentsTable()
     uint32 entry, ench;
     uint32 count = 0;
 
-    QueryResult *result = WorldDatabase.PQuery("SELECT entry, ench, chance FROM item_enchantment_template WHERE ((%u >= patch_min) && (%u <= patch_max))", sWorld.GetWowPatch(), sWorld.GetWowPatch());
+    QueryResult* result = WorldDatabase.PQuery("SELECT entry, ench, chance FROM item_enchantment_template WHERE ((%u >= patch_min) && (%u <= patch_max))", sWorld.GetWowPatch(), sWorld.GetWowPatch());
 
     if (result)
     {
@@ -64,7 +64,7 @@ void LoadRandomEnchantmentsTable()
 
         do
         {
-            Field *fields = result->Fetch();
+            Field* fields = result->Fetch();
             bar.step();
 
             entry = fields[0].GetUInt32();
@@ -80,13 +80,13 @@ void LoadRandomEnchantmentsTable()
 
         delete result;
 
-        sLog.outString();
-        sLog.outString(">> Loaded %u Item Enchantment definitions", count);
+        sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
+        sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, ">> Loaded %u Item Enchantment definitions", count);
     }
     else
     {
-        sLog.outString();
-        sLog.outErrorDb(">> Loaded 0 Item Enchantment definitions. DB table `item_enchantment_template` is empty.");
+        sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
+        sLog.Out(LOG_DBERROR, LOG_LVL_MINIMAL, ">> Loaded 0 Item Enchantment definitions. DB table `item_enchantment_template` is empty.");
     }
 }
 
@@ -98,29 +98,30 @@ uint32 GetItemEnchantMod(uint32 entry)
 
     if (tab == RandomItemEnch.end())
     {
-        sLog.outErrorDb("Item RandomProperty id #%u used in `item_template` but it doesn't have records in `item_enchantment_template` table.", entry);
+        sLog.Out(LOG_DBERROR, LOG_LVL_MINIMAL, "Item RandomProperty id #%u used in `item_template` but it doesn't have records in `item_enchantment_template` table.", entry);
         return 0;
     }
 
     double dRoll = rand_chance();
     float fCount = 0;
 
-    for (EnchStoreList::const_iterator ench_iter = tab->second.begin(); ench_iter != tab->second.end(); ++ench_iter)
+    EnchStoreList const& enchantList = tab->second;
+    for (const auto& ench_iter : enchantList)
     {
-        fCount += ench_iter->chance;
+        fCount += ench_iter.chance;
 
-        if (fCount > dRoll) return ench_iter->ench;
+        if (fCount > dRoll) return ench_iter.ench;
     }
 
     //we could get here only if sum of all enchantment chances is lower than 100%
     dRoll = (irand(0, (int)floor(fCount * 100) + 1)) / 100.0f;
     fCount = 0;
 
-    for (EnchStoreList::const_iterator ench_iter = tab->second.begin(); ench_iter != tab->second.end(); ++ench_iter)
+    for (const auto& ench_iter : enchantList)
     {
-        fCount += ench_iter->chance;
+        fCount += ench_iter.chance;
 
-        if (fCount > dRoll) return ench_iter->ench;
+        if (fCount > dRoll) return ench_iter.ench;
     }
 
     return 0;

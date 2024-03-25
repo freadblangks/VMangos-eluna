@@ -1,18 +1,13 @@
 #ifndef MANGOS_MOVEMENT_BROADCASTER_H
 #define MANGOS_MOVEMENT_BROADCASTER_H
 
-#include "Log.h"
-#include "ObjectGuid.h"
-#include <array>
 #include <atomic>
-#include <array>
 #include <chrono>
-#include <mutex>
+#include <shared_mutex>
 #include <thread>
-#include <unordered_map>
-#include <list>
 #include <vector>
 #include <cstddef>
+#include <memory>
 
 class PlayerBroadcaster;
 
@@ -27,7 +22,7 @@ class MovementBroadcaster final
     std::chrono::milliseconds m_sleep_timer;
 
     std::vector<PlayersBCastSet> m_thread_players;
-    std::vector<std::mutex> m_thread_locks;
+    std::vector<std::shared_timed_mutex> m_thread_locks;
 
     void Work(std::size_t thread_id);
     void BroadcastPackets(std::size_t index, uint32& num_packets);
@@ -37,8 +32,8 @@ public:
     MovementBroadcaster(std::size_t threads, std::chrono::milliseconds frequency);
     ~MovementBroadcaster();
 
-    void RegisterPlayer(const std::shared_ptr<PlayerBroadcaster>& player);
-    void RemovePlayer(const std::shared_ptr<PlayerBroadcaster>& player);
+    void RegisterPlayer(std::shared_ptr<PlayerBroadcaster> const& player);
+    void RemovePlayer(std::shared_ptr<PlayerBroadcaster> const& player);
 
     void StartThreads();
     void UpdateConfiguration(std::size_t new_threads_count, std::chrono::milliseconds new_frequency);

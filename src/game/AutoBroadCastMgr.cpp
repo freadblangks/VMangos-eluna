@@ -3,6 +3,7 @@
 #include "Log.h"
 #include "ProgressBar.h"
 #include "Policies/SingletonImp.h"
+#include "Util.h"
 
 #include "AutoBroadCastMgr.h"
 
@@ -10,7 +11,8 @@ INSTANTIATE_SINGLETON_1(AutoBroadCastMgr);
 
 AutoBroadCastMgr::AutoBroadCastMgr()
 {
-
+    _constInterval = sWorld.getConfig(CONFIG_UINT32_AUTOBROADCAST_INTERVAL);
+    _current = 0;
 }
 
 AutoBroadCastMgr::~AutoBroadCastMgr()
@@ -18,55 +20,54 @@ AutoBroadCastMgr::~AutoBroadCastMgr()
     entries.clear();
 }
 
-void AutoBroadCastMgr::load()
+void AutoBroadCastMgr::Load()
 {
     entries.clear();
-    std::unique_ptr<QueryResult> result(WorldDatabase.Query("SELECT `delay`, `string_id` FROM `autobroadcast`"));
+    std::unique_ptr<QueryResult> result(WorldDatabase.Query("SELECT `string_id` FROM `autobroadcast`"));
 
     if (!result)
     {
         BarGoLink bar(1);
         bar.step();
 
-        sLog.outString();
-        sLog.outString(">> Loaded 0 AutoBroadCast message");
+        sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
+        sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, ">> Loaded 0 AutoBroadCast message");
         return;
     }
 
     uint32 count = 0;
     BarGoLink bar(result->GetRowCount());
 
-    Field *fields;
+    Field* fields;
     do
     {
         bar.step();
         AutoBroadCastEntry e;
         fields = result->Fetch();
 
-        e.delay = fields[0].GetUInt32();
-        e.stringId = fields[1].GetInt32();
-        e.lastAnnounce = time(nullptr);
+        e.stringId = fields[0].GetInt32();
 
         entries.push_back(e);
         ++count;
     }
     while (result->NextRow());
 
-    sLog.outString();
-    sLog.outString(">> Loaded %u AutoBroadCast messages", count);
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, ">> Loaded %u AutoBroadCast messages", count);
 
 }
 
-void AutoBroadCastMgr::update(uint32 diff)
+void AutoBroadCastMgr::Update(uint32 diff)
 {
-    time_t now = time(nullptr);
-    std::vector<AutoBroadCastEntry>::iterator iter;
-    for (iter = entries.begin(); iter != entries.end(); ++iter)
+    if (entries.empty())
+        return;
+
+    _current += diff;
+
+    if (_current >= _constInterval)
     {
-        if ((now - iter->lastAnnounce) > iter->delay)
-        {
-            sWorld.SendWorldText(iter->stringId);
-            iter->lastAnnounce = now;
-        }
+        AutoBroadCastEntry entry = SelectRandomContainerElement(entries);
+        sWorld.SendWorldText(entry.stringId);
+        _current = 0;
     }
 }

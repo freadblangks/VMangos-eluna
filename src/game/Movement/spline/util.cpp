@@ -24,13 +24,13 @@ namespace Movement
 {
 double gravity = 19.29110527038574;
 
-/// Velocity bounds that makes fall speed limited
+// Velocity bounds that makes fall speed limited
 float terminalVelocity = 60.148003f;
 float terminalSavefallVelocity = 7.f;
 
-const float terminal_length = float(terminalVelocity* terminalVelocity) / (2.f* gravity);
-const float terminal_savefall_length = (terminalSavefallVelocity* terminalSavefallVelocity) / (2.f* gravity);
-const float terminalFallTime = float(terminalVelocity / gravity); // the time that needed to reach terminalVelocity
+float const terminal_length = float(terminalVelocity* terminalVelocity) / (2.f* gravity);
+float const terminal_savefall_length = (terminalSavefallVelocity* terminalSavefallVelocity) / (2.f* gravity);
+float const terminalFallTime = float(terminalVelocity / gravity); // the time that needed to reach terminalVelocity
 
 float computeFallTime(float path_length, bool isSafeFall)
 {
@@ -100,7 +100,7 @@ float computeFallElevation(float t_passed)
 
 #define STR(x) #x
 
-const char* g_MovementFlag_names[] =
+char const* g_MovementFlag_names[] =
 {
     STR(Forward),            // 0x00000001,
     STR(Backward),           // 0x00000002,
@@ -153,7 +153,7 @@ const char* g_MovementFlag_names[] =
     STR(Unk10),
 };
 
-const char* g_SplineFlag_names[32] =
+char const* g_SplineFlag_names[32] =
 {
     STR(Done),             // 0x00000001,
     STR(Falling),          // 0x00000002,
@@ -190,11 +190,11 @@ const char* g_SplineFlag_names[32] =
 };
 
 template<class Flags, int N>
-void print_flags(Flags t, const char * (&names)[N], std::string& str)
+void print_flags(Flags t, char const* (&names)[N], std::string& str)
 {
     for (int i = 0; i < N; ++i)
     {
-        if ((t & (Flags)(1 << i)) && names[i] != NULL)
+        if ((t & (Flags)(1 << i)) && names[i] != nullptr)
             str.append(" ").append(names[i]);
     }
 }

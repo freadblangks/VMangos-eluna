@@ -38,9 +38,9 @@
 if (!(CONDITION)) \
 { \
     ACE_Stack_Trace st; \
-    sLog.outInfo("%s:%i: Error: Assertion in %s failed: %s", \
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "%s:%i: Error: Assertion in %s failed: %s", \
         __FILE__, __LINE__, __FUNCTION__, STRINGIZE(CONDITION)); \
-    sLog.outInfo("%s", st.c_str()); \
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "%s", st.c_str()); \
     throw std::runtime_error(STRINGIZE(CONDITION)); \
     assert(STRINGIZE(CONDITION) && 0); \
 }
@@ -50,9 +50,9 @@ if (!(CONDITION)) \
 if (!(CONDITION)) \
 { \
     ACE_Stack_Trace st; \
-    sLog.outError("%s:%i: Warning: Assertion in %s failed: %s",\
+    sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "%s:%i: Warning: Assertion in %s failed: %s",\
         __FILE__, __LINE__, __FUNCTION__, STRINGIZE(CONDITION)); \
-    sLog.outError("%s", st.c_str()); \
+    sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "%s", st.c_str()); \
 }
 #else
 // Normal assert.
@@ -80,6 +80,12 @@ if (!(CONDITION)) \
 #else
 #  define MANGOS_ASSERT WPError                             // Error even if in release mode.
 #endif
+#endif
+
+#ifdef MANGOS_DEBUG
+#define MANGOS_DEBUG_ASSERT(x) MANGOS_ASSERT(x)
+#else
+#define MANGOS_DEBUG_ASSERT(x)
 #endif
 
 #endif

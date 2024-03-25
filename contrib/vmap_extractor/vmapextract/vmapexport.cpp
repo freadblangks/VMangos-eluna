@@ -23,7 +23,7 @@
 #include <list>
 #include <errno.h>
 
-#if defined WIN32
+#ifdef _WIN32
 #include <Windows.h>
 #include <sys/stat.h>
 #include <direct.h>
@@ -39,13 +39,12 @@
 //#pragma comment(lib, "Winmm.lib")
 
 #include <map>
+#include <unordered_map>
 
 //From Extractor
-#include "adtfile.h"
 #include "wdtfile.h"
 #include "dbcfile.h"
-#include "wmo.h"
-#include "mpq_libmpq04.h"
+#include "libmpq/mpq_libmpq.h"
 
 #include "vmapexport.h"
 
@@ -65,18 +64,25 @@ typedef struct
 } map_id;
 
 map_id* map_ids;
-uint16* LiqType = 0;
 uint32 map_count;
 char output_path[128] = ".";
 char input_path[1024] = ".";
 bool hasInputPathParam = false;
-bool preciseVectorData = false;
+bool preciseVectorData = true;
+std::unordered_map<std::string, WMODoodadData> WmoDoodads;
 
 // Constants
 
 //static const char * szWorkDirMaps = ".\\Maps";
 const char* szWorkDirWmo = "./Buildings";
-const char* szRawVMAPMagic = "VMAPz04";
+const char* szRawVMAPMagic = "VMAPs05";
+
+std::map<std::pair<uint32, uint16>, uint32> uniqueObjectIds;
+
+uint32 GenerateUniqueObjectId(uint32 clientId, uint16 clientDoodadId)
+{
+    return uniqueObjectIds.emplace(std::make_pair(clientId, clientDoodadId), uniqueObjectIds.size() + 1).first->second;
+}
 
 // Local testing functions
 
@@ -97,28 +103,6 @@ void strToLower(char* str)
         *str = tolower(*str);
         ++str;
     }
-}
-
-// copied from contrib/extractor/System.cpp
-void ReadLiquidTypeTableDBC()
-{
-    printf("Read LiquidType.dbc file...");
-    DBCFile dbc("DBFilesClient\\LiquidType.dbc");
-    if (!dbc.open())
-    {
-        printf("Fatal error: Invalid LiquidType.dbc file format!\n");
-        exit(1);
-    }
-
-    size_t LiqType_count = dbc.getRecordCount();
-    size_t LiqType_maxid = dbc.getRecord(LiqType_count - 1).getUInt(0);
-    LiqType = new uint16[LiqType_maxid + 1];
-    memset(LiqType, 0xff, (LiqType_maxid + 1) * sizeof(uint16));
-
-    for (uint32 x = 0; x < LiqType_count; ++x)
-        LiqType[dbc.getRecord(x).getUInt(0)] = dbc.getRecord(x).getUInt(3);
-
-    printf("Done! (%u LiqTypes loaded)\n", (unsigned int)LiqType_count);
 }
 
 bool ExtractWmo()
@@ -145,37 +129,18 @@ bool ExtractWmo()
     return success;
 }
 
-
-// This zepp has position / orientation modified.
-// Don't know why ... Here is a hack-fix.
-void ZeppFixVect(float* v)
-{
-    /*
-    it2->x = -it2->x + 3.0f;
-    it2->y *= -1;
-    it2->y -= 14;
-    */
-    v[0] = -v[0] + 3.0f;
-    v[1] = -v[1] - 14;
-}
-
-void FixZepp(WMOGroup& g)
-{
-    for (uint32 i = 0; i < g.nVertices; ++i)
-        ZeppFixVect(g.MOVT + 3 * i);
-}
-
 bool ExtractSingleWmo(std::string& fname)
 {
     // Copy files from archive
 
     char szLocalFile[1024];
-    const char* plain_name = GetPlainName(fname.c_str());
+    char* plain_name = GetPlainName(&fname[0]);
+    fixnamen(plain_name, strlen(plain_name));
+    fixname2(plain_name, strlen(plain_name));
     sprintf(szLocalFile, "%s/%s", szWorkDirWmo, plain_name);
-    fixnamen(szLocalFile, strlen(szLocalFile));
 
-    //if (FileExists(szLocalFile))
-    //    return true;
+    if (FileExists(szLocalFile))
+        return true;
 
     int p = 0;
     //Select root wmo files
@@ -209,9 +174,11 @@ bool ExtractSingleWmo(std::string& fname)
         printf("couldn't open %s for writing!\n", szLocalFile);
         return false;
     }
-
     froot.ConvertToVMAPRootWmo(output);
+    WMODoodadData& doodads = WmoDoodads[plain_name];
+    std::swap(doodads, froot.DoodadData);
     int Wmo_nVertices = 0;
+    uint32 RealNbOfGroups = froot.nGroups;
     //printf("root has %d groups\n", froot->nGroups);
     if (froot.nGroups != 0)
     {
@@ -225,7 +192,7 @@ bool ExtractSingleWmo(std::string& fname)
             //printf("Trying to open groupfile %s\n",groupFileName);
 
             string s = groupFileName;
-            WMOGroup fgroup(s, &froot);
+            WMOGroup fgroup(s);
             if (!fgroup.open())
             {
                 printf("Could not open all Group file for: %s\n", plain_name);
@@ -233,15 +200,32 @@ bool ExtractSingleWmo(std::string& fname)
                 break;
             }
 
-            if (strcmp(szLocalFile, "./Buildings/Transport_Zeppelin.wmo") == 0)
-                FixZepp(fgroup);
+            if (fgroup.ShouldSkip(froot))
+            {
+                printf("Skipped WMOGroup %s %s %d", fname.c_str(), s.c_str(), fgroup.mogpFlags);
+                RealNbOfGroups--;
+                continue;
+            }
 
             Wmo_nVertices += fgroup.ConvertToVMAPGroupWmo(output, &froot, preciseVectorData);
+            for (uint16 groupReference : fgroup.DoodadReferences)
+            {
+                if (groupReference >= doodads.Spawns.size())
+                    continue;
+
+                uint32 doodadNameIndex = doodads.Spawns[groupReference].NameIndex;
+                if (froot.ValidDoodadNames.find(doodadNameIndex) == froot.ValidDoodadNames.end())
+                    continue;
+
+                doodads.References.insert(groupReference);
+            }
         }
     }
 
     fseek(output, 8, SEEK_SET); // store the correct no of vertices
     fwrite(&Wmo_nVertices, sizeof(int), 1, output);
+    fseek(output, 12, SEEK_SET); // store the correct no of groups
+    fwrite(&RealNbOfGroups, sizeof(uint32), 1, output);
     fclose(output);
 
     // Delete the extracted file in the case of an error
@@ -315,11 +299,7 @@ bool scan_patches(char* scanmatch, std::vector<std::string>& pArchiveNames)
         {
             sprintf(path, "%s.MPQ", scanmatch);
         }
-#ifdef __linux__
-        if (FILE* h = fopen64(path, "rb"))
-#else
         if (FILE* h = fopen(path, "rb"))
-#endif
         {
             fclose(h);
             //matches.push_back(path);
@@ -327,7 +307,7 @@ bool scan_patches(char* scanmatch, std::vector<std::string>& pArchiveNames)
         }
     }
 
-    return(true);
+    return (true);
 }
 
 bool fillArchiveNameVector(std::vector<std::string>& pArchiveNames)
@@ -341,24 +321,23 @@ bool fillArchiveNameVector(std::vector<std::string>& pArchiveNames)
 
     // open expansion and common files
     printf("Opening data files from data directory.\n");
-    sprintf(path, "%sterrain.mpq", input_path);
+    sprintf(path, "%sterrain.MPQ", input_path);
     pArchiveNames.push_back(path);
-    sprintf(path, "%smodel.mpq", input_path);
-    //pArchiveNames.push_back(path);
+    sprintf(path, "%smodel.MPQ", input_path);
     pArchiveNames.push_back(path);
-	sprintf(path, "%stexture.mpq", input_path);
+    sprintf(path, "%stexture.MPQ", input_path);
     pArchiveNames.push_back(path);
-	sprintf(path, "%swmo.mpq", input_path);
+    sprintf(path, "%swmo.MPQ", input_path);
     pArchiveNames.push_back(path);
-	sprintf(path, "%sbase.mpq", input_path);
+    sprintf(path, "%sbase.MPQ", input_path);
     pArchiveNames.push_back(path);
-    sprintf(path, "%smisc.mpq", input_path);
+    sprintf(path, "%smisc.MPQ", input_path);
 
     // now, scan for the patch levels in the core dir
     printf("Scanning patch levels from data directory.\n");
     sprintf(path, "%spatch", input_path);
     if (!scan_patches(path, pArchiveNames))
-        return(false);
+        return (false);
 
     printf("\n");
 
@@ -369,7 +348,7 @@ bool processArgv(int argc, char** argv)
 {
     bool result = true;
     hasInputPathParam = false;
-    bool preciseVectorData = false;
+    preciseVectorData = true;
 
     for (int i = 1; i < argc; ++i)
     {
@@ -383,7 +362,7 @@ bool processArgv(int argc, char** argv)
             {
                 hasInputPathParam = true;
                 strcpy(input_path, argv[i + 1]);
-                if (input_path[strlen(input_path) - 1] != '\\' || input_path[strlen(input_path) - 1] != '/')
+                if (input_path[strlen(input_path) - 1] != '\\' && input_path[strlen(input_path) - 1] != '/')
                     strcat(input_path, "/");
                 ++i;
             }
@@ -410,8 +389,8 @@ bool processArgv(int argc, char** argv)
     {
         printf("Extract for %s.\n", szRawVMAPMagic);
         printf("%s [-?][-s][-l][-d <path>]\n", argv[0]);
-        printf("   -s : (default) small size (data size optimization), ~500MB less vmap data.\n");
-        printf("   -l : large size, ~500MB more vmap data. (might contain more details)\n");
+        printf("   -s : small size (data size optimization), ~500MB less vmap data.\n");
+        printf("   -l : (default) large size, ~500MB more vmap data. (might contain more details)\n");
         printf("   -d <path>: Path to the vector data source folder.\n");
         printf("   -? : This message.\n");
     }
@@ -436,16 +415,27 @@ int main(int argc, char** argv)
     if (!processArgv(argc, argv))
         return 1;
 
-    /*if (!ModelLOSMgr::Load())
+    // some simple check if working dir is dirty
+    else
     {
-        printf("Unable to open LOS Modificators.\n");
-        return 1;
-    }*/
+        std::string sdir = std::string(szWorkDirWmo) + "/dir";
+        std::string sdir_bin = std::string(szWorkDirWmo) + "/dir_bin";
+        struct stat status;
+        if (!stat(sdir.c_str(), &status) || !stat(sdir_bin.c_str(), &status))
+        {
+            printf("Your output directory seems to be polluted, please use an empty directory!\n");
+            printf("<press return to exit>");
+            char garbage[2];
+            scanf("%c", garbage);
+            return 1;
+        }
+    }
+
     printf("Extract for %s. Beginning work ....\n", szRawVMAPMagic);
     //xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
     // Create the working directory
     if (mkdir(szWorkDirWmo
-#ifdef __linux__
+#ifndef _WIN32
               , 0711
 #endif
              ))
@@ -466,7 +456,6 @@ int main(int argc, char** argv)
         printf("FATAL ERROR: None MPQ archive found by path '%s'. Use -d option with proper path.\n", input_path);
         return 1;
     }
-    ReadLiquidTypeTableDBC();
 
     // extract data
     if (success)
@@ -509,48 +498,5 @@ int main(int argc, char** argv)
     }
 
     printf("Extract for %s. Work complete. No errors.\n", szRawVMAPMagic);
-    delete [] LiqType;
     return 0;
-}
-
-std::vector<ModelLOSMgr::LosModificator> ModelLOSMgr::modificators;
-bool ModelLOSMgr::Load()
-{
-    FILE* f = fopen("los_mods", "r");
-    if (!f)
-        return false;
-    LosModificator mod;
-    while (true)
-    {
-        mod.id = 0;
-        char fName[200] = {0};
-        uint32 enable = 0;
-        fscanf(f, "%u %u %s\n", &enable, &mod.id, fName);
-        if (!fName[0])
-            break;
-        mod.enable = !!enable;
-        mod.filename = fName;
-        modificators.push_back(mod);
-    }
-    printf("%u LOS modificators loaded\n", uint32(modificators.size()));
-    fclose(f);
-    return true;
-}
-
-bool ModelLOSMgr::IsLOSEnabled(uint32 spawnId, std::string modelName)
-{
-    std::vector<LosModificator>::iterator it;
-    // Check by ID
-    for (it = modificators.begin(); it != modificators.end(); ++it)
-        if (it->id == spawnId)
-            break;
-    // By modelname else
-    if (it == modificators.end())
-        for (it = modificators.begin(); it != modificators.end(); ++it)
-            if (modelName.find(it->filename) != std::string::npos)
-                break;
-    if (it != modificators.end())
-        return it->enable;
-    // Le reste ... On va dire que ca casse.
-    return true;
 }

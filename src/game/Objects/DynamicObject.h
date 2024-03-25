@@ -24,7 +24,6 @@
 
 #include "Object.h"
 #include "DBCEnums.h"
-#include "Unit.h"
 
 enum DynamicObjectType
 {
@@ -41,8 +40,8 @@ class DynamicObject : public WorldObject
         typedef std::map<ObjectGuid, uint32> AffectedMap;
         explicit DynamicObject();
 
-        void AddToWorld();
-        void RemoveFromWorld();
+        void AddToWorld() override;
+        void RemoveFromWorld() override;
 
         bool Create(uint32 guidlow, WorldObject* caster, uint32 spellId, SpellEffectIndex effIndex, float x, float y, float z, int32 duration, float radius, DynamicObjectType type);
         void Update(uint32 update_diff, uint32 p_time) override;
@@ -51,29 +50,31 @@ class DynamicObject : public WorldObject
         SpellEffectIndex GetEffIndex() const { return m_effIndex; }
         uint32 GetDuration() const { return m_aliveDuration; }
         ObjectGuid const& GetCasterGuid() const { return GetGuidValue(DYNAMICOBJECT_CASTER); }
-        WorldObject* GetCaster() const;
+        SpellCaster* GetCaster() const;
         Unit* GetUnitCaster() const;
+        Player* GetAffectingPlayer() const final;
+        bool IsCharmerOrOwnerPlayerOrPlayerItself() const final { return GetCasterGuid().IsPlayer(); }
         float GetRadius() const { return m_radius; }
         DynamicObjectType GetType() const { return (DynamicObjectType)GetByteValue(DYNAMICOBJECT_BYTES,0); }
-        bool NeedsRefresh(Unit *unit) const;
+        bool NeedsRefresh(Unit* unit) const;
         bool IsChanneled() const { return m_channeled; }
-        void AddAffected(Unit *unit) { m_affected[unit->GetObjectGuid()] = 0; }
-        void RemoveAffected(Unit *unit) { m_affected.erase(unit->GetObjectGuid()); }
+        void AddAffected(Unit* unit);
+        void RemoveAffected(Unit* unit);
         void Delay(int32 delaytime);
+        char const* GetName() const final { return "DynamicObject"; }
 
         bool IsHostileTo(WorldObject const* target) const override;
         bool IsFriendlyTo(WorldObject const* target) const override;
-        uint32 getFaction() const final override;
-        uint32 getLevel() const final override;
+        uint32 GetFactionTemplateId() const final ;
 
-        float GetObjectBoundingRadius() const               // overwrite WorldObject version
+        float GetObjectBoundingRadius() const override      // overwrite WorldObject version
         {
             return 0.0f;                                    // dynamic object not have real interact size
         }
 
-        bool isVisibleForInState(WorldObject const* pDetector, WorldObject const* viewPoint, bool inVisibleList) const override;
+        bool IsVisibleForInState(WorldObject const* pDetector, WorldObject const* viewPoint, bool inVisibleList) const override;
 
-        GridReference<DynamicObject> &GetGridRef() { return m_gridRef; }
+        GridReference<DynamicObject>& GetGridRef() { return m_gridRef; }
 
     protected:
         uint32 m_spellId;

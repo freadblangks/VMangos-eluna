@@ -18,40 +18,36 @@
 
 #ifndef _VMAPDEFINITIONS_H
 #define _VMAPDEFINITIONS_H
-#include <cstring>
 
 #define LIQUID_TILE_SIZE (533.333f / 128.f)
 
 namespace VMAP
 {
-    const char VMAP_MAGIC[] = "VMAP_4.0";                   // used in final vmap files
-    const char RAW_VMAP_MAGIC[] = "VMAPz04";                // used in extracted vmap files with raw data
-    const char GAMEOBJECT_MODELS[] = "temp_gameobject_models";
+    char const VMAP_MAGIC[] = "VMAP_7.0";                   // used in final vmap files
+    char const RAW_VMAP_MAGIC[] = "VMAPs05";                // used in extracted vmap files with raw data
+    char const GAMEOBJECT_MODELS[] = "temp_gameobject_models";
 
     // defined in TileAssembler.cpp currently...
-    bool readChunk(FILE* rf, char* dest, const char* compare, uint32 len);
+    bool readChunk(FILE* rf, char* dest, char const* compare, uint32 len);
 }
 
 #ifndef NO_CORE_FUNCS
 #include "Errors.h"
 #include "Log.h"
-#define ERROR_LOG(...) do{ sLog.outError(__VA_ARGS__); } while(0)
 #elif defined MMAP_GENERATOR
 #include <assert.h>
 #define MANGOS_ASSERT(x) assert(x)
-#define DEBUG_LOG(...) 0
-#define DETAIL_LOG(...) 0
+#define sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, ...) 0
+#define sLog.Out(LOG_BASIC, LOG_LVL_DETAIL, ...) 0
 #define LOG_FILTER_MAP_LOADING true
-#define DEBUG_FILTER_LOG(F,...) do{ if (F) DEBUG_LOG(__VA_ARGS__); } while(0)
-#define ERROR_LOG(...) do{ printf("ERROR:"); printf(__VA_ARGS__); printf("\n"); } while(0)
+#define DEBUG_FILTER_LOG(F,...) do{ if (F) sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, __VA_ARGS__); } while(0)
 #else
 #include <assert.h>
 #define MANGOS_ASSERT(x) assert(x)
-#define DEBUG_LOG(...) do{ printf(__VA_ARGS__); printf("\n"); } while(0)
-#define DETAIL_LOG(...) do{ printf(__VA_ARGS__); printf("\n"); } while(0)
+#define sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, ...) do{ printf(__VA_ARGS__); printf("\n"); } while(0)
+#define sLog.Out(LOG_BASIC, LOG_LVL_DETAIL, ...) do{ printf(__VA_ARGS__); printf("\n"); } while(0)
 #define LOG_FILTER_MAP_LOADING true
-#define DEBUG_FILTER_LOG(F,...) do{ if (F) DEBUG_LOG(__VA_ARGS__); } while(0)
-#define ERROR_LOG(...) do{ printf("ERROR:"); printf(__VA_ARGS__); printf("\n"); } while(0)
+#define DEBUG_FILTER_LOG(F,...) do{ if (F) sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, __VA_ARGS__); } while(0)
 #endif
 
 #endif // _VMAPDEFINITIONS_H

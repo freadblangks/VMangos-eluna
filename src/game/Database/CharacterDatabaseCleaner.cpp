@@ -24,7 +24,6 @@
 #include "World.h"
 #include "Database/DatabaseEnv.h"
 #include "DBCStores.h"
-#include "ProgressBar.h"
 #include "SpellMgr.h"
 
 void CharacterDatabaseCleaner::CleanDatabase()
@@ -33,7 +32,7 @@ void CharacterDatabaseCleaner::CleanDatabase()
     if (!sWorld.getConfig(CONFIG_BOOL_CLEAN_CHARACTER_DB))
         return;
 
-    sLog.outString("Cleaning character database...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Cleaning character database...");
 
     // check flags which clean ups are necessary
     QueryResult* result = CharacterDatabase.PQuery("SELECT cleaning_flags FROM saved_variables");
@@ -50,12 +49,12 @@ void CharacterDatabaseCleaner::CleanDatabase()
     CharacterDatabase.Execute("UPDATE saved_variables SET cleaning_flags = 0");
 }
 
-void CharacterDatabaseCleaner::CheckUnique(const char* column, const char* table, bool (*check)(uint32))
+void CharacterDatabaseCleaner::CheckUnique(char const* column, char const* table, bool (*check)(uint32))
 {
     QueryResult* result = CharacterDatabase.PQuery("SELECT DISTINCT %s FROM %s", column, table);
     if (!result)
     {
-        sLog.outString("Table %s is empty.", table);
+        sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Table %s is empty.", table);
         return;
     }
 
@@ -66,7 +65,7 @@ void CharacterDatabaseCleaner::CheckUnique(const char* column, const char* table
     {
         bar.step();
 
-        Field *fields = result->Fetch();
+        Field* fields = result->Fetch();
 
         uint32 id = fields[0].GetUInt32();
 

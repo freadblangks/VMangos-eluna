@@ -33,10 +33,7 @@ bool GOHello_go_door_lever_dm(Player* pPlayer, GameObject* pGo)
 
     GameObject* pGoDoor = pInstance->instance->GetGameObject(pInstance->GetData64(DATA_DEFIAS_DOOR));
 
-    if (pGoDoor && pGoDoor->GetGoState() == 1)
-        return false;
-
-    return true;
+    return !(pGoDoor && pGoDoor->GetGoState() == 1);
 }
 
 bool GOHello_go_defias_cannon(Player* pPlayer, GameObject* pGo)
@@ -66,7 +63,7 @@ bool GOHello_go_defias_gunpowder(Player* player, GameObject* pGo)
         if (pirate3 = pGo->SummonCreature(634, -131.290833f, -591.243103f, 18.077190f, 4.792192f, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 310000))//DEFIAS_OVERSEER
         {
             pirate3->GetMotionMaster()->MovePoint(0, -128.925980f, -616.494629f, 13.532340f, MOVE_PATHFINDING, 0, 6.269623f);
-            pirate3->SetRespawnDelay(350000);
+            pirate3->SetRespawnDelay(350);
         }
         pInstance->SetData(GUN_POWDER_EVENT, 1);
     }
@@ -77,7 +74,7 @@ struct go_defias_gunpowderAI: public GameObjectAI
 {
     go_defias_gunpowderAI(GameObject* go) : GameObjectAI(go) {}
 
-    void SummonedMovementInform(Creature* summoned, uint32 motion_type, uint32 point_id)
+    void SummonedMovementInform(Creature* summoned, uint32 motion_type, uint32 point_id) override
     {
         if (motion_type == POINT_MOTION_TYPE)
         {
@@ -96,7 +93,7 @@ GameObjectAI* GetAIgo_defias_gunpowder(GameObject *go)
 
 void AddSC_deadmines()
 {
-    Script *newscript;
+    Script* newscript;
 
     newscript = new Script;
     newscript->Name = "go_door_lever_dm";

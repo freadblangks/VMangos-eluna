@@ -16,9 +16,7 @@
  */
 
 #include "ZoneScriptMgr.h"
-#include "ObjectMgr.h"
-#include "Player.h"
-#include "ScriptMgr.h"
+#include "Log.h"
 #include "Policies/SingletonImp.h"
 
 INSTANTIATE_SINGLETON_1(ZoneScriptMgr);
@@ -32,10 +30,10 @@ ZoneScriptMgr::ZoneScriptMgr()
 
 ZoneScriptMgr::~ZoneScriptMgr()
 {
-    for (ZoneScriptsSet::iterator itr = m_ZoneScriptsSet.begin(); itr != m_ZoneScriptsSet.end(); ++itr)
-        delete *itr;
-    for (ZoneScript_ScriptSet::iterator itr = m_ZoneScripts_Scripts.begin(); itr != m_ZoneScripts_Scripts.end(); ++itr)
-        delete *itr;
+    for (const auto& itr : m_ZoneScriptsSet)
+        delete itr;
+    for (const auto& itr : m_ZoneScripts_Scripts)
+        delete itr;
 }
 
 void ZoneScriptMgr::InitZoneScripts()
@@ -47,21 +45,21 @@ void ZoneScriptMgr::InitMapZoneScripts(uint32 mapId, Map* pMap)
 {
     ZoneScript* pScript = nullptr;
     uint32 counter = 0;
-    for (ZoneScript_ScriptSet::iterator it = m_ZoneScripts_Scripts.begin(); it != m_ZoneScripts_Scripts.end(); ++it)
+    for (const auto& itr : m_ZoneScripts_Scripts)
     {
-        if ((*it)->GetMapId() != mapId)
+        if (itr->GetMapId() != mapId)
             continue;
 
-        pScript = (*it)->GetZoneScript();
+        pScript = itr->GetZoneScript();
         if (!pScript)
         {
-            sLog.outError("Could not initialize ZoneScript object. Got NULL pointer from script.");
+            sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Could not initialize ZoneScript object. Got nullptr pointer from script.");
             continue;
         }
         pScript->SetMap(pMap);
         if (!pScript->SetupZoneScript())
         {
-            sLog.outError("Could not initialize ZoneScript object. SetupZoneScript failed.");
+            sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Could not initialize ZoneScript object. SetupZoneScript failed.");
             delete pScript;
             continue;
         }
@@ -69,7 +67,7 @@ void ZoneScriptMgr::InitMapZoneScripts(uint32 mapId, Map* pMap)
         ++counter;
     }
 
-    sLog.outString("ZoneScriptMgr : %u scripts on the map %u.", counter, mapId);
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "ZoneScriptMgr : %u scripts on the map %u.", counter, mapId);
 }
 
 void ZoneScriptMgr::AddZone(uint32 zoneid, ZoneScript *handle)
@@ -77,7 +75,7 @@ void ZoneScriptMgr::AddZone(uint32 zoneid, ZoneScript *handle)
     m_ZoneScriptsMap[zoneid] = handle;
 }
 
-void ZoneScriptMgr::HandlePlayerEnterZone(Player *plr, uint32 zoneid)
+void ZoneScriptMgr::HandlePlayerEnterZone(Player* plr, uint32 zoneid)
 {
     ZoneScriptsMap::iterator itr = m_ZoneScriptsMap.find(zoneid);
     if (itr == m_ZoneScriptsMap.end())
@@ -87,10 +85,10 @@ void ZoneScriptMgr::HandlePlayerEnterZone(Player *plr, uint32 zoneid)
         return;
 
     itr->second->OnPlayerEnter(plr);
-    DEBUG_LOG("Player %u entered ZoneScript", plr->GetGUIDLow());
+    //sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "Player %u entered ZoneScript", plr->GetGUIDLow());
 }
 
-void ZoneScriptMgr::HandlePlayerLeaveZone(Player *plr, uint32 zoneid)
+void ZoneScriptMgr::HandlePlayerLeaveZone(Player* plr, uint32 zoneid)
 {
     ZoneScriptsMap::iterator itr = m_ZoneScriptsMap.find(zoneid);
     if (itr == m_ZoneScriptsMap.end())
@@ -101,7 +99,7 @@ void ZoneScriptMgr::HandlePlayerLeaveZone(Player *plr, uint32 zoneid)
         return;
 
     itr->second->OnPlayerLeave(plr);
-    DEBUG_LOG("Player %u left ZoneScript", plr->GetGUIDLow());
+    //sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "Player %u left ZoneScript", plr->GetGUIDLow());
 }
 
 ZoneScript * ZoneScriptMgr::GetZoneScriptToZoneId(uint32 zoneid)
@@ -110,7 +108,7 @@ ZoneScript * ZoneScriptMgr::GetZoneScriptToZoneId(uint32 zoneid)
     if (itr == m_ZoneScriptsMap.end())
     {
         // no handle for this zone, return
-        //DETAIL_LOG("Pas de script pour la zone %u", zoneid);
+        //sLog.Out(LOG_BASIC, LOG_LVL_DETAIL, "Pas de script pour la zone %u", zoneid);
         return nullptr;
     }
     return itr->second;
@@ -121,17 +119,17 @@ void ZoneScriptMgr::Update(uint32 diff)
     m_UpdateTimer += diff;
     if (m_UpdateTimer > OUTDOORPVP_OBJECTIVE_UPDATE_INTERVAL)
     {
-        for (ZoneScriptsSet::iterator itr = m_ZoneScriptsSet.begin(); itr != m_ZoneScriptsSet.end(); ++itr)
-            (*itr)->Update(m_UpdateTimer);
+        for (const auto itr : m_ZoneScriptsSet)
+            itr->Update(m_UpdateTimer);
         m_UpdateTimer = 0;
     }
 }
 
-bool ZoneScriptMgr::HandleCustomSpell(Player *plr, uint32 spellId, GameObject * go)
+bool ZoneScriptMgr::HandleCustomSpell(Player* plr, uint32 spellId, GameObject* go)
 {
-    for (ZoneScriptsSet::iterator itr = m_ZoneScriptsSet.begin(); itr != m_ZoneScriptsSet.end(); ++itr)
+    for (const auto itr : m_ZoneScriptsSet)
     {
-        if ((*itr)->HandleCustomSpell(plr, spellId, go))
+        if (itr->HandleCustomSpell(plr, spellId, go))
             return true;
     }
     return false;
@@ -146,30 +144,30 @@ ZoneScript * ZoneScriptMgr::GetZoneScript(uint32 zoneId)
         return nullptr;
 }
 
-bool ZoneScriptMgr::HandleOpenGo(Player *plr, uint64 guid)
+bool ZoneScriptMgr::HandleOpenGo(Player* plr, uint64 guid)
 {
-    for (ZoneScriptsSet::iterator itr = m_ZoneScriptsSet.begin(); itr != m_ZoneScriptsSet.end(); ++itr)
+    for (const auto itr : m_ZoneScriptsSet)
     {
-        if ((*itr)->HandleOpenGo(plr, guid))
+        if (itr->HandleOpenGo(plr, guid))
             return true;
     }
     return false;
 }
 
-void ZoneScriptMgr::HandleGossipOption(Player *plr, uint64 guid, uint32 gossipid)
+void ZoneScriptMgr::HandleGossipOption(Player* plr, uint64 guid, uint32 gossipid)
 {
-    for (ZoneScriptsSet::iterator itr = m_ZoneScriptsSet.begin(); itr != m_ZoneScriptsSet.end(); ++itr)
+    for (const auto itr : m_ZoneScriptsSet)
     {
-        if ((*itr)->HandleGossipOption(plr, guid, gossipid))
+        if (itr->HandleGossipOption(plr, guid, gossipid))
             return;
     }
 }
 
-void ZoneScriptMgr::HandleDropFlag(Player *plr, uint32 spellId)
+void ZoneScriptMgr::HandleDropFlag(Player* plr, uint32 spellId)
 {
-    for (ZoneScriptsSet::iterator itr = m_ZoneScriptsSet.begin(); itr != m_ZoneScriptsSet.end(); ++itr)
+    for (const auto itr : m_ZoneScriptsSet)
     {
-        if ((*itr)->HandleDropFlag(plr, spellId))
+        if (itr->HandleDropFlag(plr, spellId))
             return;
     }
 }

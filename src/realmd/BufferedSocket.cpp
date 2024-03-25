@@ -24,6 +24,7 @@
   */
 
 #include "BufferedSocket.h"
+#include "Config/Config.h"
 
 #include <ace/OS_NS_string.h>
 #include <ace/INET_Addr.h>
@@ -47,6 +48,12 @@ BufferedSocket::BufferedSocket(void):
 {
     if(Base::open(arg) == -1)
         return -1;
+
+    if (time_t timer = sConfig.GetIntDefault("MaxSessionDuration", 300))
+    {
+        ACE_Time_Value interval(timer);
+        Base::reactor_timer_interface()->schedule_timer(this, NULL, interval);
+    }
 
     ACE_INET_Addr addr;
 
@@ -130,7 +137,7 @@ ssize_t BufferedSocket::noblk_send(ACE_Message_Block &message_block)
 
 bool BufferedSocket::send(const char *buf, size_t len)
 {
-    if(buf == NULL || len == 0)
+    if(buf == nullptr || len == 0)
         return true;
 
     ACE_Data_Block db(
@@ -175,10 +182,7 @@ bool BufferedSocket::send(const char *buf, size_t len)
     }
 
     // tell reactor to call handle_output() when we can send more data
-    if(this->reactor()->schedule_wakeup(this, ACE_Event_Handler::WRITE_MASK) == -1)
-        return false;
-
-    return true;
+    return this->reactor()->schedule_wakeup(this, ACE_Event_Handler::WRITE_MASK) != -1;
 }
 
 /*virtual*/ int BufferedSocket::handle_output(ACE_HANDLE /*= ACE_INVALID_HANDLE*/)
@@ -251,8 +255,19 @@ bool BufferedSocket::send(const char *buf, size_t len)
     return n == space ? 1 : 0;
 }
 
-/*virtual*/ int BufferedSocket::handle_close(ACE_HANDLE h, ACE_Reactor_Mask m)
+/*virtual*/ int BufferedSocket::handle_close(ACE_HANDLE /*h*/, ACE_Reactor_Mask /*m*/)
 {
+    this->OnClose();
+
+    Base::handle_close();
+
+    return 0;
+}
+
+int BufferedSocket::handle_timeout(ACE_Time_Value const& current_time, void const* act)
+{
+    this->close_connection();
+
     this->OnClose();
 
     Base::handle_close();
