@@ -626,6 +626,9 @@ class Map : public GridRefManager<NGridType>
             return i_grids[x][y];
         }
 
+        bool isGridObjectDataLoaded(uint32 x, uint32 y) const { return getNGrid(x,y)->isGridObjectDataLoaded(); }
+        void setGridObjectDataLoaded(bool pLoaded, uint32 x, uint32 y) { getNGrid(x,y)->setGridObjectDataLoaded(pLoaded); }
+
         void setNGrid(NGridType* grid, uint32 x, uint32 y);
         void ScriptsProcess();
         bool FindScriptInitialTargets(WorldObject*& source, WorldObject*& target, ScriptAction const& step);
@@ -1033,11 +1036,10 @@ void Map::Visit(Cell const& cell, TypeContainerVisitor<T, CONTAINER>& visitor)
     uint32 const cell_x = cell.CellX();
     uint32 const cell_y = cell.CellY();
 
-    if (!cell.NoCreate())
+    if (!cell.NoCreate() || loaded(GridPair(x,y)))
+    {
         EnsureGridLoaded(cell);
-
-    NGridType* grid = getNGrid(x, y);
-    if (grid && grid->isGridObjectDataLoaded())
-        grid->Visit(cell_x, cell_y, visitor);
+        getNGrid(x, y)->Visit(cell_x, cell_y, visitor);
+    }
 }
 #endif

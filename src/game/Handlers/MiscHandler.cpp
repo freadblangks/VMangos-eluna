@@ -772,8 +772,8 @@ void WorldSession::HandleAreaTriggerOpcode(WorldPacket& recv_data)
     if (pPlayer->InBattleGround())
     {
         if (BattleGround* bg = pPlayer->GetBattleGround())
-            if (bg->HandleAreaTrigger(pPlayer, triggerId))
-                return;
+            bg->HandleAreaTrigger(pPlayer, triggerId);
+        return;
     }
     if (ZoneScript* pZoneScript = pPlayer->GetZoneScript())
     {

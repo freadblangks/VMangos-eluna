@@ -222,25 +222,14 @@ void CombatBotBaseAI::PopulateSpellData()
         if (pSpellEntry->HasAttribute(SPELL_ATTR_DO_NOT_DISPLAY))
             continue;
 
-        auto IsHigherRankSpell = [pSpellEntry](SpellEntry const* pOldSpell)
-        {
-            if (!pOldSpell)
-                return true;
-
-            uint32 newRank = pSpellEntry->GetRank();
-            if (newRank)
-                return newRank > pOldSpell->GetRank();
-
-            return pSpellEntry->Id > pOldSpell->Id;
-        };
-
         switch (me->GetClass())
         {
             case CLASS_PALADIN:
             {
                 if (pSpellEntry->SpellName[0].find("Seal of Righteousness") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(pSealOfRighteousness))
+                    if (!pSealOfRighteousness ||
+                        pSealOfRighteousness->Id < pSpellEntry->Id)
                         pSealOfRighteousness = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Qu Zhu") != std::string::npos)
@@ -251,157 +240,188 @@ void CombatBotBaseAI::PopulateSpellData()
                 }
                 else if (pSpellEntry->SpellName[0].find("Seal of Command") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(pSealOfCommand))
+                    if (!pSealOfCommand ||
+                        pSealOfCommand->Id < pSpellEntry->Id)
                         pSealOfCommand = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Judgement") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.paladin.pJudgement))
+                    if (!m_spells.paladin.pJudgement ||
+                        m_spells.paladin.pJudgement->Id < pSpellEntry->Id)
                         m_spells.paladin.pJudgement = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Hammer of Justice") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.paladin.pHammerOfJustice))
+                    if (!m_spells.paladin.pHammerOfJustice ||
+                        m_spells.paladin.pHammerOfJustice->Id < pSpellEntry->Id)
                         m_spells.paladin.pHammerOfJustice = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Blessing of Sacrifice") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.paladin.pBlessingOfSacrifice))
+                    if (!m_spells.paladin.pBlessingOfSacrifice ||
+                        m_spells.paladin.pBlessingOfSacrifice->Id < pSpellEntry->Id)
                         m_spells.paladin.pBlessingOfSacrifice = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Blessing of Freedom") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.paladin.pBlessingOfFreedom))
+                    if (!m_spells.paladin.pBlessingOfFreedom ||
+                        m_spells.paladin.pBlessingOfFreedom->Id < pSpellEntry->Id)
                         m_spells.paladin.pBlessingOfFreedom = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Blessing of Protection") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.paladin.pBlessingOfProtection))
+                    if (!m_spells.paladin.pBlessingOfProtection ||
+                        m_spells.paladin.pBlessingOfProtection->Id < pSpellEntry->Id)
                         m_spells.paladin.pBlessingOfProtection = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Blessing of Sanctuary") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(pBlessingOfSanctuary))
+                    if (!pBlessingOfSanctuary ||
+                        pBlessingOfSanctuary->Id < pSpellEntry->Id)
                         pBlessingOfSanctuary = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Blessing of Kings") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(pBlessingOfKings))
+                    if (!pBlessingOfKings ||
+                        pBlessingOfKings->Id < pSpellEntry->Id)
                         pBlessingOfKings = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Blessing of Wisdom") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(pBlessingOfWisdom))
+                    if (!pBlessingOfWisdom ||
+                        pBlessingOfWisdom->Id < pSpellEntry->Id)
                         pBlessingOfWisdom = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Blessing of Might") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(pBlessingOfMight))
+                    if (!pBlessingOfMight ||
+                        pBlessingOfMight->Id < pSpellEntry->Id)
                         pBlessingOfMight = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Blessing of Light") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(pBlessingOfLight))
+                    if (!pBlessingOfLight ||
+                        pBlessingOfLight->Id < pSpellEntry->Id)
                         pBlessingOfLight = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Devotion Aura") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(pDevotionAura))
+                    if (!pDevotionAura ||
+                        pDevotionAura->Id < pSpellEntry->Id)
                         pDevotionAura = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Retribution Aura") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(pRetributionAura))
+                    if (!pRetributionAura ||
+                        pRetributionAura->Id < pSpellEntry->Id)
                         pRetributionAura = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Concentration Aura") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(pConcentrationAura))
+                    if (!pConcentrationAura ||
+                        pConcentrationAura->Id < pSpellEntry->Id)
                         pConcentrationAura = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Sanctity Aura") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(pSanctityAura))
+                    if (!pSanctityAura ||
+                        pSanctityAura->Id < pSpellEntry->Id)
                         pSanctityAura = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Shadow Resistance Aura") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(pShadowResistanceAura))
+                    if (!pShadowResistanceAura ||
+                        pShadowResistanceAura->Id < pSpellEntry->Id)
                         pShadowResistanceAura = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Frost Resistance Aura") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(pFrostResistanceAura))
+                    if (!pFrostResistanceAura ||
+                        pFrostResistanceAura->Id < pSpellEntry->Id)
                         pFrostResistanceAura = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Fire Resistance Aura") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(pFireResistanceAura))
+                    if (!pFireResistanceAura ||
+                        pFireResistanceAura->Id < pSpellEntry->Id)
                         pFireResistanceAura = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Exorcism") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.paladin.pExorcism))
+                    if (!m_spells.paladin.pExorcism ||
+                        m_spells.paladin.pExorcism->Id < pSpellEntry->Id)
                         m_spells.paladin.pExorcism = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Consecration") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.paladin.pConsecration))
+                    if (!m_spells.paladin.pConsecration ||
+                        m_spells.paladin.pConsecration->Id < pSpellEntry->Id)
                         m_spells.paladin.pConsecration = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Hammer of Wrath") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.paladin.pHammerOfWrath))
+                    if (!m_spells.paladin.pHammerOfWrath ||
+                        m_spells.paladin.pHammerOfWrath->Id < pSpellEntry->Id)
                         m_spells.paladin.pHammerOfWrath = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Cleanse") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.paladin.pCleanse))
+                    if (!m_spells.paladin.pCleanse ||
+                        m_spells.paladin.pCleanse->Id < pSpellEntry->Id)
                         m_spells.paladin.pCleanse = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Divine Shield") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.paladin.pDivineShield))
+                    if (!m_spells.paladin.pDivineShield ||
+                        m_spells.paladin.pDivineShield->Id < pSpellEntry->Id)
                         m_spells.paladin.pDivineShield = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Lay on Hands") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.paladin.pLayOnHands))
+                    if (!m_spells.paladin.pLayOnHands ||
+                        m_spells.paladin.pLayOnHands->Id < pSpellEntry->Id)
                         m_spells.paladin.pLayOnHands = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Righteous Fury") != std::string::npos) // post 1.9
                 {
-                    if (IsHigherRankSpell(m_spells.paladin.pRighteousFury))
+                    if (!m_spells.paladin.pRighteousFury ||
+                        m_spells.paladin.pRighteousFury->Id < pSpellEntry->Id)
                         m_spells.paladin.pRighteousFury = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Seal of Fury") != std::string::npos) // pre 1.9
                 {
-                    if (IsHigherRankSpell(pSealOfFury))
+                    if (!pSealOfFury ||
+                        pSealOfFury->Id < pSpellEntry->Id)
                         pSealOfFury = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Holy Shock") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.paladin.pHolyShock))
+                    if (!m_spells.paladin.pHolyShock ||
+                        m_spells.paladin.pHolyShock->Id < pSpellEntry->Id)
                         m_spells.paladin.pHolyShock = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Divine Favor") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.paladin.pDivineFavor))
+                    if (!m_spells.paladin.pDivineFavor ||
+                        m_spells.paladin.pDivineFavor->Id < pSpellEntry->Id)
                         m_spells.paladin.pDivineFavor = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Holy Wrath") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.paladin.pHolyWrath))
+                    if (!m_spells.paladin.pHolyWrath ||
+                        m_spells.paladin.pHolyWrath->Id < pSpellEntry->Id)
                         m_spells.paladin.pHolyWrath = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Turn Evil") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.paladin.pTurnEvil))
+                    if (!m_spells.paladin.pTurnEvil ||
+                        m_spells.paladin.pTurnEvil->Id < pSpellEntry->Id)
                         m_spells.paladin.pTurnEvil = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Holy Shield") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.paladin.pHolyShield))
+                    if (!m_spells.paladin.pHolyShield ||
+                        m_spells.paladin.pHolyShield->Id < pSpellEntry->Id)
                         m_spells.paladin.pHolyShield = pSpellEntry;
                 }
                 break;
@@ -410,172 +430,206 @@ void CombatBotBaseAI::PopulateSpellData()
             {
                 if (pSpellEntry->SpellName[0].find("Lightning Bolt") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.shaman.pLightningBolt))
+                    if (!m_spells.shaman.pLightningBolt ||
+                        m_spells.shaman.pLightningBolt->Id < pSpellEntry->Id)
                         m_spells.shaman.pLightningBolt = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Chain Lightning") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.shaman.pChainLightning))
+                    if (!m_spells.shaman.pChainLightning ||
+                        m_spells.shaman.pChainLightning->Id < pSpellEntry->Id)
                         m_spells.shaman.pChainLightning = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Earth Shock") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.shaman.pEarthShock))
+                    if (!m_spells.shaman.pEarthShock ||
+                        m_spells.shaman.pEarthShock->Id < pSpellEntry->Id)
                         m_spells.shaman.pEarthShock = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Flame Shock") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.shaman.pFlameShock))
+                    if (!m_spells.shaman.pFlameShock ||
+                        m_spells.shaman.pFlameShock->Id < pSpellEntry->Id)
                         m_spells.shaman.pFlameShock = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Frost Shock") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.shaman.pFrostShock))
+                    if (!m_spells.shaman.pFrostShock ||
+                        m_spells.shaman.pFrostShock->Id < pSpellEntry->Id)
                         m_spells.shaman.pFrostShock = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Purge") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.shaman.pPurge))
+                    if (!m_spells.shaman.pPurge ||
+                        m_spells.shaman.pPurge->Id < pSpellEntry->Id)
                         m_spells.shaman.pPurge = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Stormstrike") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.shaman.pStormstrike))
+                    if (!m_spells.shaman.pStormstrike ||
+                        m_spells.shaman.pStormstrike->Id < pSpellEntry->Id)
                         m_spells.shaman.pStormstrike = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Elemental Mastery") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.shaman.pElementalMastery))
+                    if (!m_spells.shaman.pElementalMastery ||
+                        m_spells.shaman.pElementalMastery->Id < pSpellEntry->Id)
                         m_spells.shaman.pElementalMastery = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Lightning Shield") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.shaman.pLightningShield))
+                    if (!m_spells.shaman.pLightningShield ||
+                        m_spells.shaman.pLightningShield->Id < pSpellEntry->Id)
                         m_spells.shaman.pLightningShield = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Ghost Wolf") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.shaman.pGhostWolf))
+                    if (!m_spells.shaman.pGhostWolf ||
+                        m_spells.shaman.pGhostWolf->Id < pSpellEntry->Id)
                         m_spells.shaman.pGhostWolf = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Frostbrand Weapon") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(pFrostbrandWeapon))
+                    if (!pFrostbrandWeapon ||
+                        pFrostbrandWeapon->Id < pSpellEntry->Id)
                         pFrostbrandWeapon = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Rockbiter Weapon") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(pRockbiterWeapon))
+                    if (!pRockbiterWeapon ||
+                        pRockbiterWeapon->Id < pSpellEntry->Id)
                         pRockbiterWeapon = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Windfury Weapon") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(pWindfuryWeapon))
+                    if (!pWindfuryWeapon ||
+                        pWindfuryWeapon->Id < pSpellEntry->Id)
                         pWindfuryWeapon = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Grace of Air Totem") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(pGraceOfAirTotem))
+                    if (!pGraceOfAirTotem ||
+                        pGraceOfAirTotem->Id < pSpellEntry->Id)
                         pGraceOfAirTotem = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Nature Resistance Totem") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(pNatureResistanceTotem))
+                    if (!pNatureResistanceTotem ||
+                        pNatureResistanceTotem->Id < pSpellEntry->Id)
                         pNatureResistanceTotem = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Windfury Totem") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(pWindfuryTotem))
+                    if (!pWindfuryTotem ||
+                        pWindfuryTotem->Id < pSpellEntry->Id)
                         pWindfuryTotem = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Windwall Totem") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(pWindwallTotem))
+                    if (!pWindwallTotem ||
+                        pWindwallTotem->Id < pSpellEntry->Id)
                         pWindwallTotem = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Tranquil Air Totem") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(pTranquilAirTotem))
+                    if (!pTranquilAirTotem ||
+                        pTranquilAirTotem->Id < pSpellEntry->Id)
                         pTranquilAirTotem = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Earthbind Totem") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(pEarthbindTotem))
+                    if (!pEarthbindTotem ||
+                        pEarthbindTotem->Id < pSpellEntry->Id)
                         pEarthbindTotem = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Stoneclaw Totem") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(pStoneclawtotem))
+                    if (!pStoneclawtotem ||
+                        pStoneclawtotem->Id < pSpellEntry->Id)
                         pStoneclawtotem = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Stoneskin Totem") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(pStoneskinTotem))
+                    if (!pStoneskinTotem ||
+                        pStoneskinTotem->Id < pSpellEntry->Id)
                         pStoneskinTotem = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Strength of Earth Totem") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(pStrengthOfEarthTotem))
+                    if (!pStrengthOfEarthTotem ||
+                        pStrengthOfEarthTotem->Id < pSpellEntry->Id)
                         pStrengthOfEarthTotem = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Tremor Totem") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(pTremorTotem))
+                    if (!pTremorTotem ||
+                        pTremorTotem->Id < pSpellEntry->Id)
                         pTremorTotem = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Fire Nova Totem") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(pFireNovaTotem))
+                    if (!pFireNovaTotem ||
+                        pFireNovaTotem->Id < pSpellEntry->Id)
                         pFireNovaTotem = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Magma Totem") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(pMagmaTotem))
+                    if (!pMagmaTotem ||
+                        pMagmaTotem->Id < pSpellEntry->Id)
                         pMagmaTotem = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Searing Totem") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(pSearingTotem))
+                    if (!pSearingTotem ||
+                        pSearingTotem->Id < pSpellEntry->Id)
                         pSearingTotem = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Flametongue Totem") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(pFlametongueTotem))
+                    if (!pFlametongueTotem ||
+                        pFlametongueTotem->Id < pSpellEntry->Id)
                         pFlametongueTotem = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Frost Resistance Totem") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(pFrostResistanceTotem))
+                    if (!pFrostResistanceTotem ||
+                        pFrostResistanceTotem->Id < pSpellEntry->Id)
                         pFrostResistanceTotem = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Fire Resistance Totem") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(pFireResistanceTotem))
+                    if (!pFireResistanceTotem ||
+                        pFireResistanceTotem->Id < pSpellEntry->Id)
                         pFireResistanceTotem = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Disease Resistance Totem") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(pDiseaseCleansingTotem))
+                    if (!pDiseaseCleansingTotem ||
+                        pDiseaseCleansingTotem->Id < pSpellEntry->Id)
                         pDiseaseCleansingTotem = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Healing Stream Totem") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(pHealingStreamTotem))
+                    if (!pHealingStreamTotem ||
+                        pHealingStreamTotem->Id < pSpellEntry->Id)
                         pHealingStreamTotem = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Mana Spring Totem") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(pManaSpringTotem))
+                    if (!pManaSpringTotem ||
+                        pManaSpringTotem->Id < pSpellEntry->Id)
                         pManaSpringTotem = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Poison Cleansing Totem") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(pPoisonCleansingTotem))
+                    if (!pPoisonCleansingTotem ||
+                        pPoisonCleansingTotem->Id < pSpellEntry->Id)
                         pPoisonCleansingTotem = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Mana Tide Totem") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.shaman.pManaTideTotem))
+                    if (!m_spells.shaman.pManaTideTotem ||
+                        m_spells.shaman.pManaTideTotem->Id < pSpellEntry->Id)
                         m_spells.shaman.pManaTideTotem = pSpellEntry;
                 }
                 break;
@@ -584,82 +638,98 @@ void CombatBotBaseAI::PopulateSpellData()
             {
                 if (pSpellEntry->SpellName[0].find("Aspect of the Cheetah") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.hunter.pAspectOfTheCheetah))
+                    if (!m_spells.hunter.pAspectOfTheCheetah ||
+                        m_spells.hunter.pAspectOfTheCheetah->Id < pSpellEntry->Id)
                         m_spells.hunter.pAspectOfTheCheetah = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Aspect of the Hawk") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.hunter.pAspectOfTheHawk))
+                    if (!m_spells.hunter.pAspectOfTheHawk ||
+                        m_spells.hunter.pAspectOfTheHawk->Id < pSpellEntry->Id)
                         m_spells.hunter.pAspectOfTheHawk = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Aspect of the Monkey") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.hunter.pAspectOfTheMonkey))
+                    if (!m_spells.hunter.pAspectOfTheMonkey ||
+                        m_spells.hunter.pAspectOfTheMonkey->Id < pSpellEntry->Id)
                         m_spells.hunter.pAspectOfTheMonkey = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Serpent Sting") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.hunter.pSerpentSting))
+                    if (!m_spells.hunter.pSerpentSting ||
+                        m_spells.hunter.pSerpentSting->Id < pSpellEntry->Id)
                         m_spells.hunter.pSerpentSting = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Arcane Shot") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.hunter.pArcaneShot))
+                    if (!m_spells.hunter.pArcaneShot ||
+                        m_spells.hunter.pArcaneShot->Id < pSpellEntry->Id)
                         m_spells.hunter.pArcaneShot = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Aimed Shot") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.hunter.pAimedShot))
+                    if (!m_spells.hunter.pAimedShot ||
+                        m_spells.hunter.pAimedShot->Id < pSpellEntry->Id)
                         m_spells.hunter.pAimedShot = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Multi-Shot") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.hunter.pMultiShot))
+                    if (!m_spells.hunter.pMultiShot ||
+                        m_spells.hunter.pMultiShot->Id < pSpellEntry->Id)
                         m_spells.hunter.pMultiShot = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Concussive Shot") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.hunter.pConcussiveShot))
+                    if (!m_spells.hunter.pConcussiveShot ||
+                        m_spells.hunter.pConcussiveShot->Id < pSpellEntry->Id)
                         m_spells.hunter.pConcussiveShot = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Wing Clip") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.hunter.pWingClip))
+                    if (!m_spells.hunter.pWingClip ||
+                        m_spells.hunter.pWingClip->Id < pSpellEntry->Id)
                         m_spells.hunter.pWingClip = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Hunter's Mark") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.hunter.pHuntersMark))
+                    if (!m_spells.hunter.pHuntersMark ||
+                        m_spells.hunter.pHuntersMark->Id < pSpellEntry->Id)
                         m_spells.hunter.pHuntersMark = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Mongoose Bite") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.hunter.pMongooseBite))
+                    if (!m_spells.hunter.pMongooseBite ||
+                        m_spells.hunter.pMongooseBite->Id < pSpellEntry->Id)
                         m_spells.hunter.pMongooseBite = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Raptor Strike") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.hunter.pRaptorStrike))
+                    if (!m_spells.hunter.pRaptorStrike ||
+                        m_spells.hunter.pRaptorStrike->Id < pSpellEntry->Id)
                         m_spells.hunter.pRaptorStrike = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Disengage") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.hunter.pDisengage))
+                    if (!m_spells.hunter.pDisengage ||
+                        m_spells.hunter.pDisengage->Id < pSpellEntry->Id)
                         m_spells.hunter.pDisengage = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Feign Death") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.hunter.pFeignDeath))
+                    if (!m_spells.hunter.pFeignDeath ||
+                        m_spells.hunter.pFeignDeath->Id < pSpellEntry->Id)
                         m_spells.hunter.pFeignDeath = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Scare Beast") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.hunter.pScareBeast))
+                    if (!m_spells.hunter.pScareBeast ||
+                        m_spells.hunter.pScareBeast->Id < pSpellEntry->Id)
                         m_spells.hunter.pScareBeast = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Volley") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.hunter.pVolley))
+                    if (!m_spells.hunter.pVolley ||
+                        m_spells.hunter.pVolley->Id < pSpellEntry->Id)
                         m_spells.hunter.pVolley = pSpellEntry;
                 }
                 break;
@@ -668,12 +738,14 @@ void CombatBotBaseAI::PopulateSpellData()
             {
                 if (pSpellEntry->SpellName[0].find("Ice Armor") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.mage.pIceArmor))
+                    if (!m_spells.mage.pIceArmor ||
+                        m_spells.mage.pIceArmor->Id < pSpellEntry->Id)
                         m_spells.mage.pIceArmor = pSpellEntry;
                 }
                 if (pSpellEntry->SpellName[0].find("Frost Armor") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(pFrostArmor))
+                    if (!pFrostArmor ||
+                        pFrostArmor->Id < pSpellEntry->Id)
                         pFrostArmor = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("A Tuo Si Zhi Gun") != std::string::npos)
@@ -690,132 +762,158 @@ void CombatBotBaseAI::PopulateSpellData()
                 }
                 else if (pSpellEntry->SpellName[0].find("Ice Barrier") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.mage.pIceBarrier))
+                    if (!m_spells.mage.pIceBarrier ||
+                        m_spells.mage.pIceBarrier->Id < pSpellEntry->Id)
                         m_spells.mage.pIceBarrier = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Mana Shield") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.mage.pManaShield))
+                    if (!m_spells.mage.pManaShield ||
+                        m_spells.mage.pManaShield->Id < pSpellEntry->Id)
                         m_spells.mage.pManaShield = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Arcane Intellect") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.mage.pArcaneIntellect))
+                    if (!m_spells.mage.pArcaneIntellect ||
+                        m_spells.mage.pArcaneIntellect->Id < pSpellEntry->Id)
                         m_spells.mage.pArcaneIntellect = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Arcane Brilliance") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.mage.pArcaneBrilliance))
+                    if (!m_spells.mage.pArcaneBrilliance ||
+                        m_spells.mage.pArcaneBrilliance->Id < pSpellEntry->Id)
                         m_spells.mage.pArcaneBrilliance = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Frostbolt") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.mage.pFrostbolt))
+                    if (!m_spells.mage.pFrostbolt ||
+                        m_spells.mage.pFrostbolt->Id < pSpellEntry->Id)
                         m_spells.mage.pFrostbolt = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Fire Blast") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.mage.pFireBlast))
+                    if (!m_spells.mage.pFireBlast ||
+                        m_spells.mage.pFireBlast->Id < pSpellEntry->Id)
                         m_spells.mage.pFireBlast = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Fireball") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.mage.pFireball))
+                    if (!m_spells.mage.pFireball ||
+                        m_spells.mage.pFireball->Id < pSpellEntry->Id)
                         m_spells.mage.pFireball = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Arcane Explosion") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.mage.pArcaneExplosion))
+                    if (!m_spells.mage.pArcaneExplosion ||
+                        m_spells.mage.pArcaneExplosion->Id < pSpellEntry->Id)
                         m_spells.mage.pArcaneExplosion = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Frost Nova") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.mage.pFrostNova))
+                    if (!m_spells.mage.pFrostNova ||
+                        m_spells.mage.pFrostNova->Id < pSpellEntry->Id)
                         m_spells.mage.pFrostNova = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Cone of Cold") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.mage.pConeofCold))
+                    if (!m_spells.mage.pConeofCold ||
+                        m_spells.mage.pConeofCold->Id < pSpellEntry->Id)
                         m_spells.mage.pConeofCold = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Blink") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.mage.pBlink))
+                    if (!m_spells.mage.pBlink ||
+                        m_spells.mage.pBlink->Id < pSpellEntry->Id)
                         m_spells.mage.pBlink = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0] == "Polymorph") // Sheep
                 {
-                    if (IsHigherRankSpell(pPolymorphSheep))
+                    if (!pPolymorphSheep ||
+                        pPolymorphSheep->Id < pSpellEntry->Id)
                         pPolymorphSheep = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Polymorph: Cow") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(pPolymorphCow))
+                    if (!pPolymorphCow ||
+                        pPolymorphCow->Id < pSpellEntry->Id)
                         pPolymorphCow = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Polymorph: Pig") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(pPolymorphPig))
+                    if (!pPolymorphPig ||
+                        pPolymorphPig->Id < pSpellEntry->Id)
                         pPolymorphPig = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Polymorph: Turtle") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(pPolymorphTurtle))
+                    if (!pPolymorphTurtle ||
+                        pPolymorphTurtle->Id < pSpellEntry->Id)
                         pPolymorphTurtle = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Counterspell") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.mage.pCounterspell))
+                    if (!m_spells.mage.pCounterspell ||
+                        m_spells.mage.pCounterspell->Id < pSpellEntry->Id)
                         m_spells.mage.pCounterspell = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Presence of Mind") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.mage.pPresenceOfMind))
+                    if (!m_spells.mage.pPresenceOfMind ||
+                        m_spells.mage.pPresenceOfMind->Id < pSpellEntry->Id)
                         m_spells.mage.pPresenceOfMind = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Arcane Power") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.mage.pArcanePower))
+                    if (!m_spells.mage.pArcanePower ||
+                        m_spells.mage.pArcanePower->Id < pSpellEntry->Id)
                         m_spells.mage.pArcanePower = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Remove Lesser Curse") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.mage.pRemoveLesserCurse))
+                    if (!m_spells.mage.pRemoveLesserCurse ||
+                        m_spells.mage.pRemoveLesserCurse->Id < pSpellEntry->Id)
                         m_spells.mage.pRemoveLesserCurse = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Scorch") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.mage.pScorch))
+                    if (!m_spells.mage.pScorch ||
+                        m_spells.mage.pScorch->Id < pSpellEntry->Id)
                         m_spells.mage.pScorch = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Pyroblast") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.mage.pPyroblast))
+                    if (!m_spells.mage.pPyroblast ||
+                        m_spells.mage.pPyroblast->Id < pSpellEntry->Id)
                         m_spells.mage.pPyroblast = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Evocation") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.mage.pEvocation))
+                    if (!m_spells.mage.pEvocation ||
+                        m_spells.mage.pEvocation->Id < pSpellEntry->Id)
                         m_spells.mage.pEvocation = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Ice Block") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.mage.pIceBlock))
+                    if (!m_spells.mage.pIceBlock ||
+                        m_spells.mage.pIceBlock->Id < pSpellEntry->Id)
                         m_spells.mage.pIceBlock = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Blizzard") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.mage.pBlizzard))
+                    if (!m_spells.mage.pBlizzard ||
+                        m_spells.mage.pBlizzard->Id < pSpellEntry->Id)
                         m_spells.mage.pBlizzard = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Blast Wave") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.mage.pBlastWave))
+                    if (!m_spells.mage.pBlastWave ||
+                        m_spells.mage.pBlastWave->Id < pSpellEntry->Id)
                         m_spells.mage.pBlastWave = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Combustion") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.mage.pCombustion))
+                    if (!m_spells.mage.pCombustion ||
+                        m_spells.mage.pCombustion->Id < pSpellEntry->Id)
                         m_spells.mage.pCombustion = pSpellEntry;
                 }
                 break;
@@ -824,7 +922,8 @@ void CombatBotBaseAI::PopulateSpellData()
             {
                 if (pSpellEntry->SpellName[0].find("Power Word: Fortitude") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.priest.pPowerWordFortitude))
+                    if (!m_spells.priest.pPowerWordFortitude ||
+                        m_spells.priest.pPowerWordFortitude->Id < pSpellEntry->Id)
                         m_spells.priest.pPowerWordFortitude = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Xu Ling Zhi Ren") != std::string::npos)
@@ -835,117 +934,140 @@ void CombatBotBaseAI::PopulateSpellData()
                 }
                 else if (pSpellEntry->SpellName[0].find("Divine Spirit") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.priest.pDivineSpirit))
+                    if (!m_spells.priest.pDivineSpirit ||
+                        m_spells.priest.pDivineSpirit->Id < pSpellEntry->Id)
                         m_spells.priest.pDivineSpirit = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Prayer of Spirit") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.priest.pPrayerofSpirit))
+                    if (!m_spells.priest.pPrayerofSpirit ||
+                        m_spells.priest.pPrayerofSpirit->Id < pSpellEntry->Id)
                         m_spells.priest.pPrayerofSpirit = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Prayer of Fortitude") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.priest.pPrayerofFortitude))
+                    if (!m_spells.priest.pPrayerofFortitude ||
+                        m_spells.priest.pPrayerofFortitude->Id < pSpellEntry->Id)
                         m_spells.priest.pPrayerofFortitude = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Inner Fire") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.priest.pInnerFire))
+                    if (!m_spells.priest.pInnerFire ||
+                        m_spells.priest.pInnerFire->Id < pSpellEntry->Id)
                         m_spells.priest.pInnerFire = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Shadow Protection") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.priest.pShadowProtection))
+                    if (!m_spells.priest.pShadowProtection ||
+                        m_spells.priest.pShadowProtection->Id < pSpellEntry->Id)
                         m_spells.priest.pShadowProtection = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Power Word: Shield") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.priest.pPowerWordShield))
+                    if (!m_spells.priest.pPowerWordShield ||
+                        m_spells.priest.pPowerWordShield->Id < pSpellEntry->Id)
                         m_spells.priest.pPowerWordShield = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Holy Nova") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.priest.pHolyNova))
+                    if (!m_spells.priest.pHolyNova ||
+                        m_spells.priest.pHolyNova->Id < pSpellEntry->Id)
                         m_spells.priest.pHolyNova = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Holy Fire") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.priest.pHolyFire))
+                    if (!m_spells.priest.pHolyFire ||
+                        m_spells.priest.pHolyFire->Id < pSpellEntry->Id)
                         m_spells.priest.pHolyFire = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Mind Blast") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.priest.pMindBlast))
+                    if (!m_spells.priest.pMindBlast ||
+                        m_spells.priest.pMindBlast->Id < pSpellEntry->Id)
                         m_spells.priest.pMindBlast = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Mind Flay") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.priest.pMindFlay))
+                    if (!m_spells.priest.pMindFlay ||
+                        m_spells.priest.pMindFlay->Id < pSpellEntry->Id)
                         m_spells.priest.pMindFlay = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Shadow Word: Pain") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.priest.pShadowWordPain))
+                    if (!m_spells.priest.pShadowWordPain ||
+                        m_spells.priest.pShadowWordPain->Id < pSpellEntry->Id)
                         m_spells.priest.pShadowWordPain = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Inner Focus") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.priest.pInnerFocus))
+                    if (!m_spells.priest.pInnerFocus ||
+                        m_spells.priest.pInnerFocus->Id < pSpellEntry->Id)
                         m_spells.priest.pInnerFocus = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Abolish Disease") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.priest.pAbolishDisease))
+                    if (!m_spells.priest.pAbolishDisease ||
+                        m_spells.priest.pAbolishDisease->Id < pSpellEntry->Id)
                         m_spells.priest.pAbolishDisease = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Dispel Magic") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.priest.pDispelMagic))
+                    if (!m_spells.priest.pDispelMagic ||
+                        m_spells.priest.pDispelMagic->Id < pSpellEntry->Id)
                         m_spells.priest.pDispelMagic = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Mana Burn") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.priest.pManaBurn))
+                    if (!m_spells.priest.pManaBurn ||
+                        m_spells.priest.pManaBurn->Id < pSpellEntry->Id)
                         m_spells.priest.pManaBurn = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Devouring Plague") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.priest.pDevouringPlague))
+                    if (!m_spells.priest.pDevouringPlague ||
+                        m_spells.priest.pDevouringPlague->Id < pSpellEntry->Id)
                         m_spells.priest.pDevouringPlague = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Psychic Scream") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.priest.pPsychicScream))
+                    if (!m_spells.priest.pPsychicScream ||
+                        m_spells.priest.pPsychicScream->Id < pSpellEntry->Id)
                         m_spells.priest.pPsychicScream = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Shadowform") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.priest.pShadowform))
+                    if (!m_spells.priest.pShadowform ||
+                        m_spells.priest.pShadowform->Id < pSpellEntry->Id)
                         m_spells.priest.pShadowform = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Vampiric Embrace") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.priest.pVampiricEmbrace))
+                    if (!m_spells.priest.pVampiricEmbrace ||
+                        m_spells.priest.pVampiricEmbrace->Id < pSpellEntry->Id)
                         m_spells.priest.pVampiricEmbrace = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Silence") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.priest.pSilence))
+                    if (!m_spells.priest.pSilence ||
+                        m_spells.priest.pSilence->Id < pSpellEntry->Id)
                         m_spells.priest.pSilence = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Fade") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.priest.pFade))
+                    if (!m_spells.priest.pFade ||
+                        m_spells.priest.pFade->Id < pSpellEntry->Id)
                         m_spells.priest.pFade = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Shackle Undead") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.priest.pShackleUndead))
+                    if (!m_spells.priest.pShackleUndead ||
+                        m_spells.priest.pShackleUndead->Id < pSpellEntry->Id)
                         m_spells.priest.pShackleUndead = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Smite") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.priest.pSmite))
+                    if (!m_spells.priest.pSmite ||
+                        m_spells.priest.pSmite->Id < pSpellEntry->Id)
                         m_spells.priest.pSmite = pSpellEntry;
                 }
                 break;
@@ -954,7 +1076,8 @@ void CombatBotBaseAI::PopulateSpellData()
             {
                 if (pSpellEntry->SpellName[0].find("Demon Armor") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warlock.pDemonArmor))
+                    if (!m_spells.warlock.pDemonArmor ||
+                        m_spells.warlock.pDemonArmor->Id < pSpellEntry->Id)
                         m_spells.warlock.pDemonArmor = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("E Mo Fu Ti") != std::string::npos)
@@ -965,112 +1088,134 @@ void CombatBotBaseAI::PopulateSpellData()
                 }
                 else if (pSpellEntry->SpellName[0].find("Death Coil") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warlock.pDeathCoil))
+                    if (!m_spells.warlock.pDeathCoil ||
+                        m_spells.warlock.pDeathCoil->Id < pSpellEntry->Id)
                         m_spells.warlock.pDeathCoil = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Detect Invisibility") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warlock.pDetectInvisibility))
+                    if (!m_spells.warlock.pDetectInvisibility ||
+                        m_spells.warlock.pDetectInvisibility->Id < pSpellEntry->Id)
                         m_spells.warlock.pDetectInvisibility = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Shadow Ward") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warlock.pShadowWard))
+                    if (!m_spells.warlock.pShadowWard ||
+                        m_spells.warlock.pShadowWard->Id < pSpellEntry->Id)
                         m_spells.warlock.pShadowWard = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Shadow Bolt") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warlock.pShadowBolt))
+                    if (!m_spells.warlock.pShadowBolt ||
+                        m_spells.warlock.pShadowBolt->Id < pSpellEntry->Id)
                         m_spells.warlock.pShadowBolt = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Corruption") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warlock.pCorruption))
+                    if (!m_spells.warlock.pCorruption ||
+                        m_spells.warlock.pCorruption->Id < pSpellEntry->Id)
                         m_spells.warlock.pCorruption = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Conflagrate") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warlock.pConflagrate))
+                    if (!m_spells.warlock.pConflagrate ||
+                        m_spells.warlock.pConflagrate->Id < pSpellEntry->Id)
                         m_spells.warlock.pConflagrate = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Shadowburn") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warlock.pShadowburn))
+                    if (!m_spells.warlock.pShadowburn ||
+                        m_spells.warlock.pShadowburn->Id < pSpellEntry->Id)
                         m_spells.warlock.pShadowburn = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Searing Pain") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warlock.pSearingPain))
+                    if (!m_spells.warlock.pSearingPain ||
+                        m_spells.warlock.pSearingPain->Id < pSpellEntry->Id)
                         m_spells.warlock.pSearingPain = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Immolate") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warlock.pImmolate))
+                    if (!m_spells.warlock.pImmolate ||
+                        m_spells.warlock.pImmolate->Id < pSpellEntry->Id)
                         m_spells.warlock.pImmolate = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Rain of Fire") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warlock.pRainOfFire))
+                    if (!m_spells.warlock.pRainOfFire ||
+                        m_spells.warlock.pRainOfFire->Id < pSpellEntry->Id)
                         m_spells.warlock.pRainOfFire = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Demonic Sacrifice") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warlock.pDemonicSacrifice))
+                    if (!m_spells.warlock.pDemonicSacrifice ||
+                        m_spells.warlock.pDemonicSacrifice->Id < pSpellEntry->Id)
                         m_spells.warlock.pDemonicSacrifice = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Drain Life") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warlock.pDrainLife))
+                    if (!m_spells.warlock.pDrainLife ||
+                        m_spells.warlock.pDrainLife->Id < pSpellEntry->Id)
                         m_spells.warlock.pDrainLife = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Siphon Life") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warlock.pSiphonLife))
+                    if (!m_spells.warlock.pSiphonLife ||
+                        m_spells.warlock.pSiphonLife->Id < pSpellEntry->Id)
                         m_spells.warlock.pSiphonLife = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Banish") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warlock.pBanish))
+                    if (!m_spells.warlock.pBanish ||
+                        m_spells.warlock.pBanish->Id < pSpellEntry->Id)
                         m_spells.warlock.pBanish = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Fear") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warlock.pFear))
+                    if (!m_spells.warlock.pFear ||
+                        m_spells.warlock.pFear->Id < pSpellEntry->Id)
                         m_spells.warlock.pFear = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Howl of Terror") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warlock.pHowlofTerror))
+                    if (!m_spells.warlock.pHowlofTerror ||
+                        m_spells.warlock.pHowlofTerror->Id < pSpellEntry->Id)
                         m_spells.warlock.pHowlofTerror = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Curse of Agony") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warlock.pCurseofAgony))
+                    if (!m_spells.warlock.pCurseofAgony ||
+                        m_spells.warlock.pCurseofAgony->Id < pSpellEntry->Id)
                         m_spells.warlock.pCurseofAgony = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Curse of the Elements") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warlock.pCurseoftheElements))
+                    if (!m_spells.warlock.pCurseoftheElements ||
+                        m_spells.warlock.pCurseoftheElements->Id < pSpellEntry->Id)
                         m_spells.warlock.pCurseoftheElements = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Curse of Shadow") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warlock.pCurseofShadow))
+                    if (!m_spells.warlock.pCurseofShadow ||
+                        m_spells.warlock.pCurseofShadow->Id < pSpellEntry->Id)
                         m_spells.warlock.pCurseofShadow = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Curse of Recklessness") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warlock.pCurseofRecklessness))
+                    if (!m_spells.warlock.pCurseofRecklessness ||
+                        m_spells.warlock.pCurseofRecklessness->Id < pSpellEntry->Id)
                         m_spells.warlock.pCurseofRecklessness = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Curse of Tongues") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warlock.pCurseofTongues))
+                    if (!m_spells.warlock.pCurseofTongues ||
+                        m_spells.warlock.pCurseofTongues->Id < pSpellEntry->Id)
                         m_spells.warlock.pCurseofTongues = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Life Tap") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warlock.pLifeTap))
+                    if (!m_spells.warlock.pLifeTap ||
+                        m_spells.warlock.pLifeTap->Id < pSpellEntry->Id)
                         m_spells.warlock.pLifeTap = pSpellEntry;
                 }
                 break;
@@ -1079,172 +1224,206 @@ void CombatBotBaseAI::PopulateSpellData()
             {
                 if (pSpellEntry->SpellName[0].find("Battle Stance") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warrior.pBattleStance))
+                    if (!m_spells.warrior.pBattleStance ||
+                        m_spells.warrior.pBattleStance->Id < pSpellEntry->Id)
                         m_spells.warrior.pBattleStance = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Berserker Stance") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warrior.pBerserkerStance))
+                    if (!m_spells.warrior.pBerserkerStance ||
+                        m_spells.warrior.pBerserkerStance->Id < pSpellEntry->Id)
                         m_spells.warrior.pBerserkerStance = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Defensive Stance") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warrior.pDefensiveStance))
+                    if (!m_spells.warrior.pDefensiveStance ||
+                        m_spells.warrior.pDefensiveStance->Id < pSpellEntry->Id)
                         m_spells.warrior.pDefensiveStance = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Charge") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warrior.pCharge))
+                    if (!m_spells.warrior.pCharge ||
+                        m_spells.warrior.pCharge->Id < pSpellEntry->Id)
                         m_spells.warrior.pCharge = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Intercept") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warrior.pIntercept))
+                    if (!m_spells.warrior.pIntercept ||
+                        m_spells.warrior.pIntercept->Id < pSpellEntry->Id)
                         m_spells.warrior.pIntercept = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Overpower") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warrior.pOverpower))
+                    if (!m_spells.warrior.pOverpower ||
+                        m_spells.warrior.pOverpower->Id < pSpellEntry->Id)
                         m_spells.warrior.pOverpower = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Heroic Strike") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warrior.pHeroicStrike))
+                    if (!m_spells.warrior.pHeroicStrike ||
+                        m_spells.warrior.pHeroicStrike->Id < pSpellEntry->Id)
                         m_spells.warrior.pHeroicStrike = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Cleave") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warrior.pCleave))
+                    if (!m_spells.warrior.pCleave ||
+                        m_spells.warrior.pCleave->Id < pSpellEntry->Id)
                         m_spells.warrior.pCleave = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Execute") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warrior.pExecute))
+                    if (!m_spells.warrior.pExecute ||
+                        m_spells.warrior.pExecute->Id < pSpellEntry->Id)
                         m_spells.warrior.pExecute = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Mortal Strike") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warrior.pMortalStrike))
+                    if (!m_spells.warrior.pMortalStrike ||
+                        m_spells.warrior.pMortalStrike->Id < pSpellEntry->Id)
                         m_spells.warrior.pMortalStrike = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Bloodthirst") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warrior.pBloodthirst))
+                    if (!m_spells.warrior.pBloodthirst ||
+                        m_spells.warrior.pBloodthirst->Id < pSpellEntry->Id)
                         m_spells.warrior.pBloodthirst = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Bloodrage") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warrior.pBloodrage))
+                    if (!m_spells.warrior.pBloodrage ||
+                        m_spells.warrior.pBloodrage->Id < pSpellEntry->Id)
                         m_spells.warrior.pBloodrage = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Berserker Rage") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warrior.pBerserkerRage))
+                    if (!m_spells.warrior.pBerserkerRage ||
+                        m_spells.warrior.pBerserkerRage->Id < pSpellEntry->Id)
                         m_spells.warrior.pBerserkerRage = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Recklessness") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warrior.pRecklessness))
+                    if (!m_spells.warrior.pRecklessness ||
+                        m_spells.warrior.pRecklessness->Id < pSpellEntry->Id)
                         m_spells.warrior.pRecklessness = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Retaliation") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warrior.pRetaliation))
+                    if (!m_spells.warrior.pRetaliation ||
+                        m_spells.warrior.pRetaliation->Id < pSpellEntry->Id)
                         m_spells.warrior.pRetaliation = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Death Wish") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warrior.pDeathWish))
+                    if (!m_spells.warrior.pDeathWish ||
+                        m_spells.warrior.pDeathWish->Id < pSpellEntry->Id)
                         m_spells.warrior.pDeathWish = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Intimidating Shout") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warrior.pIntimidatingShout))
+                    if (!m_spells.warrior.pIntimidatingShout ||
+                        m_spells.warrior.pIntimidatingShout->Id < pSpellEntry->Id)
                         m_spells.warrior.pIntimidatingShout = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Pummel") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warrior.pPummel))
+                    if (!m_spells.warrior.pPummel ||
+                        m_spells.warrior.pPummel->Id < pSpellEntry->Id)
                         m_spells.warrior.pPummel = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Rend") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warrior.pRend))
+                    if (!m_spells.warrior.pRend ||
+                        m_spells.warrior.pRend->Id < pSpellEntry->Id)
                         m_spells.warrior.pRend = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Disarm") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warrior.pDisarm))
+                    if (!m_spells.warrior.pDisarm ||
+                        m_spells.warrior.pDisarm->Id < pSpellEntry->Id)
                         m_spells.warrior.pDisarm = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Whirlwind") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warrior.pWhirlwind))
+                    if (!m_spells.warrior.pWhirlwind ||
+                        m_spells.warrior.pWhirlwind->Id < pSpellEntry->Id)
                         m_spells.warrior.pWhirlwind = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Battle Shout") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warrior.pBattleShout))
+                    if (!m_spells.warrior.pBattleShout ||
+                        m_spells.warrior.pBattleShout->Id < pSpellEntry->Id)
                         m_spells.warrior.pBattleShout = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Demoralizing Shout") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warrior.pDemoralizingShout))
+                    if (!m_spells.warrior.pDemoralizingShout ||
+                        m_spells.warrior.pDemoralizingShout->Id < pSpellEntry->Id)
                         m_spells.warrior.pDemoralizingShout = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Hamstring") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warrior.pHamstring))
+                    if (!m_spells.warrior.pHamstring ||
+                        m_spells.warrior.pHamstring->Id < pSpellEntry->Id)
                         m_spells.warrior.pHamstring = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Thunder Clap") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warrior.pThunderClap))
+                    if (!m_spells.warrior.pThunderClap ||
+                        m_spells.warrior.pThunderClap->Id < pSpellEntry->Id)
                         m_spells.warrior.pThunderClap = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Sweeping Strikes") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warrior.pSweepingStrikes))
+                    if (!m_spells.warrior.pSweepingStrikes ||
+                        m_spells.warrior.pSweepingStrikes->Id < pSpellEntry->Id)
                         m_spells.warrior.pSweepingStrikes = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Last Stand") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warrior.pLastStand))
+                    if (!m_spells.warrior.pLastStand ||
+                        m_spells.warrior.pLastStand->Id < pSpellEntry->Id)
                         m_spells.warrior.pLastStand = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Shield Block") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warrior.pShieldBlock))
+                    if (!m_spells.warrior.pShieldBlock ||
+                        m_spells.warrior.pShieldBlock->Id < pSpellEntry->Id)
                         m_spells.warrior.pShieldBlock = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Shield Wall") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warrior.pShieldWall))
+                    if (!m_spells.warrior.pShieldWall ||
+                        m_spells.warrior.pShieldWall->Id < pSpellEntry->Id)
                         m_spells.warrior.pShieldWall = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Shield Bash") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warrior.pShieldBash))
+                    if (!m_spells.warrior.pShieldBash ||
+                        m_spells.warrior.pShieldBash->Id < pSpellEntry->Id)
                         m_spells.warrior.pShieldBash = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Shield Slam") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warrior.pShieldSlam))
+                    if (!m_spells.warrior.pShieldSlam ||
+                        m_spells.warrior.pShieldSlam->Id < pSpellEntry->Id)
                         m_spells.warrior.pShieldSlam = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Sunder Armor") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warrior.pSunderArmor))
+                    if (!m_spells.warrior.pSunderArmor ||
+                        m_spells.warrior.pSunderArmor->Id < pSpellEntry->Id)
                         m_spells.warrior.pSunderArmor = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Concussion Blow") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warrior.pConcussionBlow))
+                    if (!m_spells.warrior.pConcussionBlow ||
+                        m_spells.warrior.pConcussionBlow->Id < pSpellEntry->Id)
                         m_spells.warrior.pConcussionBlow = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Piercing Howl") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.warrior.pPiercingHowl))
+                    if (!m_spells.warrior.pPiercingHowl ||
+                        m_spells.warrior.pPiercingHowl->Id < pSpellEntry->Id)
                         m_spells.warrior.pPiercingHowl = pSpellEntry;
                 }
                 break;
@@ -1253,127 +1432,152 @@ void CombatBotBaseAI::PopulateSpellData()
             {
                 if (pSpellEntry->SpellName[0].find("Slice and Dice") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.rogue.pSliceAndDice))
+                    if (!m_spells.rogue.pSliceAndDice ||
+                        m_spells.rogue.pSliceAndDice->Id < pSpellEntry->Id)
                         m_spells.rogue.pSliceAndDice = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Sinister Strike") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.rogue.pSinisterStrike))
+                    if (!m_spells.rogue.pSinisterStrike ||
+                        m_spells.rogue.pSinisterStrike->Id < pSpellEntry->Id)
                         m_spells.rogue.pSinisterStrike = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Adrenaline Rush") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.rogue.pAdrenalineRush))
+                    if (!m_spells.rogue.pAdrenalineRush ||
+                        m_spells.rogue.pAdrenalineRush->Id < pSpellEntry->Id)
                         m_spells.rogue.pAdrenalineRush = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Eviscerate") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.rogue.pEviscerate))
+                    if (!m_spells.rogue.pEviscerate ||
+                        m_spells.rogue.pEviscerate->Id < pSpellEntry->Id)
                         m_spells.rogue.pEviscerate = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Stealth") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.rogue.pStealth))
+                    if (!m_spells.rogue.pStealth ||
+                        m_spells.rogue.pStealth->Id < pSpellEntry->Id)
                         m_spells.rogue.pStealth = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Garrote") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.rogue.pGarrote))
+                    if (!m_spells.rogue.pGarrote ||
+                        m_spells.rogue.pGarrote->Id < pSpellEntry->Id)
                         m_spells.rogue.pGarrote = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Ambush") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.rogue.pAmbush))
+                    if (!m_spells.rogue.pAmbush ||
+                        m_spells.rogue.pAmbush->Id < pSpellEntry->Id)
                         m_spells.rogue.pAmbush = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Cheap Shot") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.rogue.pCheapShot))
+                    if (!m_spells.rogue.pCheapShot ||
+                        m_spells.rogue.pCheapShot->Id < pSpellEntry->Id)
                         m_spells.rogue.pCheapShot = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Premeditation") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.rogue.pPremeditation))
+                    if (!m_spells.rogue.pPremeditation ||
+                        m_spells.rogue.pPremeditation->Id < pSpellEntry->Id)
                         m_spells.rogue.pPremeditation = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Backstab") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.rogue.pBackstab))
+                    if (!m_spells.rogue.pBackstab ||
+                        m_spells.rogue.pBackstab->Id < pSpellEntry->Id)
                         m_spells.rogue.pBackstab = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Hemorrhage") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.rogue.pHemorrhage))
+                    if (!m_spells.rogue.pHemorrhage ||
+                        m_spells.rogue.pHemorrhage->Id < pSpellEntry->Id)
                         m_spells.rogue.pHemorrhage = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Ghostly Strike") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.rogue.pGhostlyStrike))
+                    if (!m_spells.rogue.pGhostlyStrike ||
+                        m_spells.rogue.pGhostlyStrike->Id < pSpellEntry->Id)
                         m_spells.rogue.pGhostlyStrike = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Gouge") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.rogue.pGouge))
+                    if (!m_spells.rogue.pGouge ||
+                        m_spells.rogue.pGouge->Id < pSpellEntry->Id)
                         m_spells.rogue.pGouge = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Rupture") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.rogue.pRupture))
+                    if (!m_spells.rogue.pRupture ||
+                        m_spells.rogue.pRupture->Id < pSpellEntry->Id)
                         m_spells.rogue.pRupture = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Expose Armor") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.rogue.pExposeArmor))
+                    if (!m_spells.rogue.pExposeArmor ||
+                        m_spells.rogue.pExposeArmor->Id < pSpellEntry->Id)
                         m_spells.rogue.pExposeArmor = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Kidney Shot") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.rogue.pKidneyShot))
+                    if (!m_spells.rogue.pKidneyShot ||
+                        m_spells.rogue.pKidneyShot->Id < pSpellEntry->Id)
                         m_spells.rogue.pKidneyShot = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Cold Blood") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.rogue.pColdBlood))
+                    if (!m_spells.rogue.pColdBlood ||
+                        m_spells.rogue.pColdBlood->Id < pSpellEntry->Id)
                         m_spells.rogue.pColdBlood = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Blade Flurry") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.rogue.pBladeFlurry))
+                    if (!m_spells.rogue.pBladeFlurry ||
+                        m_spells.rogue.pBladeFlurry->Id < pSpellEntry->Id)
                         m_spells.rogue.pBladeFlurry = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Vanish") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.rogue.pVanish))
+                    if (!m_spells.rogue.pVanish ||
+                        m_spells.rogue.pVanish->Id < pSpellEntry->Id)
                         m_spells.rogue.pVanish = pSpellEntry;
                 }
                 else if (pSpellEntry->IsFitToFamily<SPELLFAMILY_ROGUE, CF_ROGUE_BLIND>())
                 {
-                    if (IsHigherRankSpell(m_spells.rogue.pBlind))
+                    if (!m_spells.rogue.pBlind ||
+                        m_spells.rogue.pBlind->Id < pSpellEntry->Id)
                         m_spells.rogue.pBlind = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Preparation") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.rogue.pPreparation))
+                    if (!m_spells.rogue.pPreparation ||
+                        m_spells.rogue.pPreparation->Id < pSpellEntry->Id)
                         m_spells.rogue.pPreparation = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Evasion") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.rogue.pEvasion))
+                    if (!m_spells.rogue.pEvasion ||
+                        m_spells.rogue.pEvasion->Id < pSpellEntry->Id)
                         m_spells.rogue.pEvasion = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Riposte") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.rogue.pRiposte))
+                    if (!m_spells.rogue.pRiposte ||
+                        m_spells.rogue.pRiposte->Id < pSpellEntry->Id)
                         m_spells.rogue.pRiposte = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Kick") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.rogue.pKick))
+                    if (!m_spells.rogue.pKick ||
+                        m_spells.rogue.pKick->Id < pSpellEntry->Id)
                         m_spells.rogue.pKick = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Sprint") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.rogue.pSprint))
+                    if (!m_spells.rogue.pSprint ||
+                        m_spells.rogue.pSprint->Id < pSpellEntry->Id)
                         m_spells.rogue.pSprint = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Deadly Poison") != std::string::npos)
@@ -1402,227 +1606,272 @@ void CombatBotBaseAI::PopulateSpellData()
             {
                 if (pSpellEntry->SpellName[0].find("Bear Form") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pBearForm))
+                    if (!m_spells.druid.pBearForm ||
+                        m_spells.druid.pBearForm->Id < pSpellEntry->Id)
                         m_spells.druid.pBearForm = pSpellEntry;
                 }
                 else if (pSpellEntry->Id == (768)) // Cat Form
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pCatForm))
+                    if (!m_spells.druid.pCatForm ||
+                        m_spells.druid.pCatForm->Id < pSpellEntry->Id)
                         m_spells.druid.pCatForm = pSpellEntry;
                 }
                 else if (pSpellEntry->Id == (783)) // Travel Form
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pTravelForm))
+                    if (!m_spells.druid.pTravelForm ||
+                        m_spells.druid.pTravelForm->Id < pSpellEntry->Id)
                         m_spells.druid.pTravelForm = pSpellEntry;
                 }
                 else if (pSpellEntry->Id == (1066)) // Aquatic Form
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pAquaticForm))
+                    if (!m_spells.druid.pAquaticForm ||
+                        m_spells.druid.pAquaticForm->Id < pSpellEntry->Id)
                         m_spells.druid.pAquaticForm = pSpellEntry;
                 }
                 else if (pSpellEntry->Id == (24858)) // Moonkin Form
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pMoonkinForm))
+                    if (!m_spells.druid.pMoonkinForm ||
+                        m_spells.druid.pMoonkinForm->Id < pSpellEntry->Id)
                         m_spells.druid.pMoonkinForm = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Wrath") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pWrath))
+                    if (!m_spells.druid.pWrath ||
+                        m_spells.druid.pWrath->Id < pSpellEntry->Id)
                         m_spells.druid.pWrath = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Moonfire") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pMoonfire))
+                    if (!m_spells.druid.pMoonfire ||
+                        m_spells.druid.pMoonfire->Id < pSpellEntry->Id)
                         m_spells.druid.pMoonfire = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Starfire") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pStarfire))
+                    if (!m_spells.druid.pStarfire ||
+                        m_spells.druid.pStarfire->Id < pSpellEntry->Id)
                         m_spells.druid.pStarfire = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Hurricane") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pHurricane))
+                    if (!m_spells.druid.pHurricane ||
+                        m_spells.druid.pHurricane->Id < pSpellEntry->Id)
                         m_spells.druid.pHurricane = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Insect Swarm") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pInsectSwarm))
+                    if (!m_spells.druid.pInsectSwarm ||
+                        m_spells.druid.pInsectSwarm->Id < pSpellEntry->Id)
                         m_spells.druid.pInsectSwarm = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Barkskin") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pBarkskin))
+                    if (!m_spells.druid.pBarkskin ||
+                        m_spells.druid.pBarkskin->Id < pSpellEntry->Id)
                         m_spells.druid.pBarkskin = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Nature's Grasp") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pNaturesGrasp))
+                    if (!m_spells.druid.pNaturesGrasp ||
+                        m_spells.druid.pNaturesGrasp->Id < pSpellEntry->Id)
                         m_spells.druid.pNaturesGrasp = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Mark of the Wild") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pMarkoftheWild))
+                    if (!m_spells.druid.pMarkoftheWild ||
+                        m_spells.druid.pMarkoftheWild->Id < pSpellEntry->Id)
                         m_spells.druid.pMarkoftheWild = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Gift of the Wild") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pGiftoftheWild))
+                    if (!m_spells.druid.pGiftoftheWild ||
+                        m_spells.druid.pGiftoftheWild->Id < pSpellEntry->Id)
                         m_spells.druid.pGiftoftheWild = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Thorns") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pThorns))
+                    if (!m_spells.druid.pThorns ||
+                        m_spells.druid.pThorns->Id < pSpellEntry->Id)
                         m_spells.druid.pThorns = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Remove Curse") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pRemoveCurse))
+                    if (!m_spells.druid.pRemoveCurse ||
+                        m_spells.druid.pRemoveCurse->Id < pSpellEntry->Id)
                         m_spells.druid.pRemoveCurse = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Cure Poison") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pCurePoison))
+                    if (!m_spells.druid.pCurePoison ||
+                        m_spells.druid.pCurePoison->Id < pSpellEntry->Id)
                         m_spells.druid.pCurePoison = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Abolish Poison") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pAbolishPoison))
+                    if (!m_spells.druid.pAbolishPoison ||
+                        m_spells.druid.pAbolishPoison->Id < pSpellEntry->Id)
                         m_spells.druid.pAbolishPoison = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Rebirth") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pRebirth))
+                    if (!m_spells.druid.pRebirth ||
+                        m_spells.druid.pRebirth->Id < pSpellEntry->Id)
                         m_spells.druid.pRebirth = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Innervate") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pInnervate))
+                    if (!m_spells.druid.pInnervate ||
+                        m_spells.druid.pInnervate->Id < pSpellEntry->Id)
                         m_spells.druid.pInnervate = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Nature's Swiftness") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pNaturesSwiftness))
+                    if (!m_spells.druid.pNaturesSwiftness ||
+                        m_spells.druid.pNaturesSwiftness->Id < pSpellEntry->Id)
                         m_spells.druid.pNaturesSwiftness = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Entangling Roots") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pEntanglingRoots))
+                    if (!m_spells.druid.pEntanglingRoots ||
+                        m_spells.druid.pEntanglingRoots->Id < pSpellEntry->Id)
                         m_spells.druid.pEntanglingRoots = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Hibernate") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pHibernate))
+                    if (!m_spells.druid.pHibernate ||
+                        m_spells.druid.pHibernate->Id < pSpellEntry->Id)
                         m_spells.druid.pHibernate = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Pounce") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pPounce))
+                    if (!m_spells.druid.pPounce ||
+                        m_spells.druid.pPounce->Id < pSpellEntry->Id)
                         m_spells.druid.pPounce = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Ravage") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pRavage))
+                    if (!m_spells.druid.pRavage ||
+                        m_spells.druid.pRavage->Id < pSpellEntry->Id)
                         m_spells.druid.pRavage = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Claw") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pClaw))
+                    if (!m_spells.druid.pClaw ||
+                        m_spells.druid.pClaw->Id < pSpellEntry->Id)
                         m_spells.druid.pClaw = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Shred") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pShred))
+                    if (!m_spells.druid.pShred ||
+                        m_spells.druid.pShred->Id < pSpellEntry->Id)
                         m_spells.druid.pShred = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Rake") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pRake))
+                    if (!m_spells.druid.pRake ||
+                        m_spells.druid.pRake->Id < pSpellEntry->Id)
                         m_spells.druid.pRake = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Rip") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pRip))
+                    if (!m_spells.druid.pRip ||
+                        m_spells.druid.pRip->Id < pSpellEntry->Id)
                         m_spells.druid.pRip = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Ferocious Bite") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pFerociousBite))
+                    if (!m_spells.druid.pFerociousBite ||
+                        m_spells.druid.pFerociousBite->Id < pSpellEntry->Id)
                         m_spells.druid.pFerociousBite = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Tiger's Fury") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pTigersFury))
+                    if (!m_spells.druid.pTigersFury ||
+                        m_spells.druid.pTigersFury->Id < pSpellEntry->Id)
                         m_spells.druid.pTigersFury = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Dash") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pDash))
+                    if (!m_spells.druid.pDash ||
+                        m_spells.druid.pDash->Id < pSpellEntry->Id)
                         m_spells.druid.pDash = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Cower") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pCower))
+                    if (!m_spells.druid.pCower ||
+                        m_spells.druid.pCower->Id < pSpellEntry->Id)
                         m_spells.druid.pCower = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Faerie Fire (Feral)") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pFaerieFireFeral))
+                    if (!m_spells.druid.pFaerieFireFeral ||
+                        m_spells.druid.pFaerieFireFeral->Id < pSpellEntry->Id)
                         m_spells.druid.pFaerieFireFeral = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Faerie Fire") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pFaerieFire))
+                    if (!m_spells.druid.pFaerieFire ||
+                        m_spells.druid.pFaerieFire->Id < pSpellEntry->Id)
                         m_spells.druid.pFaerieFire = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Growl") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pGrowl))
+                    if (!m_spells.druid.pGrowl ||
+                        m_spells.druid.pGrowl->Id < pSpellEntry->Id)
                         m_spells.druid.pGrowl = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Challenging Roar") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pChallengingRoar))
+                    if (!m_spells.druid.pChallengingRoar ||
+                        m_spells.druid.pChallengingRoar->Id < pSpellEntry->Id)
                         m_spells.druid.pChallengingRoar = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Demoralizing Roar") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pDemoralizingRoar))
+                    if (!m_spells.druid.pDemoralizingRoar ||
+                        m_spells.druid.pDemoralizingRoar->Id < pSpellEntry->Id)
                         m_spells.druid.pDemoralizingRoar = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Enrage") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pEnrage))
+                    if (!m_spells.druid.pEnrage ||
+                        m_spells.druid.pEnrage->Id < pSpellEntry->Id)
                         m_spells.druid.pEnrage = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Frenzied Regeneration") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pFrenziedRegeneration))
+                    if (!m_spells.druid.pFrenziedRegeneration ||
+                        m_spells.druid.pFrenziedRegeneration->Id < pSpellEntry->Id)
                         m_spells.druid.pFrenziedRegeneration = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Swipe") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pSwipe))
+                    if (!m_spells.druid.pSwipe ||
+                        m_spells.druid.pSwipe->Id < pSpellEntry->Id)
                         m_spells.druid.pSwipe = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Maul") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pMaul))
+                    if (!m_spells.druid.pMaul ||
+                        m_spells.druid.pMaul->Id < pSpellEntry->Id)
                         m_spells.druid.pMaul = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Bash") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pBash))
+                    if (!m_spells.druid.pBash ||
+                        m_spells.druid.pBash->Id < pSpellEntry->Id)
                         m_spells.druid.pBash = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Feral Charge") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pFeralCharge))
+                    if (!m_spells.druid.pFeralCharge ||
+                        m_spells.druid.pFeralCharge->Id < pSpellEntry->Id)
                         m_spells.druid.pFeralCharge = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Prowl") != std::string::npos)
                 {
-                    if (IsHigherRankSpell(m_spells.druid.pProwl))
+                    if (!m_spells.druid.pProwl ||
+                        m_spells.druid.pProwl->Id < pSpellEntry->Id)
                         m_spells.druid.pProwl = pSpellEntry;
                 }
                 break;
