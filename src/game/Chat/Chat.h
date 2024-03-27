@@ -98,6 +98,7 @@ class ChatHandler
     friend class CombatBotBaseAI;
     friend class PartyBotAI;
     friend class BattleBotAI;
+    friend class LuaAgent;
     public:
         explicit ChatHandler(WorldSession* session);
         explicit ChatHandler(Player* player);
@@ -291,6 +292,28 @@ class ChatHandler
         bool HandleBattleBotRemoveAllCommand(char* args);
         bool HandleBattleBotShowPathCommand(char* args);
         bool HandleBattleBotShowAllPathsCommand(char* args);
+
+        // Lua Bot commands
+
+        bool HandleLuabKickBrokenCommand(char* args);
+
+        bool HandleLuabAddCommand(char* args);
+        bool HandleLuabAddPartyCommand(char* args);
+        bool HandleLuabRemoveCommand(char* args);
+        bool HandleLuabRemovePartyCommand(char* args);
+        bool HandleLuabRemoveAllCommand(char* args);
+        bool HandleLuabResetCommand(char* args);
+        bool HandleLuabGroupAllCommand(char* args);
+        bool HandleLuabReviveAllCommand(char* args);
+
+        bool HandleLuabCLinePointCommand(char* args);
+        bool HandleLuabCLineMoveCommand(char* args);
+        bool HandleLuabCLineRemoveCommand(char* args);
+        bool HandleLuabCLineRemoveLastCommand(char* args);
+        bool HandleLuabCLineWriteCommand(char* args);
+        bool HandleLuabCLineFinishCommand(char* args);
+        bool HandleLuabCLineNewLineCommand(char* args);
+        bool HandleLuabCLineLoadFromCommand(char* args);
 
         // spell_disabled
         bool HandleReloadSpellDisabledCommand(char *args);

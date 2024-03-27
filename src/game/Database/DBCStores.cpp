@@ -253,6 +253,10 @@ void LoadDBCStores(std::string const& dataPath)
         if (index != std::wstring::npos)
             wname.replace(index, emacsEndOfLineToken.length(), L"$");
 
+        index = wname.find(L">\\", 0);
+        if (index != std::wstring::npos)
+            wname.replace(index, emacsEndOfLineToken.length(), L"$");
+
         NamesProfaneValidators.emplace_back(wname, std::regex::icase | std::regex::optimize);
     }
     for (uint32 i = 0; i < sNamesReservedStore.GetNumRows(); ++i)

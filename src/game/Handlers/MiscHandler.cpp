@@ -1051,6 +1051,7 @@ void WorldSession::HandleInspectOpcode(WorldPacket& recv_data)
 
 void WorldSession::HandleInspectHonorStatsOpcode(WorldPacket& recv_data)
 {
+#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_4_2
     ObjectGuid guid;
     recv_data >> guid;
 
@@ -1070,8 +1071,8 @@ void WorldSession::HandleInspectHonorStatsOpcode(WorldPacket& recv_data)
         + 4
         + 4
         + 4
-// World of Warcraft Client Patch 1.6.0 (2005-07-12)
-// - There is a new "This Week" section of the Honor tab, which will display PvP accomplishments of the current week.
+        // World of Warcraft Client Patch 1.6.0 (2005-07-12)
+        // - There is a new "This Week" section of the Honor tab, which will display PvP accomplishments of the current week.
 #if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_6_1
         + 4
 #endif
@@ -1083,18 +1084,18 @@ void WorldSession::HandleInspectHonorStatsOpcode(WorldPacket& recv_data)
         + 4
 #endif
         + 4
-// World of Warcraft Client Patch 1.6.0 (2005-07-12)
-// - There is now a progress bar on the Honor tab of your character window that displays how close you are to your next rank.
+        // World of Warcraft Client Patch 1.6.0 (2005-07-12)
+        // - There is now a progress bar on the Honor tab of your character window that displays how close you are to your next rank.
 #if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_6_1
         + 1
 #endif
-    ));
+        ));
 
     // player guid
     data << guid;
 
     // Highest Rank
-    data << (uint8)pTarget->GetHonorMgr().GetHighestRank().rank;
+    data << (uint8) pTarget->GetHonorMgr().GetHighestRank().rank;
 
     // Today Honorable and Dishonorable Kills
     data << pTarget->GetUInt32Value(PLAYER_FIELD_SESSION_KILLS);
@@ -1103,20 +1104,20 @@ void WorldSession::HandleInspectHonorStatsOpcode(WorldPacket& recv_data)
     data << pTarget->GetUInt16Value(PLAYER_FIELD_YESTERDAY_KILLS, 0);
 
     // Unknown (deprecated, yesterday dishonourable?)
-    data << (uint16)0;
+    data << (uint16) 0;
 
     // Last Week Honorable Kills
     data << pTarget->GetUInt16Value(PLAYER_FIELD_LAST_WEEK_KILLS, 0);
 
     // Unknown (deprecated, last week dishonourable?)
-    data << (uint16)0;
+    data << (uint16) 0;
 
 #if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_6_1
     // This Week Honorable kills
     data << pTarget->GetUInt16Value(PLAYER_FIELD_THIS_WEEK_KILLS, 0);
 
     // Unknown (deprecated, this week dishonourable?)
-    data << (uint16)0;
+    data << (uint16) 0;
 #endif
 
     // Lifetime Honorable Kills
@@ -1141,10 +1142,11 @@ void WorldSession::HandleInspectHonorStatsOpcode(WorldPacket& recv_data)
 
 #if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_6_1
     // Rank progress bar
-    data << (uint8)pTarget->GetByteValue(PLAYER_FIELD_BYTES2, PLAYER_FIELD_BYTES_2_OFFSET_HONOR_RANK_BAR);
+    data << (uint8) pTarget->GetByteValue(PLAYER_FIELD_BYTES2, PLAYER_FIELD_BYTES_2_OFFSET_HONOR_RANK_BAR);
 #endif
 
     SendPacket(&data);
+#endif
 }
 
 void WorldSession::HandleTeleportToUnitOpcode(WorldPacket& recv_data)

@@ -42,6 +42,7 @@
 #include <functional>
 #include <shared_mutex>
 
+class LuaAgent;
 struct Mail;
 struct ItemPrototype;
 struct AuraSaveStruct;
@@ -964,9 +965,16 @@ class Player final: public Unit
     friend class WorldSession;
     friend void Item::AddToUpdateQueueOf(Player* player);
     friend void Item::RemoveFromUpdateQueueOf(Player* player);
+
+    std::unique_ptr<LuaAgent> m_luaAI;
+
     public:
         explicit Player (WorldSession* session);
         ~Player() override;
+
+        LuaAgent* GetLuaAI() { return m_luaAI.get(); }
+        void CreateLuaAI(Player* me, ObjectGuid masterGuid, int logicID);
+        bool IsLuaAgent() { return m_luaAI != nullptr; }
 
         void CleanupsBeforeDelete() override;
 
@@ -1153,7 +1161,7 @@ class Player final: public Unit
         void AutoUnequipItemFromSlot(uint32 slot);
         void SatisfyItemRequirements(ItemPrototype const* pItem);
         void AddStartingItems();
-        bool StoreNewItemInBestSlots(uint32 itemId, uint32 amount, uint32 enchantId = 0);
+        bool StoreNewItemInBestSlots(uint32 itemId, uint32 amount, uint32 enchantId = 0, int32 randomPropertyId = 0);
         Item* StoreNewItemInInventorySlot(uint32 itemId, uint32 amount);
         void AutoStoreLoot(Loot& loot, bool broadcast = false, uint8 bag = NULL_BAG, uint8 slot = NULL_SLOT);
         void SetAmmo(uint32 item);
@@ -1469,6 +1477,7 @@ class Player final: public Unit
         uint32 GetSaveTimer() const { return m_nextSave; }
         void   SetSaveTimer(uint32 timer) { m_nextSave = timer; }
         bool   IsSavingDisabled() const { return m_saveDisabled; }
+        void   SetSavingDisabled(bool v) { m_saveDisabled = v; }
 
         /*********************************************************/
         /***                    PET SYSTEM                     ***/

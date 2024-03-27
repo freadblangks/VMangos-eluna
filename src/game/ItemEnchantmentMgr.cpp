@@ -126,3 +126,14 @@ uint32 GetItemEnchantMod(uint32 entry)
 
     return 0;
 }
+
+void GetAllEnchantsForRandomProperty(uint32 entry, std::vector<uint32>& result)
+{
+    EnchantmentStore::const_iterator tab = RandomItemEnch.find(entry);
+    if (tab == RandomItemEnch.end())
+        return;
+
+    const EnchStoreList& enchantList = tab->second;
+    for (auto& enchant : enchantList)
+        result.push_back(enchant.ench);
+}

@@ -441,8 +441,10 @@ void WorldSession::HandleForceSpeedChangeAckOpcodes(WorldPacket& recvData)
 #endif
     MovementInfo movementInfo;
     recvData >> movementInfo;
-    float  speedReceived;
+    float  speedReceived = 1.0f;
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_4_2
     recvData >> speedReceived;
+#endif
     movementInfo.UpdateTime(recvData.GetPacketTime());
     /*----------------*/
 
@@ -486,7 +488,7 @@ void WorldSession::HandleForceSpeedChangeAckOpcodes(WorldPacket& recvData)
         return;
     }
 
-    if (!pMover->FindPendingMovementSpeedChange(speedReceived, movementCounter, move_type))
+    if (!pMover->FindPendingMovementSpeedChange(speedReceived, movementCounter, move_type, speedReceived))
     {
         sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "WorldSession::HandleForceSpeedChangeAck: Player %s from account id %u sent opcode %u with counter %u, but received data does not match pending change (current counter is %u)",
             _player->GetName(), _player->GetSession()->GetAccountId(), opcode, movementCounter, pMover->GetMovementCounter());
@@ -774,8 +776,10 @@ void WorldSession::HandleMoveRootAck(WorldPacket& recvData)
 void WorldSession::HandleMoveKnockBackAck(WorldPacket& recvData)
 {
     /* extract packet */
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_2_4
     ObjectGuid guid;
     recvData >> guid;
+#endif
     uint32 movementCounter = 0;
 #if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_9_4
     recvData >> movementCounter;
@@ -785,7 +789,11 @@ void WorldSession::HandleMoveKnockBackAck(WorldPacket& recvData)
     movementInfo.UpdateTime(recvData.GetPacketTime());
     /*----------------*/
 
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_2_4
     Unit* pMover = GetMoverFromGuid(guid);
+#else
+    Unit* pMover = GetPlayer()->GetMover();
+#endif
     if (!pMover)
         return;
 

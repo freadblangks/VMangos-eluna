@@ -26,4 +26,5 @@
 
 void LoadRandomEnchantmentsTable();
 uint32 GetItemEnchantMod(uint32 entry);
+void GetAllEnchantsForRandomProperty(uint32 entry, std::vector<uint32>& result);
 #endif

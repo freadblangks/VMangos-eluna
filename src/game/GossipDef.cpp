@@ -855,3 +855,21 @@ void PlayerMenu::SendQuestGiverRequestItems(Quest const* pQuest, ObjectGuid npcG
 
     GetMenuSession()->SendPacket(&data);
 }
+
+
+uint32 PlayerMenu::QIconToClientQuestType(uint32 qIcon)
+{
+// in client logic values 3 and 4 will add quest as quest in progress
+// value 0 will add a turn in quest (ie quest that you pick up and immediately turn in at the same questgiver)
+// other values will result in normal new quest
+
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_3_1
+    return qIcon;
+#else
+    if (qIcon == DIALOG_STATUS_REWARD2 || qIcon == DIALOG_STATUS_REWARD_OLD)
+        return 4;
+    else if (qIcon == DIALOG_STATUS_AVAILABLE)
+        return 2;
+    return qIcon;
+#endif
+}

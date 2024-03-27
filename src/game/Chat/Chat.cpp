@@ -1159,6 +1159,34 @@ ChatCommand * ChatHandler::getCommandTable()
         { nullptr,              0,                  false, nullptr,                                       "", nullptr }
     };
 
+    static ChatCommand luabCLineCommandTable[] =
+    {
+        { "finish",         SEC_PLAYER,         false, &ChatHandler::HandleLuabCLineFinishCommand,     "", nullptr },
+        { "load",           SEC_PLAYER,         false, &ChatHandler::HandleLuabCLineLoadFromCommand,   "", nullptr },
+        { "move",           SEC_PLAYER,         false, &ChatHandler::HandleLuabCLineMoveCommand,       "", nullptr },
+        { "newline",        SEC_PLAYER,         false, &ChatHandler::HandleLuabCLineNewLineCommand,    "", nullptr },
+        { "point",          SEC_PLAYER,         false, &ChatHandler::HandleLuabCLinePointCommand,      "", nullptr },
+        { "remove",         SEC_PLAYER,         false, &ChatHandler::HandleLuabCLineRemoveCommand,     "", nullptr },
+        { "removelast",     SEC_PLAYER,         false, &ChatHandler::HandleLuabCLineRemoveLastCommand, "", nullptr },
+        { "write",          SEC_PLAYER,         false, &ChatHandler::HandleLuabCLineWriteCommand,      "", nullptr },
+        { nullptr,          0,                  false, nullptr,                                        "", nullptr }
+    };
+
+    static ChatCommand luabCommandTable[] =
+    {
+        { "add",            SEC_PLAYER,         false, &ChatHandler::HandleLuabAddCommand,             "", nullptr },
+        { "addparty",       SEC_PLAYER,         false, &ChatHandler::HandleLuabAddPartyCommand,        "", nullptr },
+        { "cline",          SEC_PLAYER,         false, nullptr,                                        "", luabCLineCommandTable },
+        { "kickbroken",     SEC_PLAYER,         false, &ChatHandler::HandleLuabKickBrokenCommand,      "", nullptr },
+        { "reset",          SEC_PLAYER,         false, &ChatHandler::HandleLuabResetCommand,           "", nullptr },
+        { "remove",         SEC_PLAYER,         false, &ChatHandler::HandleLuabRemoveCommand,          "", nullptr },
+        { "removeparty",    SEC_PLAYER,         false, &ChatHandler::HandleLuabRemovePartyCommand,     "", nullptr },
+        { "removeall",      SEC_PLAYER,         false, &ChatHandler::HandleLuabRemoveAllCommand,       "", nullptr },
+        { "groupall",       SEC_PLAYER,         false, &ChatHandler::HandleLuabGroupAllCommand,        "", nullptr },
+        { "reviveall",      SEC_PLAYER,         false, &ChatHandler::HandleLuabReviveAllCommand,       "", nullptr },
+        { nullptr,          0,                  false, nullptr,                                        "", nullptr }
+    };
+
     static ChatCommand warEffortCommandTable[] =
     {
         { "info",           SEC_DEVELOPER,    true,  &ChatHandler::HandleWarEffortInfoCommand,         "", nullptr },
@@ -1299,6 +1327,7 @@ ChatCommand * ChatHandler::getCommandTable()
         { "spamer",         SEC_MODERATOR,      true, nullptr,                                         "", spamerCommandTable },
         { "antispam",       SEC_TICKETMASTER,   true, nullptr,                                         "", AntiSpamCommandTable },
         { "gold",           SEC_BASIC_ADMIN,    true, nullptr,                                         "", goldCommandTable },
+        { "luab",           SEC_PLAYER,         true,  nullptr,                                        "", luabCommandTable },
         { "wareffort",      SEC_DEVELOPER,      true, nullptr,                                         "", warEffortCommandTable },
         { nullptr,          0,                  false, nullptr,                                        "", nullptr }
     };
@@ -2535,6 +2564,7 @@ void ChatHandler::BuildChatPacket(WorldPacket& data, ChatMsg msgtype, char const
     data << uint8(msgtype);
     data << uint32(language);
 
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_3_1
     switch (msgtype)
     {
         case CHAT_MSG_MONSTER_WHISPER:
@@ -2576,6 +2606,30 @@ void ChatHandler::BuildChatPacket(WorldPacket& data, ChatMsg msgtype, char const
             data << ObjectGuid(senderGuid);
             break;
     }
+#else
+    switch (msgtype)
+    {
+        case CHAT_MSG_MONSTER_WHISPER:
+        case CHAT_MSG_MONSTER_EMOTE:
+        case CHAT_MSG_MONSTER_SAY:
+        case CHAT_MSG_MONSTER_YELL:
+            MANGOS_ASSERT(senderName);
+            data << uint32(strlen(senderName) + 1);
+            data << senderName;
+            data << ObjectGuid(targetGuid);
+            break;
+
+        case CHAT_MSG_CHANNEL:
+            MANGOS_ASSERT(channelName);
+            data << channelName;
+            data << ObjectGuid(senderGuid);
+            break;
+
+        default:
+            data << ObjectGuid(senderGuid);
+            break;
+    }
+#endif
 
     MANGOS_ASSERT(message);
     data << uint32(strlen(message) + 1);

@@ -533,9 +533,16 @@ bool PatrolMovementGenerator::Update(Creature &creature, uint32 const& diff)
         return true;
     }
 
+    if (Creature* leader = creature.GetMap()->GetCreature(m_leaderGuid))
+    {
+        if (leader->IsWalking() != creature.IsWalking())
+        {
+            creature.SetWalk(leader->IsWalking());
+        }
+    }
+
     if (creature.movespline->Finalized())
         StartMove(creature);
-
     return true;
 }
 
