@@ -866,6 +866,7 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 amount, uint
                             return SPELL_AURA_PROC_FAILED;
                     }
                     
+                    /* Vanilla Reforged - Ignite redesign
                     // Get current Ignite Aura if exist
                     Aura* igniteAura = target->GetAura(12654, EFFECT_INDEX_0);
                     
@@ -905,6 +906,7 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 amount, uint
                         target->RemoveAurasDueToSpell(12654);
                     }
                     
+                    */
                     // No Ignite found, apply Ignite Aura
                     triggered_spell_id = 12654;
                     break;

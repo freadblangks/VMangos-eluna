@@ -6320,6 +6320,7 @@ SpellCastResult Spell::CheckCast(bool strict)
             }
             case SPELL_EFFECT_SCHOOL_DAMAGE:
             {
+                /* Vanilla Reforged - Conflagrate redesign
                 // Conflagrate
                 if (m_spellInfo->IsFitToFamily<SPELLFAMILY_WARLOCK, CF_WARLOCK_CONFLAGRATE>())
                 {
@@ -6342,7 +6343,7 @@ SpellCastResult Spell::CheckCast(bool strict)
 
                     if (!found)
                         return SPELL_FAILED_TARGET_AURASTATE;
-                }
+                }*/
                 break;
             }
             case SPELL_EFFECT_RESURRECT:

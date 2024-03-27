@@ -448,6 +448,7 @@ void Spell::EffectSchoolDMG(SpellEffectIndex effect_idx)
             }
             case SPELLFAMILY_WARLOCK:
             {
+                /* Vanilla Reforged - Conflagrate redesign
                 // Conflagrate - consumes Immolate
                 if (m_spellInfo->IsFitToFamilyMask<CF_WARLOCK_CONFLAGRATE>())
                 {
@@ -463,7 +464,7 @@ void Spell::EffectSchoolDMG(SpellEffectIndex effect_idx)
                             break;
                         }
                     }
-                }
+                }*/
                 break;
             }
             case SPELLFAMILY_DRUID:
@@ -972,6 +973,7 @@ void Spell::EffectDummy(SpellEffectIndex effIdx)
                     ((Creature*)unitTarget)->ForcedDespawn(100);
                     return;
                 }
+                /* Vanilla Reforged - Deep Wounds redesign
                 case 12162:                                 // Deep wounds
                 case 12850:                                 // (now good common check for this spells)
                 case 12868:
@@ -1007,6 +1009,7 @@ void Spell::EffectDummy(SpellEffectIndex effIdx)
                     m_casterUnit->CastCustomSpell(unitTarget, 12721, deepWoundsDotBasePoints0, {}, {}, true, nullptr);
                     return;
                 }
+                */
                 case 12975:                                 //Last Stand
                 {
                     if (!m_casterUnit)
@@ -1226,7 +1229,7 @@ void Spell::EffectDummy(SpellEffectIndex effIdx)
                     return;
                 }
 #endif
-                case 20572:                                 // Blood Fury
+                /* case 20572:                                 // Blood Fury // Vanilla Reforged - Blood Fury redesign
                 {
                     Player* pPlayer = m_caster->ToPlayer();
                     if (!pPlayer)
@@ -1240,7 +1243,7 @@ void Spell::EffectDummy(SpellEffectIndex effIdx)
                     if (damage > 0)
                         pPlayer->CastCustomSpell(pPlayer, 23234, damage, {}, {}, true, nullptr);
                     return;
-                }
+                } */
                 case 20577:                                 // Cannibalize
                 {
                     if (m_casterUnit && (unitTarget || corpseTarget))
@@ -3171,10 +3174,11 @@ void Spell::EffectDispel(SpellEffectIndex effIdx)
 {
     if (!unitTarget)
         return;
-
+    /* Vanilla Reforged - Shield Slam redesign
     // Shield Slam 50% chance dispel
     if (m_spellInfo->IsFitToFamily<SPELLFAMILY_WARRIOR, CF_WARRIOR_SHIELD_SLAM>() && !roll_chance_i(50))
         return;
+    */
 
     // Fill possible dispel list
     int32 priorityDispel = -1;
@@ -4013,6 +4017,7 @@ ObjectGuid Unit::EffectSummonPet(uint32 spellId, uint32 petEntry, uint32 petLeve
     {
         if (newSummon->getPetType() == SUMMON_PET)
         {
+            /* Vanilla Reforged - Demonic Sacrifice redesign
             // Remove Demonic Sacrifice auras (known pet)
             Unit::AuraList const& auraClassScripts = GetAurasByType(SPELL_AURA_OVERRIDE_CLASS_SCRIPTS);
             for (Unit::AuraList::const_iterator itr = auraClassScripts.begin(); itr != auraClassScripts.end();)
@@ -4024,7 +4029,7 @@ ObjectGuid Unit::EffectSummonPet(uint32 spellId, uint32 petEntry, uint32 petLeve
                 }
                 else
                     ++itr;
-            }
+            }*/
         }
         return newSummon->GetObjectGuid();
     }
@@ -4193,7 +4198,9 @@ void Spell::EffectWeaponDmg(SpellEffectIndex effIdx)
     if (!unitTarget->IsAlive())
         return;
 
+    /* Vanilla Reforged - Stormstrike redesign
     if (m_spellInfo->Id == 17364) // Stormstrike
+
     {
         if (!m_casterUnit->IsAlive()) // CalculateMeleeDamage does not work in that case.
             return;
@@ -4220,6 +4227,7 @@ void Spell::EffectWeaponDmg(SpellEffectIndex effIdx)
         m_damage = 0.f;
         return;
     }
+    */
 
     // multiple weapon dmg effect workaround
     // execute only the last weapon damage

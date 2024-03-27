@@ -5604,8 +5604,8 @@ float Player::GetMeleeCritFromAgility() const
         case CLASS_PALADIN:
         case CLASS_SHAMAN:
         case CLASS_DRUID:
-            valLevel1 = 4.6f;
-            valLevel60 = 20.0f;
+            valLevel1 = 2.2f; // Vanilla Reforged - Scaling changes
+            valLevel60 = 29.0f; // Vanilla Reforged - Scaling changes
             break;
         case CLASS_MAGE:
             valLevel1 = 12.9f;
@@ -5648,16 +5648,15 @@ float Player::GetDodgeFromAgility() const
         case CLASS_PALADIN:
         case CLASS_SHAMAN:
         case CLASS_DRUID:
-            valLevel1 = 4.6f;
-            valLevel60 = 20.0f;
-            break;
+            valLevel1 = 1.1f; // Vanilla Reforged - Scaling changes
+            valLevel60 = 29.0f; // Vanilla Reforged - Scaling changes
         case CLASS_MAGE:
             valLevel1 = 12.9f;
             valLevel60 = 20.0f;
             break;
         case CLASS_ROGUE:
             valLevel1 = 1.1f;
-            valLevel60 = 14.5f;
+            valLevel60 = 29.0f;
             break;
         case CLASS_HUNTER:
             valLevel1 = 1.8f;
@@ -8403,6 +8402,7 @@ void Player::SendLoot(ObjectGuid guid, LootType loot_type, Player* pVictim)
                             case NEED_BEFORE_GREED:
                                 group->NeedBeforeGreed(creature, loot);
                                 break;
+
                             default:
                                 break;
                         }
@@ -17566,6 +17566,7 @@ void Player::ResetPersonalInstanceOnLeaveDungeon(uint32 mapId)
         return;
 
     std::lock_guard<std::mutex> guard(m_boundInstancesMutex);
+
     BoundInstancesMap::iterator itr = m_boundInstances.find(mapId);
     if (itr == m_boundInstances.end() || itr->second.perm)
         return;
