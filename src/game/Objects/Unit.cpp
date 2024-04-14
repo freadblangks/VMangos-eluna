@@ -1012,21 +1012,12 @@ void Unit::Kill(Unit* pVictim, SpellEntry const* spellProto, bool durabilityLoss
 
         if (pCreatureVictim)
         {
-            Loot* loot = &pCreatureVictim->loot;
-            if (pCreatureVictim->lootForPickPocketed)
-                pCreatureVictim->lootForPickPocketed = false;
-
-            loot->clear();
-            if (!(pCreatureVictim->AI() && pCreatureVictim->AI()->FillLoot(loot, looter)))
-            {
-                if (uint32 lootid = pCreatureVictim->GetCreatureInfo()->loot_id)
-                {
-                    loot->SetTeam(pGroupTap ? pGroupTap->GetTeam() : looter->GetTeam());
-                    loot->FillLoot(lootid, LootTemplates_Creature, looter, false, false, pCreatureVictim);
-                }
-            }
-
-            loot->GenerateMoneyLoot(pCreatureVictim->GetCreatureInfo()->gold_min, pCreatureVictim->GetCreatureInfo()->gold_max);
+            // in this case loot is generated on spawn, when there is no player, so we need to fill in remaining conditional loot
+            if (pCreatureVictim->HasStaticFlag(CREATURE_STATIC_FLAG_CAN_WIELD_LOOT) && !pCreatureVictim->loot.empty() &&
+                !pCreatureVictim->lootForPickPocketed && !pCreatureVictim->lootForBody && !pCreatureVictim->lootForSkin)
+                pCreatureVictim->GeneratePlayerDependentLoot(looter, pGroupTap);
+            else
+                pCreatureVictim->GenerateLootForBody(looter, pGroupTap);
         }
 
         if (pGroupTap)
@@ -1178,7 +1169,7 @@ void Unit::Kill(Unit* pVictim, SpellEntry const* spellProto, bool durabilityLoss
                 if (cinfo->loot_id || cinfo->gold_max > 0)
                     pCreatureVictim->SetFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_LOOTABLE);
 
-            if (pPlayerTap && (pCreatureVictim->IsGuard() || pCreatureVictim->HasExtraFlag(CREATURE_FLAG_EXTRA_PVP)))
+            if (pPlayerTap && (pCreatureVictim->IsGuard() || pCreatureVictim->HasStaticFlag(CREATURE_STATIC_FLAG_PVP_ENABLING)))
                 pCreatureVictim->SendZoneUnderAttackMessage(pPlayerTap);
         }
 
@@ -1221,7 +1212,7 @@ void Unit::Kill(Unit* pVictim, SpellEntry const* spellProto, bool durabilityLoss
                 playerKiller = pPlayerTap;
 
             if (playerKiller)
-                pCreatureVictim->GetMap()->BindToInstanceOrRaid(playerKiller, pCreatureVictim->GetRespawnTimeEx(), pCreatureVictim->HasExtraFlag(CREATURE_FLAG_EXTRA_INSTANCE_BIND));
+                pCreatureVictim->GetMap()->BindToInstanceOrRaid(playerKiller, pCreatureVictim->GetRespawnTimeEx(), pCreatureVictim->HasStaticFlag(CREATURE_STATIC_FLAG_2_LOCK_TAPPERS_TO_RAID_ON_DEATH));
         }
     }
 
@@ -1583,8 +1574,7 @@ void Unit::DealMeleeDamage(CalcDamageInfo const* damageInfo, bool durabilityLoss
     // Hmmmm dont like this emotes client must by self do all animations
     if (damageInfo->totalDamage && (damageInfo->HitInfo & HITINFO_CRITICALHIT))
     {
-        if (!(pVictim->IsCreature() &&
-           (static_cast<Creature*>(pVictim)->GetCreatureInfo()->type_flags & CREATURE_TYPEFLAGS_DO_NOT_PLAY_WOUND_ANIM)))
+        if (!(pVictim->IsCreature() && static_cast<Creature*>(pVictim)->HasStaticFlag(CREATURE_STATIC_FLAG_DO_NOT_PLAY_WOUND_ANIM)))
             pVictim->HandleEmoteCommand(EMOTE_ONESHOT_WOUNDCRITICAL);
     }
 
@@ -2364,7 +2354,7 @@ MeleeHitOutcome Unit::RollMeleeOutcomeAgainst(Unit const* pVictim, WeaponAttackT
     }
 
     if ((!IsPlayer() && !IsPet()) &&
-        !((Creature*)this)->HasExtraFlag(CREATURE_FLAG_EXTRA_NO_CRUSH) &&
+        !((Creature*)this)->HasStaticFlag(CREATURE_STATIC_FLAG_2_NO_CRUSHING_BLOWS) &&
         !SpellCasted /*Only autoattack can be crashing blow*/)
     {
         if (((Creature*)this)->HasExtraFlag(CREATURE_FLAG_EXTRA_ALWAYS_CRUSH))
@@ -4692,9 +4682,12 @@ void Unit::AttackedBy(Unit* attacker)
         // must check that attacker is targetable by owner,
         // because there are cases with unattackable creatures spawning pets
         // example: Scarshield Portal (9707) spawns guardian pet Burning Imp (9708) with spell 15126
-        if (Creature* pOwner = ::ToCreature(GetCharmerOrOwner()))
-            if (pOwner->AI() && pOwner->IsAlive() && attacker->IsTargetableBy(pOwner))
-                pOwner->AI()->AttackedBy(attacker);
+        if (!pCreature->HasStaticFlag(CREATURE_STATIC_FLAG_2_NO_OWNER_THREAT))
+        {
+            if (Creature* pOwner = ::ToCreature(GetCharmerOrOwner()))
+                if (pOwner->AI() && pOwner->IsAlive() && attacker->IsTargetableBy(pOwner))
+                    pOwner->AI()->AttackedBy(attacker);
+        }
     }
 }
 
@@ -4877,6 +4870,18 @@ Creature* Unit::GetOwnerCreature() const
     if (ObjectGuid ownerid = GetOwnerGuid())
         if (ownerid.IsCreature())
             return GetMap()->GetCreature(ownerid);
+
+    return nullptr;
+}
+
+Player* Unit::GetOwnerPlayer() const
+{
+    if (!IsInWorld())
+        return nullptr;
+
+    if (ObjectGuid ownerid = GetOwnerGuid())
+        if (ownerid.IsPlayer())
+            return GetMap()->GetPlayer(ownerid);
 
     return nullptr;
 }
@@ -5482,10 +5487,7 @@ int32 Unit::SpellBaseHealingBonusTaken(SpellSchoolMask schoolMask) const
 
 bool Unit::IsImmuneToDamage(SpellSchoolMask shoolMask, SpellEntry const* spellInfo) const
 {
-    if (spellInfo && 
-       (spellInfo->HasAttribute(SPELL_ATTR_NO_IMMUNITIES) ||
-        spellInfo->HasAttribute(SPELL_ATTR_EX_IGNORE_CASTER_AND_TARGET_RESTRICTIONS) ||
-        spellInfo->HasAttribute(SPELL_ATTR_EX3_IGNORE_CASTER_AND_TARGET_RESTRICTIONS)))
+    if (spellInfo && (spellInfo->HasAttribute(SPELL_ATTR_NO_IMMUNITIES) || spellInfo->IsIgnoringCasterAndTargetRestrictions()))
         return false;
 
     // If m_immuneToDamage type contain magic, IMMUNE damage.
@@ -5522,9 +5524,7 @@ bool Unit::IsImmuneToDamage(SpellSchoolMask shoolMask, SpellEntry const* spellIn
 
 bool Unit::IsImmuneToSpell(SpellEntry const* spellInfo, bool /*castOnSelf*/) const
 {
-    if (!spellInfo ||
-        spellInfo->HasAttribute(SPELL_ATTR_EX_IGNORE_CASTER_AND_TARGET_RESTRICTIONS) ||
-        spellInfo->HasAttribute(SPELL_ATTR_EX3_IGNORE_CASTER_AND_TARGET_RESTRICTIONS))
+    if (!spellInfo || spellInfo->IsIgnoringCasterAndTargetRestrictions())
         return false;
 
     // Venomhide Ravasaur (6508) is immune to being poisoned by others, but has passive poison aura 14108.
@@ -5624,8 +5624,7 @@ bool Unit::IsImmuneToSpell(SpellEntry const* spellInfo, bool /*castOnSelf*/) con
 
 bool Unit::IsImmuneToSpellEffect(SpellEntry const* spellInfo, SpellEffectIndex index, bool /*castOnSelf*/) const
 {
-    if (spellInfo->HasAttribute(SPELL_ATTR_EX_IGNORE_CASTER_AND_TARGET_RESTRICTIONS) ||
-        spellInfo->HasAttribute(SPELL_ATTR_EX3_IGNORE_CASTER_AND_TARGET_RESTRICTIONS))
+    if (spellInfo->IsIgnoringCasterAndTargetRestrictions())
         return false;
 
     //If m_immuneToEffect type contain this effect type, IMMUNE effect.
@@ -5709,9 +5708,8 @@ bool Unit::IsImmuneToSpellEffect(SpellEntry const* spellInfo, SpellEffectIndex i
 bool Unit::IsImmuneToSchool(SpellEntry const* spellInfo, uint8 effectMask) const
 {
     if (!spellInfo->HasAttribute(SPELL_ATTR_EX_IMMUNITY_PURGES_EFFECT)            // can remove immune (by dispell or immune it)
-     && !spellInfo->HasAttribute(SPELL_ATTR_EX_IGNORE_CASTER_AND_TARGET_RESTRICTIONS)
      && !spellInfo->HasAttribute(SPELL_ATTR_EX2_NO_SCHOOL_IMMUNITIES)
-     && !spellInfo->HasAttribute(SPELL_ATTR_EX3_IGNORE_CASTER_AND_TARGET_RESTRICTIONS))
+     && !spellInfo->IsIgnoringCasterAndTargetRestrictions())
     {
         SpellImmuneList const& schoolList = m_spellImmune[IMMUNITY_SCHOOL];
         for (auto itr : schoolList)
@@ -6030,7 +6028,7 @@ void Unit::SetInCombatState(uint32 combatTimer, Unit* pEnemy)
         OnEnterCombat(pEnemy, true);
 
         // Some bosses are set into combat with zone
-        if (GetMap()->IsDungeon() && pCreature->HasExtraFlag(CREATURE_FLAG_EXTRA_AGGRO_ZONE) && pEnemy && pEnemy->IsControlledByPlayer())
+        if (GetMap()->IsDungeon() && pCreature->HasStaticFlag(CREATURE_STATIC_FLAG_2_FORCE_RAID_COMBAT) && pEnemy && pEnemy->IsControlledByPlayer())
             pCreature->SetInCombatWithZone();
 
         InterruptSpellsWithChannelFlags(AURA_INTERRUPT_HOSTILE_ACTION_RECEIVED_CANCELS);
@@ -6069,10 +6067,13 @@ void Unit::SetInCombatWithAggressor(Unit* pAggressor, bool touchOnly/* = false*/
         if (Creature* pCreature = ToCreature())
             pCreature->UpdateLeashExtensionTime();
 
-        if (Player* pOwner = ::ToPlayer(GetCharmerOrOwner()))
+        if (!IsCreature() || !static_cast<Creature*>(this)->HasStaticFlag(CREATURE_STATIC_FLAG_2_NO_OWNER_THREAT))
         {
-            if (pOwner->IsTargetableBy(pAggressor) && !pOwner->IsFeigningDeathSuccessfully())
-                pOwner->SetInCombatWithAggressor(pAggressor, false);
+            if (Player* pOwner = ::ToPlayer(GetCharmerOrOwner()))
+            {
+                if (pOwner->IsTargetableBy(pAggressor) && !pOwner->IsFeigningDeathSuccessfully())
+                    pOwner->SetInCombatWithAggressor(pAggressor, false);
+            }
         }
     }
 }
@@ -6165,12 +6166,15 @@ void Unit::SetInCombatWithVictim(Unit* pVictim, bool touchOnly/* = false*/, uint
                             pGuardian->AI()->OwnerAttacked(pVictim);
             }
 
-            if (Player* pOwner = ::ToPlayer(GetCharmerOrOwner()))
+            if (!IsCreature() || !static_cast<Creature*>(this)->HasStaticFlag(CREATURE_STATIC_FLAG_2_NO_OWNER_THREAT))
             {
-                if (pOwner->IsTargetableBy(pVictim) && !pOwner->IsFeigningDeathSuccessfully())
-                    pVictim->AddThreat(pOwner);
-                
-                pOwner->SetInCombatWithVictim(pVictim, false, combatTimer >= UNIT_PVP_COMBAT_TIMER ? combatTimer : UNIT_PVP_COMBAT_TIMER, false);
+                if (Player* pOwner = ::ToPlayer(GetCharmerOrOwner()))
+                {
+                    if (pOwner->IsTargetableBy(pVictim) && !pOwner->IsFeigningDeathSuccessfully())
+                        pVictim->AddThreat(pOwner);
+
+                    pOwner->SetInCombatWithVictim(pVictim, false, combatTimer >= UNIT_PVP_COMBAT_TIMER ? combatTimer : UNIT_PVP_COMBAT_TIMER, false);
+                }
             }
         }
     }
@@ -7122,7 +7126,7 @@ void Unit::UpdateSpeed(UnitMoveType mtype, bool forced, float ratio)
             speed *= DEFAULT_NPC_RUN_SPEED_RATE;  // normalized player pet runspeed
 
         // Speed reduction at low health percentages
-        if (!pCreature->IsPet() && !pCreature->IsWorldBoss())
+        if (!pCreature->IsPet() && !pCreature->IsWorldBoss() && !pCreature->HasStaticFlag(CREATURE_STATIC_FLAG_2_NO_WOUNDED_SLOWDOWN))
         {
             if (HasAuraState(AURA_STATE_HEALTHLESS_5_PERCENT))
                 speed *= SPEED_REDUCTION_HP_5;
@@ -7735,8 +7739,9 @@ bool Unit::IsInvisibleForAlive() const
 // returns true if creature can be seen by dead units
 bool Unit::IsVisibleForDead() const
 {
-    if (IsCreature() && ToCreature()->GetCreatureInfo()->type_flags & CREATURE_TYPEFLAGS_VISIBLE_TO_GHOSTS)
+    if (IsCreature() && static_cast<Creature const*>(this)->HasStaticFlag(CREATURE_STATIC_FLAG_VISIBLE_TO_GHOSTS))
         return true;
+
     return IsSpiritService();
 }
 
@@ -9475,7 +9480,7 @@ void Unit::GetEnemyListInRadiusAround(Unit const* pTarget, float radius, std::li
     Cell::VisitAllObjects(pTarget, searcher, radius);
 }
 
-Unit* Unit::SelectRandomUnfriendlyTarget(Unit const* except /*= nullptr*/, float radius /*= ATTACK_DISTANCE*/, bool inFront /*= false*/, bool isValidAttackTarget /*= false*/) const
+Unit* Unit::SelectRandomUnfriendlyTarget(Unit const* except /*= nullptr*/, float radius /*= ATTACK_DISTANCE*/, bool inFront /*= false*/, bool isValidAttackTarget /*= false*/, bool notPvpEnabling /*= false*/) const
 {
     std::list<Unit*> targets;
 
@@ -9490,7 +9495,10 @@ Unit* Unit::SelectRandomUnfriendlyTarget(Unit const* except /*= nullptr*/, float
     // remove not LoS targets
     for (std::list<Unit*>::iterator tIter = targets.begin(); tIter != targets.end();)
     {
-        if ((!IsWithinLOSInMap(*tIter)) || (inFront && !this->HasInArc(*tIter, M_PI_F / 2)) || (isValidAttackTarget && !IsValidAttackTarget(*tIter)))
+        if ((!IsWithinLOSInMap(*tIter)) ||
+           (inFront && !this->HasInArc(*tIter, M_PI_F / 2)) ||
+           (isValidAttackTarget && !IsValidAttackTarget(*tIter)) ||
+           (notPvpEnabling && !CanAttackWithoutEnablingPvP(*tIter)))
         {
             std::list<Unit*>::iterator tIter2 = tIter;
             ++tIter;
@@ -9529,7 +9537,7 @@ Unit* Unit::SelectRandomFriendlyTarget(Unit const* except /*= nullptr*/, float r
     // remove not LoS targets
     for (std::list<Unit*>::iterator tIter = targets.begin(); tIter != targets.end();)
     {
-        if (!IsWithinLOSInMap(*tIter) || (inCombat && !(*tIter)->IsInCombat()))
+        if (!IsWithinLOSInMap(*tIter) || (inCombat && !(*tIter)->IsInCombat()) || (*tIter)->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE))
         {
             std::list<Unit*>::iterator tIter2 = tIter;
             ++tIter;
@@ -9565,7 +9573,7 @@ Unit* Unit::FindLowestHpFriendlyUnit(float fRange, uint32 uiMinHPDiff, bool bPer
         {
             if (Unit* pTarget = pReference->getSourceUnit())
             {
-                if (pTarget->IsAlive() && IsFriendlyTo(pTarget) && IsWithinDistInMap(pTarget, fRange) &&
+                if (pTarget->IsAlive() && IsFriendlyTo(pTarget) && IsWithinDistInMap(pTarget, fRange) && !pTarget->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE) &&
                     ((bPercent && (100 - pTarget->GetHealthPercent() > uiMinHPDiff)) || (!bPercent && (pTarget->GetMaxHealth() - pTarget->GetHealth() > uiMinHPDiff))))
                 {
                     targets.push_back(pTarget);
@@ -10671,17 +10679,7 @@ void Unit::SetWalk(bool enable, bool asDefault)
     else
         m_movementInfo.RemoveMovementFlag(MOVEFLAG_WALK_MODE);
 
-#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_8_4
-    WorldPacket data(enable ? SMSG_SPLINE_MOVE_SET_WALK_MODE : SMSG_SPLINE_MOVE_SET_RUN_MODE, 9);
-#else
-    WorldPacket data(enable ? MSG_MOVE_SET_WALK_MODE : MSG_MOVE_SET_RUN_MODE, 9);
-#endif
-    data << GetPackGUID();
-
-    if (Player* me = ToPlayer())
-        me->GetSession()->SendPacket(&data);
-    else
-        SendObjectMessageToSet(&data, false);
+    MovementPacketSender::SendToggleRunWalkToAll(this, !enable);
 }
 
 void Unit::DisableSpline()

@@ -1118,7 +1118,7 @@ class Unit : public SpellCaster
         uint8 GetEnemyCountInRadiusAround(Unit const* pTarget, float radius) const;
         void GetEnemyListInRadiusAround(Unit const* pTarget, float radius, std::list<Unit*>& targets) const;
         Unit* SelectNearestTarget(float dist) const;
-        Unit* SelectRandomUnfriendlyTarget(Unit const* except = nullptr, float radius = ATTACK_DISTANCE, bool inFront = false, bool isValidAttackTarget = false) const;
+        Unit* SelectRandomUnfriendlyTarget(Unit const* except = nullptr, float radius = ATTACK_DISTANCE, bool inFront = false, bool isValidAttackTarget = false, bool notPvpEnabling = false) const;
         Unit* SelectRandomFriendlyTarget(Unit const* except = nullptr, float radius = ATTACK_DISTANCE, bool inCombat = false) const;
         Unit* FindLowestHpFriendlyUnit(float fRange, uint32 uiMinHPDiff = 1, bool bPercent = false, Unit* except = nullptr) const;
         Unit* FindFriendlyUnitMissingBuff(float range, uint32 spellid, Unit const* except = nullptr) const;
@@ -1202,6 +1202,7 @@ class Unit : public SpellCaster
 
         Unit* GetOwner() const;
         Creature* GetOwnerCreature() const;
+        Player* GetOwnerPlayer() const;
         ObjectGuid const& GetOwnerGuid() const { return  GetGuidValue(UNIT_FIELD_SUMMONEDBY); }
         void SetOwnerGuid(ObjectGuid owner) { SetGuidValue(UNIT_FIELD_SUMMONEDBY, owner); ForceValuesUpdateAtIndex(UNIT_FIELD_HEALTH); ForceValuesUpdateAtIndex(UNIT_FIELD_MAXHEALTH); }
         ObjectGuid const& GetCreatorGuid() const { return GetGuidValue(UNIT_FIELD_CREATEDBY); }
