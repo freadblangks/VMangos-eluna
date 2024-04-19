@@ -440,7 +440,9 @@ void Spell::EffectSchoolDMG(SpellEffectIndex effect_idx)
                 }
                 // Shield Slam
                 else if (m_spellInfo->IsFitToFamilyMask<CF_WARRIOR_SHIELD_SLAM>())
-                    damage += m_casterUnit->GetShieldBlockValue() * 2;
+                    // Warrior - Shield Slam : damage bonus 20% max health
+                    //damage += m_casterUnit->GetShieldBlockValue() * 2;
+                    damage = damage + m_casterUnit->GetShieldBlockValue() + (m_casterUnit->GetMaxHealth() * 0.2f);
                 // Execute trigger
                 else if (m_spellInfo->Id == 20647)
                     m_casterUnit->SetPower(POWER_RAGE, 0);
@@ -3314,26 +3316,36 @@ void Spell::EffectDispel(SpellEffectIndex effIdx)
                     return;
 
                 uint32 healSpell = 0;
+                uint32 basePoint = 0;
                 switch (m_spellInfo->Id)
                 {
                     case 19505:
                         healSpell = 19658;
+                        basePoint = 234;
                         break;
                     case 19731:
                         healSpell = 19732;
+                        basePoint = 319;
                         break;
                     case 19734:
                         healSpell = 19733;
+                        basePoint = 438;
                         break;
                     case 19736:
                         healSpell = 19735;
+                        basePoint = 579;
                         break;
                     default:
                         sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "Spell for Devour Magic %d not handled in Spell::EffectDispel", m_spellInfo->Id);
                         break;
                 }
                 if (healSpell)
-                    m_casterUnit->CastSpell(m_casterUnit, healSpell, true);
+                {
+                    // Devour Magic - 25% max health bonus
+                    uint32 modPoint = basePoint + dither(m_casterUnit->GetMaxHealth() * 0.25f);
+                    //m_casterUnit->CastSpell(m_casterUnit, healSpell, true);
+                    m_casterUnit->CastCustomSpell(m_casterUnit, healSpell, modPoint, {}, {}, true, nullptr);
+                }
             }
         }
         // Send fail log to client
