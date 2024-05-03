@@ -217,6 +217,7 @@ void NierManager::UpdateNierManager(uint32 pmDiff)
 				{
 					if (Player* eachPlayer = eachWS->GetPlayer())
 					{
+						//NierCheck(eachPlayer);
 						uint32 eachLevel = eachPlayer->GetLevel();
 						if (onlinePlayerLevelSet.find(eachLevel) == onlinePlayerLevelSet.end())
 						{
@@ -232,6 +233,11 @@ void NierManager::UpdateNierManager(uint32 pmDiff)
 			LoginNier(eachLevel, sNierConfig.NierCountEachLevel);
 		}
 	}
+}
+
+bool NierManager::NierCheck(Player* master)
+{
+	return true;
 }
 
 void NierManager::UpdateNierEntities(uint32 pmDiff)
@@ -324,10 +330,10 @@ bool NierManager::LoginNier(uint32 pmLevel, uint32 pmCount)
 			uint32 allianceCount = addCount / 2;
 			uint32 hordeCount = addCount - allianceCount;
 			int checkCount = allianceCount;
-			int tankA = 2;
+			int tankA = 0;
 			int tankH = 0;
 
-			int healerA = 0;
+			int healerA = 2;
 			int healerH = 0;
 			while (checkCount > 0)
 			{
@@ -445,6 +451,9 @@ void NierManager::CreateNier(uint32 pmLevel, bool pmAlliance, uint32 pmGroupRole
 			if (pmAlliance)
 			{
 				target_class = Classes::CLASS_PALADIN;
+				target_specialty = 1;
+				// lfm debug priest only 
+				target_class = Classes::CLASS_PRIEST;
 				target_specialty = 1;
 			}
 		}

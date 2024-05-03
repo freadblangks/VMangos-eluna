@@ -50,6 +50,7 @@ public:
     void LogoutNiers(bool pmInstant = false);
     void DeleteNiers();
     bool LoginNier(uint32 pmLevel, uint32 pmCount);
+    bool NierCheck(Player* master);
 
     bool IsPolymorphed(Unit* pmTarget);
 
