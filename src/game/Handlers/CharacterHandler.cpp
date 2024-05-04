@@ -118,7 +118,6 @@ void WorldSession::HandleCharEnum(QueryResult* result)
     WorldPacket data(SMSG_CHAR_ENUM, 100);                  // we guess size
 
     uint8 num = 0;
-
     data << num;
 
     if (result)
@@ -135,10 +134,9 @@ void WorldSession::HandleCharEnum(QueryResult* result)
                 ++num;
         }
         while (result->NextRow());
-
         delete result;
     }
-
+    
     data.put<uint8>(0, num);
     m_charactersCount = num;
 

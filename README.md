@@ -1,4 +1,4 @@
-Core mod to allow programming bots in lua.
+Core mod to allow programming bots in lua. Contains hacks related to client 4222.
 Scripts repository: https://github.com/TuriansNotBad/vanilla-luab
 
 Compiling on Windows:

@@ -276,7 +276,7 @@ void instance_dire_maul::SetData(uint32 uiType, uint32 uiData)
                     EnableCreature(pImmolThar);
                     // ... et ses gardiens doivent l'attaquer.
 #ifdef DEBUG_ON
-                    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Immol'Thar (%u) rendu attaquable, %u gardiens trouves.", pImmolThar->GetGUIDLow(), m_lImmolTharGardiensMobGUIDList.size());
+                    sLog.Out(LOG_SCRIPTS, LOG_LVL_MINIMAL, "Immol'Thar (%u) rendu attaquable, %u gardiens trouves.", pImmolThar->GetGUIDLow(), m_lImmolTharGardiensMobGUIDList.size());
 #endif
                     bool bHasYelled = false;
                     for (const auto& guid : m_lImmolTharGardiensMobGUIDList)
@@ -306,7 +306,7 @@ void instance_dire_maul::SetData(uint32 uiType, uint32 uiData)
                     }
                 }
                 else
-                    sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Immol'Thar introuvable !! GUID %u", m_uiImmolTharGUID);
+                    sLog.Out(LOG_SCRIPTS, LOG_LVL_ERROR, "Immol'Thar introuvable !! GUID %u", m_uiImmolTharGUID);
             }
             m_auiEncounter[TYPE_CRISTAL_EVENT] = uiData;
             break;
@@ -319,10 +319,10 @@ void instance_dire_maul::SetData(uint32 uiType, uint32 uiData)
                 {
                     tortheldrin->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PLAYER);
                     tortheldrin->SetFactionTemporary(14, TEMPFACTION_RESTORE_RESPAWN);
-                    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Tortheldrin (%u) made attackable.", tortheldrin->GetGUIDLow());
+                    sLog.Out(LOG_SCRIPTS, LOG_LVL_MINIMAL, "Tortheldrin (%u) made attackable.", tortheldrin->GetGUIDLow());
                 }
                 else
-                    sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Tortheldrin not found!");
+                    sLog.Out(LOG_SCRIPTS, LOG_LVL_ERROR, "Tortheldrin not found!");
             }
             m_auiEncounter[TYPE_IMMOL_THAR] = uiData;
             break;
@@ -332,7 +332,7 @@ void instance_dire_maul::SetData(uint32 uiType, uint32 uiData)
             if (uiData == DONE)
             {
 #ifdef DEBUG_ON
-                sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Zevrim DOWN");
+                sLog.Out(LOG_SCRIPTS, LOG_LVL_MINIMAL, "Zevrim DOWN");
 #endif
             }
             m_auiEncounter[TYPE_BOSS_ZEVRIM] = uiData;
@@ -347,7 +347,7 @@ void instance_dire_maul::SetData(uint32 uiType, uint32 uiData)
             if (uiData == DONE)
             {
 #ifdef DEBUG_ON
-                sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "EcorceFer Speak OK");
+                sLog.Out(LOG_SCRIPTS, LOG_LVL_MINIMAL, "EcorceFer Speak OK");
 #endif
                 DoUseDoorOrButton(m_uiDoorAlzzinInGUID);
             }
@@ -454,7 +454,7 @@ void instance_dire_maul::SetData(uint32 uiType, uint32 uiData)
 void instance_dire_maul::SetData64(uint32 uiType, uint64 uiData)
 {
 #ifdef DEBUG_ON
-    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "SetData64(%u, %u) data is %u", uiType, uiData, GetData(TYPE_CRISTAL_EVENT));
+    sLog.Out(LOG_SCRIPTS, LOG_LVL_MINIMAL, "SetData64(%u, %u) data is %u", uiType, uiData, GetData(TYPE_CRISTAL_EVENT));
 #endif
 
     if (uiType == TYPE_CRISTAL_EVENT && GetData(TYPE_CRISTAL_EVENT) == NOT_STARTED)
@@ -472,7 +472,7 @@ void instance_dire_maul::SetData64(uint32 uiType, uint64 uiData)
                 {
                     DoUseDoorOrButton(m_auiCristalsGUID[i]);
 #ifdef DEBUG_ON
-                    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "ACTIVATION d'un cristal. Numero %u", i + 1);
+                    sLog.Out(LOG_SCRIPTS, LOG_LVL_MINIMAL, "ACTIVATION d'un cristal. Numero %u", i + 1);
 #endif
                     m_auiCristalsGUID[i] = 0;
                 }
@@ -561,7 +561,7 @@ void instance_dire_maul::DoSortCristalsEventMobs()
     if (GetData(TYPE_CRISTAL_EVENT) != NOT_STARTED)
         return;
 #ifdef DEBUG_ON
-    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "instance_dire_maul::DoSortCristalsEventMobs");
+    sLog.Out(LOG_SCRIPTS, LOG_LVL_MINIMAL, "instance_dire_maul::DoSortCristalsEventMobs");
 #endif
     for (uint8 i = 0; i < MAX_CRISTALS; i++)
     {
@@ -576,7 +576,7 @@ void instance_dire_maul::DoSortCristalsEventMobs()
                 }
             }
 #ifdef DEBUG_ON
-            sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Cristal %u : %u mobs", i + 1,  m_alCristalsEventtMobGUIDSorted[i].size());
+            sLog.Out(LOG_SCRIPTS, LOG_LVL_MINIMAL, "Cristal %u : %u mobs", i + 1,  m_alCristalsEventtMobGUIDSorted[i].size());
 #endif
         }
     }
@@ -1001,21 +1001,19 @@ bool GossipHello_npc_knot_thimblejack(Player* pPlayer, Creature* pCreature)
     if (pCreature->IsQuestGiver())
         pPlayer->PrepareQuestMenu(pCreature->GetObjectGuid());
 
-        pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, "Why should I bother fixing the trap? Why not just eliminate the guard the old fashioned way?", GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF+1);
+    pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, "Why should I bother fixing the trap? Why not just eliminate the guard the old fashioned way?", GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF+1);
 
-        if (pPlayer->GetQuestRewardStatus(QUEST_GORDOK_OGRE_SUIT) && pPlayer->GetQuestStatus(QUEST_GORDOK_OGRE_SUIT) == QUEST_STATUS_COMPLETE)
-        {
-            if (pPlayer->GetSkillValueBase(SKILL_LEATHERWORKING) >= 275 && !pPlayer->HasSpell(SPELL_GORDOK_OGRE_SUIT_L))
-                pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, "Please teach me how to make a Gordok Ogre Suit!", GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF+2);
+    if (pPlayer->GetQuestRewardStatus(QUEST_GORDOK_OGRE_SUIT) && pPlayer->GetQuestStatus(QUEST_GORDOK_OGRE_SUIT) == QUEST_STATUS_COMPLETE)
+    {
+        if (pPlayer->GetSkillValueBase(SKILL_LEATHERWORKING) >= 275 && !pPlayer->HasSpell(SPELL_GORDOK_OGRE_SUIT_L))
+            pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, "Please teach me how to make a Gordok Ogre Suit!", GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF+2);
 
-            if (pPlayer->GetSkillValueBase(SKILL_TAILORING) >= 275 && !pPlayer->HasSpell(SPELL_GORDOK_OGRE_SUIT_T))
-                pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, "Please teach me how to make a Gordok Ogre Suit!", GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF+3);
-        }
+        if (pPlayer->GetSkillValueBase(SKILL_TAILORING) >= 275 && !pPlayer->HasSpell(SPELL_GORDOK_OGRE_SUIT_T))
+            pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, "Please teach me how to make a Gordok Ogre Suit!", GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF+3);
+    }
 
-        pPlayer->SEND_GOSSIP_MENU(GOSSIP_MENU_1, pCreature->GetObjectGuid());
-        return true;
-
-    return false;
+    pPlayer->SEND_GOSSIP_MENU(GOSSIP_MENU_1, pCreature->GetObjectGuid());
+    return true;
 }
 
 bool GossipSelect_npc_knot_thimblejack(Player* pPlayer, Creature* pCreature, uint32 uiSender, uint32 uiAction)
@@ -2273,6 +2271,40 @@ CreatureAI* GetAI_boss_magister_kalendris(Creature* pCreature)
     return new boss_magister_kalendrisAI(pCreature);
 }
 
+/*######
+## go_warpwood_pod
+######*/
+
+struct go_warpwood_pod : public GameObjectAI
+{
+    go_warpwood_pod(GameObject* gobj) : GameObjectAI(gobj)
+    {
+    }
+
+    bool OnUse(Unit* pUser) override
+    {
+        if (GameObjectInfo const* pInfo = me->GetGOInfo())
+        {
+            if (pInfo->type == GAMEOBJECT_TYPE_CHEST && pInfo->chest.linkedTrapId)
+            {
+                if (GameObjectInfo const* pTrap = sObjectMgr.GetGameObjectInfo(pInfo->chest.linkedTrapId))
+                {
+                    if (pTrap->trap.spellId)
+                    {
+                        pUser->CastSpell(pUser, pTrap->trap.spellId, true);
+                        me->SetLootState(GO_JUST_DEACTIVATED);
+                    }
+                }
+            }
+        }
+        return true;
+    }
+};
+
+GameObjectAI* GetAI_go_warpwood_pod(GameObject* gobj)
+{
+    return new go_warpwood_pod(gobj);
+}
 
 void AddSC_instance_dire_maul()
 {
@@ -2364,4 +2396,9 @@ void AddSC_instance_dire_maul()
     pNewScript->Name = "npc_alzzins_minion";
     pNewScript->GetAI = &GetAI_npc_alzzins_minion;
     pNewScript->RegisterSelf(); 
+
+    pNewScript = new Script;
+    pNewScript->Name = "go_warpwood_pod";
+    pNewScript->GOGetAI = &GetAI_go_warpwood_pod;
+    pNewScript->RegisterSelf();
 }
