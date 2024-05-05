@@ -1489,7 +1489,7 @@ void ObjectMgr::CheckCreatureTemplates()
         // lfm creature equips 
         if (cInfo->equipment_id == 0)
         {
-            if (const EquipmentInfo* ei = ObjectMgr::GetEquipmentInfo(cInfo->entry))
+            if (const EquipmentTemplate* ei = ObjectMgr::GetEquipmentTemplate(cInfo->entry))
             {
                 const_cast<CreatureInfo*>(cInfo)->equipment_id = cInfo->entry;
             }
