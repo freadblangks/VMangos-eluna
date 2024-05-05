@@ -23,6 +23,7 @@
     \ingroup u2w
 */
 
+#include "LuaAI/LuaAgent.h"
 #include "WorldSocket.h"                                    // must be first to make ACE happy with ACE includes in it
 #include "Common.h"
 #include "Database/DatabaseEnv.h"
@@ -136,6 +137,11 @@ void WorldSession::SendPacket(WorldPacket const* packet)
     {
         if (GetBot() && GetBot()->ai)
             GetBot()->ai->OnPacketReceived(packet);
+
+        if (_player)
+            if (LuaAgent* agent = _player->GetLuaAI())
+                agent->OnPacketReceived(*packet);
+
         return;
     }
 
@@ -180,7 +186,7 @@ void WorldSession::SendPacketImpl(WorldPacket const* packet)
 
 #endif                                                  // !_DEBUG
 
-    // sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "[%s]Send packet : %u|0x%x (%s)", GetPlayerName(), packet->GetOpcode(), packet->GetOpcode(), LookupOpcodeName(packet->GetOpcode()));
+    //sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "[%s]Send packet : %u|0x%x (%s)", GetPlayerName(), packet->GetOpcode(), packet->GetOpcode(), LookupOpcodeName(packet->GetOpcode()));
     if (m_sniffFile)
         m_sniffFile->WritePacket(*packet, false, time(nullptr));
 
@@ -462,10 +468,12 @@ bool WorldSession::Update(PacketFilter& updater)
         ///- If necessary, log the player out
         bool const forceConnection = !sWorld.IsStopped() && sPlayerBotMgr.ForceAccountConnection(this);
 
-        if ((!m_socket || (ShouldLogOut(currTime) && !m_playerLoading)) && !forceConnection && m_bot == nullptr)
+        bool _isNotLuaAgent = _player == nullptr || !_player->IsLuaAgent();
+
+        if ((!m_socket || (ShouldLogOut(currTime) && !m_playerLoading)) && !forceConnection && m_bot == nullptr && _isNotLuaAgent)
             LogoutPlayer(true);
 
-        if (!m_socket && !forceConnection && this->m_bot == nullptr)
+        if (!m_socket && !forceConnection && this->m_bot == nullptr && _isNotLuaAgent)
             return false;                                       //Will remove this session from the world session map
     }
     else // Async map based update
@@ -484,7 +492,7 @@ bool WorldSession::Update(PacketFilter& updater)
 
 bool WorldSession::CanProcessPackets() const
 {
-    return ((m_socket && !m_socket->IsClosed()) || (_player && (m_bot || sPlayerBotMgr.IsChatBot(_player->GetGUIDLow()))));
+    return ((m_socket && !m_socket->IsClosed()) || (_player && (m_bot || sPlayerBotMgr.IsChatBot(_player->GetGUIDLow()) || _player->IsLuaAgent())));
 }
 
 void WorldSession::ProcessPackets(PacketFilter& updater)

@@ -17,7 +17,9 @@
 #ifndef MANGOSSERVER_PROGRESSION_H
 #define MANGOSSERVER_PROGRESSION_H
 
+#define CLIENT_BUILD_EXTRA 4196
 // Game client builds.
+#define CLIENT_BUILD_1_1_2 4125
 #define CLIENT_BUILD_1_2_4 4222
 #define CLIENT_BUILD_1_3_1 4297
 #define CLIENT_BUILD_1_4_2 4375
@@ -33,7 +35,7 @@
 // Change this to define which build of the game to emulate.
 // Has an effect on things such as core gameplay mechanics,
 // loading of client data, and network packets structure.
-#define SUPPORTED_CLIENT_BUILD CLIENT_BUILD_1_12_1
+#define SUPPORTED_CLIENT_BUILD CLIENT_BUILD_1_5_1
 
 // This defines which client builds the world server will accept.
 #if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_12_1

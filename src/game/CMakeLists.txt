@@ -422,6 +422,49 @@ set (game_SRCS
     vmap/VMapTools.h
     vmap/WorldModel.h
 
+    ProgressionExtras/SpellProgression.cpp
+    ProgressionExtras/SpellProgression.h
+    LuaAI/LuaAgentMgr.cpp
+    LuaAI/LuaAgentMgr.h
+    LuaAI/LuaAgent.cpp
+    LuaAI/LuaAgent.h
+    LuaAI/LuaAgentCommands.cpp
+    LuaAI/Goal/Goal.cpp
+    LuaAI/Goal/Goal.h
+    LuaAI/Goal/GoalParam.cpp
+    LuaAI/Goal/GoalParam.h
+    LuaAI/Goal/GoalManager.cpp
+    LuaAI/Goal/GoalManager.h
+    LuaAI/Goal/LogicManager.cpp
+    LuaAI/Goal/LogicManager.h
+    LuaAI/Hierarchy/LuaAgentPartyInt.cpp
+    LuaAI/Hierarchy/LuaAgentPartyInt.h
+    LuaAI/Hierarchy/LuaAgentCommandQ.cpp
+    LuaAI/Hierarchy/LuaAgentCommandQ.h
+    LuaAI/Libs/Utility.cpp
+    LuaAI/Libs/Utility.h
+    LuaAI/Libs/CLine.cpp
+    LuaAI/Libs/CLine.h
+    LuaAI/LuaAgentBindsCommon.cpp
+    LuaAI/LuaAgentBindsCommon.h
+    LuaAI/LuaAgentUtils.cpp
+    LuaAI/LuaAgentUtils.h
+    LuaAI/LuaAgentLibAux.cpp
+    LuaAI/LuaAgentLibAux.h
+    LuaAI/LuaAgentLibAI.cpp
+    LuaAI/LuaAgentLibAI.h
+    LuaAI/LuaAgentLibPlayer.cpp
+    LuaAI/LuaAgentLibPlayer.h
+    LuaAI/LuaAgentLibItem.cpp
+    LuaAI/LuaAgentLibItem.h
+    LuaAI/LuaAgentLibSpell.cpp
+    LuaAI/LuaAgentLibSpell.h
+    LuaAI/LuaAgentLibUnit.cpp
+    LuaAI/LuaAgentLibUnit.h
+    LuaAI/LuaAgentLibWorldObj.cpp
+    LuaAI/LuaAgentLibWorldObj.h
+    Movement/LuaAgentMovementGenerator.cpp
+    Movement/LuaAgentMovementGenerator.h
 )
 
 if((${CMAKE_VERSION} VERSION_LESS "3.16") OR USE_PCH_OLD)
@@ -565,11 +608,40 @@ source_group("Anticheat"
   REGULAR_EXPRESSION Anticheat
 )
 
+source_group("ProgressionExtras"
+  REGULAR_EXPRESSION ProgressionExtras
+)
+
+source_group("LuaAI/Libs"
+  REGULAR_EXPRESSION LuaAI\/Libs
+)
+
+source_group("LuaAI/Hierarchy"
+  REGULAR_EXPRESSION Hierarchy
+)
+
+source_group("LuaAI/Goal"
+  REGULAR_EXPRESSION Goal
+)
+
+source_group("LuaAI"
+  REGULAR_EXPRESSION LuaAI
+)
+
 add_library(game STATIC
   ${game_SRCS}
 )
 
 SET_TARGET_PROPERTIES (game PROPERTIES FOLDER "Game Libs")
+
+# luas
+add_compile_definitions(_SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING)
+get_filename_component(LUADIR ${CMAKE_SOURCE_DIR}/../lua ABSOLUTE)
+target_link_libraries(game ${LUADIR}/lib/lua.lib)
+target_include_directories(game
+  PUBLIC
+    ${LUADIR}/src)
+#luas
 
 target_link_libraries(game
   shared

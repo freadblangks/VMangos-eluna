@@ -154,6 +154,7 @@ void MovementPacketSender::SendSpeedChangeToObservers(Unit* unit, UnitMoveType m
 
 void MovementPacketSender::SendSpeedChangeToAll(Unit* unit, UnitMoveType mtype, float newRate)
 {
+    if (true) return;
     WorldPacket data;
     data.Initialize(moveTypeToOpcode[mtype][0], 8 + 4);
 #if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_8_4
@@ -245,7 +246,7 @@ void MovementPacketSender::SendKnockBackToController(Unit* unit, float vcos, flo
 
 #if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_8_4
     data << unit->GetPackGUID();
-#else
+#elif SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_2_4
     data << unit->GetGUID();
 #endif
 

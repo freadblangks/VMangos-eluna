@@ -132,7 +132,7 @@ bool UpdateData::BuildPacket(WorldPacket* packet, bool hasTransport)
 bool UpdateData::BuildPacket(WorldPacket* packet, UpdatePacket const* updPacket, bool hasTransport)
 {
     MANGOS_ASSERT(packet->empty());                         // shouldn't happen
-
+    
     ByteBuffer buf(4 + 1 + (m_outOfRangeGUIDs.empty() ? 0 : 1 + 4 + 9 * m_outOfRangeGUIDs.size()) + (updPacket ? updPacket->data.wpos() : 0));
 
     uint32 blockCount = updPacket ? updPacket->blockCount : 0;
@@ -155,6 +155,16 @@ bool UpdateData::BuildPacket(WorldPacket* packet, UpdatePacket const* updPacket,
 
     if (updPacket)
         buf.append(updPacket->data);
+
+    //ByteBuffer cbuf(buf);
+    //uint32 bcount;
+    //uint8 sTransport;
+    //uint8 Type;
+    //cbuf >> bcount;
+    //cbuf >> sTransport;
+    //cbuf >> Type;
+    //sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "UpdateData : blocks = %d, transport = %d, type = %d", bcount, sTransport, Type);
+
 
     size_t pSize = buf.wpos();                              // use real used data size
 

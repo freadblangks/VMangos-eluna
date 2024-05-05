@@ -316,22 +316,23 @@ void WorldSession::HandlePetitionSignOpcode(WorldPacket& recv_data)
 
     //client doesn't allow to sign petition two times by one character, but not check sign by another character from same account
     //not allow sign another player from already sign player account
-    if (PetitionSignature* signature = petition->GetSignatureForPlayer(_player))
-    {
-        WorldPacket data(SMSG_PETITION_SIGN_RESULTS, (8 + 8 + 4));
-        data << ObjectGuid(itemGuid);
-        data << ObjectGuid(_player->GetObjectGuid());
-        data << uint32(PETITION_SIGN_ALREADY_SIGNED);
+    if (!_player->IsLuaAgent())
+        if (PetitionSignature* signature = petition->GetSignatureForPlayer(_player))
+        {
+            WorldPacket data(SMSG_PETITION_SIGN_RESULTS, (8 + 8 + 4));
+            data << ObjectGuid(itemGuid);
+            data << ObjectGuid(_player->GetObjectGuid());
+            data << uint32(PETITION_SIGN_ALREADY_SIGNED);
 
-        // close at signer side
-        SendPacket(&data);
+            // close at signer side
+            SendPacket(&data);
 
-        // Update for owner if online. Note: Unsure if this is the correct message,
-        // but sending SMSG_PETITION_SIGN_RESULTS does nothing for the owner here
-        if (Player* owner = sObjectMgr.GetPlayer(petition->GetOwnerGuid()))
-            owner->GetSession()->SendGuildCommandResult(GUILD_INVITE_S, _player->GetName(), ERR_ALREADY_INVITED_TO_GUILD_S);
-        return;
-    }
+            // Update for owner if online. Note: Unsure if this is the correct message,
+            // but sending SMSG_PETITION_SIGN_RESULTS does nothing for the owner here
+            if (Player* owner = sObjectMgr.GetPlayer(petition->GetOwnerGuid()))
+                owner->GetSession()->SendGuildCommandResult(GUILD_INVITE_S, _player->GetName(), ERR_ALREADY_INVITED_TO_GUILD_S);
+            return;
+        }
 
     if (petition->AddNewSignature(_player))
     {
@@ -530,6 +531,11 @@ void WorldSession::SendPetitionShowList(ObjectGuid& guid)
     // remove fake death
     if (GetPlayer()->HasUnitState(UNIT_STAT_FEIGN_DEATH))
         GetPlayer()->RemoveSpellsCausingAura(SPELL_AURA_FEIGN_DEATH);
+
+#if SUPPORTED_CLIENT_BUILD < CLIENT_BUILD_1_6_1
+    if (!pCreature->HasFlag(UNIT_NPC_FLAGS, 0x100))
+        pCreature->SetFlag(UNIT_NPC_FLAGS, 0x100);
+#endif
 
     uint8 count = 1;
 

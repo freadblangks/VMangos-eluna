@@ -2317,6 +2317,9 @@ bool ChatHandler::HandleCharacterCityTitleCommand(char* args)
 
 bool ChatHandler::HandleHonorShow(char* /*args*/)
 {
+#if SUPPORTED_CLIENT_BUILD < CLIENT_BUILD_1_4_2
+    return true;
+#else
     Player* target = GetSelectedPlayer();
     if (!target)
         target = m_session->GetPlayer();
@@ -2421,6 +2424,7 @@ bool ChatHandler::HandleHonorShow(char* /*args*/)
     PSendSysMessage(LANG_HONOR_LIFE, target->GetHonorMgr().GetRankPoints(), honorable_kills, dishonorable_kills, highest_rank, hrank_name);
 
     return true;
+#endif
 }
 
 bool ChatHandler::HandleHonorAddCommand(char* args)
@@ -2464,6 +2468,7 @@ bool ChatHandler::HandleHonorAddKillCommand(char* /*args*/)
 
 bool ChatHandler::HandleModifyHonorCommand(char* args)
 {
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_3_1
     if (!*args)
         return false;
 
@@ -2529,6 +2534,7 @@ bool ChatHandler::HandleModifyHonorCommand(char* args)
 
     PSendSysMessage(LANG_COMMAND_MODIFY_HONOR, field, target->GetName(), hasStringAbbr(field, "rank") ? amount : (uint32)amount);
 
+#endif
     return true;
 }
 
@@ -4184,8 +4190,11 @@ bool ChatHandler::HandleModifyRangedCritCommand(char *args)
         SetSentErrorMessage(true);
         return false;
     }
-
+#if SUPPORTED_CLIENT_BUILD < CLIENT_BUILD_1_4_2
+    player->SetStatFloatValue(PLAYER_CRIT_PERCENTAGE, amount);
+#else
     player->SetStatFloatValue(PLAYER_RANGED_CRIT_PERCENTAGE, amount);
+#endif
 
     PSendSysMessage(LANG_YOU_CHANGE_RCRIT, player->GetName(), amount);
 

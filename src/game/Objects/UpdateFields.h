@@ -44,8 +44,16 @@
 #include "UpdateFields_1_4_2.h"
 #elif SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_3_1
 #include "UpdateFields_1_3_1.h"
+#elif SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_2_4
+#if CLIENT_BUILD_EXTRA == 4150
+#include "UpdateFields_1_2_1.h"
+#elif CLIENT_BUILD_EXTRA < 4150
+#include "UpdateFields_1_1_1.h"
 #else
 #include "UpdateFields_1_2_4.h"
+#endif
+#else
+#include "UpdateFields_1_1_1.h"
 #endif
 
 enum UpdateFields5875

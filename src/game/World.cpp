@@ -23,6 +23,8 @@
     \ingroup world
 */
 
+#include "LuaAI/LuaAgentMgr.h"
+
 #include "World.h"
 #include "Database/DatabaseEnv.h"
 #include "Config/Config.h"
@@ -195,6 +197,7 @@ World::~World()
 void World::Shutdown()
 {
     sPlayerBotMgr.DeleteAll();
+    sLuaAgentMgr.LogoutAllImmediately();
     KickAll();                                     // save and kick all players
     UpdateSessions(1);                             // real players unload required UpdateSessions call
 
@@ -2108,6 +2111,7 @@ void World::Update(uint32 diff)
     sAutoBroadCastMgr.Update(diff);
     // Update ban list if necessary
     sAccountMgr.Update(diff);
+    sLuaAgentMgr.Update(diff);
 
     m_canProcessAsyncPackets = false;
 

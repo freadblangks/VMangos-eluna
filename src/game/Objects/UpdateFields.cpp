@@ -39,8 +39,16 @@
 #include "UpdateFields_1_4_2.cpp"
 #elif SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_3_1
 #include "UpdateFields_1_3_1.cpp"
+#elif SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_2_4
+#if CLIENT_BUILD_EXTRA == 4150
+#include "UpdateFields_1_2_1.cpp"
+#elif CLIENT_BUILD_EXTRA < 4150
+#include "UpdateFields_1_1_1.cpp"
 #else
 #include "UpdateFields_1_2_4.cpp"
+#endif
+#else
+#include "UpdateFields_1_1_1.cpp"
 #endif
 
 template<std::size_t SIZE>

@@ -1,5 +1,17 @@
-[![vmangos CI build](https://github.com/vmangos/core/actions/workflows/vmangos.yml/badge.svg)](https://github.com/vmangos/core/actions/workflows/vmangos.yml)
+Core mod to allow programming bots in lua. Contains hacks related to client 4222.
+Scripts repository: https://github.com/TuriansNotBad/vanilla-luab
 
+Compiling on Windows:
+1. Clone.
+2. Create folder "lua" in the same folder you cloned to. In folder "lua" create folders lib and src.
+3. Download and build lua 5.4.6 as dll from their website.
+4. Put lua.dll and lua.lib into folder "lua/lib"
+5. Put lua source files into folder "lua/src"
+6. Your root folder should contain folders "lua" and "vmangos-luab" now.
+7. Build vmangos as you would normally. Keep precompiled headers options on in cmake.
+8. Copy lua.dll to where mangosd.exe is located.
+9. Clone scripts repository.
+10. Copy folder "ai" from your cloned scripts to where mangosd.exe is located.
 
 # Progressive Vanilla
 This project is an independent continuation of the Elysium / LightsHope codebases, focused on delivering the most complete and accurate content progression system possible, including support for the patch appropriate game clients.
