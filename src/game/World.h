@@ -44,6 +44,9 @@
 #include <unordered_map>
 #include <thread>
 
+#ifdef ENABLE_ELUNA
+class Eluna;
+#endif
 class Object;
 class WorldSession;
 class Player;
@@ -948,6 +951,11 @@ class World
         Messager<World>& GetMessager() { return m_messager; }
 
         LFGQueue& GetLFGQueue() { return m_lfgQueue; }
+
+#ifdef ENABLE_ELUNA
+        Eluna* GetEluna() const { return eluna; }
+        Eluna* eluna;
+#endif
     protected:
         void _UpdateGameTime();
         // callback for UpdateRealmCharacters
