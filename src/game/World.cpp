@@ -2251,11 +2251,12 @@ void World::SendWorldText(int32 string_id, ...)
 // Send a System Message to all players in the same battleground or queue (except self if mentioned)
 void World::SendWorldTextToBGAndQueue(int32 string_id, uint32 queuedPlayerLevel, uint32 queueType, ...)
 {
-    BattleGroundTypeId bgTypeId = BattleGroundMgr::BgTemplateId(static_cast<BattleGroundQueueTypeId>(queueType));
+    auto queueTypeId = static_cast<BattleGroundQueueTypeId>(queueType);
+    BattleGroundTypeId bgTypeId = BattleGroundMgr::BgTemplateId(queueTypeId);
     BattleGroundBracketId queuedPlayerBracket = Player::GetBattleGroundBracketIdFromLevel(bgTypeId, queuedPlayerLevel);
 
     va_list ap;
-    va_start(ap, string_id);
+    va_start(ap, queueType);
 
     MaNGOS::WorldWorldTextBuilder wt_builder(string_id, &ap);
     MaNGOS::LocalizedPacketListDo<MaNGOS::WorldWorldTextBuilder> wt_do(wt_builder);
@@ -2274,7 +2275,7 @@ void World::SendWorldTextToBGAndQueue(int32 string_id, uint32 queuedPlayerLevel,
                 }
 
                 // If player is queued or already inside a BG matching the BG type.
-                if ((player->InBattleGroundQueue() && player->GetQueuedBattleground() == queueType) ||
+                if (player->InBattleGroundQueueForBattleGroundQueueType(queueTypeId) ||
                     (player->InBattleGround() && player->GetBattleGroundTypeId() == bgTypeId))
                 {
                     // If player bracket matches the queued player bracket.
@@ -2506,9 +2507,9 @@ private:
 class BanAccountHandler
 {
 public:
-    void HandleAccountSelectResult(QueryResult*, SqlQueryHolder* queryHolder)
+    void HandleAccountSelectResult(std::unique_ptr<QueryResult>, SqlQueryHolder* queryHolder)
     {
-        BanQueryHolder* holder = static_cast<BanQueryHolder*>(queryHolder);
+        BanQueryHolder* holder = dynamic_cast<BanQueryHolder*>(queryHolder);
         if (!holder)
             return;
 
@@ -2516,7 +2517,7 @@ public:
 
         WorldSession* session = sWorld.FindSession(holder->GetAuthorAccountId());
 
-        QueryResult* result = holder->GetResult(0);
+        std::unique_ptr<QueryResult> result = holder->TakeResult(0);
         if (!result)
         {
             if (session)
@@ -2877,13 +2878,12 @@ void World::UpdateRealmCharCount(uint32 accountId)
                                   "SELECT COUNT(`guid`) FROM `characters` WHERE `account` = '%u'", accountId);
 }
 
-void World::_UpdateRealmCharCount(QueryResult* resultCharCount, uint32 accountId)
+void World::_UpdateRealmCharCount(std::unique_ptr<QueryResult> resultCharCount, uint32 accountId)
 {
     if (resultCharCount)
     {
         Field* fields = resultCharCount->Fetch();
         uint32 charCount = fields[0].GetUInt32();
-        delete resultCharCount;
 
         LoginDatabase.PExecute("REPLACE INTO `realmcharacters` (`numchars`, `acctid`, `realmid`) VALUES (%u, %u, %u)", charCount, accountId, realmID);
     }
@@ -3075,7 +3075,7 @@ bool World::configNoReload(bool reload, eConfigBoolValues index, char const* fie
 
 void World::InvalidatePlayerDataToAllClient(ObjectGuid guid)
 {
-#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_8_4
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_9_4
     WorldPacket data(SMSG_INVALIDATE_PLAYER, 8);
     data << guid;
     SendGlobalMessage(&data);
@@ -3097,7 +3097,7 @@ void World::SetSessionDisconnected(WorldSession* sess)
 
 void World::AddAsyncTask(std::function<void()> task) {
     std::lock_guard<std::mutex> lock(m_asyncTaskQueueMutex);
-    _asyncTasks.push_back(task);
+    _asyncTasks.push_back(std::move(task));
 }
 
 void World::LogMoneyTrade(ObjectGuid sender, ObjectGuid receiver, uint32 amount, const char* type, uint32 dataInt)

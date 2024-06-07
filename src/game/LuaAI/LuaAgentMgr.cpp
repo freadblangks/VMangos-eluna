@@ -29,7 +29,7 @@ public:
 class LuaAgentCharacterHandler
 {
 public:
-	void HandleLoginCallback(QueryResult* /*dummy*/, SqlQueryHolder* holder)
+	void HandleLoginCallback(std::unique_ptr<QueryResult> /*dummy*/, SqlQueryHolder* holder)
 	{
 		if (!holder)
 			return;

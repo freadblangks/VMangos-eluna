@@ -519,6 +519,7 @@ ChatCommand * ChatHandler::getCommandTable()
         { "item",           SEC_TICKETMASTER,  true,  &ChatHandler::HandleListItemCommand,           "", nullptr },
         { "object",         SEC_TICKETMASTER,  true,  &ChatHandler::HandleListObjectCommand,         "", nullptr },
         { "talents",        SEC_TICKETMASTER,  false, &ChatHandler::HandleListTalentsCommand,        "", nullptr },
+        { "maps",           SEC_TICKETMASTER,  true,  &ChatHandler::HandleListMapsCommand,           "", nullptr },
         { "movegens",       SEC_TICKETMASTER,  false, &ChatHandler::HandleListMoveGensCommand,       "", nullptr },
         { "hostilerefs",    SEC_TICKETMASTER,  false, &ChatHandler::HandleListHostileRefsCommand,    "", nullptr },
         { "threat",         SEC_TICKETMASTER,  false, &ChatHandler::HandleListThreatCommand,         "", nullptr },
@@ -1391,7 +1392,7 @@ void ChatHandler::LoadRbacPermissions()
         } while (result->NextRow());
     }
 
-    result.reset(LoginDatabase.Query("SELECT `account_id`, `permission_id`, `granted` FROM `rbac_account_permissions`"));
+    result = LoginDatabase.Query("SELECT `account_id`, `permission_id`, `granted` FROM `rbac_account_permissions`");
     if (result)
     {
         do
@@ -1417,7 +1418,7 @@ void ChatHandler::LoadRbacPermissions()
 
     ChatCommand* commandTable = getCommandTable();
 
-    result.reset(LoginDatabase.Query("SELECT `command`, `permission_id` FROM `rbac_command_permissions`"));
+    result = LoginDatabase.Query("SELECT `command`, `permission_id` FROM `rbac_command_permissions`");
     if (result)
     {
         do
