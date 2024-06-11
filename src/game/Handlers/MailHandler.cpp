@@ -92,12 +92,12 @@ public:
     Player*     receiverPtr;
     Team        rcTeam;
     uint8       mailsCount;
-    void Callback(QueryResult* result)
+
+    void Callback(std::unique_ptr<QueryResult> result)
     {
         WorldSession* sess = sWorld.FindSession(accountId);
         if (!sess || !sess->GetPlayer() || sess->GetPlayer()->GetObjectGuid() != senderGuid || !sess->GetPlayer()->IsInWorld())
         {
-            delete result;
             delete this;
             return;
         }
@@ -106,7 +106,6 @@ public:
         {
             Field* fields = result->Fetch();
             mailsCount = fields[0].GetUInt32();
-            delete result;
         }
         sess->HandleSendMailCallback(this);
         delete this;
@@ -225,6 +224,23 @@ void WorldSession::HandleSendMail(WorldPacket& recv_data)
         SendMailResult(0, MAIL_SEND, MAIL_ERR_CANNOT_SEND_TO_SELF);
         delete req;
         return;
+    }
+
+    // Modification - trading in loot for two hours.
+    if (!req->itemGuid.IsEmpty())
+    {
+        if (Player* pPlayer = GetPlayer())
+        {
+            if (Item* it = pPlayer->GetItemByGuid(req->itemGuid))
+            {
+                if (it->GetLootingTime())
+                {
+                    SendMailResult(0, MAIL_SEND, MAIL_ERR_EQUIP_ERROR);
+                    delete req;
+                    return;
+                }
+            }
+        }
     }
 
     req->receiverPtr = sObjectMgr.GetPlayer(req->receiver);
