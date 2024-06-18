@@ -68,7 +68,6 @@
 #include "GMTicketMgr.h"
 #include "MasterPlayer.h"
 #include "MovementPacketSender.h"
-#include "Config/Config.h"
 #include "ZoneScript.h"
 #include "ZoneScriptMgr.h"
 #include "PlayerBotMgr.h"
@@ -5023,7 +5022,7 @@ void Player::SetFly(bool enable)
             StopMoving(true);
         }
         
-        m_movementInfo.moveFlags = (MOVEFLAG_LEVITATING | MOVEFLAG_SWIMMING | MOVEFLAG_CAN_FLY | MOVEFLAG_FLYING);
+        m_movementInfo.moveFlags = (MOVEFLAG_LEVITATING | MOVEFLAG_SWIMMING | MOVEFLAG_MOVED | MOVEFLAG_FLYING);
     }
     else
     {

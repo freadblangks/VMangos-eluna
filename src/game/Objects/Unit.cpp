@@ -57,9 +57,6 @@
 #include "InstanceStatistics.h"
 #include "MovementPacketSender.h"
 
-#include <math.h>
-#include <stdarg.h>
-
 //#define DEBUG_DEBUFF_LIMIT
 
 float baseMoveSpeed[MAX_MOVE_TYPE] =
@@ -7415,9 +7412,9 @@ void Unit::SetLevitate(bool enable)
 void Unit::SetFly(bool enable)
 {
     if (enable)
-        m_movementInfo.AddMovementFlag(MOVEFLAG_FLYING | MOVEFLAG_CAN_FLY);
+        m_movementInfo.AddMovementFlag(MOVEFLAG_FLYING | MOVEFLAG_MOVED);
     else
-        m_movementInfo.RemoveMovementFlag(MOVEFLAG_FLYING | MOVEFLAG_CAN_FLY);
+        m_movementInfo.RemoveMovementFlag(MOVEFLAG_FLYING | MOVEFLAG_MOVED);
 }
 
 void Unit::SetDeathState(DeathState s)

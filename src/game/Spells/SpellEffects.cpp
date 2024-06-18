@@ -450,11 +450,12 @@ void Spell::EffectSchoolDMG(SpellEffectIndex effect_idx)
             }
             case SPELLFAMILY_WARLOCK:
             {
-                // Conflagrate - consumes Immolate
+                // Conflagrate - consumes Immolate/Curse of Agony/Corruption
                 if (m_spellInfo->IsFitToFamilyMask<CF_WARLOCK_CONFLAGRATE>())
                 {
                     // for caster applied auras only
                     Unit::AuraList const& mPeriodic = unitTarget->GetAurasByType(SPELL_AURA_PERIODIC_DAMAGE);
+                    float coefficientImmolate = 0.0f, coefficientCurseOfAgony = 0.0f, coefficientCorruption = 0.0f;
                     for (const auto i : mPeriodic)
                     {
                         // Immolate
@@ -462,9 +463,33 @@ void Spell::EffectSchoolDMG(SpellEffectIndex effect_idx)
                             i->GetCasterGuid() == m_caster->GetObjectGuid())
                         {
                             unitTarget->RemoveAurasByCasterSpell(i->GetId(), m_caster->GetObjectGuid());
+                            coefficientImmolate = 1.0f;
                             break;
                         }
                     }
+                    for (const auto i : mPeriodic)
+                    {
+                        // Curse of Agony
+                        if (i->GetSpellProto()->IsFitToFamily<SPELLFAMILY_WARLOCK, CF_WARLOCK_CURSE_OF_AGONY>() &&
+                            i->GetCasterGuid() == m_caster->GetObjectGuid())
+                        {
+                            unitTarget->RemoveAurasByCasterSpell(i->GetId(), m_caster->GetObjectGuid());
+                            coefficientCurseOfAgony = 2.0f;
+                            break;
+                        }
+                    }
+                    for (const auto i : mPeriodic)
+                    {
+                        // Corruption
+                        if (i->GetSpellProto()->IsFitToFamily<SPELLFAMILY_WARLOCK, CF_WARLOCK_CORRUPTION>() &&
+                            i->GetCasterGuid() == m_caster->GetObjectGuid())
+                        {
+                            unitTarget->RemoveAurasByCasterSpell(i->GetId(), m_caster->GetObjectGuid());
+                            coefficientCorruption = 1.5f;
+                            break;
+                        }
+                    }
+                    damage = damage * (coefficientImmolate + coefficientCurseOfAgony + coefficientCorruption);
                 }
                 break;
             }
@@ -715,6 +740,15 @@ void Spell::EffectDummy(SpellEffectIndex effIdx)
                         return;
                     uint32 spellid = m_spellInfo->Id;
                     auto cdCheck = [spellid](SpellEntry const & spellEntry) -> bool { return (spellEntry.IsFitToFamily<SPELLFAMILY_HUNTER, CF_HUNTER_ARCANE_SHOT, CF_HUNTER_MULTI_SHOT, CF_HUNTER_VOLLEY, CF_HUNTER_AIMED_SHOT>() && spellEntry.Id != spellid && spellEntry.GetRecoveryTime() > 0); };
+                    static_cast<Player*>(m_caster)->RemoveSomeCooldown(cdCheck);
+                    return;
+                }
+                case 34188:
+                {
+                    if (m_caster->GetTypeId() != TYPEID_PLAYER)
+                        return;
+                    // immediately finishes the cooldown on hunter's Feign Death/Deterrence/Scatter Shot
+                    auto cdCheck = [](SpellEntry const & spellEntry) -> bool { return ((spellEntry.Id == 5384 || spellEntry.Id == 19263 || spellEntry.Id == 19503) && spellEntry.GetRecoveryTime() > 0); };
                     static_cast<Player*>(m_caster)->RemoveSomeCooldown(cdCheck);
                     return;
                 }
