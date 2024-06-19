@@ -802,7 +802,6 @@ bool HonorMgr::Add(float cp, uint8 type, Unit const* source)
 
 void HonorMgr::Update()
 {
-#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_4_2
     if (!m_owner)
         return;
 
@@ -898,7 +897,6 @@ void HonorMgr::Update()
     // LIFE TIME
     m_owner->SetUInt32Value(PLAYER_FIELD_LIFETIME_HONORBALE_KILLS, m_totalHK);
     m_owner->SetUInt32Value(PLAYER_FIELD_LIFETIME_DISHONORBALE_KILLS, m_totalDK);
-#endif
 }
 
 void HonorMgr::InitRankInfo(HonorRankInfo &prk)

@@ -71,11 +71,7 @@ void PacketBuilder::WriteCommonMonsterMovePart(MoveSpline const& move_spline, Wo
     // add fake Enter_Cycle flag - needed for client-side cyclic movement (client will erase first spline vertex after first cycle done)
     splineflags.enter_cycle = move_spline.isCyclic();
     // add fake Runmode flag - client has strange issues without that flag
-#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_4_2
     data << uint32(splineflags & ~MoveSplineFlag::Mask_No_Monster_Move | MoveSplineFlag::Runmode);
-#else
-    data << uint32(splineflags & ~MoveSplineFlag::Mask_No_Monster_Move);
-#endif
     data << move_spline.Duration();
 }
 
@@ -164,21 +160,12 @@ void PacketBuilder::WriteCreate(MoveSpline const& move_spline, ByteBuffer& data)
 
         data << splineFlags.raw();
 
-#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_5_1
         if (splineFlags.final_angle)
             data << move_spline.facing.angle;
         else if (splineFlags.final_target)
             data << move_spline.facing.target;
         else if (splineFlags.final_point)
             data << move_spline.facing.f.x << move_spline.facing.f.y << move_spline.facing.f.z;
-#else
-        if (splineFlags.final_point)
-            data << move_spline.facing.f.x << move_spline.facing.f.y << move_spline.facing.f.z;
-        if (splineFlags.final_target)
-            data << move_spline.facing.target;
-        if (splineFlags.final_angle)
-            data << move_spline.facing.angle;
-#endif
 
         data << move_spline.timePassed();
         data << move_spline.Duration();
@@ -189,10 +176,7 @@ void PacketBuilder::WriteCreate(MoveSpline const& move_spline, ByteBuffer& data)
         uint32 nodes = move_spline.getPath().size();
         data << nodes;
         data.append<Vector3>(&move_spline.getPath()[0], nodes);
-
-#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_3_1
         data << (move_spline.isCyclic() ? Vector3::zero() : move_spline.FinalDestination());
-#endif
     }
 }
 }

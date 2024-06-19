@@ -2567,7 +2567,6 @@ void ChatHandler::BuildChatPacket(WorldPacket& data, ChatMsg msgtype, char const
     data << uint8(msgtype);
     data << uint32(language);
 
-#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_3_1
     switch (msgtype)
     {
         case CHAT_MSG_MONSTER_WHISPER:
@@ -2609,30 +2608,6 @@ void ChatHandler::BuildChatPacket(WorldPacket& data, ChatMsg msgtype, char const
             data << ObjectGuid(senderGuid);
             break;
     }
-#else
-    switch (msgtype)
-    {
-        case CHAT_MSG_MONSTER_WHISPER:
-        case CHAT_MSG_MONSTER_EMOTE:
-        case CHAT_MSG_MONSTER_SAY:
-        case CHAT_MSG_MONSTER_YELL:
-            MANGOS_ASSERT(senderName);
-            data << uint32(strlen(senderName) + 1);
-            data << senderName;
-            data << ObjectGuid(targetGuid);
-            break;
-
-        case CHAT_MSG_CHANNEL:
-            MANGOS_ASSERT(channelName);
-            data << channelName;
-            data << ObjectGuid(senderGuid);
-            break;
-
-        default:
-            data << ObjectGuid(senderGuid);
-            break;
-    }
-#endif
 
     MANGOS_ASSERT(message);
     data << uint32(strlen(message) + 1);

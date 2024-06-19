@@ -19880,7 +19880,7 @@ float Player::GetReputationPriceDiscount(Creature const* pCreature, bool taxi) c
  */
 bool Player::IsSpellFitByClassAndRace(uint32 spellId, uint32* pReqlevel /*= nullptr*/) const
 {
-    uint32 racemask = GetRaceMask();
+    uint32 racemask  = GetRaceMask();
     uint32 classmask = GetClassMask();
 
     SkillLineAbilityMapBounds bounds = sSpellMgr.GetSkillLineAbilityMapBoundsBySpellId(spellId);

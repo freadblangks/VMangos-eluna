@@ -438,9 +438,7 @@ bool ChatHandler::HandleUnitStatInfoCommand(char* args)
     PSendSysMessage("Dodge chance: %g", pPlayer->GetFloatValue(PLAYER_DODGE_PERCENTAGE));
     PSendSysMessage("Parry chance: %g", pPlayer->GetFloatValue(PLAYER_PARRY_PERCENTAGE));
     PSendSysMessage("Crit chance: %g", pPlayer->GetFloatValue(PLAYER_CRIT_PERCENTAGE));
-#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_4_2
     PSendSysMessage("Ranged crit chance: %g", pPlayer->GetFloatValue(PLAYER_RANGED_CRIT_PERCENTAGE));
-#endif
     PSendSysMessage("Physical spell crit chance: %g", pPlayer->GetSpellCritPercent(SPELL_SCHOOL_NORMAL));
     PSendSysMessage("Holy spell crit chance: %g", pPlayer->GetSpellCritPercent(SPELL_SCHOOL_HOLY));
     PSendSysMessage("Fire spell crit chance: %g", pPlayer->GetSpellCritPercent(SPELL_SCHOOL_FIRE));
