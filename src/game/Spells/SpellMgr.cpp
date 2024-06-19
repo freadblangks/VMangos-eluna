@@ -1344,42 +1344,10 @@ bool SpellMgr::IsPrimaryProfessionSpell(uint32 spellId)
     if (!spellInfo)
         return false;
 
-#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_5_1
     if (spellInfo->Effect[EFFECT_INDEX_1] != SPELL_EFFECT_SKILL)
         return false;
 
     uint32 skill = spellInfo->EffectMiscValue[EFFECT_INDEX_1];
-#else
-    struct ProfessionInfo
-    {
-        std::vector<uint32> spells;
-        uint32 skill;
-        ProfessionInfo(uint32 skill, std::vector<uint32>& spells) : skill(skill), spells(std::move(spells)) {}
-    };
-    ProfessionInfo Alchemy       (171u, std::vector<uint32>{2259u, 3101u, 3464u, 11611u});
-    ProfessionInfo Blacksmithing (164u, std::vector<uint32>{2018u, 3100u, 3538u, 9785u});
-    ProfessionInfo Enchanting    (333u, std::vector<uint32>{7411u, 7412u, 7413u, 13920u});
-    ProfessionInfo Engineering   (202u, std::vector<uint32>{4036u, 4037u, 4038u, 12656u});
-    ProfessionInfo HerbGathering (182u, std::vector<uint32>{2366u, 2368u, 3570u, 11993u});
-    ProfessionInfo Leatherworking(165u, std::vector<uint32>{2108u, 3104u, 3811u, 10662u});
-    ProfessionInfo Mining        (186u, std::vector<uint32>{2575u, 2576u, 3564u, 10248u});
-    ProfessionInfo Skinning      (393u, std::vector<uint32>{8613u, 8617u, 8618u, 10768u});
-    ProfessionInfo Tailoring     (197u, std::vector<uint32>{3908u, 3909u, 3910u, 12180u});
-    std::vector<ProfessionInfo*> professions
-    {
-        &Alchemy, &Blacksmithing, &Enchanting, &Engineering, &HerbGathering, &Leatherworking, &Mining, &Skinning, &Tailoring
-    };
-    uint32 skill = 0u;
-    for (auto& proInfo : professions)
-        for (auto& spell : proInfo->spells)
-            if (spell == spellId)
-            {
-                skill = proInfo->skill;
-                break;
-            }
-    if (skill == 0u)
-        return false;
-#endif
 
     return IsPrimaryProfessionSkill(skill);
 }

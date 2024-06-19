@@ -413,10 +413,8 @@ enum SpellCastResult
     SPELL_FAILED_TARGET_UNSKINNABLE                   , // Creature is not skinnable
     SPELL_FAILED_THIRST_SATIATED                      , // Message is hidden/unused
     SPELL_FAILED_TOO_CLOSE                            , // Target too close
-#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_3_1
     SPELL_FAILED_TOO_MANY_OF_ITEM                     , // You have too many of that item already
     SPELL_FAILED_TOTEMS                               , // Message is hidden/unused, supposedly implemented client-side only
-#endif
     SPELL_FAILED_TRAINING_POINTS                      , // Not enough training points
     SPELL_FAILED_TRY_AGAIN                            , // Failed attempt
     SPELL_FAILED_UNIT_NOT_BEHIND                      , // Target needs to be behind you

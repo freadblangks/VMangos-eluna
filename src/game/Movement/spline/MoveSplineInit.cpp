@@ -131,8 +131,7 @@ int32 MoveSplineInit::Launch()
     if (Player* pPlayer = unit.ToPlayer())
         pPlayer->GetCheatData()->ResetJumpCounters();
 
-    bool isLuaAgent = unit.IsPlayer() ? unit.ToPlayer()->IsLuaAgent() : false;
-    if (unit.IsPlayer() && !isLuaAgent || unit.GetPossessorGuid().IsPlayer())
+    if (unit.IsPlayer() || unit.GetPossessorGuid().IsPlayer())
         unit.SetSplineDonePending(true);
 
     unit.m_movementInfo.ctime = 0;

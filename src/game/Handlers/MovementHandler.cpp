@@ -765,10 +765,8 @@ void WorldSession::HandleMoveRootAck(WorldPacket& recvData)
 void WorldSession::HandleMoveKnockBackAck(WorldPacket& recvData)
 {
     /* extract packet */
-#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_2_4
     ObjectGuid guid;
     recvData >> guid;
-#endif
     uint32 movementCounter = 0;
 #if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_9_4
     recvData >> movementCounter;
@@ -778,11 +776,7 @@ void WorldSession::HandleMoveKnockBackAck(WorldPacket& recvData)
     movementInfo.UpdateTime(recvData.GetPacketTime());
     /*----------------*/
 
-#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_2_4
     Unit* pMover = GetMoverFromGuid(guid);
-#else
-    Unit* pMover = GetPlayer()->GetMover();
-#endif
     if (!pMover)
         return;
 

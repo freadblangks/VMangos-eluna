@@ -532,11 +532,6 @@ void WorldSession::SendPetitionShowList(ObjectGuid& guid)
     if (GetPlayer()->HasUnitState(UNIT_STAT_FEIGN_DEATH))
         GetPlayer()->RemoveSpellsCausingAura(SPELL_AURA_FEIGN_DEATH);
 
-#if SUPPORTED_CLIENT_BUILD < CLIENT_BUILD_1_6_1
-    if (!pCreature->HasFlag(UNIT_NPC_FLAGS, 0x100))
-        pCreature->SetFlag(UNIT_NPC_FLAGS, 0x100);
-#endif
-
     uint8 count = 1;
 
     WorldPacket data(SMSG_PETITION_SHOWLIST, 8 + 1 + 4 * 6);

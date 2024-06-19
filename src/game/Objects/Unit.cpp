@@ -1172,10 +1172,8 @@ void Unit::Kill(Unit* pVictim, SpellEntry const* spellProto, bool durabilityLoss
             sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "We are dead, loosing 10 percents durability");
             pPlayerVictim->DurabilityLossAll(0.10f, false);
             // durability lost message
-#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_2_4        
             WorldPacket data(SMSG_DURABILITY_DAMAGE_DEATH, 0);
             pPlayerVictim->GetSession()->SendPacket(&data);
-#endif
         }
     }
     else                                                // creature died
@@ -2773,11 +2771,7 @@ float Unit::GetUnitCriticalChance(WeaponAttackType attackType, Unit const* pVict
                 crit = GetFloatValue(PLAYER_CRIT_PERCENTAGE);
                 break;
             case RANGED_ATTACK:
-#if SUPPORTED_CLIENT_BUILD < CLIENT_BUILD_1_4_2
-                crit = GetFloatValue(PLAYER_CRIT_PERCENTAGE);
-#else
                 crit = GetFloatValue(PLAYER_RANGED_CRIT_PERCENTAGE);
-#endif
                 break;
                 // Just for good manner
             default:
@@ -6977,7 +6971,7 @@ bool Unit::FindPendingMovementKnockbackChange(MovementInfo& movementInfo, uint32
     return false;
 }
 
-bool Unit::FindPendingMovementSpeedChange(float speedReceived, uint32 movementCounter, UnitMoveType moveType, float& speedToApply)
+bool Unit::FindPendingMovementSpeedChange(float speedReceived, uint32 movementCounter, UnitMoveType moveType)
 {
     for (auto pendingChange = m_pendingMovementChanges.begin(); pendingChange != m_pendingMovementChanges.end(); pendingChange++)
     {
@@ -6998,14 +6992,10 @@ bool Unit::FindPendingMovementSpeedChange(float speedReceived, uint32 movementCo
 #if SUPPORTED_CLIENT_BUILD <= CLIENT_BUILD_1_9_4
         movementCounter = pendingChange->movementCounter;
 #endif
-#if SUPPORTED_CLIENT_BUILD <= CLIENT_BUILD_1_5_1
-        speedReceived = speedSent;
-#endif
 
         if (pendingChange->movementCounter != movementCounter || std::fabs(speedSent - speedReceived) > 0.01f || moveTypeSent != moveType)
             continue;
 
-        speedToApply = speedSent;
         m_pendingMovementChanges.erase(pendingChange);
         return true;
     }

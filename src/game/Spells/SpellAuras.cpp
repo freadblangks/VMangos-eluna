@@ -3983,8 +3983,8 @@ void Aura::HandleInvisibilityDetect(bool apply, bool Real)
 
 void Aura::HandleDetectAmore(bool apply, bool /*real*/)
 {
-    // World of Warcraft Client Patch 1.9.3 (2006-02-07)
-    // - Love is in the Air added.
+// World of Warcraft Client Patch 1.9.3 (2006-02-07)
+// - Love is in the Air added.
 #if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_9_4
     if (!GetTarget()->IsPlayer())
         return;
@@ -5305,16 +5305,8 @@ void Aura::HandleModAttackSpeed(bool apply, bool /*Real*/)
     // SoC increases attack speed but reduces damage to maintain the same DPS
     if (GetSpellProto()->IsFitToFamily<SPELLFAMILY_PALADIN, CF_PALADIN_SEAL_OF_THE_CRUSADER>())
     {
-        // Patch 1.2.2
-        //Seal of the Crusader: Fixed a bug where damage per swing was increasing instead of decreasing when Seal of the Crusader was active.
-        // This resulted in a dramatic increase in damage per second (DPS) that was unintended.
-#if CLIENT_BUILD_EXTRA > 4150
         float reduction = (-100.0f * m_modifier.m_amount) / (m_modifier.m_amount + 100.0f);
         target->HandleStatModifier(UNIT_MOD_DAMAGE_MAINHAND, TOTAL_PCT, reduction, apply);
-#else
-        float reduction = (100.0f * m_modifier.m_amount) / (m_modifier.m_amount + 100.0f);
-        target->HandleStatModifier(UNIT_MOD_DAMAGE_MAINHAND, TOTAL_PCT, reduction, apply);
-#endif
     }
 }
 
