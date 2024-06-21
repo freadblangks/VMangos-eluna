@@ -119,7 +119,7 @@ class LuaAIChaseMovementGenerator : public LuaAITargetedMovementGeneratorMedium<
         static void _clearUnitStateMove(T &u) { u.ClearUnitState(UNIT_STAT_CHASE_MOVE); }
         static void _addUnitStateMove(T &u)  { u.AddUnitState(UNIT_STAT_CHASE_MOVE); }
         bool EnableWalking() const { return false;}
-        bool _lostTarget(T &u) const { return u.GetVictim() != this->GetTarget(); }
+        bool _lostTarget(T& u) const { return !GetTarget()->IsAlive();/*u.GetVictim() != this->GetTarget();*/ }
         void _reachTarget(T &);
     private:
         ShortTimeTracker m_spreadTimer{ 0 };

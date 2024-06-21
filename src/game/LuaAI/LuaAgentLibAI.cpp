@@ -212,6 +212,17 @@ int LuaBindsAI::AI_SetCCTarget(lua_State* L)
 // -----------------------------------------------------------
 
 
+int LuaBindsAI::AI_GetChaseTarget(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	if (auto gen = AI_GetChaseGen(ai->GetPlayer()))
+		lua_pushunitornil(L, gen->GetTarget());
+	else
+		lua_pushnil(L);
+	return 1;
+}
+
+
 int LuaBindsAI::AI_GetChaseAngle(lua_State* L)
 {
 	LuaAgent* ai = AI_GetAIObject(L);

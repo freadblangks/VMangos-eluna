@@ -31,6 +31,7 @@ namespace LuaBindsAI {
 
 	// chase control
 
+	int AI_GetChaseTarget(lua_State* L);
 	int AI_GetChaseAngle(lua_State* L);
 	int AI_GetChaseAngleT(lua_State* L);
 	int AI_GetChaseUseAngle(lua_State* L);
@@ -119,6 +120,7 @@ namespace LuaBindsAI {
 		{"GetCCTarget", AI_GetCCTarget},
 		{"SetCCTarget", AI_SetCCTarget},
 
+		{"GetChaseTarget", AI_GetChaseTarget},
 		{"GetChaseAngle", AI_GetChaseAngle},
 		{"GetChaseAngleT", AI_GetChaseAngleT},
 		{"GetChaseUseAngle", AI_GetChaseUseAngle},

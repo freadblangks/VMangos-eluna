@@ -594,8 +594,8 @@ void LuaAIChaseMovementGenerator<T>::DoSpreadIfNeeded(T &owner, Unit* target)
 template<class T>
 void LuaAIChaseMovementGenerator<T>::_reachTarget(T &owner)
 {
-    if (owner.CanReachWithMeleeAutoAttack(this->i_target.getTarget()))
-        owner.Attack(this->i_target.getTarget(), true);
+    //if (owner.CanReachWithMeleeAutoAttack(this->i_target.getTarget()))
+    //    owner.Attack(this->i_target.getTarget(), true);
 }
 
 template<>
