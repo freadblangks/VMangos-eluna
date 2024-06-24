@@ -56,9 +56,9 @@ struct CLine
 		pts.emplace_back(point, -1000.f, helper);
 	}
 
-	bool GetPointInLosAtD(Unit* me, Unit* target, G3D::Vector3& result, int S, float minD, float maxD, float step, float pctStart, bool reverse)
+	bool GetPointInLosAtD(Unit* me, Unit* target, Unit* losTarget, G3D::Vector3& result, int S, float minD, float maxD, float step, float pctStart, bool reverse)
 	{
-		float tx = target->GetPositionX(), ty = target->GetPositionY(), tz = target->GetPositionZ();
+		float ltx = losTarget->GetPositionX(), lty = losTarget->GetPositionY(), ltz = losTarget->GetPositionZ();
 		G3D::Vector3 resultPoint(result);
 
 		int inc = reverse ? -1 : 1;
@@ -88,13 +88,13 @@ struct CLine
 			{
 				result = std::move(resultPoint);
 				float D = target->GetDistance(result.x, result.y, result.z);
-				return D <= maxD && me->IsWithinLOSAtPosition(result.x, result.y, result.z, tx, ty, tz);
+				return D <= maxD && me->IsWithinLOSAtPosition(result.x, result.y, result.z, ltx, lty, ltz);
 			}
 
 			float D = target->GetDistance(resultPoint.x, resultPoint.y, resultPoint.z);
 			bool minMatch = minD <= D;
 			bool maxMatch = maxD >= D;
-			bool losMatch = maxMatch && me->IsWithinLOSAtPosition(resultPoint.x, resultPoint.y, resultPoint.z, tx, ty, tz);
+			bool losMatch = maxMatch && me->IsWithinLOSAtPosition(resultPoint.x, resultPoint.y, resultPoint.z, ltx, lty, ltz);
 			if (minMatch && losMatch)
 			{
 				result = std::move(resultPoint);
@@ -285,13 +285,13 @@ struct DungeonData
 	int mapId{-1};
 	std::vector<CLine> lines;
 
-	bool GetPointInLosAtD(Unit* me, Unit* target, G3D::Vector3& result, float minD, float maxD, float step, bool reverse)
+	bool GetPointInLosAtD(Unit* me, Unit* target, Unit* losTarget, G3D::Vector3& result, float minD, float maxD, float step, bool reverse)
 	{
 		const G3D::Vector3 from(me->GetPositionX(), me->GetPositionY(), me->GetPositionZ());
 		float D, pct = 0.f;
 		int S;
 		CLine& line = lines[ClosestP(from, result, D, S, pct)];
-		return line.GetPointInLosAtD(me, target, result, S, minD, maxD, step, pct, reverse);
+		return line.GetPointInLosAtD(me, target, losTarget, result, S, minD, maxD, step, pct, reverse);
 	}
 
 	int ClosestP(const G3D::Vector3& from, G3D::Vector3& resultPoint, float& resultDistance, int& resultSegment, float& pct)

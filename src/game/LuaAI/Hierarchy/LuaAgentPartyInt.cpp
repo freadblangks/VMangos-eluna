@@ -542,17 +542,18 @@ int LuaBindsAI::PartyInt_GetCLinePInLosAtD(lua_State* L)
 	PartyIntelligence* intelligence = PartyInt_GetPIObject(L);
 	Unit* agent = Unit_GetUnitObject(L, 2);
 	Unit* target = Unit_GetUnitObject(L, 3);
-	lua_Number minD = luaL_checknumber(L, 4);
-	lua_Number maxD = luaL_checknumber(L, 5);
-	lua_Number step = luaL_checknumber(L, 6);
-	bool reverse = luaL_checkboolean(L, 7);
+	Unit* losTarget = Unit_GetUnitObject(L, 4);
+	lua_Number minD = luaL_checknumber(L, 5);
+	lua_Number maxD = luaL_checknumber(L, 6);
+	lua_Number step = luaL_checknumber(L, 7);
+	bool reverse = luaL_checkboolean(L, 8);
 	DungeonData* cline = intelligence->GetDungeonData();
 	if (!cline)
 		luaL_error(L, "PartyInt_GetCLinePInLosAtD: cline doesn't exist");
 	if (cline->mapId != agent->GetMapId())
 		luaL_error(L, "PartyInt_GetCLinePInLosAtD: cline map mismatch");
 	G3D::Vector3 result;
-	bool found = cline->GetPointInLosAtD(agent, target, result, minD, maxD, step, reverse);
+	bool found = cline->GetPointInLosAtD(agent, target, losTarget, result, minD, maxD, step, reverse);
 	if (!found || agent->GetDistanceSqr(result.x, result.y, result.z) < 4.0f)
 	{
 		lua_pushnil(L);
