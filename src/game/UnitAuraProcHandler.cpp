@@ -781,6 +781,25 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 amount, uint
                     target = this;
                     break;
                 }
+                // Misha: echo slam
+                case 34195:
+                {
+                    // echo slam target count
+                    uint8 EchoSlamTargetCount = this->GetEnemyCountInRadiusAround(this, 10.0f);
+                    basepoints[0] = dither(triggerAmount * EchoSlamTargetCount + 30.0f);
+                    target = this;
+                    triggered_spell_id = 34196;
+                    break;                               // no hidden cooldown
+                }
+                // Sven: mask of madness
+                case 34193:
+                {
+                    // heal amount
+                    basepoints[0] = dither(triggerAmount * amount / 100);
+                    target = this;
+                    triggered_spell_id = 34194;
+                    break;                               // no hidden cooldown
+                }
                 // Azzinoth's Aura
                 case 34124:
                 {

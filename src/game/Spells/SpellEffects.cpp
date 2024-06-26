@@ -310,7 +310,7 @@ void Spell::EffectInstaKill(SpellEffectIndex /*effIdx*/)
     m_caster->SendMessageToSet(&data, true);
 #endif
 
-    m_caster->DealDamage(unitTarget, unitTarget->GetHealth(), nullptr, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, nullptr, false);
+    m_caster->DealDamage(unitTarget, unitTarget->GetHealth(), nullptr, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, m_spellInfo, false, this);
 }
 
 void Spell::EffectEnvironmentalDMG(SpellEffectIndex effIdx)
@@ -1817,6 +1817,11 @@ void Spell::EffectDummy(SpellEffectIndex effIdx)
                     uint32 jiefufuti = sWorld.getConfig(CONFIG_UINT32_BUFF_JIEFUFUTI);
                     if (jiefufuti > 99)
                         jiefufuti = 99;
+                    if(Player* pCasterUnit = ::ToPlayer(m_casterUnit))
+                    {
+                        if (pCasterUnit->GetLevel() < 60 && pCasterUnit->GetQuestStatus(10000) == QUEST_STATUS_COMPLETE)
+                            jiefufuti = 0;
+                    }
                     dmg = (100.0f / (100.0f - jiefufuti)) * dmg;
                 }
 
@@ -4313,7 +4318,7 @@ void Spell::EffectWeaponDmg(SpellEffectIndex effIdx)
                 normalized = true;
                 break;
             case SPELL_EFFECT_WEAPON_PERCENT_DAMAGE:
-                if (m_casterUnit->IsCreature() && !((Creature*)m_casterUnit)->HasWeapon() && !(m_spellInfo->Id == 34105) && !(m_spellInfo->Id == 34112) && !(m_spellInfo->Id == 34078) && !(m_spellInfo->Id == 34115) && !(m_spellInfo->Id == 34096) && !(m_spellInfo->Id == 34097) && !(m_spellInfo->Id == 34067) && !(m_spellInfo->Id == 34071) && !(m_spellInfo->Id == 34060) && !(m_spellInfo->Id == 34061) && !(m_spellInfo->Id == 34085) && !(m_spellInfo->Id == 34091))
+                if (m_casterUnit->IsCreature() && !((Creature*)m_casterUnit)->HasWeapon() && !(m_spellInfo->Id == 34105) && !(m_spellInfo->Id == 34112) && !(m_spellInfo->Id == 34078) && !(m_spellInfo->Id == 34115) && !(m_spellInfo->Id == 34096) && !(m_spellInfo->Id == 34097) && !(m_spellInfo->Id == 34067) && !(m_spellInfo->Id == 34071) && !(m_spellInfo->Id == 34060) && !(m_spellInfo->Id == 34061) && !(m_spellInfo->Id == 34085) && !(m_spellInfo->Id == 34091) && !(m_spellInfo->Id == 34196))
                 {
                     // creatures without weapons do static damage with SPELL_EFFECT_WEAPON_PERCENT_DAMAGE
                     weaponDamagePercentMod = 0.0f;
