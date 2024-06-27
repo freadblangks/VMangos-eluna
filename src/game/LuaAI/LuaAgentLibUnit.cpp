@@ -145,6 +145,11 @@ int LuaBindsAI::Unit_CastSpell(lua_State* L)
 						result = unit->CastSpell(target, spell, triggered);
 					}
 		}
+		else if (result == SpellCastResult::SPELL_FAILED_UNIT_NOT_INFRONT)
+		{
+			if (Player* player = unit->ToPlayer())
+				player->SetFacingTo(player->GetAngle(target));
+		}
 		lua_pushinteger(L, result);
 	}
 	else
