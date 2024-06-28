@@ -198,6 +198,7 @@ void LuaAgent::Init()
 		CreateUserTbl();
 
 	me->UpdateSkillsToMaxSkillsForLevel();
+	me->SetWaterBreathingIntervalMultiplier(9000.f);
 
 	m_logicManager.Init(L, this);
 	m_bInitialized = true;
