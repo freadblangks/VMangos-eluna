@@ -43,6 +43,8 @@ namespace LuaBindsAI {
 	int Unit_IsInLOS(lua_State* L);
 	int Unit_IsSpellReady(lua_State* L);
 	int Unit_GetTotemEntry(lua_State* L);
+	int Unit_GetTotems(lua_State* L);
+	int Unit_GetGuardians(lua_State* L);
 	int Unit_RemoveSpellCooldown(lua_State* L);
 	int Unit_UnsummonAllTotems(lua_State* L);
 
@@ -60,11 +62,16 @@ namespace LuaBindsAI {
 	int Unit_GetForwardVector(lua_State* L);
 	int Unit_GetOrientation(lua_State* L);
 	int Unit_GetPosition(lua_State* L);
+	int Unit_GetPositionOfObj(lua_State* L);
 	int Unit_GetMapId(lua_State* L);
 	int Unit_GetZoneId(lua_State* L);
 	int Unit_IsInDungeon(lua_State* L);
 	int Unit_GetMapHeight(lua_State* L);
 	int Unit_GetAllowedZ(lua_State* L);
+
+	int Unit_GetReactionTo(lua_State* L);
+	int Unit_IsFriendlyTo(lua_State* L);
+	int Unit_IsHostileTo(lua_State* L);
 
 	int Unit_GetHealth(lua_State* L);
 	int Unit_GetHealthPct(lua_State* L);
@@ -101,6 +108,8 @@ namespace LuaBindsAI {
 	int Unit_RemoveAuraByCancel(lua_State* L);
 	int Unit_RemoveSpellsCausingAura(lua_State* L);
 
+	int Unit_HasUnitState(lua_State* L);
+
 	// General info
 
 	int Unit_GetClass(lua_State* L);
@@ -116,6 +125,7 @@ namespace LuaBindsAI {
 
 	int Unit_ClearMotion(lua_State* L);
 	int Unit_GetMotionType(lua_State* L);
+	int Unit_HasLostControl(lua_State* L);
 	int Unit_IsMoving(lua_State* L);
 	int Unit_MoveFollow(lua_State* L);
 	int Unit_MoveChase(lua_State* L);
@@ -123,7 +133,12 @@ namespace LuaBindsAI {
 	int Unit_StopMoving(lua_State* L);
 	int Unit_GetStandState(lua_State* L);
 	int Unit_SetStandState(lua_State* L);
-	
+
+	// Interactions
+
+	int Unit_CanUseObj(lua_State* L);
+	int Unit_UseObj(lua_State* L);
+
 	static const struct luaL_Reg Unit_BindLib[]{
 		{"GetAI", Unit_GetAI},
 		// Attacking
@@ -145,9 +160,11 @@ namespace LuaBindsAI {
 		{"IsInLOS", Unit_IsInLOS},
 		{"IsSpellReady", Unit_IsSpellReady},
 		{"GetTotemEntry", Unit_GetTotemEntry},
+		{"GetTotems", Unit_GetTotems},
+		{"GetGuardians", Unit_GetGuardians},
 		{"RemoveSpellCooldown", Unit_RemoveSpellCooldown},
 		{"UnsummonAllTotems", Unit_UnsummonAllTotems},
-
+		
 		// Info
 		{"IsAgent", Unit_IsAgent},
 		{"IsAlive", Unit_IsAlive},
@@ -161,11 +178,16 @@ namespace LuaBindsAI {
 		{"GetForwardVector", Unit_GetForwardVector},
 		{"GetOrientation", Unit_GetOrientation},
 		{"GetPosition", Unit_GetPosition},
+		{"GetPositionOfObj", Unit_GetPositionOfObj},
 		{"GetMapId", Unit_GetMapId},
 		{"GetZoneId", Unit_GetZoneId},
 		{"IsInDungeon", Unit_IsInDungeon},
 		{"GetMapHeight", Unit_GetMapHeight},
 		{"GetAllowedZ", Unit_GetAllowedZ},
+
+		{"GetReactionTo", Unit_GetReactionTo},
+		{"IsFriendlyTo", Unit_IsFriendlyTo},
+		{"IsHostileTo", Unit_IsHostileTo},
 
 		{"GetHealth", Unit_GetHealth},
 		{"GetHealthPct", Unit_GetHealthPct},
@@ -202,6 +224,8 @@ namespace LuaBindsAI {
 		{"HasAuraWithMechanics", Unit_HasAuraWithMechanics},
 		{"RemoveSpellsCausingAura", Unit_RemoveSpellsCausingAura},
 
+		{"HasUnitState", Unit_HasUnitState},
+		
 		// General info
 		{"GetClass", Unit_GetClass},
 		{"GetGuid", Unit_GetGuid},
@@ -212,9 +236,10 @@ namespace LuaBindsAI {
 		{"GetTeam", Unit_GetTeam},
 		{"IsPlayer", Unit_IsPlayer},
 
-		// motion
+		// Motion
 		{"ClearMotion", Unit_ClearMotion},
 		{"GetMotionType", Unit_GetMotionType},
+		{"HasLostControl", Unit_HasLostControl},
 		{"IsMoving", Unit_IsMoving},
 		{"MoveFollow", Unit_MoveFollow},
 		{"MoveChase", Unit_MoveChase},
@@ -222,6 +247,10 @@ namespace LuaBindsAI {
 		{"StopMoving", Unit_StopMoving},
 		{"GetStandState", Unit_GetStandState},
 		{"SetStandState", Unit_SetStandState},
+
+		// Interactions
+		{"CanUseObj", Unit_CanUseObj},
+		{"UseObj", Unit_UseObj},
 
 		{NULL, NULL}
 	};

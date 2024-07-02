@@ -329,6 +329,10 @@ typedef std::list< ProcTriggeredData > ProcTriggeredList;
 
 class Unit : public SpellCaster
 {
+    // luabots
+    public:
+        GuardianPetList* GetGuardianPets() { return &m_guardianPets; }
+    // end luabots
     public:
         static Unit* GetUnit(WorldObject &obj, uint64 const& Guid);
 

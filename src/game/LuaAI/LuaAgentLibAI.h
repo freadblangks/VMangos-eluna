@@ -15,6 +15,7 @@ namespace LuaBindsAI {
 	LuaAgent* AI_GetAIObject(lua_State* L, int idx = 1);
 
 	int AI_AddTopGoal(lua_State* L);
+	int AI_GetTopGoal(lua_State* L);
 	int AI_HasTopGoal(lua_State* L);
 	int AI_GetUserTbl(lua_State* L);
 
@@ -106,9 +107,10 @@ namespace LuaBindsAI {
 
 	static const struct luaL_Reg AI_BindLib[]{
 		{"AddTopGoal", AI_AddTopGoal},
+		{"GetTopGoal", AI_GetTopGoal},
 		{"HasTopGoal", AI_HasTopGoal},
 		{"GetData", AI_GetUserTbl},
-
+		
 		{"GetDesiredLevel", AI_GetDesiredLevel},
 		{"SetDesiredLevel", AI_SetDesiredLevel},
 		{"GetForm", AI_GetForm},

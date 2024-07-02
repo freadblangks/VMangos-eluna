@@ -101,7 +101,7 @@ int LuaBindsAI::Unit_CalculateDamage(lua_State* L)
 int LuaBindsAI::Unit_CanAttack(lua_State* L)
 {
 	Unit* unit = Unit_GetUnitObject(L);
-	Unit* target = Unit_GetUnitObject(L);
+	Unit* target = Unit_GetUnitObject(L, 2);
 	lua_pushboolean(L, unit->CanAttack(target, true));
 	return 1;
 }
@@ -406,6 +406,39 @@ int LuaBindsAI::Unit_GetTotemEntry(lua_State* L)
 }
 
 
+int LuaBindsAI::Unit_GetTotems(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_Integer idx = 1;
+	lua_newtable(L);
+	for (int i = 0; i < MAX_TOTEM_SLOT; ++i)
+		if (Totem* totem = unit->GetTotem(TotemSlot(i)))
+		{
+			lua_pushunitornil(L, totem);
+			lua_seti(L, -2, idx);
+			++idx;
+		}
+	return 1;
+}
+
+
+int LuaBindsAI::Unit_GetGuardians(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	if (!unit->GetMap()) return 0;
+	lua_newtable(L);
+	lua_Integer idx = 1;
+	for (const auto& guid : *(unit->GetGuardianPets()))
+		if (Pet* pet = unit->GetMap()->GetPet(guid))
+		{
+			lua_pushunitornil(L, pet);
+			lua_seti(L, -2, idx);
+			++idx;
+		}
+	return 1;
+}
+
+
 int LuaBindsAI::Unit_RemoveSpellCooldown(lua_State* L)
 {
 	Unit* unit = Unit_GetUnitObject(L);
@@ -548,6 +581,24 @@ int LuaBindsAI::Unit_GetPosition(lua_State* L)
 	lua_pushnumber(L, unit->GetPositionY());
 	lua_pushnumber(L, unit->GetPositionZ());
 	return 3;
+}
+
+
+int LuaBindsAI::Unit_GetPositionOfObj(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	LuaObjectGuid* guid = Guid_GetGuidObject(L, 2);
+	if (!unit->GetMap())
+		return 0;
+
+	if (GameObject* obj = unit->GetMap()->GetGameObject(guid->guid))
+	{
+		lua_pushnumber(L, obj->GetPositionX());
+		lua_pushnumber(L, obj->GetPositionY());
+		lua_pushnumber(L, obj->GetPositionZ());
+		return 3;
+	}
+	return 0;
 }
 
 
@@ -955,6 +1006,15 @@ int LuaBindsAI::Unit_RemoveSpellsCausingAura(lua_State* L) {
 }
 
 
+int LuaBindsAI::Unit_HasUnitState(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_Integer state = luaL_checkinteger(L, 2);
+	lua_pushinteger(L, unit->HasUnitState(state));
+	return 1;
+}
+
+
 // ---------------------------------------------------------
 // --                General Info
 // ---------------------------------------------------------
@@ -1052,6 +1112,23 @@ int LuaBindsAI::Unit_GetMotionType(lua_State* L)
 }
 
 
+int LuaBindsAI::Unit_HasLostControl(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	UnitState states = UnitState(
+		UnitState::UNIT_STAT_STUNNED |
+		UnitState::UNIT_STAT_POSSESSED |
+		UnitState::UNIT_STAT_TAXI_FLIGHT |
+		UnitState::UNIT_STAT_DISTRACTED |
+		UnitState::UNIT_STAT_CONFUSED |
+		UnitState::UNIT_STAT_FLEEING |
+		UnitState::UNIT_STAT_PENDING_STUNNED
+	);
+	lua_pushboolean(L, unit->HasUnitState(states) || unit->IsCharmed() || !unit->GetPossessorGuid().IsEmpty());
+	return 1;
+}
+
+
 int LuaBindsAI::Unit_IsMoving(lua_State* L)
 {
 	Unit* unit = Unit_GetUnitObject(L);
@@ -1094,7 +1171,7 @@ int LuaBindsAI::Unit_MovePoint(lua_State* L)
 	lua_Number y = luaL_checknumber(L, 3);
 	lua_Number z = luaL_checknumber(L, 4);
 	bool force = luaL_checkboolean(L, 5);
-	uint32 options = MoveOptions::MOVE_PATHFINDING;
+	uint32 options = MoveOptions::MOVE_PATHFINDING | MoveOptions::MOVE_RUN_MODE;
 	if (force)
 		options |= MoveOptions::MOVE_FORCE_DESTINATION;
 	unit->GetMotionMaster()->MovePoint(2048, x, y, z, options);
@@ -1150,4 +1227,73 @@ int LuaBindsAI::Unit_GetAllowedZ(lua_State* L)
 	unit->UpdateAllowedPositionZ(x,y,result);
 	lua_pushnumber(L, result);
 	return 1;
+}
+
+
+int LuaBindsAI::Unit_GetReactionTo(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	Unit* to = Unit_GetUnitObject(L, 2);
+	lua_pushinteger(L, unit->GetReactionTo(to));
+	return 1;
+}
+
+
+int LuaBindsAI::Unit_IsFriendlyTo(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	Unit* to = Unit_GetUnitObject(L, 2);
+	lua_pushboolean(L, unit->IsFriendlyTo(to));
+	return 1;
+}
+
+
+int LuaBindsAI::Unit_IsHostileTo(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	Unit* to = Unit_GetUnitObject(L, 2);
+	lua_pushboolean(L, unit->IsHostileTo(to));
+	return 1;
+}
+
+// ---------------------------------------------------------
+// --                 Interactions
+// ---------------------------------------------------------
+
+int LuaBindsAI::Unit_CanUseObj(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	LuaObjectGuid* guid = Guid_GetGuidObject(L, 2);
+	if (!unit->GetMap())
+	{
+		lua_pushboolean(L, false);
+		return 1;
+	}
+
+	if (GameObject* obj = unit->GetMap()->GetGameObject(guid->guid))
+	{
+		lua_pushboolean(L, unit->IsWithinDistInMap(obj, INTERACTION_DISTANCE));
+		return 1;
+	}
+	else
+		luaL_error(L, "Unit_CanUseObj: object not found %s", guid->guid.GetString().c_str());
+
+	lua_pushboolean(L, false);
+	return 1;
+}
+
+
+int LuaBindsAI::Unit_UseObj(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	LuaObjectGuid* guid = Guid_GetGuidObject(L, 2);
+	if (!unit->GetMap())
+		return 0;
+
+	if (GameObject* obj = unit->GetMap()->GetGameObject(guid->guid))
+		obj->Use(unit);
+	else
+		luaL_error(L, "Unit_UseObj: object not found %s", guid->guid.GetString().c_str());
+
+	return 0;
 }

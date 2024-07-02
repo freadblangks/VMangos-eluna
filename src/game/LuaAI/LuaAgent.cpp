@@ -270,7 +270,7 @@ void LuaAgent::OnPacketReceived(const WorldPacket& pck)
 		float vcos, vsin, speedxy, speedz;
 #if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_8_4
 		guid = pck.readPackGUID();
-#elif SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_2_4
+#else
 		pck >> guid;
 #endif
 #if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_9_4
@@ -284,18 +284,15 @@ void LuaAgent::OnPacketReceived(const WorldPacket& pck)
 		movementInfo.jump.xyspeed = speedxy;
 		movementInfo.jump.zspeed = speedz;
 		movementInfo.jump.startClientTime = WorldTimer::getMSTime();
-		std::unique_ptr<WorldPacket>send = std::make_unique<WorldPacket>(CMSG_MOVE_KNOCK_BACK_ACK);
-#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_8_4
-		*send << guid.WriteAsPacked();
-#elif SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_2_4
-		*send << guid;
-#endif
+		WorldPacket send(CMSG_MOVE_KNOCK_BACK_ACK);
+		send << guid;
 #if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_9_4
-		*send << mCounter;
+		send << mCounter;
 #endif
-		*send << movementInfo;
+		send << movementInfo;
 		FallBegin(vcos, vsin, speedxy, speedz, WorldTimer::getMSTime());
-		me->GetSession()->QueuePacket(std::move(send));
+		me->SetSplineDonePending(false);
+		me->GetSession()->HandleMoveKnockBackAck(send);
 		break;
 	}
 	case SMSG_NEW_WORLD:
@@ -321,9 +318,9 @@ void LuaAgent::OnPacketReceived(const WorldPacket& pck)
 
 void LuaAgent::OnLoggedIn()
 {
-	std::unique_ptr<WorldPacket> send = std::make_unique<WorldPacket>(CMSG_SET_ACTIVE_MOVER);
-	*send << me->GetObjectGuid();
-	me->GetSession()->QueuePacket(std::move(send));
+	WorldPacket send(CMSG_SET_ACTIVE_MOVER);
+	send << me->GetObjectGuid();
+	me->GetSession()->HandleSetActiveMoverOpcode(send);
 }
 
 

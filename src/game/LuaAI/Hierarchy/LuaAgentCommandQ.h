@@ -16,6 +16,7 @@ enum class AgentCmdType : uint8
 	CC,
 	Buff,
 	Dispel,
+	Script,
 	Max,
 };
 
@@ -157,6 +158,14 @@ public:
 	AgentCmdDispel(const ObjectGuid& targetGuid, std::string key)
 		: AgentCmd(AgentCmdType::Dispel), targetGuid(targetGuid), key(key) {}
 	int Push(lua_State* L) override;
+};
+
+
+class AgentCmdScript : public AgentCmd
+{
+public:
+	AgentCmdScript() : AgentCmd(AgentCmdType::Script) {}
+	int Push(lua_State* L) override { return 0; }
 };
 
 

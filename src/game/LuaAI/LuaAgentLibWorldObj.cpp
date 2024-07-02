@@ -36,6 +36,14 @@ int LuaBindsAI_Guid_CompareEquality(lua_State* L)
 }
 
 
+int LuaBindsAI_Guid_ToString(lua_State* L)
+{
+	LuaObjectGuid* guid = LuaBindsAI::Guid_GetGuidObject(L);
+	lua_pushfstring(L, guid->guid.GetString().c_str());
+	return 1;
+}
+
+
 void LuaBindsAI::Guid_CreateMetatable(lua_State* L)
 {
 	luaL_newmetatable(L, LuaBindsAI::GuidMtName);
@@ -44,6 +52,8 @@ void LuaBindsAI::Guid_CreateMetatable(lua_State* L)
 	luaL_setfuncs(L, Guid_BindLib, 0); // copy funcs
 	lua_pushcfunction(L, LuaBindsAI_Guid_CompareEquality);
 	lua_setfield(L, -2, "__eq");
+	lua_pushcfunction(L, LuaBindsAI_Guid_ToString);
+	lua_setfield(L, -2, "__tostring");
 	lua_pop(L, 1); // pop mt
 }
 

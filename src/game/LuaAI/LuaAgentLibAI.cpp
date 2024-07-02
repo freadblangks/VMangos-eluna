@@ -86,6 +86,19 @@ int LuaBindsAI::AI_AddTopGoal(lua_State* L)
 }
 
 
+int LuaBindsAI::AI_GetTopGoal(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	if (Goal* goal = ai->GetTopGoal())
+		if (!goal->GetTerminated())
+		{
+			lua_rawgeti(L, LUA_REGISTRYINDEX, goal->GetRef());
+			return 1;
+		}
+	return 0;
+}
+
+
 int LuaBindsAI::AI_HasTopGoal(lua_State* L)
 {
 	LuaAgent* ai = AI_GetAIObject(L);

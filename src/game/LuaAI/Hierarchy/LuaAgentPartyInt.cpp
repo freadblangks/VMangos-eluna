@@ -319,7 +319,9 @@ void PartyIntelligence::Unref(lua_State* L)
 
 bool PartyIntelligence::HasCLineFor(Unit* agent)
 {
-	return m_dungeon ? m_dungeon->mapId == agent->GetMapId() : false;
+	if (m_dungeon ? m_dungeon->mapId == agent->GetMapId() : false)
+		return m_dungeon->lines.size() > 0;
+	return false;
 }
 
 
@@ -456,6 +458,15 @@ int LuaBindsAI::PartyInt_CmdPull(lua_State* L)
 	LuaAgent* ai = AI_GetAIObject(L, 2);
 	LuaObjectGuid* guid = Guid_GetGuidObject(L, 3);
 	AgentCmdPull* cmd = new AgentCmdPull(guid->guid);
+	lua_pushinteger(L, ai->CommandsAdd(cmd));
+	return 1;
+}
+
+
+int LuaBindsAI::PartyInt_CmdScript(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L, 2);
+	AgentCmdScript* cmd = new AgentCmdScript();
 	lua_pushinteger(L, ai->CommandsAdd(cmd));
 	return 1;
 }

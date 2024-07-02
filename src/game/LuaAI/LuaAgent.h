@@ -18,7 +18,8 @@ enum class LuaAgentRoles {
 	Rdps = 2,
 	Tank = 3,
 	Healer = 4,
-	Max = 4
+	Script = 5,
+	Max = 5
 };
 
 
