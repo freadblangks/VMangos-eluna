@@ -4,8 +4,9 @@
 #include "LuaAgentLibAux.h"
 #include "LuaAgentLibWorldObj.h"
 #include "LuaAgentUtils.h"
-#include "GridSearchers.h"
 #include "ScriptedInstance.h"
+#include "GridNotifiers.h"
+#include "GridSearchers.h"
 #include "eastern_kingdoms/dun_morogh/gnomeregan/gnomeregan.h"
 
 
@@ -15,10 +16,58 @@ enum
 };
 
 
+namespace
+{
+	class AllObjectsOfEntry
+	{
+	public:
+		AllObjectsOfEntry(uint32 uiEntry) : m_uiEntry(uiEntry){}
+		bool operator() (Object* pUnit) { return pUnit->GetEntry() == m_uiEntry; }
+
+	private:
+		uint32 m_uiEntry;
+	};
+
+	class AllCreaturesOfEntry
+	{
+	public:
+		AllCreaturesOfEntry(uint32 uiEntry, bool aliveOnly) : m_uiEntry(uiEntry), m_alive(aliveOnly) {}
+		bool operator() (Unit* pUnit) { return pUnit->GetEntry() == m_uiEntry && (!m_alive || pUnit->IsAlive()); }
+
+	private:
+		uint32 m_uiEntry;
+		bool m_alive;
+	};
+
+	void GetCreatureListWithEntryAt(std::list<Creature*>& lList, float x, float y, Map* map, uint32 entry, float fMaxRange, bool aliveOnly, bool dont_load)
+	{
+		Creature c;
+		ASSERT(map);
+		AllCreaturesOfEntry check(entry, aliveOnly);
+		MaNGOS::CreatureListSearcher<AllCreaturesOfEntry> searcher(lList, check);
+		Cell::VisitGridObjects(x, y, map, searcher, fMaxRange, dont_load);
+	}
+
+	void GetObjectListWithEntryAt(std::list<GameObject*>& lList, float x, float y, Map* map, uint32 entry, float fMaxSearchRange, bool dont_load)
+	{
+		ASSERT(map);
+		AllObjectsOfEntry check(entry);
+		MaNGOS::GameObjectListSearcher<AllObjectsOfEntry> searcher(lList, check);
+		Cell::VisitGridObjects(x, y, map, searcher, fMaxSearchRange, dont_load);
+	}
+}
+
+
 void LuaBindsAI::BindLibAux(lua_State* L)
 {
 	lua_register(L, "GetUnitByGuid", GetUnitByGuid);
 	lua_register(L, "GetUnitByGuidEx", GetUnitByGuidEx);
+	lua_register(L, "GetUnitsWithEntryNear", GetUnitsWithEntryNear);
+	lua_register(L, "GetObjectsWithEntryNear", GetObjectsWithEntryNear);
+	lua_register(L, "GetObjectsWithEntryAround", GetObjectsWithEntryAround);
+	lua_register(L, "GetObjectGOState", GetObjectGOState);
+	lua_register(L, "GetObjectLootState", GetObjectLootState);
+	lua_register(L, "GetObjectIsSpawned", GetObjectIsSpawned);
 	lua_register(L, "GetPlayerByGuid", GetPlayerByGuid);
 	lua_register(L, "GetPlayerById", GetPlayerById);
 	lua_register(L, "GetSpellName", GetSpellName);
@@ -84,6 +133,139 @@ int LuaBindsAI::GetSpellName(lua_State* L) {
 		luaL_error(L, "GetSpellName: spell %d not found", spellID);
 	lua_pushstring(L, info_orig->SpellName[0].c_str());
 	return 1;
+}
+
+
+int LuaBindsAI::GetObjectsWithEntryNear(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L, 1);
+	lua_Integer entry = luaL_checkinteger(L, 2);
+	lua_Number x = luaL_checknumber(L, 3);
+	lua_Number y = luaL_checknumber(L, 4);
+	lua_Number z = luaL_checknumber(L, 5);
+	lua_Number r = luaL_checknumber(L, 6);
+	bool dont_load = luaL_checkboolean(L, 7);
+
+	if (entry <= 0)
+		luaL_error(L, "GetObjectsWithEntryNear: entry must be positive");
+
+	lua_newtable(L);
+
+	if (r > 0.f)
+	{
+		std::list<GameObject*> objs;
+		GetObjectListWithEntryAt(objs, x, y, unit->GetMap(), entry, r, dont_load);
+		lua_Integer idx = 1;
+		for (auto& u : objs)
+		{
+			Guid_CreateUD(L, u->GetObjectGuid());
+			lua_seti(L, -2, idx);
+			++idx;
+		}
+	}
+
+	return 1;
+}
+
+
+int LuaBindsAI::GetObjectsWithEntryAround(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L, 1);
+	lua_Integer entry = luaL_checkinteger(L, 2);
+	lua_Number r = luaL_checknumber(L, 3);
+	bool dont_load = luaL_checkboolean(L, 4);
+
+	if (entry <= 0)
+		luaL_error(L, "_GetObjectsWithEntryNear: entry must be positive");
+
+	lua_newtable(L);
+
+	if (r > 0.f)
+	{
+		std::list<GameObject*> objs;
+		GetObjectListWithEntryAt(objs, unit->GetPositionX(), unit->GetPositionY(), unit->GetMap(), entry, r, dont_load);
+		lua_Integer idx = 1;
+		for (auto& u : objs)
+		{
+			Guid_CreateUD(L, u->GetObjectGuid());
+			lua_seti(L, -2, idx);
+			++idx;
+		}
+	}
+
+	return 1;
+}
+
+
+int LuaBindsAI::GetUnitsWithEntryNear(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L, 1);
+	lua_Integer entry = luaL_checkinteger(L, 2);
+	lua_Number x = luaL_checknumber(L, 3);
+	lua_Number y = luaL_checknumber(L, 4);
+	lua_Number z = luaL_checknumber(L, 5);
+	lua_Number r = luaL_checknumber(L, 6);
+	bool alive_only = luaL_checkboolean(L, 7);
+	bool dont_load = luaL_checkboolean(L, 8);
+
+	if (entry <= 0)
+		luaL_error(L, "_GetUnitsWithEntryNear: entry must be positive");
+
+	lua_newtable(L);
+
+	if (r > 0.f)
+	{
+		std::list<Creature*> units;
+		GetCreatureListWithEntryAt(units, x, y, unit->GetMap(), entry, r, alive_only, dont_load);
+		lua_Integer idx = 1;
+		for (auto& u : units)
+		{
+			lua_pushunitornil(L, u);
+			lua_seti(L, -2, idx);
+			++idx;
+		}
+	}
+
+	return 1;
+}
+
+
+int LuaBindsAI::GetObjectGOState(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L, 1);
+	ObjectGuid guid = Guid_GetGuidObject(L, 2)->guid;
+	if (GameObject* go = unit->GetMap()->GetGameObject(guid))
+	{
+		lua_pushinteger(L, go->GetGoState());
+		return 1;
+	}
+	return 0;
+}
+
+
+int LuaBindsAI::GetObjectLootState(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L, 1);
+	ObjectGuid guid = Guid_GetGuidObject(L, 2)->guid;
+	if (GameObject* go = unit->GetMap()->GetGameObject(guid))
+	{
+		lua_pushinteger(L, go->getLootState());
+		return 1;
+	}
+	return 0;
+}
+
+
+int LuaBindsAI::GetObjectIsSpawned(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L, 1);
+	ObjectGuid guid = Guid_GetGuidObject(L, 2)->guid;
+	if (GameObject* go = unit->GetMap()->GetGameObject(guid))
+	{
+		lua_pushboolean(L, go->isSpawned());
+		return 1;
+	}
+	return 0;
 }
 
 

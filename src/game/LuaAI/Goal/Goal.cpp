@@ -88,6 +88,7 @@ void Goal::SetTerminated(bool v) {
 // SUBGOALS -----------------------------------------------------------------------
 
 void Goal::UpdateSubGoal() {
+	if (subgoals.empty()) return;
 	subgoals.pop_front();
 	if (!subgoals.empty() && !bTerminationState)
 		manager->PushGoalOnActivationStack(subgoals.front().get());

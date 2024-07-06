@@ -12,6 +12,13 @@ namespace LuaBindsAI {
 	int GetPlayerByGuid(lua_State* L);
 	int GetPlayerById(lua_State* L);
 	int GetSpellName(lua_State* L);
+	int GetUnitsWithEntryNear(lua_State* L);
+	int GetObjectsWithEntryNear(lua_State* L);
+	int GetObjectsWithEntryAround(lua_State* L);
+
+	int GetObjectIsSpawned(lua_State* L);
+	int GetObjectLootState(lua_State* L);
+	int GetObjectGOState(lua_State* L);
 
 	// instance scripts
 	int Gnomeregan_GetFaceData(lua_State* L);

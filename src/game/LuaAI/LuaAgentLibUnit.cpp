@@ -1230,6 +1230,19 @@ int LuaBindsAI::Unit_GetAllowedZ(lua_State* L)
 }
 
 
+int LuaBindsAI::Unit_HasInArc(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	Unit* target = Unit_GetUnitObject(L, 2);
+	float arc = luaL_checknumber(L, 3);
+	float offset = 0.0F;
+	if (lua_gettop(L) == 4)
+		offset = luaL_checknumber(L, 4);
+	lua_pushboolean(L, unit->HasInArc(target, arc, offset));
+	return 1;
+}
+
+
 int LuaBindsAI::Unit_GetReactionTo(lua_State* L)
 {
 	Unit* unit = Unit_GetUnitObject(L);

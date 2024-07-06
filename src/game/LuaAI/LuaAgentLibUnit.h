@@ -68,6 +68,7 @@ namespace LuaBindsAI {
 	int Unit_IsInDungeon(lua_State* L);
 	int Unit_GetMapHeight(lua_State* L);
 	int Unit_GetAllowedZ(lua_State* L);
+	int Unit_HasInArc(lua_State* L);
 
 	int Unit_GetReactionTo(lua_State* L);
 	int Unit_IsFriendlyTo(lua_State* L);
@@ -184,7 +185,8 @@ namespace LuaBindsAI {
 		{"IsInDungeon", Unit_IsInDungeon},
 		{"GetMapHeight", Unit_GetMapHeight},
 		{"GetAllowedZ", Unit_GetAllowedZ},
-
+		{"HasInArc", Unit_HasInArc},
+		
 		{"GetReactionTo", Unit_GetReactionTo},
 		{"IsFriendlyTo", Unit_IsFriendlyTo},
 		{"IsHostileTo", Unit_IsHostileTo},
