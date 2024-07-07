@@ -102,7 +102,7 @@ namespace LuaBindsAI {
 
 	int Unit_GetAuraStacks(lua_State* L);
 	int Unit_GetAuraTimeLeft(lua_State* L);
-	int Unit_GetDispelsTbl(lua_State* L);
+	int Unit_GetDispelTbl(lua_State* L);
 	int Unit_HasAura(lua_State* L);
 	int Unit_HasAuraType(lua_State* L);
 	int Unit_HasAuraWithMechanics(lua_State* L);
@@ -220,7 +220,7 @@ namespace LuaBindsAI {
 		{"CancelAura", Unit_RemoveAuraByCancel},
 		{"GetAuraStacks", Unit_GetAuraStacks},
 		{"GetAuraTimeLeft", Unit_GetAuraTimeLeft},
-		{"GetDispelsTbl", Unit_GetDispelsTbl},
+		{"GetDispelTbl", Unit_GetDispelTbl},
 		{"HasAura", Unit_HasAura},
 		{"HasAuraType", Unit_HasAuraType},
 		{"HasAuraWithMechanics", Unit_HasAuraWithMechanics},

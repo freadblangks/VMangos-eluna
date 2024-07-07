@@ -952,15 +952,16 @@ int LuaBindsAI::Unit_GetAuraTimeLeft(lua_State* L) {
 }
 
 
-int LuaBindsAI::Unit_GetDispelsTbl(lua_State* L) {
+int LuaBindsAI::Unit_GetDispelTbl(lua_State* L) {
 	Unit* unit = Unit_GetUnitObject(L);
 	bool positive = luaL_checkboolean(L, 2);
 	lua_newtable(L);
-	for (auto& sah : unit->GetSpellAuraHolderMap())
+	for (auto& it : unit->GetSpellAuraHolderMap())
 	{
-		if (sah.second->IsPositive() != positive)
+		SpellAuraHolder* sah = it.second;
+		if (sah->IsPositive() != positive)
 			continue;
-		auto proto = sah.second->GetSpellProto();
+		auto proto = sah->GetSpellProto();
 		if (proto->Dispel == DISPEL_MAGIC || proto->Dispel == DISPEL_ALL)
 		{
 			lua_pushboolean(L, true);
