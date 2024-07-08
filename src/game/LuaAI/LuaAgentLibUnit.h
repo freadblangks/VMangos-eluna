@@ -59,6 +59,7 @@ namespace LuaBindsAI {
 
 	int Unit_GetCreatureChaseInfo(lua_State* L);
 	int Unit_GetDistance(lua_State* L);
+	int Unit_GetDistanceEx(lua_State* L);
 	int Unit_GetForwardVector(lua_State* L);
 	int Unit_GetOrientation(lua_State* L);
 	int Unit_GetPosition(lua_State* L);
@@ -176,6 +177,7 @@ namespace LuaBindsAI {
 
 		{"GetCreatureChaseInfo", Unit_GetCreatureChaseInfo},
 		{"GetDistance", Unit_GetDistance},
+		{"GetDistanceEx", Unit_GetDistanceEx},
 		{"GetForwardVector", Unit_GetForwardVector},
 		{"GetOrientation", Unit_GetOrientation},
 		{"GetPosition", Unit_GetPosition},

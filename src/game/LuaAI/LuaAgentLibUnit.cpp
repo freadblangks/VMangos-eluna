@@ -161,7 +161,15 @@ int LuaBindsAI::Unit_CastSpell(lua_State* L)
 int LuaBindsAI::Unit_GetCurrentSpellId(lua_State* L)
 {
 	Unit* unit = Unit_GetUnitObject(L);
-	if (Spell* spell = unit->GetCurrentSpell(CurrentSpellTypes::CURRENT_GENERIC_SPELL))
+	CurrentSpellTypes tp = CurrentSpellTypes::CURRENT_GENERIC_SPELL;
+	if (lua_gettop(L) > 1)
+	{
+		lua_Integer inTp = luaL_checkinteger(L, 2);
+		if (inTp < 0 || inTp >= CURRENT_MAX_SPELL)
+			luaL_error(L, "Unit_GetCurrentSpellId: spell type doesn't exist. Allowed - [%d, %d], got %I", 0, CURRENT_MAX_SPELL - 1, inTp);
+		tp = CurrentSpellTypes(inTp);
+	}
+	if (Spell* spell = unit->GetCurrentSpell(tp))
 		lua_pushinteger(L, spell->m_spellInfo->Id);
 	else
 		lua_pushinteger(L, 0ll);
@@ -549,6 +557,31 @@ int LuaBindsAI::Unit_GetDistance(lua_State* L)
 		lua_Number y = luaL_checknumber(L, 3);
 		lua_Number z = luaL_checknumber(L, 4);
 		lua_pushnumber(L, unit->GetDistance(x, y, z));
+	}
+	return 1;
+}
+
+
+int LuaBindsAI::Unit_GetDistanceEx(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	if (lua_gettop(L) == 3)
+	{
+		Unit* target = Unit_GetUnitObject(L, 2);
+		lua_Integer sf = luaL_checkinteger(L, 3);
+		if (sf < 0 || sf > (lua_Integer) SizeFactor::CombatReachWithMelee)
+			luaL_error(L, "Unit_GetDistanceEx: invalid size factr. Got %I, allowed [0, 3]", sf);
+		lua_pushnumber(L, unit->GetDistance(target, SizeFactor(sf)));
+	}
+	else
+	{
+		lua_Number x = luaL_checknumber(L, 2);
+		lua_Number y = luaL_checknumber(L, 3);
+		lua_Number z = luaL_checknumber(L, 4);
+		lua_Integer sf = luaL_checkinteger(L, 5);
+		if (sf < 0 || sf > (lua_Integer) SizeFactor::CombatReachWithMelee)
+			luaL_error(L, "Unit_GetDistanceEx: invalid size factr. Got %I, allowed [0, 3]", sf);
+		lua_pushnumber(L, unit->GetDistance(x, y, z, SizeFactor(sf)));
 	}
 	return 1;
 }
