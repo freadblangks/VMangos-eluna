@@ -490,6 +490,14 @@ int LuaBindsAI::Unit_IsAlive(lua_State* L)
 }
 
 
+int LuaBindsAI::Unit_IsDead(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_pushboolean(L, unit->IsDead());
+	return 1;
+}
+
+
 int LuaBindsAI::Unit_IsInCombat(lua_State* L)
 {
 	Unit* unit = Unit_GetUnitObject(L);
@@ -524,6 +532,25 @@ int LuaBindsAI::Unit_IsTanking(lua_State* L)
 			return 1;
 		}
 	lua_pushboolean(L, false);
+	return 1;
+}
+
+
+int LuaBindsAI::Unit_GetBoundingRadius(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_pushnumber(L, unit->GetObjectBoundingRadius());
+	return 1;
+}
+
+
+int LuaBindsAI::Unit_GetCombatReach(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	if (lua_gettop(L) == 2)
+		lua_pushnumber(L, unit->GetCombatReachToTarget(Unit_GetUnitObject(L, 2), false, 0.f, true));
+	else
+		lua_pushnumber(L, unit->GetCombatReach(true));
 	return 1;
 }
 
@@ -724,12 +751,21 @@ int LuaBindsAI::Unit_GetPowerType(lua_State* L)
 }
 
 
+int LuaBindsAI::Unit_Kill(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	if (Creature* targetCreature = unit->ToCreature()) targetCreature->SetLootRecipient(nullptr);
+	unit->DealDamage(unit, unit->GetHealth(), nullptr, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, nullptr, false);
+	return 0;
+}
+
+
 int LuaBindsAI::Unit_SetHealth(lua_State* L)
 {
 	Unit* unit = Unit_GetUnitObject(L);
-	lua_Integer value = luaL_checkinteger(L, 2);
+	lua_Number value = luaL_checknumber(L, 2);
 	if (value < 0ll)
-		luaL_error(L, "Unit_SetHealth: value must be >= 0");
+		value = 0ll;
 	unit->SetHealth(value);
 	return 0;
 }
@@ -749,7 +785,7 @@ int LuaBindsAI::Unit_SetHealthPct(lua_State* L)
 int LuaBindsAI::Unit_SetMaxHealth(lua_State* L)
 {
 	Unit* unit = Unit_GetUnitObject(L);
-	lua_Integer value = luaL_checkinteger(L, 2);
+	lua_Number value = luaL_checknumber(L, 2);
 	if (value < 1ll)
 		luaL_error(L, "Unit_SetMaxHealth: value must be >= 1");
 	unit->SetMaxHealth(value);
@@ -1062,6 +1098,14 @@ int LuaBindsAI::Unit_GetClass(lua_State* L)
 }
 
 
+int LuaBindsAI::Unit_GetEntry(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_pushinteger(L, unit->GetEntry());
+	return 1;
+}
+
+
 int LuaBindsAI::Unit_GetGuid(lua_State* L)
 {
 	Unit* unit = Unit_GetUnitObject(L);
@@ -1343,4 +1387,47 @@ int LuaBindsAI::Unit_UseObj(lua_State* L)
 		luaL_error(L, "Unit_UseObj: object not found %s", guid->guid.GetString().c_str());
 
 	return 0;
+}
+
+
+int LuaBindsAI::Unit_GetLootList(lua_State* L)
+{
+	Unit* other = Unit_GetUnitObject(L);
+	lua_newtable(L);
+	lua_Integer idx = 1;
+	if (other->IsCreature() && other->IsDead())
+	{
+		Creature* c = static_cast<Creature*>(other);
+		Loot* loot = &c->loot;
+		for (uint8 itemSlot = 0; itemSlot < loot->items.size(); ++itemSlot)
+		{
+			LootItem& lootItem = loot->items[itemSlot];
+			ItemPrototype const* itemProto = sObjectMgr.GetItemPrototype(lootItem.itemid);
+			if (!itemProto)
+			{
+				sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "Unit_GetLootList: missing item prototype for item with id: %d", lootItem.itemid);
+				continue;
+			}
+			if (lootItem.is_looted)
+				continue;
+			lua_pushinteger(L, lootItem.itemid);
+			lua_seti(L, -2, idx);
+			++idx;
+		}
+	}
+	return 1;
+}
+
+
+int LuaBindsAI::Unit_GetLootRecipient(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	if (unit->IsCreature())
+	{
+		Creature* c = static_cast<Creature*>(unit);
+		Guid_CreateUD(L, c->GetLootRecipientGuid());
+	}
+	else
+		Guid_CreateUD(L);
+	return 1;
 }

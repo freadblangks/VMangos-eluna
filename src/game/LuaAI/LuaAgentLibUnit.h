@@ -52,11 +52,14 @@ namespace LuaBindsAI {
 
 	int Unit_IsAgent(lua_State* L);
 	int Unit_IsAlive(lua_State* L);
+	int Unit_IsDead(lua_State* L);
 	int Unit_IsInCombat(lua_State* L);
 	int Unit_IsNonMeleeSpellCasted(lua_State* L);
 	int Unit_IsNextSwingSpellCasted(lua_State* L);
 	int Unit_IsTanking(lua_State* L);
 
+	int Unit_GetBoundingRadius(lua_State* L);
+	int Unit_GetCombatReach(lua_State* L);
 	int Unit_GetCreatureChaseInfo(lua_State* L);
 	int Unit_GetDistance(lua_State* L);
 	int Unit_GetDistanceEx(lua_State* L);
@@ -83,6 +86,7 @@ namespace LuaBindsAI {
 	int Unit_GetMaxPower(lua_State* L);
 	int Unit_GetPowerType(lua_State* L);
 
+	int Unit_Kill(lua_State* L);
 	int Unit_SetHealth(lua_State* L);
 	int Unit_SetMaxHealth(lua_State* L);
 	int Unit_SetHealthPct(lua_State* L);
@@ -115,6 +119,7 @@ namespace LuaBindsAI {
 	// General info
 
 	int Unit_GetClass(lua_State* L);
+	int Unit_GetEntry(lua_State* L);
 	int Unit_GetGuid(lua_State* L);
 	int Unit_GetLevel(lua_State* L);
 	int Unit_GetName(lua_State* L);
@@ -140,6 +145,8 @@ namespace LuaBindsAI {
 
 	int Unit_CanUseObj(lua_State* L);
 	int Unit_UseObj(lua_State* L);
+	int Unit_GetLootList(lua_State* L);
+	int Unit_GetLootRecipient(lua_State* L);
 
 	static const struct luaL_Reg Unit_BindLib[]{
 		{"GetAI", Unit_GetAI},
@@ -170,11 +177,14 @@ namespace LuaBindsAI {
 		// Info
 		{"IsAgent", Unit_IsAgent},
 		{"IsAlive", Unit_IsAlive},
+		{"IsDead", Unit_IsDead},
 		{"IsInCombat", Unit_IsInCombat},
 		{"IsNonMeleeSpellCasted", Unit_IsNonMeleeSpellCasted},
 		{"IsNextSwingSpellCasted", Unit_IsNextSwingSpellCasted},
 		{"IsTanking", Unit_IsTanking},
-
+		
+		{"GetBoundingRadius", Unit_GetBoundingRadius},
+		{"GetCombatReach", Unit_GetCombatReach},
 		{"GetCreatureChaseInfo", Unit_GetCreatureChaseInfo},
 		{"GetDistance", Unit_GetDistance},
 		{"GetDistanceEx", Unit_GetDistanceEx},
@@ -201,6 +211,7 @@ namespace LuaBindsAI {
 		{"GetMaxPower", Unit_GetMaxPower},
 		{"GetPowerType", Unit_GetPowerType},
 
+		{"Kill", Unit_Kill},
 		{"SetHealth", Unit_SetHealth},
 		{"SetHealthPct", Unit_SetHealthPct},
 		{"SetMaxHealth", Unit_SetMaxHealth},
@@ -232,6 +243,7 @@ namespace LuaBindsAI {
 		
 		// General info
 		{"GetClass", Unit_GetClass},
+		{"GetEntry", Unit_GetEntry},
 		{"GetGuid", Unit_GetGuid},
 		{"GetLevel", Unit_GetLevel},
 		{"GetName", Unit_GetName},
@@ -255,6 +267,8 @@ namespace LuaBindsAI {
 		// Interactions
 		{"CanUseObj", Unit_CanUseObj},
 		{"UseObj", Unit_UseObj},
+		{"GetLootRecipient", Unit_GetLootRecipient},
+		{"GetLootList", Unit_GetLootList},
 
 		{NULL, NULL}
 	};
