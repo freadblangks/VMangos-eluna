@@ -1021,6 +1021,22 @@ int LuaBindsAI::Unit_GetAuraTimeLeft(lua_State* L) {
 }
 
 
+int LuaBindsAI::Unit_GetAuraTypeTimeLeft(lua_State* L) {
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_Integer auraTp = luaL_checkinteger(L, 2);
+	if (auraTp < 0 || auraTp >= AuraType::TOTAL_AURAS)
+		luaL_error(L, "Unit_GetAuraTypeTimeLeft: aura type %I doesn't exist", auraTp);
+	int timeleft = -1;
+	for (auto& it : unit->GetAurasByType(AuraType(auraTp)))
+	{
+		if (it->GetAuraDuration() > timeleft)
+			timeleft = it->GetAuraDuration();
+	}
+	lua_pushinteger(L, timeleft);
+	return 1;
+}
+
+
 int LuaBindsAI::Unit_GetDispelTbl(lua_State* L) {
 	Unit* unit = Unit_GetUnitObject(L);
 	bool positive = luaL_checkboolean(L, 2);
