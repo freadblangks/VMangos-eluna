@@ -31,13 +31,219 @@
 #include "GameObjectAI.h"
 #include "Geometry.h"
 #include "LuaAI/LuaAgent.h"
+#include "Spell.h"
+#include "ObjectPosSelector.h"
+#include "CellImpl.h"
+#include "GridNotifiers.h"
 
 namespace
 {
+
     bool IsFalling(Player* owner)
     {
         return owner && owner->IsLuaAgent() && owner->GetLuaAI() && owner->GetLuaAI()->IsFalling();
     }
+
+    class NearUsedPosDo
+    {
+    public:
+        NearUsedPosDo(WorldObject const& obj, float objX, float objY, WorldObject const* searcher, float angle, ObjectPosSelector& selector)
+            : i_object(obj), i_objectX(objX), i_objectY(objY), i_searcher(searcher), i_angle(angle), i_selector(selector) {}
+
+        void operator()(Corpse*) const {}
+        void operator()(DynamicObject*) const {}
+
+        void operator()(Unit* c) const {}
+        void operator()(Creature* c) const {}
+        void operator()(Player* c) const {}
+
+        template<class T>
+        void operator()(T* u) const
+        {
+            // skip self or target
+            if (u == i_searcher || u == &i_object)
+                return;
+
+            float x, y;
+
+            x = u->GetPositionX();
+            y = u->GetPositionY();
+
+            add(u, x, y);
+        }
+
+        // we must add used pos that can fill places around center
+        void add(WorldObject* u, float x, float y) const
+        {
+            // u is too nearest/far away to i_object
+            if (!Geometry::IsInRange2D(i_objectX, i_objectY, x, y, i_selector.m_dist - i_selector.m_size + i_object.GetObjectBoundingRadius(), i_selector.m_dist + i_selector.m_size + i_object.GetObjectBoundingRadius()))
+                return;
+
+            float angle = Geometry::GetAngle(i_objectX, i_objectY, u->GetPositionX(), u->GetPositionY()) - i_angle;
+
+            // move angle to range -pi ... +pi
+            angle = MapManager::NormalizeOrientation(angle);
+
+            // dist include size of u
+            float dist2d = std::max(Geometry::GetDistance2D(i_objectX, i_objectY, x, y) - i_object.GetObjectBoundingRadius(), 0.0f);
+            i_selector.AddUsedPos(u->GetObjectBoundingRadius(), angle, dist2d + i_object.GetObjectBoundingRadius());
+        }
+    private:
+        WorldObject const& i_object;
+        float i_objectX;
+        float i_objectY;
+        WorldObject const* i_searcher;
+        float              i_angle;
+        ObjectPosSelector& i_selector;
+    };
+
+    void GetNearPointAroundPosition(WorldObject& me, WorldObject const* searcher, float& x, float& y, float& z, float searcher_bounding_radius, float distance2d, float absAngle)
+    {
+        float startX = x;
+        float startY = y;
+        float startZ = z;
+
+        me.GetNearPoint2DAroundPosition(startX, startY, x, y, distance2d + searcher_bounding_radius, absAngle);
+
+        // if detection disabled, return first point
+        if (!sWorld.getConfig(CONFIG_BOOL_DETECT_POS_COLLISION))
+        {
+            if (searcher)
+                searcher->UpdateAllowedPositionZ(x, y, z);      // update to LOS height if available
+            else
+                me.UpdateGroundPositionZ(x, y, z);
+            return;
+        }
+
+        // or remember first point
+        float first_x = x;
+        float first_y = y;
+        bool first_los_conflict = false;                        // first point LOS problems
+
+        // prepare selector for work
+        ObjectPosSelector selector(startX, startY, me.GetObjectBoundingRadius(), distance2d + searcher_bounding_radius);
+
+        // adding used positions around object
+        {
+            NearUsedPosDo u_do(me, startX, startY, searcher, absAngle, selector);
+            MaNGOS::WorldObjectWorker<NearUsedPosDo> worker(u_do);
+
+            Cell::VisitAllObjects(&me, worker, distance2d);
+        }
+
+        // maybe can just place in primary position
+        if (selector.CheckOriginal())
+        {
+            if (searcher)
+                searcher->UpdateAllowedPositionZ(x, y, z);      // update to LOS height if available
+            else
+                me.UpdateGroundPositionZ(x, y, z);
+
+            if (me.IsWithinLOSAtPosition(startX, startY, startZ, x, y, z))
+                return;
+
+            first_los_conflict = true;                          // first point have LOS problems
+        }
+
+        float angle;                                            // candidate of angle for free pos
+
+        // special case when one from list empty and then empty side preferred
+        if (selector.FirstAngle(angle))
+        {
+            me.GetNearPoint2DAroundPosition(startX, startY, x, y, distance2d, absAngle + angle);
+            z = startZ;
+
+            if (searcher)
+                searcher->UpdateAllowedPositionZ(x, y, z);      // update to LOS height if available
+            else
+                me.UpdateGroundPositionZ(x, y, z);
+
+            if (me.IsWithinLOSAtPosition(startX, startY, startZ, x, y, z))
+                return;
+        }
+
+        // set first used pos in lists
+        selector.InitializeAngle();
+
+        // select in positions after current nodes (selection one by one)
+        while (selector.NextAngle(angle))                       // angle for free pos
+        {
+            me.GetNearPoint2DAroundPosition(startX, startY, x, y, distance2d, absAngle + angle);
+            z = startZ;
+
+            if (searcher)
+                searcher->UpdateAllowedPositionZ(x, y, z);      // update to LOS height if available
+            else
+                me.UpdateGroundPositionZ(x, y, z);
+
+            if (me.IsWithinLOSAtPosition(startX, startY, startZ, x, y, z))
+                return;
+        }
+
+        // BAD NEWS: not free pos (or used or have LOS problems)
+        // Attempt find _used_ pos without LOS problem
+
+        if (!first_los_conflict)
+        {
+            x = first_x;
+            y = first_y;
+
+            if (searcher)
+                searcher->UpdateAllowedPositionZ(x, y, z);      // update to LOS height if available
+            else
+                me.UpdateGroundPositionZ(x, y, z);
+
+            return;
+        }
+
+        // special case when one from list empty and then empty side preferred
+        if (selector.IsNonBalanced())
+        {
+            if (!selector.FirstAngle(angle))                    // _used_ pos
+            {
+                me.GetNearPoint2DAroundPosition(startX, startY, x, y, distance2d, absAngle + angle);
+                z = startZ;
+
+                if (searcher)
+                    searcher->UpdateAllowedPositionZ(x, y, z);      // update to LOS height if available
+                else
+                    me.UpdateGroundPositionZ(x, y, z);
+
+                if (me.IsWithinLOSAtPosition(startX, startY, startZ, x, y, z))
+                    return;
+            }
+        }
+
+        // set first used pos in lists
+        selector.InitializeAngle();
+
+        // select in positions after current nodes (selection one by one)
+        while (selector.NextUsedAngle(angle))                   // angle for used pos but maybe without LOS problem
+        {
+            me.GetNearPoint2DAroundPosition(startX, startY, x, y, distance2d, absAngle + angle);
+            z = startZ;
+
+            if (searcher)
+                searcher->UpdateAllowedPositionZ(x, y, z);      // update to LOS height if available
+            else
+                me.UpdateGroundPositionZ(x, y, z);
+
+            if (me.IsWithinLOSAtPosition(startX, startY, startZ, x, y, z))
+                return;
+        }
+
+        // BAD BAD NEWS: all found pos (free and used) have LOS problem :(
+        x = first_x;
+        y = first_y;
+
+        if (searcher)
+            searcher->UpdateAllowedPositionZ(x, y, z);          // update to LOS height if available
+        else
+            me.UpdateGroundPositionZ(x, y, z);
+    }
+
+
+
 }
 
 //-----------------------------------------------//
@@ -147,12 +353,12 @@ void LuaAITargetedMovementGeneratorMedium<T, D>::_setTargetLocation(T &owner)
                     dMin = 0.00001f;
                 // closest allowed if too close, offset if too far, and same distance if correcting angle only
                 if (D < dMin)
-                    offset = dMin + .1f;
+                    offset = m_fOffset - m_offsetMin + .1f;
                 else if (D > dMax)
                     offset = m_fOffset;
                 else
                     offset = D;
-                i_target->GetNearPointAroundPosition(&owner, x, y, z, owner.GetObjectBoundingRadius(), offset, angle);
+                GetNearPointAroundPosition(*i_target.getTarget(), &owner, x, y, z, owner.GetObjectBoundingRadius(), offset, angle);
             }
             else
                 i_target->GetNearPointAroundPosition(&owner, x, y, z, owner.GetObjectBoundingRadius(), m_fOffset, o + m_fAngle);
@@ -173,6 +379,22 @@ void LuaAITargetedMovementGeneratorMedium<T, D>::_setTargetLocation(T &owner)
 
     PathType pathType = path.getPathType();
     m_bReachable = pathType & (PATHFIND_NORMAL | PATHFIND_DEST_FORCED);
+
+    if (false) {
+        float ax, ay, az, px, py, pz;
+        path.getActualEndPosition(ax, ay, az);
+        path.getEndPosition(px, py, pz);
+        float d2a = Geometry::GetDistance3D(ax, ay, az, px, py, pz);
+        float d2e = Geometry::GetDistance3D(owner.GetPosition(), Vector3(x, y, z));
+        printf("%s: Path L,T (%.2f, %d) x,y,z (%.2f,%.2f,%.2f) path a/f (%.2f,%.2f,%.2f) (%.2f,%.2f,%.2f) D(%.2f,%.2f)\n",
+            owner.GetName(), path.Length(), int(pathType), x, y, z, ax, ay, az, px, py, pz, d2a, d2e);
+        auto entry = sSpellMgr.GetSpellEntry(19821);
+        Spell* spell = new Spell(&owner, entry, true);
+        SpellCastTargets targets;
+        targets.setDestination(x, y, z);
+        spell->prepare(std::move(targets));
+        owner.RemoveSpellCooldown(*entry, false);
+    }
     
     if (!petFollowing)
     {
@@ -345,9 +567,17 @@ bool LuaAIChaseMovementGenerator<T>::IsDistBad(T& owner, bool mutualChase)
     //float angleDiff = std::abs(relAngle - m_fAngle);
     //angleDiff = std::min(angleDiff, (float) (M_PI) * 2 - angleDiff);
     //printf("Dist = %.3f dMax = %.3f dMin = %.3f dReq = %.3f Angle = %.3f adiff = %.3f aReq = %.3f aT = %.3f\n", distanceToTarget, dMax, dMin, combinedBoundingRadius, relAngle, angleDiff, m_fAngle, m_angleT);
+
+    // min dist for path finder is 0.4
+    if (distanceToTarget > dMax)
+        return distanceToTarget - m_fOffset > 0.4f;
+
+    if (distanceToTarget < dMin)
+        return dMin + .1f - distanceToTarget > 0.4f;
+
     if (m_fOffset != .0f)
-        return distanceToTarget > dMax || distanceToTarget < dMin || !i_target->IsWithinLOSInMap(&owner);
-    return distanceToTarget > dMax || distanceToTarget < dMin;
+        return !i_target->IsWithinLOSInMap(&owner);
+    return false;
 }
 
 template<class T>
