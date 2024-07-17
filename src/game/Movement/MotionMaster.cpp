@@ -955,7 +955,7 @@ void Creature::PauseOutOfCombatMovement(uint32 pauseTime)
     }
 }
 
-void MotionMaster::LuaAIMoveChase(Unit* target, float dist, float distMin, float distMax, float angle, float angleT, float noMinOffsetIfMutual, bool useAngle)
+void MotionMaster::LuaAIMoveChase(Unit* target, float dist, float distMin, float distMax, float angle, float angleT, float noMinOffsetIfMutual, bool useAngle, bool isRanged)
 {
     // ignore movement request if target not exist
     if (!target)
@@ -963,7 +963,7 @@ void MotionMaster::LuaAIMoveChase(Unit* target, float dist, float distMin, float
 
     DEBUG_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS, "%s chase to %s", m_owner->GetGuidStr().c_str(), target->GetGuidStr().c_str());
 
-    Mutate(new LuaAIChaseMovementGenerator<Player>(*target, dist, distMin, distMax, angle, angleT, noMinOffsetIfMutual, useAngle));
+    Mutate(new LuaAIChaseMovementGenerator<Player>(*target, dist, distMin, distMax, angle, angleT, noMinOffsetIfMutual, useAngle, isRanged));
 }
 
 void MotionMaster::LuaAIMoveFollow(Unit* target, float dist, float angle)

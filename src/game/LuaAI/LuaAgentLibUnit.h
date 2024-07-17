@@ -58,6 +58,7 @@ namespace LuaBindsAI {
 	int Unit_IsNextSwingSpellCasted(lua_State* L);
 	int Unit_IsTanking(lua_State* L);
 
+	int Unit_GetAngle(lua_State* L);
 	int Unit_GetBoundingRadius(lua_State* L);
 	int Unit_GetCombatReach(lua_State* L);
 	int Unit_GetCreatureChaseInfo(lua_State* L);
@@ -184,6 +185,7 @@ namespace LuaBindsAI {
 		{"IsNextSwingSpellCasted", Unit_IsNextSwingSpellCasted},
 		{"IsTanking", Unit_IsTanking},
 		
+		{"GetAngle", Unit_GetAngle},
 		{"GetBoundingRadius", Unit_GetBoundingRadius},
 		{"GetCombatReach", Unit_GetCombatReach},
 		{"GetCreatureChaseInfo", Unit_GetCreatureChaseInfo},

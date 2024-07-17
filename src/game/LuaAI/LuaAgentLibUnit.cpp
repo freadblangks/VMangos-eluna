@@ -536,6 +536,15 @@ int LuaBindsAI::Unit_IsTanking(lua_State* L)
 }
 
 
+int LuaBindsAI::Unit_GetAngle(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	Unit* unit2 = Unit_GetUnitObject(L, 2);
+	lua_pushnumber(L, unit->GetAngle(unit2));
+	return 1;
+}
+
+
 int LuaBindsAI::Unit_GetBoundingRadius(lua_State* L)
 {
 	Unit* unit = Unit_GetUnitObject(L);
@@ -1253,7 +1262,8 @@ int LuaBindsAI::Unit_MoveChase(lua_State* L)
 	double angleT = luaL_checknumber(L, 7);
 	bool noMinOffsetIfMutual = luaL_checkboolean(L, 8);
 	bool useAngle = luaL_checkboolean(L, 9);
-	unit->GetMotionMaster()->LuaAIMoveChase(target, offset, offsetMin, offsetMax, angle, angleT, noMinOffsetIfMutual, useAngle);
+	bool isRanged = luaL_checkboolean(L, 10);
+	unit->GetMotionMaster()->LuaAIMoveChase(target, offset, offsetMin, offsetMax, angle, angleT, noMinOffsetIfMutual, useAngle, isRanged);
 	return 0;
 }
 

@@ -97,7 +97,7 @@ namespace
         ObjectPosSelector& i_selector;
     };
 
-    void GetNearPointAroundPosition(WorldObject& me, WorldObject const* searcher, float& x, float& y, float& z, float searcher_bounding_radius, float distance2d, float absAngle)
+    void GetNearPointAroundPositionA(WorldObject& me, WorldObject const* searcher, float& x, float& y, float& z, float searcher_bounding_radius, float distance2d, float absAngle)
     {
         float startX = x;
         float startY = y;
@@ -242,7 +242,52 @@ namespace
             me.UpdateGroundPositionZ(x, y, z);
     }
 
+    void Path_CutPathToD(PathInfo& path, WorldObject* target, float d)
+    {
+        if (path.getPathType() & PathType::PATHFIND_NOPATH)
+            return;
 
+        Movement::PointsArray& points = const_cast<Movement::PointsArray&>(path.getPath());
+        // search for the cut position
+        for (size_t i = 1; i < points.size(); ++i)
+        {
+            if (target->IsWithinDist3d(points[i].x, points[i].y, points[i].z, d, SizeFactor::None) &&
+                target->IsWithinLOS(points[i].x, points[i].y, points[i].z))
+            {
+                Vector3 startPoint = points[i - 1];
+                Vector3 endPoint = points[i];
+                Vector3 dirVect = endPoint - startPoint;
+                float targetDist1 = target->GetDistance(points[i].x, points[i].y, points[i].z, SizeFactor::None);
+                float targetDist2 = target->GetDistance(points[i - 1].x, points[i - 1].y, points[i - 1].z, SizeFactor::None);
+                if ((targetDist2 > targetDist1) && (targetDist2 > d))
+                {
+                    float directionLength = sqrt(dirVect.squaredLength());
+                    float step = .5f;
+                    float curD = step; // limit loop
+                    Vector3 dir = dirVect / directionLength * step;
+
+                    while (curD < directionLength)
+                    {
+                        startPoint += dir;
+                        curD += step;
+                        if (target->IsWithinDist3d(startPoint.x, startPoint.y, startPoint.z, d, SizeFactor::None) &&
+                            target->IsWithinLOS(startPoint.x, startPoint.y, startPoint.z))
+                        {
+                            points[i] = startPoint;
+                            points.resize(i + 1);
+                            return;
+                        }
+                    }
+                }
+
+                if (target->IsWithinDist3d(startPoint.x, startPoint.y, startPoint.z, d, SizeFactor::None) &&
+                    target->IsWithinLOS(startPoint.x, startPoint.y, startPoint.z))
+                    points[i] = startPoint;
+                points.resize(i + 1);
+                return;
+            }
+        }
+    }
 
 }
 
@@ -342,23 +387,27 @@ void LuaAITargetedMovementGeneratorMedium<T, D>::_setTargetLocation(T &owner)
                 }
                 else
                     angle = i_target->GetAngle(&owner);
-                float offset;
-                float combinedBoundingRadius = i_target->GetObjectBoundingRadius() + owner.GetObjectBoundingRadius();
-                float D = i_target->GetDistance(&owner, SizeFactor::None);
+                if (!m_bIsRanged)
+                {
+                    float offset;
+                    float combinedBoundingRadius = i_target->GetObjectBoundingRadius() + owner.GetObjectBoundingRadius();
+                    float D = i_target->GetDistance(&owner, SizeFactor::None);
 
-                float dMin = m_fOffset + combinedBoundingRadius - m_offsetMin;
-                float dMax = m_fOffset + combinedBoundingRadius + m_offsetMax;
+                    float dMin = m_fOffset + combinedBoundingRadius - m_offsetMin;
+                    float dMax = m_fOffset + combinedBoundingRadius + m_offsetMax;
 
-                if (dMin < 0.00001f)
-                    dMin = 0.00001f;
-                // closest allowed if too close, offset if too far, and same distance if correcting angle only
-                if (D < dMin)
-                    offset = m_fOffset - m_offsetMin + .1f;
-                else if (D > dMax)
-                    offset = m_fOffset;
-                else
-                    offset = D;
-                GetNearPointAroundPosition(*i_target.getTarget(), &owner, x, y, z, owner.GetObjectBoundingRadius(), offset, angle);
+                    if (dMin < 0.00001f)
+                        dMin = 0.00001f;
+                    // closest allowed if too close, offset if too far, and same distance if correcting angle only
+                    if (D < dMin)
+                        offset = m_fOffset - m_offsetMin + .1f;
+                    else if (D > dMax)
+                        offset = m_fOffset;
+                    else
+                        offset = D;
+
+                    GetNearPointAroundPositionA(*i_target.getTarget(), &owner, x, y, z, owner.GetObjectBoundingRadius(), offset, angle);
+                }
             }
             else
                 i_target->GetNearPointAroundPosition(&owner, x, y, z, owner.GetObjectBoundingRadius(), m_fOffset, o + m_fAngle);
@@ -386,8 +435,8 @@ void LuaAITargetedMovementGeneratorMedium<T, D>::_setTargetLocation(T &owner)
         path.getEndPosition(px, py, pz);
         float d2a = Geometry::GetDistance3D(ax, ay, az, px, py, pz);
         float d2e = Geometry::GetDistance3D(owner.GetPosition(), Vector3(x, y, z));
-        printf("%s: Path L,T (%.2f, %d) x,y,z (%.2f,%.2f,%.2f) path a/f (%.2f,%.2f,%.2f) (%.2f,%.2f,%.2f) D(%.2f,%.2f)\n",
-            owner.GetName(), path.Length(), int(pathType), x, y, z, ax, ay, az, px, py, pz, d2a, d2e);
+        printf("%s: Path L,T (%.2f, %d) x,y,z (%.2f,%.2f,%.2f) path a/f (%.2f,%.2f,%.2f) (%.2f,%.2f,%.2f) D(%.2f,%.2f) %.2f\n",
+            owner.GetName(), path.Length(), int(pathType), x, y, z, ax, ay, az, px, py, pz, d2a, d2e, i_target->GetAngle(&owner));
         auto entry = sSpellMgr.GetSpellEntry(19821);
         Spell* spell = new Spell(&owner, entry, true);
         SpellCastTargets targets;
@@ -414,13 +463,8 @@ void LuaAITargetedMovementGeneratorMedium<T, D>::_setTargetLocation(T &owner)
         m_bReachable = true;
 
     m_bRecalculateTravel = false;
-    if (this->GetMovementGeneratorType() == CHASE_MOTION_TYPE && !transport && owner.HasDistanceCasterMovement())
-        if (path.UpdateForCaster(i_target.getTarget(), owner.GetMinChaseDistance(i_target.getTarget())))
-        {
-            if (!owner.movespline->Finalized())
-                owner.StopMoving();
-            return;
-        }
+    if (this->GetMovementGeneratorType() == CHASE_MOTION_TYPE && !transport && m_bIsRanged)
+        Path_CutPathToD(path, i_target.getTarget(), m_fOffset + i_target->GetObjectBoundingRadius() + owner.GetObjectBoundingRadius());
 
     // Try to prevent redundant micro-moves
     float pathLength = path.Length();
@@ -976,6 +1020,14 @@ bool LuaAIFollowMovementGenerator<T>::Update(T &owner, uint32 const&  time_diff)
             {
                 m_bRecalculateTravel = true;
                 owner.GetMotionMaster()->SetNeedAsyncUpdate();
+            }
+            else
+            {
+                if (!owner.movespline->Finalized())
+                {
+                    owner.movespline->_Interrupt();
+                    interrupted = true;
+                }
             }
         }
     }

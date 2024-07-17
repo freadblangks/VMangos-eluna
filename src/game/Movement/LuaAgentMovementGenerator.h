@@ -59,6 +59,7 @@ class LuaAITargetedMovementGeneratorMedium
 
         float m_offsetMin{0.f};
         float m_offsetMax{0.f};
+        bool m_bIsRanged{false};
         bool m_noMinOffsetIfMutual{false};
         bool m_bUseAngle{true};
         bool m_bUseAbsAngle{false};
@@ -79,7 +80,7 @@ template<class T>
 class LuaAIChaseMovementGenerator : public LuaAITargetedMovementGeneratorMedium<T, LuaAIChaseMovementGenerator<T> >
 {
     public:
-        LuaAIChaseMovementGenerator(Unit &target, float offset, float offsetMin, float offsetMax, float angle, float angleT, bool noMinOffsetIfMutual, bool useAngle)
+        LuaAIChaseMovementGenerator(Unit &target, float offset, float offsetMin, float offsetMax, float angle, float angleT, bool noMinOffsetIfMutual, bool useAngle, bool isRanged)
             : LuaAITargetedMovementGeneratorMedium<T, LuaAIChaseMovementGenerator<T> >(target, offset, angle),
             m_angleT(angleT)
         {
@@ -87,6 +88,7 @@ class LuaAIChaseMovementGenerator : public LuaAITargetedMovementGeneratorMedium<
             m_offsetMin = offsetMin != 0.f ? offsetMin : .2f;
             m_noMinOffsetIfMutual = noMinOffsetIfMutual;
             m_bUseAngle = useAngle;
+            m_bIsRanged = isRanged;
         }
         ~LuaAIChaseMovementGenerator() noexcept {}
 
