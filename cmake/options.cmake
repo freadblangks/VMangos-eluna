@@ -2,6 +2,7 @@
 # Generic boolean options
 option(BUILD_FOR_HOST_CPU             "Build specifically for the host CPU via `-march=native` (might not run on different machines)" ON)
 option(USE_SCRIPTS                    "Build scripts"                                                                                 ON)
+option(SCRIPT_LIB_ELUNA               "Build Eluna LUA Script Engine"                                                                 ON)
 option(USE_EXTRACTORS                 "Build extractors"                                                                              OFF)
 option(USE_REALMMERGE                 "Build helper tool for merging character databases"                                             OFF)
 option(ENABLE_MAILSENDER              "Enables support for sending emails via sendgrid.com (requires libcurl)"                        OFF)
@@ -56,6 +57,7 @@ message(STATUS
     USE_PCH_OLD               Use precompiled headers
     BUILD_FOR_HOST_CPU        Build specifically for the host CPU via `-march=native` (might not run on different machines)
     USE_SCRIPTS               Build scripts
+    SCRIPT_LIB_ELUNA          Build Eluna LUA Script Engine
     USE_EXTRACTORS            Build extractors
     USE_REALMMERGE            Build helper tool for merging character databases
     ENABLE_MAILSENDER         Enables support for sending emails via sendgrid.com (requires libcurl)
