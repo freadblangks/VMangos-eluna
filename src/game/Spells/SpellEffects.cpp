@@ -517,6 +517,14 @@ void Spell::EffectSchoolDMG(SpellEffectIndex effect_idx)
                     damage += pPlayer->GetPower(POWER_ENERGY) * m_spellInfo->DmgMultiplier[effect_idx];
                     pPlayer->SetPower(POWER_ENERGY, 0);
                 }
+                // Swipe
+                else if (m_spellInfo->Id == 779 || m_spellInfo->Id == 780 || m_spellInfo->Id == 769 || m_spellInfo->Id == 9754 || m_spellInfo->Id == 9908)
+                    // DRUID - Swipe : damage bonus 7.5% armor
+                    damage = damage + (m_casterUnit->GetArmor() * 0.075f);
+                // Rake
+                else if (m_spellInfo->Id == 1822 || m_spellInfo->Id == 1823 || m_spellInfo->Id == 1824 || m_spellInfo->Id == 9904)
+                    // DRUID - Rake : damage bonus 5% attack power
+                    damage = damage + (m_casterUnit->GetTotalAttackPowerValue(BASE_ATTACK) * 0.05f);
                 break;
             }
             case SPELLFAMILY_ROGUE:
@@ -536,7 +544,17 @@ void Spell::EffectSchoolDMG(SpellEffectIndex effect_idx)
                 break;
             }
             case SPELLFAMILY_HUNTER:
+            {
+                // Counterattack
+                if (m_spellInfo->Id == 19306 || m_spellInfo->Id == 20909 || m_spellInfo->Id == 20910)
+                    // HUNTER - Counterattack : damage bonus 35% attack power
+                    damage = damage + (m_casterUnit->GetTotalAttackPowerValue(BASE_ATTACK) * 0.35f);
+                // Mongoose Bite
+                else if (m_spellInfo->Id == 1495 || m_spellInfo->Id == 14269 || m_spellInfo->Id == 14270 || m_spellInfo->Id == 14271)
+                    // HUNTER - Mongoose Bite : damage bonus 50% attack power
+                    damage = damage + (m_casterUnit->GetTotalAttackPowerValue(BASE_ATTACK) * 0.5f);
                 break;
+            }
             case SPELLFAMILY_PALADIN:
             {
                 // Hammer of Wrath - receive bonus from spell damage

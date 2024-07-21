@@ -4642,6 +4642,12 @@ float Aura::CalculateDotDamage() const
                     damage += caster->GetTotalAttackPowerValue(BASE_ATTACK) * cp / 100;
                 }
             }
+            // Rake
+            else if (spellProto->Id == 1822 || spellProto->Id == 1823 || spellProto->Id == 1824 || spellProto->Id == 9904)
+            {
+                // 0.03 * AP per trigger
+                damage = damage + (caster->GetTotalAttackPowerValue(BASE_ATTACK) * 0.03f);
+            }
 #endif
             break;
         }
