@@ -441,8 +441,11 @@ void Spell::EffectSchoolDMG(SpellEffectIndex effect_idx)
                 // Shield Slam
                 else if (m_spellInfo->IsFitToFamilyMask<CF_WARRIOR_SHIELD_SLAM>())
                     // Warrior - Shield Slam : damage bonus 20% max health
-                    //damage += m_casterUnit->GetShieldBlockValue() * 2;
                     damage = damage + m_casterUnit->GetShieldBlockValue() + (m_casterUnit->GetMaxHealth() * 0.2f);
+                // Revenge
+                else if (m_spellInfo->IsFitToFamilyMask<CF_WARRIOR_REVENGE>())
+                    // Warrior - Revenge : damage bonus 15% armor
+                    damage = damage + (m_casterUnit->GetArmor() * 0.15f);
                 // Execute trigger
                 else if (m_spellInfo->Id == 20647)
                     m_casterUnit->SetPower(POWER_RAGE, 0);
