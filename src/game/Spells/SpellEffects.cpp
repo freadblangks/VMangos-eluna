@@ -440,12 +440,12 @@ void Spell::EffectSchoolDMG(SpellEffectIndex effect_idx)
                 }
                 // Shield Slam
                 else if (m_spellInfo->IsFitToFamilyMask<CF_WARRIOR_SHIELD_SLAM>())
-                    // Warrior - Shield Slam : damage bonus 20% max health
-                    damage = damage + m_casterUnit->GetShieldBlockValue() + (m_casterUnit->GetMaxHealth() * 0.2f);
+                    // Warrior - Shield Slam : damage bonus 15% max health
+                    damage = damage + m_casterUnit->GetShieldBlockValue() + (m_casterUnit->GetMaxHealth() * 0.15f);
                 // Revenge
                 else if (m_spellInfo->IsFitToFamilyMask<CF_WARRIOR_REVENGE>())
-                    // Warrior - Revenge : damage bonus 15% armor
-                    damage = damage + (m_casterUnit->GetArmor() * 0.15f);
+                    // Warrior - Revenge : damage bonus 10% armor
+                    damage = damage + (m_casterUnit->GetArmor() * 0.1f);
                 // Execute trigger
                 else if (m_spellInfo->Id == 20647)
                     m_casterUnit->SetPower(POWER_RAGE, 0);
@@ -519,8 +519,8 @@ void Spell::EffectSchoolDMG(SpellEffectIndex effect_idx)
                 }
                 // Swipe
                 else if (m_spellInfo->Id == 779 || m_spellInfo->Id == 780 || m_spellInfo->Id == 769 || m_spellInfo->Id == 9754 || m_spellInfo->Id == 9908)
-                    // DRUID - Swipe : damage bonus 7.5% armor
-                    damage = damage + (m_casterUnit->GetArmor() * 0.075f);
+                    // DRUID - Swipe : damage bonus 3% armor
+                    damage = damage + (m_casterUnit->GetArmor() * 0.03f);
                 // Rake
                 else if (m_spellInfo->Id == 1822 || m_spellInfo->Id == 1823 || m_spellInfo->Id == 1824 || m_spellInfo->Id == 9904)
                     // DRUID - Rake : damage bonus 5% attack power
@@ -777,8 +777,8 @@ void Spell::EffectDummy(SpellEffectIndex effIdx)
                 {
                     if (m_caster->GetTypeId() != TYPEID_PLAYER)
                         return;
-                    // Stoneform : restore hp based on armor (0.1*armor per second)
-                    static_cast<Player*>(m_caster)->CastCustomSpell(static_cast<Player*>(m_caster), 34198, static_cast<uint32>(static_cast<Player*>(m_caster)->GetArmor() * 0.1f), {}, {}, true);
+                    // Stoneform : restore hp based on armor (0.05*armor per second)
+                    static_cast<Player*>(m_caster)->CastCustomSpell(static_cast<Player*>(m_caster), 34198, static_cast<uint32>(static_cast<Player*>(m_caster)->GetArmor() * 0.05f), {}, {}, true);
                     return;
                 }
                 case 8344: // Universal Remote
