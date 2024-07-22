@@ -2692,6 +2692,16 @@ void Player::RewardRage(uint32 damage, bool attacker)
     }
     else
     {
+        //JieFuFuTi(34001) taken damage
+        if (HasAura(34001))
+        {
+            uint32 jiefufuti = sWorld.getConfig(CONFIG_UINT32_BUFF_JIEFUFUTI);
+            if (jiefufuti > 99)
+                jiefufuti = 99;
+            if (GetLevel() < 60 && GetQuestStatus(10000) == QUEST_STATUS_COMPLETE)
+                jiefufuti = 0;
+            damage *= dither((100.0f / (100.0f - jiefufuti)));
+        }
         addRage = damage / rageconversion * 2.5f;
 
         // Berserker Rage effect
