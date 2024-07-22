@@ -520,9 +520,9 @@ void Spell::EffectSchoolDMG(SpellEffectIndex effect_idx)
                 // Swipe
                 else if (m_spellInfo->Id == 779 || m_spellInfo->Id == 780 || m_spellInfo->Id == 769 || m_spellInfo->Id == 9754 || m_spellInfo->Id == 9908)
                 {
-                    // DRUID - Swipe : damage bonus 2.5% armor
+                    // DRUID - Swipe : damage bonus 2.5% self and target armor
                     if (unitTarget)
-                        damage = damage + ((m_casterUnit->GetArmor() + unitTarget->GetArmor()) * 0.025f);
+                        damage += (m_casterUnit->GetArmor() + (unitTarget->GetArmor() > m_casterUnit->GetArmor() ? m_casterUnit->GetArmor() : unitTarget->GetArmor())) * 0.025f;
                 }
                 // Rake
                 else if (m_spellInfo->Id == 1822 || m_spellInfo->Id == 1823 || m_spellInfo->Id == 1824 || m_spellInfo->Id == 9904)
