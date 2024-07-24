@@ -550,12 +550,12 @@ void Spell::EffectSchoolDMG(SpellEffectIndex effect_idx)
             {
                 // Counterattack
                 if (m_spellInfo->Id == 19306 || m_spellInfo->Id == 20909 || m_spellInfo->Id == 20910)
-                    // HUNTER - Counterattack : damage bonus 35% attack power
-                    damage = damage + (m_casterUnit->GetTotalAttackPowerValue(BASE_ATTACK) * 0.35f);
+                    // HUNTER - Counterattack : damage bonus 45% attack power
+                    damage = damage + (m_casterUnit->GetTotalAttackPowerValue(BASE_ATTACK) * 0.45f);
                 // Mongoose Bite
                 else if (m_spellInfo->Id == 1495 || m_spellInfo->Id == 14269 || m_spellInfo->Id == 14270 || m_spellInfo->Id == 14271)
-                    // HUNTER - Mongoose Bite : damage bonus 50% attack power
-                    damage = damage + (m_casterUnit->GetTotalAttackPowerValue(BASE_ATTACK) * 0.5f);
+                    // HUNTER - Mongoose Bite : damage bonus 60% attack power
+                    damage = damage + (m_casterUnit->GetTotalAttackPowerValue(BASE_ATTACK) * 0.6f);
                 break;
             }
             case SPELLFAMILY_PALADIN:
