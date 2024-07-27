@@ -1569,7 +1569,7 @@ void Spell::DoAllEffectOnTarget(TargetInfo *target)
         {
             if (m_spellInfo->IsFitToFamilyMask<CF_PALADIN_FLASH_OF_LIGHT1>() || m_spellInfo->IsFitToFamilyMask<CF_PALADIN_HOLY_LIGHT1>() || m_spellInfo->IsFitToFamilyMask<CF_PALADIN_FLASH_OF_LIGHT2>() || m_spellInfo->IsFitToFamilyMask<CF_PALADIN_HOLY_LIGHT2>())
             {
-                unitTarget->CastCustomSpell(unitTarget, 34200, static_cast<uint32>(gain * 0.5f), {}, {}, true);
+                unitTarget->CastCustomSpell(unitTarget, 34200, static_cast<uint32>(addhealth * 0.5f), {}, {}, true);
             }
         }
 
