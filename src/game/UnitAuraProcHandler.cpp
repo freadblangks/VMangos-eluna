@@ -1255,14 +1255,6 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 amount, uint
                     }
                     break;
                 }
-                // Purification
-                case 34199:
-                {
-                    basepoints[0] = dither(triggerAmount * 0.5f);
-                    target = this;
-                    triggered_spell_id = 34200;
-                    break;
-                }
             }
             break;
         }
