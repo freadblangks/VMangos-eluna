@@ -440,9 +440,12 @@ void Spell::EffectSchoolDMG(SpellEffectIndex effect_idx)
                 }
                 // Shield Slam
                 else if (m_spellInfo->IsFitToFamilyMask<CF_WARRIOR_SHIELD_SLAM>())
-                    // Warrior - Shield Slam : damage bonus 20% max health
-                    //damage += m_casterUnit->GetShieldBlockValue() * 2;
-                    damage = damage + m_casterUnit->GetShieldBlockValue() + (m_casterUnit->GetMaxHealth() * 0.2f);
+                    // Warrior - Shield Slam : damage bonus 15% max health
+                    damage = damage + m_casterUnit->GetShieldBlockValue() + (m_casterUnit->GetMaxHealth() * 0.15f);
+                // Revenge
+                else if (m_spellInfo->IsFitToFamilyMask<CF_WARRIOR_REVENGE>())
+                    // Warrior - Revenge : damage bonus 10% armor
+                    damage = damage + (m_casterUnit->GetArmor() * 0.1f);
                 // Execute trigger
                 else if (m_spellInfo->Id == 20647)
                     m_casterUnit->SetPower(POWER_RAGE, 0);
@@ -514,6 +517,17 @@ void Spell::EffectSchoolDMG(SpellEffectIndex effect_idx)
                     damage += pPlayer->GetPower(POWER_ENERGY) * m_spellInfo->DmgMultiplier[effect_idx];
                     pPlayer->SetPower(POWER_ENERGY, 0);
                 }
+                // Swipe
+                else if (m_spellInfo->Id == 779 || m_spellInfo->Id == 780 || m_spellInfo->Id == 769 || m_spellInfo->Id == 9754 || m_spellInfo->Id == 9908)
+                {
+                    // DRUID - Swipe : damage bonus 2.5% self and target armor
+                    if (unitTarget)
+                        damage += (m_casterUnit->GetArmor() + (unitTarget->GetArmor() > m_casterUnit->GetArmor() ? m_casterUnit->GetArmor() : unitTarget->GetArmor())) * 0.025f;
+                }
+                // Rake
+                else if (m_spellInfo->Id == 1822 || m_spellInfo->Id == 1823 || m_spellInfo->Id == 1824 || m_spellInfo->Id == 9904)
+                    // DRUID - Rake : damage bonus 5% attack power
+                    damage = damage + (m_casterUnit->GetTotalAttackPowerValue(BASE_ATTACK) * 0.05f);
                 break;
             }
             case SPELLFAMILY_ROGUE:
@@ -533,7 +547,17 @@ void Spell::EffectSchoolDMG(SpellEffectIndex effect_idx)
                 break;
             }
             case SPELLFAMILY_HUNTER:
+            {
+                // Counterattack
+                if (m_spellInfo->Id == 19306 || m_spellInfo->Id == 20909 || m_spellInfo->Id == 20910)
+                    // HUNTER - Counterattack : damage bonus 45% attack power
+                    damage = damage + (m_casterUnit->GetTotalAttackPowerValue(BASE_ATTACK) * 0.45f);
+                // Mongoose Bite
+                else if (m_spellInfo->Id == 1495 || m_spellInfo->Id == 14269 || m_spellInfo->Id == 14270 || m_spellInfo->Id == 14271)
+                    // HUNTER - Mongoose Bite : damage bonus 60% attack power
+                    damage = damage + (m_casterUnit->GetTotalAttackPowerValue(BASE_ATTACK) * 0.6f);
                 break;
+            }
             case SPELLFAMILY_PALADIN:
             {
                 // Hammer of Wrath - receive bonus from spell damage
@@ -756,8 +780,8 @@ void Spell::EffectDummy(SpellEffectIndex effIdx)
                 {
                     if (m_caster->GetTypeId() != TYPEID_PLAYER)
                         return;
-                    // Stoneform : restore hp based on armor (0.1*armor per second)
-                    static_cast<Player*>(m_caster)->CastCustomSpell(static_cast<Player*>(m_caster), 34198, static_cast<uint32>(static_cast<Player*>(m_caster)->GetArmor() * 0.1f), {}, {}, true);
+                    // Stoneform : restore hp based on armor (0.05*armor per second)
+                    static_cast<Player*>(m_caster)->CastCustomSpell(static_cast<Player*>(m_caster), 34198, static_cast<uint32>(static_cast<Player*>(m_caster)->GetArmor() * 0.05f), {}, {}, true);
                     return;
                 }
                 case 8344: // Universal Remote

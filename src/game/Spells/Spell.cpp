@@ -1565,6 +1565,14 @@ void Spell::DoAllEffectOnTarget(TargetInfo *target)
 
         int32 gain = pCaster->DealHeal(unitTarget, addhealth, m_spellInfo, crit);
 
+        if (m_spellInfo->SpellFamilyName == SPELLFAMILY_PALADIN)
+        {
+            if (m_spellInfo->IsFitToFamilyMask<CF_PALADIN_FLASH_OF_LIGHT1>() || m_spellInfo->IsFitToFamilyMask<CF_PALADIN_HOLY_LIGHT1>() || m_spellInfo->IsFitToFamilyMask<CF_PALADIN_FLASH_OF_LIGHT2>() || m_spellInfo->IsFitToFamilyMask<CF_PALADIN_HOLY_LIGHT2>())
+            {
+                unitTarget->CastCustomSpell(unitTarget, 34200, static_cast<uint32>(addhealth * 0.5f), {}, {}, true);
+            }
+        }
+
         if (pRealUnitCaster)
         {
             float classThreatModifier = pRealUnitCaster->GetClass() == CLASS_PALADIN ? 0.25f : 0.5f;
@@ -3897,13 +3905,6 @@ void Spell::cancel()
 
 void Spell::cast(bool skipCheck)
 {
-    if (m_spellInfo->Id <= 0 || m_spellInfo->Id > MAX_SPELL_ID)
-        return;
-
-    SpellEntry const* spellInfo = sSpellMgr.GetSpellEntry(m_spellInfo->Id);
-    if (!spellInfo)
-        return;
-
     SetExecutedCurrently(true);
 
     if (!m_caster->CheckAndIncreaseCastCounter())
