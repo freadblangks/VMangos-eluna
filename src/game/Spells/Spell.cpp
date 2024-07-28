@@ -1574,7 +1574,7 @@ void Spell::DoAllEffectOnTarget(TargetInfo *target)
                 {
                     if (pRealUnitCaster->HasAura(34199))
                     {
-                        unitTarget->CastCustomSpell(unitTarget, 34200, static_cast<uint32>(addhealth * 0.5f), {}, {}, true);
+                        unitTarget->CastCustomSpell(unitTarget, 34200, static_cast<uint32>((addhealth + gain) * 0.25f), {}, {}, true);
                     }
                 }
             }
