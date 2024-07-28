@@ -790,7 +790,7 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 amount, uint
                     static_cast<Player*>(this)->RemoveSomeCooldown(cdCheck);
                     if (!pVictim)
                         return SPELL_AURA_PROC_FAILED;
-                    basepoints[0] = (dither(this->GetMaxHealth() * 0.5f) >= dither(pVictim->GetHealth() * 0.11f)) ? dither(pVictim->GetHealth() * 0.11f) : dither(this->GetMaxHealth() * 0.5f);
+                    basepoints[0] = (dither(this->GetMaxHealth() * 0.5f) >= dither(pVictim->GetHealth() * 0.12f)) ? dither(pVictim->GetHealth() * 0.12f) : dither(this->GetMaxHealth() * 0.5f);
                     target = pVictim;
                     triggered_spell_id = 34207;
                     break;                               // no hidden cooldown
