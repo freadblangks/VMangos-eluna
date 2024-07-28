@@ -1298,8 +1298,6 @@ float SpellCaster::SpellDamageBonusDone(Unit const* pVictim, SpellEntry const* s
         return pdamage;
     if (spellProto->HasAttribute(SPELL_ATTR_EX3_IGNORE_CASTER_MODIFIERS))
         return pdamage;
-    if (spellProto->Id == 34207)
-        return pdamage;
 
     // Ignite damage already includes modifiers
     if (spellProto->IsFitToFamily<SPELLFAMILY_MAGE, CF_MAGE_IGNITE>())
