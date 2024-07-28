@@ -781,6 +781,22 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 amount, uint
                     target = this;
                     break;
                 }
+                // Shaman: thundercloud
+                case 34206:
+                {
+                    if (this->GetTypeId() != TYPEID_PLAYER)
+                        return SPELL_AURA_PROC_FAILED;
+                    auto cdCheck = [](SpellEntry const & spellEntry) -> bool { return ((spellEntry.Id == 16166) && spellEntry.GetRecoveryTime() > 0); };
+                    static_cast<Player*>(this)->RemoveSomeCooldown(cdCheck);
+                    if (!pVictim)
+                        return SPELL_AURA_PROC_FAILED;
+                    uint8 ThundercloudTargetCount = this->GetEnemyCountInRadiusAround(pVictim, 10.0f);
+                    basepoints[0] = (dither(this->GetMaxHealth() * 0.5f) > dither(pVictim->GetHealth() * 0.02f * ThundercloudTargetCount)) ? dither(pVictim->GetHealth() * 0.02f * ThundercloudTargetCount) : dither(this->GetMaxHealth() * 0.5f);
+                    basepoints[1] = (dither(this->GetMaxHealth() * 0.5f) > dither(pVictim->GetHealth() * 0.02f * ThundercloudTargetCount)) ? dither(pVictim->GetHealth() * 0.02f * ThundercloudTargetCount) : dither(this->GetMaxHealth() * 0.5f);
+                    target = pVictim;
+                    triggered_spell_id = 34207;
+                    break;                               // no hidden cooldown
+                }
                 // Misha: echo slam
                 case 34195:
                 {
