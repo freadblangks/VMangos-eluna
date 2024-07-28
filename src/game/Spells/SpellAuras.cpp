@@ -4682,8 +4682,7 @@ float Aura::CalculateDotDamage() const
     {
         // SpellDamageBonusDone for magic spells
         if (spellProto->DmgClass == SPELL_DAMAGE_CLASS_NONE || spellProto->DmgClass == SPELL_DAMAGE_CLASS_MAGIC)
-            if (spellProto->Id != 34207)
-                damage = caster->SpellDamageBonusDone(target, GetSpellProto(), GetEffIndex(), damage, DOT, GetStackAmount());
+            damage = caster->SpellDamageBonusDone(target, GetSpellProto(), GetEffIndex(), damage, DOT, GetStackAmount());
         // MeleeDamagebonusDone for weapon based spells
         else
         {
