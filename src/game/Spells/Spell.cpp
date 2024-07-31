@@ -1565,16 +1565,20 @@ void Spell::DoAllEffectOnTarget(TargetInfo *target)
 
         int32 gain = pCaster->DealHeal(unitTarget, addhealth, m_spellInfo, crit);
 
-        if (m_spellInfo->SpellFamilyName == SPELLFAMILY_PALADIN)
-        {
-            if (m_spellInfo->IsFitToFamilyMask<CF_PALADIN_FLASH_OF_LIGHT1>() || m_spellInfo->IsFitToFamilyMask<CF_PALADIN_HOLY_LIGHT1>() || m_spellInfo->IsFitToFamilyMask<CF_PALADIN_FLASH_OF_LIGHT2>() || m_spellInfo->IsFitToFamilyMask<CF_PALADIN_HOLY_LIGHT2>())
-            {
-                unitTarget->CastCustomSpell(unitTarget, 34200, static_cast<uint32>(addhealth * 0.5f), {}, {}, true);
-            }
-        }
-
         if (pRealUnitCaster)
         {
+            // Purification
+            if (m_spellInfo->SpellFamilyName == SPELLFAMILY_PALADIN)
+            {
+                if (m_spellInfo->IsFitToFamilyMask<CF_PALADIN_FLASH_OF_LIGHT1>() || m_spellInfo->IsFitToFamilyMask<CF_PALADIN_HOLY_LIGHT1>() || m_spellInfo->IsFitToFamilyMask<CF_PALADIN_FLASH_OF_LIGHT2>() || m_spellInfo->IsFitToFamilyMask<CF_PALADIN_HOLY_LIGHT2>())
+                {
+                    if (pRealUnitCaster->HasAura(34199))
+                    {
+                        unitTarget->CastCustomSpell(unitTarget, 34200, static_cast<uint32>((addhealth + gain) * 0.25f), {}, {}, true);
+                    }
+                }
+            }
+
             float classThreatModifier = pRealUnitCaster->GetClass() == CLASS_PALADIN ? 0.25f : 0.5f;
             unitTarget->GetHostileRefManager().threatAssist(pRealUnitCaster, float(gain) * classThreatModifier * sSpellMgr.GetSpellThreatMultiplier(m_spellInfo), m_spellInfo);
         }

@@ -771,8 +771,8 @@ void Spell::EffectDummy(SpellEffectIndex effIdx)
                 {
                     if (m_caster->GetTypeId() != TYPEID_PLAYER)
                         return;
-                    // immediately finishes the cooldown on hunter's Feign Death/Deterrence/Scatter Shot
-                    auto cdCheck = [](SpellEntry const & spellEntry) -> bool { return ((spellEntry.Id == 5384 || spellEntry.Id == 19263 || spellEntry.Id == 19503) && spellEntry.GetRecoveryTime() > 0); };
+                    // immediately finishes the cooldown on hunter's Deterrence/Scatter Shot
+                    auto cdCheck = [](SpellEntry const & spellEntry) -> bool { return ((spellEntry.Id == 19263 || spellEntry.Id == 19503) && spellEntry.GetRecoveryTime() > 0); };
                     static_cast<Player*>(m_caster)->RemoveSomeCooldown(cdCheck);
                     return;
                 }
@@ -782,6 +782,24 @@ void Spell::EffectDummy(SpellEffectIndex effIdx)
                         return;
                     // Stoneform : restore hp based on armor (0.05*armor per second)
                     static_cast<Player*>(m_caster)->CastCustomSpell(static_cast<Player*>(m_caster), 34198, static_cast<uint32>(static_cast<Player*>(m_caster)->GetArmor() * 0.05f), {}, {}, true);
+                    return;
+                }
+                case 34202:
+                {
+                    if (m_caster->GetTypeId() != TYPEID_PLAYER)
+                        return;
+                    // immediately finishes the cooldown on druid's Innervate
+                    auto cdCheck = [](SpellEntry const & spellEntry) -> bool { return ((spellEntry.Id == 29166) && spellEntry.GetRecoveryTime() > 0); };
+                    static_cast<Player*>(m_caster)->RemoveSomeCooldown(cdCheck);
+                    return;
+                }
+                case 34204:
+                {
+                    if (m_caster->GetTypeId() != TYPEID_PLAYER)
+                        return;
+                    if (static_cast<Player*>(m_caster)->GetPowerType() != POWER_MANA)
+                        return;
+                    static_cast<Player*>(m_caster)->CastCustomSpell(static_cast<Player*>(m_caster), 34205, static_cast<uint32>(static_cast<Player*>(m_caster)->GetPower(POWER_MANA) * 0.1f), {}, {}, true);
                     return;
                 }
                 case 8344: // Universal Remote
