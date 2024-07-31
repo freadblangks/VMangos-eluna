@@ -242,12 +242,49 @@ namespace
             me.UpdateGroundPositionZ(x, y, z);
     }
 
+    float GetPointOnSegmentAtDFrom(Vector3& start, const Vector3& end, const Vector3& dest, const Vector3& unitDir, float segLen, float maxd)
+    {
+        float e = (end.y - start.y)/(end.x - start.x);
+        float f = start.y - e* start.x;
+
+        float a = 1 + e * e;
+        float b = 2 * e * f - 2 * dest.x - 2 * e * dest.y;
+        float c = dest.x * dest.x + f * f - 2 * dest.y * f + dest.y * dest.y - maxd * maxd;
+
+        // 2 possible points
+        float x1, x2, y1, y2, disc;
+        disc = sqrt(b * b - 4 * a * c);
+        x1 = (-b + disc) / 2 / a;
+        y1 = e * x1 + f;
+        x2 = (-b - disc) / 2 / a;
+        y2 = e * x2 + f;
+
+        // result is the point that lies on the [start,end] segment
+        float segLenSqr = segLen * segLen;
+        float segLen1Sqr = (x1 - start.x) * (x1 - start.x) + (y1 - start.y) * (y1 - start.y);
+        float segLen2Sqr = (x1 - end.x) * (x1 - end.x) + (y1 - end.y) * (y1 - end.y);
+        if (segLen1Sqr < segLenSqr && segLen2Sqr < segLenSqr)
+        {
+            start.x = x1;
+            start.y = y1;
+        }
+        else
+        {
+            start.x = x2;
+            start.y = y2;
+            segLen1Sqr = (x2 - start.x) * (x2 - start.x) + (y2 - start.y) * (y2 - start.y);
+        }
+        start.z += unitDir.z * (segLen * (segLen1Sqr / segLenSqr));
+        return segLen * (segLen1Sqr / segLenSqr);
+    }
+
     void Path_CutPathToD(PathInfo& path, WorldObject* target, float d)
     {
         if (path.getPathType() & PathType::PATHFIND_NOPATH)
             return;
 
         Movement::PointsArray& points = const_cast<Movement::PointsArray&>(path.getPath());
+        Vector3 dest(target->GetPositionX(), target->GetPositionY(), target->GetPositionZ());
         // search for the cut position
         for (size_t i = 1; i < points.size(); ++i)
         {
@@ -261,15 +298,15 @@ namespace
                 float targetDist2 = target->GetDistance(points[i - 1].x, points[i - 1].y, points[i - 1].z, SizeFactor::None);
                 if ((targetDist2 > targetDist1) && (targetDist2 > d))
                 {
-                    float directionLength = sqrt(dirVect.squaredLength());
+                    float directionLength = dirVect.length();
                     float step = .5f;
-                    float curD = step; // limit loop
-                    Vector3 dir = dirVect / directionLength * step;
+                    //float curD = step;
+                    Vector3 dir = dirVect / directionLength;
+                    float curD = GetPointOnSegmentAtDFrom(startPoint, endPoint, dest, dir, directionLength, d);
+                    dir *= step;
 
                     while (curD < directionLength)
                     {
-                        startPoint += dir;
-                        curD += step;
                         if (target->IsWithinDist3d(startPoint.x, startPoint.y, startPoint.z, d, SizeFactor::None) &&
                             target->IsWithinLOS(startPoint.x, startPoint.y, startPoint.z))
                         {
@@ -277,6 +314,8 @@ namespace
                             points.resize(i + 1);
                             return;
                         }
+                        startPoint += dir;
+                        curD += step;
                     }
                 }
 
