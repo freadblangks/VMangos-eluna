@@ -79,7 +79,7 @@ WorldSession::WorldSession(uint32 id, WorldSocket *sock, AccountTypes sec, time_
     m_exhaustionState(0), m_createTime(time(nullptr)), m_previousPlayTime(0), m_logoutTime(0), m_inQueue(false),
     m_playerLoading(false), m_playerLogout(false), m_playerRecentlyLogout(false), m_playerSave(false), m_sessionDbcLocale(sWorld.GetAvailableDbcLocale(locale)),
     m_sessionDbLocaleIndex(sObjectMgr.GetIndexForLocale(locale)), m_latency(0), m_tutorialState(TUTORIALDATA_UNCHANGED), m_warden(nullptr), m_cheatData(nullptr),
-    m_bot(nullptr), m_clientOS(CLIENT_OS_UNKNOWN), m_clientPlatform(CLIENT_PLATFORM_UNKNOWN), m_gameBuild(0),
+    m_bot(nullptr), m_clientOS(CLIENT_OS_UNKNOWN), m_clientPlatform(CLIENT_PLATFORM_UNKNOWN), m_gameBuild(0), m_verifiedEmail(true),
     m_charactersCount(10), m_characterMaxLevel(0), m_lastPubChannelMsgTime(0), m_moveRejectTime(0), m_masterPlayer(nullptr)
 {
     if (sock)
@@ -214,8 +214,13 @@ void WorldSession::SendMovementPacket(WorldPacket const* packet)
 
     if (++m_movePacketsSentThisInterval < sWorld.getConfig(CONFIG_UINT32_COMPRESSION_MOVEMENT_COUNT) &&
         m_movePacketsSentLastInterval < sWorld.getConfig(CONFIG_UINT32_COMPRESSION_MOVEMENT_COUNT))
+    {
         SendPacketImpl(packet);
-    else if (m_movementPacketCompressor.CanAddPacket(*packet))
+        return;
+    }
+        
+    std::lock_guard<std::mutex> guard(m_movementPacketCompressorMutex);
+    if (m_movementPacketCompressor.CanAddPacket(*packet))
         m_movementPacketCompressor.AddPacket(*packet);
     else
     {
@@ -323,6 +328,11 @@ void WorldSession::LogUnprocessedTail(WorldPacket* packet)
                   LookupOpcodeName(packet->GetOpcode()),
                   packet->GetOpcode(),
                   packet->rpos(), packet->wpos());
+}
+
+bool WorldSession::HasTrialRestrictions() const
+{
+    return !HasVerifiedEmail() && GetSecurity() <= SEC_PLAYER && sWorld.getConfig(CONFIG_BOOL_RESTRICT_UNVERIFIED_ACCOUNTS);
 }
 
 void WorldSession::CheckPlayedTimeLimit(time_t now)
@@ -1336,7 +1346,7 @@ bool WorldSession::CharacterScreenIdleKick(uint32 currTime)
     if (!maxIdle) // disabled
         return false;
 
-    if ((currTime - m_idleTime) >= (maxIdle * 1000))
+    if (currTime > m_idleTime && (currTime - m_idleTime) >= (maxIdle * 1000))
     {
         sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "SESSION: Kicking session [%s] from character selection", GetRemoteAddress().c_str());
         return true;

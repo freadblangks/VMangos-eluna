@@ -70,7 +70,6 @@
 #include "GMTicketMgr.h"
 #include "MasterPlayer.h"
 #include "MovementPacketSender.h"
-#include "Config/Config.h"
 #include "ZoneScript.h"
 #include "ZoneScriptMgr.h"
 #include "PlayerBotMgr.h"
@@ -689,8 +688,7 @@ Player::Player(WorldSession* session) : Unit(),
     m_summon_y = 0.0f;
     m_summon_z = 0.0f;
 
-    m_lastFallTime = 0;
-    m_lastFallZ = 0;
+    m_fallStartZ = 0.0f;
 
     m_currentCinematicEntry = 0;
 
@@ -2351,7 +2349,7 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
         // this will be used instead of the current location in SaveToDB
         m_teleport_dest = WorldLocation(mapid, x, y, z, orientation);
         DisableSpline();
-        SetFallInformation(0, z);
+        SetFallInformation(0);
 
         // code for finish transfer called in WorldSession::HandleMovementOpcodes()
         // at client packet MSG_MOVE_TELEPORT_ACK
@@ -2504,7 +2502,7 @@ bool Player::ExecuteTeleportFar(ScheduledTeleportData* data)
 
         m_teleport_dest = WorldLocation(mapid, data->x, data->y, data->z, data->orientation);
         DisableSpline();
-        SetFallInformation(0, data->z);
+        SetFallInformation(0);
         ScheduleDelayedOperation(DELAYED_CAST_HONORLESS_TARGET);
 
         // Clear hostile refs so that we have no cross-map (and thread) references being maintained
@@ -3215,6 +3213,24 @@ void Player::SetCheatFly(bool on, bool notify)
     }
 }
 
+void Player::SetCheatFixedZ(bool on, bool notify)
+{
+    SetCheatOption(PLAYER_CHEAT_FIXED_Z, on);
+    
+    if (on)
+        m_movementInfo.AddMovementFlag(MOVEFLAG_FIXED_Z);
+    else
+        m_movementInfo.RemoveMovementFlag(MOVEFLAG_FIXED_Z);
+
+    GetSession()->RejectMovementPacketsFor(100);
+    SendHeartBeat(true);
+
+    if (notify)
+    {
+        GetSession()->SendNotification(on ? LANG_CHEAT_FIXED_Z_ON : LANG_CHEAT_FIXED_Z_OFF);
+    }
+}
+
 void Player::SetCheatGod(bool on, bool notify)
 {
     SetInvincibilityHpThreshold(on ? 1 : 0);
@@ -3350,6 +3366,9 @@ void Player::SetCheatDebugTargetInfo(bool on, bool notify)
 
 bool Player::IsAllowedWhisperFrom(ObjectGuid guid) const
 {
+    if (GetObjectGuid() == guid)
+        return true;
+
     if (PlayerSocial const* social = GetSocial())
         if (social->HasFriend(guid))
             return true;
@@ -3469,6 +3488,9 @@ void Player::GiveXP(uint32 xp, Unit const* victim)
 
     // XP to money conversion processed in Player::RewardQuest
     if (level >= sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
+        return;
+
+    if (level >= TRIAL_MAX_LEVEL && GetSession()->HasTrialRestrictions())
         return;
 
     // XP resting bonus for kill
@@ -3758,12 +3780,14 @@ void Player::InitStatsForLevel(bool reapplyMods)
     SetFloatValue(UNIT_FIELD_MAXRANGEDDAMAGE, 0.0f);
 
     SetInt32Value(UNIT_FIELD_ATTACK_POWER,            0);
-    SetInt32Value(UNIT_FIELD_ATTACK_POWER_MODS,       0);
+    SetInt16Value(UNIT_FIELD_ATTACK_POWER_MODS, 0, 0);
+    SetInt16Value(UNIT_FIELD_ATTACK_POWER_MODS, 1, 0);
 #if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_8_4
     SetFloatValue(UNIT_FIELD_ATTACK_POWER_MULTIPLIER, 0.0f);
 #endif
     SetInt32Value(UNIT_FIELD_RANGED_ATTACK_POWER,     0);
-    SetInt32Value(UNIT_FIELD_RANGED_ATTACK_POWER_MODS, 0);
+    SetInt16Value(UNIT_FIELD_RANGED_ATTACK_POWER_MODS, 0, 0);
+    SetInt16Value(UNIT_FIELD_RANGED_ATTACK_POWER_MODS, 1, 0);
 #if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_8_4
     SetFloatValue(UNIT_FIELD_RANGED_ATTACK_POWER_MULTIPLIER, 0.0f);
 #endif
@@ -5004,13 +5028,14 @@ void Player::SetFly(bool enable)
             StopMoving(true);
         }
         
-        m_movementInfo.moveFlags = (MOVEFLAG_LEVITATING | MOVEFLAG_SWIMMING | MOVEFLAG_CAN_FLY | MOVEFLAG_FLYING);
+        m_movementInfo.moveFlags = (MOVEFLAG_LEVITATING | MOVEFLAG_SWIMMING | MOVEFLAG_MOVED | MOVEFLAG_FLYING);
     }
     else
     {
         m_movementInfo.moveFlags = (MOVEFLAG_NONE);
     }
 
+    GetSession()->RejectMovementPacketsFor(100);
     SendHeartBeat(true);
 }
 
@@ -5745,12 +5770,12 @@ void Player::SetRegularAttackTime(bool resetTimer)
 }
 
 //skill+step, checking for max value
-bool Player::UpdateSkill(uint32 skill_id, uint32 step)
+bool Player::UpdateSkill(uint32 skillId, uint32 step)
 {
-    if (!skill_id)
+    if (!skillId)
         return false;
 
-    SkillStatusMap::iterator itr = mSkillStatus.find(skill_id);
+    SkillStatusMap::iterator itr = mSkillStatus.find(skillId);
     if (itr == mSkillStatus.end() || itr->second.uState == SKILL_DELETED)
         return false;
 
@@ -5774,13 +5799,13 @@ bool Player::UpdateSkill(uint32 skill_id, uint32 step)
     return true;
 }
 
-inline int SkillGainChance(uint32 SkillValue, uint32 GrayLevel, uint32 GreenLevel, uint32 YellowLevel)
+inline int SkillGainChance(uint32 skillValue, uint32 grayLevel, uint32 greenLevel, uint32 yellowLevel)
 {
-    if (SkillValue >= GrayLevel)
+    if (skillValue >= grayLevel)
         return sWorld.getConfig(CONFIG_UINT32_SKILL_CHANCE_GREY) * 10;
-    if (SkillValue >= GreenLevel)
+    if (skillValue >= greenLevel)
         return sWorld.getConfig(CONFIG_UINT32_SKILL_CHANCE_GREEN) * 10;
-    if (SkillValue >= YellowLevel)
+    if (skillValue >= yellowLevel)
         return sWorld.getConfig(CONFIG_UINT32_SKILL_CHANCE_YELLOW) * 10;
     return sWorld.getConfig(CONFIG_UINT32_SKILL_CHANCE_ORANGE) * 10;
 }
@@ -5805,41 +5830,60 @@ bool Player::UpdateCraftSkill(uint32 spellid)
     {
         if (_spell_idx->second->skillId)
         {
-            uint32 SkillValue = GetSkillValuePure(_spell_idx->second->skillId);
+            uint32 skillValue = GetSkillValuePure(_spell_idx->second->skillId);
+            uint32 craftSkillGain = sWorld.getConfig(CONFIG_UINT32_SKILL_GAIN_CRAFTING);
 
-            uint32 craft_skill_gain = sWorld.getConfig(CONFIG_UINT32_SKILL_GAIN_CRAFTING);
+            if (GetSession()->HasTrialRestrictions())
+            {
+                if (SkillLineEntry const* skillInfo = sSkillLineStore.LookupEntry(_spell_idx->second->skillId))
+                {
+                    if (skillInfo->categoryId == SKILL_CATEGORY_PROFESSION && skillValue >= MAX_TRIAL_MAIN_PROFESSION_SKILL ||
+                        skillInfo->categoryId == SKILL_CATEGORY_SECONDARY && skillValue >= MAX_TRIAL_SECONDARY_PROFESSION_SKILL)
+                        return false;
+                }
+            }
 
-            return UpdateSkillPro(_spell_idx->second->skillId, CraftingSkillGainChance(SkillValue,
-                                  _spell_idx->second->max_value,
-                                  _spell_idx->second->min_value),
-                                  craft_skill_gain);
+            return UpdateSkillPro(_spell_idx->second->skillId, CraftingSkillGainChance(skillValue,
+                _spell_idx->second->max_value,
+                _spell_idx->second->min_value),
+                craftSkillGain);
         }
     }
     return false;
 }
 
-bool Player::UpdateGatherSkill(uint32 SkillId, uint32 SkillValue, uint32 RedLevel, uint32 Multiplicator)
+bool Player::UpdateGatherSkill(uint32 skillId, uint32 skillValue, uint32 redLevel, uint32 multiplicator)
 {
-    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "UpdateGatherSkill(SkillId %d SkillLevel %d RedLevel %d)", SkillId, SkillValue, RedLevel);
+    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "UpdateGatherSkill(SkillId %d SkillLevel %d RedLevel %d)", skillId, skillValue, redLevel);
 
-    uint32 gathering_skill_gain = sWorld.getConfig(CONFIG_UINT32_SKILL_GAIN_GATHERING);
+    if (GetSession()->HasTrialRestrictions())
+    {
+        if (SkillLineEntry const* skillInfo = sSkillLineStore.LookupEntry(skillId))
+        {
+            if (skillInfo->categoryId == SKILL_CATEGORY_PROFESSION && skillValue >= MAX_TRIAL_MAIN_PROFESSION_SKILL ||
+                skillInfo->categoryId == SKILL_CATEGORY_SECONDARY && skillValue >= MAX_TRIAL_SECONDARY_PROFESSION_SKILL)
+                return false;
+        }
+    }
+
+    uint32 gatheringSkillGain = sWorld.getConfig(CONFIG_UINT32_SKILL_GAIN_GATHERING);
 
     // For skinning and Mining chance decrease with level. 1-74 - no decrease, 75-149 - 2 times, 225-299 - 8 times
-    switch (SkillId)
+    switch (skillId)
     {
         case SKILL_HERBALISM:
         case SKILL_LOCKPICKING:
-            return UpdateSkillPro(SkillId, SkillGainChance(SkillValue, RedLevel + 100, RedLevel + 50, RedLevel + 25) * Multiplicator, gathering_skill_gain);
+            return UpdateSkillPro(skillId, SkillGainChance(skillValue, redLevel + 100, redLevel + 50, redLevel + 25) * multiplicator, gatheringSkillGain);
         case SKILL_SKINNING:
             if (sWorld.getConfig(CONFIG_UINT32_SKILL_CHANCE_SKINNING_STEPS) == 0)
-                return UpdateSkillPro(SkillId, SkillGainChance(SkillValue, RedLevel + 100, RedLevel + 50, RedLevel + 25) * Multiplicator, gathering_skill_gain);
+                return UpdateSkillPro(skillId, SkillGainChance(skillValue, redLevel + 100, redLevel + 50, redLevel + 25) * multiplicator, gatheringSkillGain);
             else
-                return UpdateSkillPro(SkillId, (SkillGainChance(SkillValue, RedLevel + 100, RedLevel + 50, RedLevel + 25) * Multiplicator) >> (SkillValue / sWorld.getConfig(CONFIG_UINT32_SKILL_CHANCE_SKINNING_STEPS)), gathering_skill_gain);
+                return UpdateSkillPro(skillId, (SkillGainChance(skillValue, redLevel + 100, redLevel + 50, redLevel + 25) * multiplicator) >> (skillValue / sWorld.getConfig(CONFIG_UINT32_SKILL_CHANCE_SKINNING_STEPS)), gatheringSkillGain);
         case SKILL_MINING:
             if (sWorld.getConfig(CONFIG_UINT32_SKILL_CHANCE_MINING_STEPS) == 0)
-                return UpdateSkillPro(SkillId, SkillGainChance(SkillValue, RedLevel + 100, RedLevel + 50, RedLevel + 25) * Multiplicator, gathering_skill_gain);
+                return UpdateSkillPro(skillId, SkillGainChance(skillValue, redLevel + 100, redLevel + 50, redLevel + 25) * multiplicator, gatheringSkillGain);
             else
-                return UpdateSkillPro(SkillId, (SkillGainChance(SkillValue, RedLevel + 100, RedLevel + 50, RedLevel + 25) * Multiplicator) >> (SkillValue / sWorld.getConfig(CONFIG_UINT32_SKILL_CHANCE_MINING_STEPS)), gathering_skill_gain);
+                return UpdateSkillPro(skillId, (SkillGainChance(skillValue, redLevel + 100, redLevel + 50, redLevel + 25) * multiplicator) >> (skillValue / sWorld.getConfig(CONFIG_UINT32_SKILL_CHANCE_MINING_STEPS)), gatheringSkillGain);
     }
     return false;
 }
@@ -5848,56 +5892,57 @@ bool Player::UpdateFishingSkill()
 {
     sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "UpdateFishingSkill");
 
-    uint32 SkillValue = GetSkillValuePure(SKILL_FISHING);
+    uint32 skillValue = GetSkillValuePure(SKILL_FISHING);
 
-    int32 chance = SkillValue < 75 ? 100 : 2500 / (SkillValue - 50);
-
-    uint32 gathering_skill_gain = sWorld.getConfig(CONFIG_UINT32_SKILL_GAIN_GATHERING);
-
-    return UpdateSkillPro(SKILL_FISHING, chance * 10, gathering_skill_gain);
-}
-
-bool Player::UpdateSkillPro(uint16 SkillId, int32 Chance, uint32 step)
-{
-    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "UpdateSkillPro(SkillId %d, Chance %3.1f%%)", SkillId, Chance / 10.0);
-    if (!SkillId)
+    if (GetSession()->HasTrialRestrictions() && skillValue >= MAX_TRIAL_SECONDARY_PROFESSION_SKILL)
         return false;
 
-    if (Chance <= 0)                                        // speedup in 0 chance case
+    int32 chance = skillValue < 75 ? 100 : 2500 / (skillValue - 50);
+    uint32 gatheringSkillGain = sWorld.getConfig(CONFIG_UINT32_SKILL_GAIN_GATHERING);
+
+    return UpdateSkillPro(SKILL_FISHING, chance * 10, gatheringSkillGain);
+}
+
+bool Player::UpdateSkillPro(uint16 skillId, int32 chance, uint32 step)
+{
+    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "UpdateSkillPro(SkillId %d, Chance %3.1f%%)", skillId, chance / 10.0);
+    if (!skillId)
+        return false;
+
+    if (chance <= 0)                                        // speedup in 0 chance case
     {
-        sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "Player::UpdateSkillPro Chance=%3.1f%% missed", Chance / 10.0);
+        sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "Player::UpdateSkillPro Chance=%3.1f%% missed", chance / 10.0);
         return false;
     }
 
-    SkillStatusMap::iterator itr = mSkillStatus.find(SkillId);
+    SkillStatusMap::iterator itr = mSkillStatus.find(skillId);
     if (itr == mSkillStatus.end() || itr->second.uState == SKILL_DELETED)
         return false;
 
     uint32 valueIndex = PLAYER_SKILL_VALUE_INDEX(itr->second.pos);
-
     uint32 data = GetUInt32Value(valueIndex);
-    uint16 SkillValue = SKILL_VALUE(data);
-    uint16 MaxValue   = SKILL_MAX(data);
+    uint16 skillValue = SKILL_VALUE(data);
+    uint16 maxValue   = SKILL_MAX(data);
 
-    if (!MaxValue || !SkillValue || SkillValue >= MaxValue)
+    if (!maxValue || !skillValue || skillValue >= maxValue)
         return false;
 
     int32 Roll = irand(1, 1000);
 
-    if (Roll <= Chance)
+    if (Roll <= chance)
     {
-        uint32 new_value = SkillValue + step;
-        if (new_value > MaxValue)
-            new_value = MaxValue;
+        uint32 new_value = skillValue + step;
+        if (new_value > maxValue)
+            new_value = maxValue;
 
-        SetUInt32Value(valueIndex, MAKE_SKILL_VALUE(new_value, MaxValue));
+        SetUInt32Value(valueIndex, MAKE_SKILL_VALUE(new_value, maxValue));
         if (itr->second.uState != SKILL_NEW)
             itr->second.uState = SKILL_CHANGED;
-        sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "Player::UpdateSkillPro Chance=%3.1f%% taken", Chance / 10.0);
+        sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "Player::UpdateSkillPro Chance=%3.1f%% taken", chance / 10.0);
         return true;
     }
 
-    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "Player::UpdateSkillPro Chance=%3.1f%% missed", Chance / 10.0);
+    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "Player::UpdateSkillPro Chance=%3.1f%% missed", chance / 10.0);
     return true;
 }
 
@@ -14667,6 +14712,14 @@ void Player::LogModifyMoney(int32 d, char const* type, ObjectGuid fromGuid, uint
     ModifyMoney(d);
 }
 
+uint32 Player::GetMaxMoney() const
+{
+    if (GetSession()->HasTrialRestrictions())
+        return MAX_TRIAL_MONEY_AMOUNT;
+
+    return MAX_MONEY_AMOUNT;
+}
+
 void Player::MoneyChanged(uint32 count)
 {
     for (int i = 0; i < MAX_QUEST_LOG_SIZE; ++i)
@@ -15097,8 +15150,8 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
     InitPlayerDisplayIds();                                       // model, scale and model data
 
     uint32 money = fields[8].GetUInt32();
-    if (money > MAX_MONEY_AMOUNT)
-        money = MAX_MONEY_AMOUNT;
+    if (money > GetMaxMoney())
+        money = GetMaxMoney();
     SetMoney(money);
 
     SetByteValue(PLAYER_BYTES, PLAYER_BYTES_OFFSET_SKIN_ID, fields[9].GetUInt8());
@@ -15241,7 +15294,7 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
         if (GenericTransport* transport = GetMap()->GetTransport(guid))
         {
             float x = fields[30].GetFloat(), y = fields[31].GetFloat(), z = fields[32].GetFloat(), o = fields[33].GetFloat();
-            m_movementInfo.SetTransportData(guid, x, y, z, o, 0);
+            m_movementInfo.SetTransportData(guid, x, y, z, o);
             transport->CalculatePassengerPosition(x, y, z, &o);
 
             if (!MaNGOS::IsValidMapCoord(x, y, z, o) ||
@@ -15491,7 +15544,7 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
     }
 
     // has to be called after last Relocate() in Player::LoadFromDB
-    SetFallInformation(0, GetPositionZ());
+    SetFallInformation(0);
 
     _LoadSpellCooldowns(std::move(holder->TakeResult(PLAYER_LOGIN_QUERY_LOADSPELLCOOLDOWNS)));
 
@@ -21008,47 +21061,6 @@ InventoryResult Player::CanEquipUniqueItem(ItemPrototype const* itemProto, uint8
     return EQUIP_ERR_OK;
 }
 
-void Player::HandleFall(MovementInfo const& movementInfo)
-{
-    // calculate total z distance of the fall
-    float z_diff = m_lastFallZ - movementInfo.GetPos().z;
-    sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "zDiff = %f", z_diff);
-
-    //Players with low fall distance, Feather Fall or physical immunity (charges used) are ignored
-    // 14.57 can be calculated by resolving damageperc formula below to 0
-    if (z_diff >= 14.57f && !IsDead() && !IsGameMaster() &&
-        !HasAuraType(SPELL_AURA_HOVER) && !HasAuraType(SPELL_AURA_FEATHER_FALL))
-    {
-        //Safe fall, fall height reduction
-        int32 safe_fall = GetTotalAuraModifier(SPELL_AURA_SAFE_FALL);
-
-        float damageperc = 0.018f * (z_diff - safe_fall) - 0.2426f;
-
-        if (damageperc > 0)
-        {
-            float TakenTotalMod = 1.0f;
-            TakenTotalMod *= GetTotalAuraMultiplierByMiscMask(SPELL_AURA_MOD_DAMAGE_PERCENT_TAKEN, SPELL_SCHOOL_MASK_NORMAL);
-
-            uint32 damage = (uint32)(damageperc * GetMaxHealth() * sWorld.getConfig(CONFIG_FLOAT_RATE_DAMAGE_FALL) * TakenTotalMod);
-
-            float height = movementInfo.GetPos().z;
-            UpdateAllowedPositionZ(movementInfo.GetPos().x, movementInfo.GetPos().y, height);
-
-            if (damage > 0)
-            {
-                //Prevent fall damage from being more than the player maximum health
-                if (damage > GetMaxHealth())
-                    damage = GetMaxHealth();
-
-                EnvironmentalDamage(DAMAGE_FALL, damage);
-            }
-
-            //Z given by moveinfo, LastZ, FallTime, WaterZ, MapZ, Damage, Safefall reduction
-            sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "FALLDAMAGE z=%f sz=%f pZ=%f FallTime=%d mZ=%f damage=%d SF=%d" , movementInfo.GetPos().z, height, GetPositionZ(), movementInfo.GetFallTime(), height, damage, safe_fall);
-        }
-    }
-}
-
 bool Player::LearnTalent(uint32 talentId, uint32 talentRank)
 {
     uint32 CurTalentPoints = GetFreeTalentPoints();
@@ -21166,8 +21178,80 @@ bool Player::LearnTalent(uint32 talentId, uint32 talentRank)
 
 void Player::UpdateFallInformationIfNeed(MovementInfo const& minfo, uint16 opcode)
 {
-    if (m_lastFallTime >= minfo.GetFallTime() || m_lastFallZ <= minfo.GetPos().z || opcode == MSG_MOVE_FALL_LAND)
-        SetFallInformation(minfo.GetFallTime(), minfo.GetPos().z);
+    if (opcode == MSG_MOVE_FALL_LAND || opcode == MSG_MOVE_START_SWIM ||
+        minfo.HasMovementFlag(MOVEFLAG_HOVER | MOVEFLAG_SAFE_FALL) ||
+       !minfo.HasMovementFlag(MOVEFLAG_JUMPING | MOVEFLAG_FALLINGFAR))
+    {
+        if (IsFalling())
+            SetFallInformation(0);
+        return;
+    }
+
+    float currentZ = minfo.HasMovementFlag(MOVEFLAG_ONTRANSPORT) ? minfo.t_pos.z : minfo.pos.z;
+
+    if (!m_fallStartZ || m_fallStartZ < currentZ || m_movementInfo.t_guid != minfo.t_guid)
+        SetFallInformation(currentZ);
+}
+
+void Player::HandleFall(MovementInfo const& movementInfo)
+{
+    if (!m_fallStartZ)
+        return;
+
+    if (!m_movementInfo.HasMovementFlag(MOVEFLAG_FALLINGFAR))
+        return;
+
+    if (m_movementInfo.t_guid != movementInfo.t_guid)
+        return;
+
+    if (m_movementInfo.HasMovementFlag(MOVEFLAG_ONTRANSPORT) != movementInfo.HasMovementFlag(MOVEFLAG_ONTRANSPORT))
+        return;
+
+    // the normal fall time from height of 14.57 yards
+    if (movementInfo.fallTime < 1229)
+        return;
+
+    Position const& currentPos = (movementInfo.HasMovementFlag(MOVEFLAG_ONTRANSPORT) ? movementInfo.GetTransportPos() : movementInfo.GetPos());
+
+    if (m_fallStartZ < currentPos.z)
+        return;
+
+    // calculate total z distance of the fall
+    float z_diff = m_fallStartZ - currentPos.z;
+    //printf("zDiff = %f\n", z_diff);
+
+    // Players with low fall distance, Feather Fall or physical immunity (charges used) are ignored
+    // 14.57 can be calculated by resolving dmgPct formula below to 0
+    if (z_diff >= 14.57f && !IsDead() && !IsGameMaster() &&
+        !HasAuraType(SPELL_AURA_HOVER) && !HasAuraType(SPELL_AURA_FEATHER_FALL))
+    {
+        // Safe fall, fall height reduction
+        int32 safeFall = GetTotalAuraModifier(SPELL_AURA_SAFE_FALL);
+
+        float dmgPct = 0.018f * (z_diff - safeFall) - 0.2426f;
+        if (dmgPct > 0)
+        {
+            float TakenTotalMod = 1.0f;
+            TakenTotalMod *= GetTotalAuraMultiplierByMiscMask(SPELL_AURA_MOD_DAMAGE_PERCENT_TAKEN, SPELL_SCHOOL_MASK_NORMAL);
+
+            uint32 damage = (uint32)(dmgPct * GetMaxHealth() * sWorld.getConfig(CONFIG_FLOAT_RATE_DAMAGE_FALL) * TakenTotalMod);
+
+            float height = movementInfo.GetPos().z;
+            UpdateAllowedPositionZ(movementInfo.GetPos().x, movementInfo.GetPos().y, height);
+
+            if (damage > 0)
+            {
+                // Prevent fall damage from being more than the player maximum health
+                if (damage > GetMaxHealth())
+                    damage = GetMaxHealth();
+
+                EnvironmentalDamage(DAMAGE_FALL, damage);
+            }
+
+            // Z given by moveinfo, LastZ, FallTime, WaterZ, MapZ, Damage, Safefall reduction
+            sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "FALLDAMAGE z=%f sz=%f pZ=%f FallTime=%d mZ=%f damage=%d SF=%d" , movementInfo.GetPos().z, height, GetPositionZ(), movementInfo.GetFallTime(), height, damage, safeFall);
+        }
+    }
 }
 
 /**

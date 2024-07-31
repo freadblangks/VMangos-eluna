@@ -508,6 +508,7 @@ enum PlayerCheatOptions : uint16
     PLAYER_CHEAT_TRIGGER_PASS      = 0x100,
     PLAYER_CHEAT_IGNORE_TRIGGERS   = 0x200,
     PLAYER_CHEAT_DEBUG_TARGET_INFO = 0x400,
+    PLAYER_CHEAT_FIXED_Z           = 0x800,
 };
 
 typedef std::map<uint32, QuestStatusData> QuestStatusMap;
@@ -738,8 +739,9 @@ enum ReputationSource
 };
 
 // Player summoning auto-decline time (in secs)
-#define MAX_PLAYER_SUMMON_DELAY                   (2*MINUTE)
-#define MAX_MONEY_AMOUNT                       (0x7FFFFFFF-1)
+#define MAX_PLAYER_SUMMON_DELAY (2*MINUTE)
+#define MAX_MONEY_AMOUNT (0x7FFFFFFF-1)
+#define MAX_TRIAL_MONEY_AMOUNT 100000
 
 struct InstancePlayerBind
 {
@@ -1028,6 +1030,7 @@ class Player final: public Unit
         void SetGMVisible(bool on, bool notify = false);
         
         void SetCheatFly(bool on, bool notify = false);
+        void SetCheatFixedZ(bool on, bool notify = false);
         void SetCheatGod(bool on, bool notify = false);
         void SetCheatNoCooldown(bool on, bool notify = false);
         void SetCheatInstantCast(bool on, bool notify = false);
@@ -1227,12 +1230,13 @@ class Player final: public Unit
 
         uint32 GetMoney() const { return GetUInt32Value(PLAYER_FIELD_COINAGE); }
         void LogModifyMoney(int32 d, char const* type, ObjectGuid fromGuid = ObjectGuid(), uint32 data = 0);
+        uint32 GetMaxMoney() const;
         void ModifyMoney(int32 d)
         {
             if (d < 0)
                 SetMoney(GetMoney() > uint32(-d) ? GetMoney() + d : 0);
             else
-                SetMoney(GetMoney() < uint32(MAX_MONEY_AMOUNT - d) ? GetMoney() + d : MAX_MONEY_AMOUNT);
+                SetMoney((uint32)std::min<uint64>(uint64(GetMoney()) + uint64(d), GetMaxMoney()));
         }
         void LootMoney(int32 g, Loot* loot);
         std::string GetShortDescription() const; // "player:guid [username:accountId@IP]"
@@ -1846,8 +1850,8 @@ class Player final: public Unit
         GridReference<Player> m_gridRef;
         MapReference m_mapRef;
 
-        uint32 m_lastFallTime;
-        float  m_lastFallZ;
+        // highest position we started falling from
+        float m_fallStartZ;
 
         // Recall position
         uint32 m_recallMap;
@@ -1932,13 +1936,13 @@ class Player final: public Unit
 
         bool HasMovementFlag(MovementFlags f) const;        // for script access to m_movementInfo.HasMovementFlag
         void UpdateFallInformationIfNeed(MovementInfo const& minfo, uint16 opcode);
-        void SetFallInformation(uint32 time, float z)
+        void SetFallInformation(float fallStartZ)
         {
-            m_lastFallTime = time;
-            m_lastFallZ = z;
+            m_fallStartZ = fallStartZ;
+
         }
         void HandleFall(MovementInfo const& movementInfo);
-        bool IsFalling() const { return GetPositionZ() < m_lastFallZ; }
+        bool IsFalling() const { return m_fallStartZ != 0; }
 
         bool IsControlledByOwnClient() const { return m_session->GetClientMoverGuid() == GetObjectGuid(); }
         void SetClientControl(Unit const* target, uint8 allowMove);
