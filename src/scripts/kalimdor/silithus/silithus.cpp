@@ -458,14 +458,6 @@ struct npc_creeping_doomAI : public ScriptedAI
             pOwner->AddThreat(pDoneBy);
             pOwner->SetInCombatWith(pDoneBy);
         }
-        //JieFuFuTi(34001) taken damage
-        if (pDoneBy->HasAura(34001))
-        {
-            uint32 jiefufuti = sWorld.getConfig(CONFIG_UINT32_BUFF_JIEFUFUTI);
-            if (jiefufuti > 99)
-                jiefufuti = 99;
-            uiDamage = dither(uiDamage * (100.0f - jiefufuti) / 100.0f);
-        }
         ScriptedAI::DamageTaken(pDoneBy, uiDamage);
     }
 };
