@@ -915,6 +915,7 @@ template<>
 void LuaAIChaseMovementGenerator<Player>::Initialize(Player &owner)
 {
     owner.AddUnitState(UNIT_STAT_CHASE | UNIT_STAT_CHASE_MOVE);
+    owner.SetWalk(false, true);
     //m_bRecalculateTravel = true;
     //owner.GetMotionMaster()->SetNeedAsyncUpdate();
 }
@@ -1124,6 +1125,7 @@ void LuaAIFollowMovementGenerator<Creature>::_updateSpeed(Creature &u)
 template<>
 void LuaAIFollowMovementGenerator<Player>::Initialize(Player &owner)
 {
+    owner.SetWalk(false, true);
     owner.AddUnitState(UNIT_STAT_FOLLOW | UNIT_STAT_FOLLOW_MOVE);
     _updateSpeed(owner);
     _setTargetLocation(owner);

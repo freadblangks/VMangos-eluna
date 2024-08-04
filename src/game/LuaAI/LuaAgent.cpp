@@ -154,6 +154,8 @@ void LuaAgent::Reset(bool dropRefs)
 	if (me->HasAuraType(AuraType::SPELL_AURA_MOD_SHAPESHIFT))
 		me->RemoveSpellsCausingAura(AuraType::SPELL_AURA_MOD_SHAPESHIFT);
 
+    me->SetWalk(false, true);
+
 	// reset speed
 	me->SetSpeedRate(UnitMoveType::MOVE_RUN, 1.0f);
 
