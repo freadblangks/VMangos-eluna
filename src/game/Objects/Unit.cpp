@@ -1737,6 +1737,26 @@ void Unit::TriggerDamageShields(Unit* pVictim)
             //damage-=absorb + resist;
 
             uint32 damage = ditheru(fdamage);
+
+            //JieFuFuTi(34001) taken damage
+            if (this->HasAura(34001))
+            {
+                uint32 jiefufuti = sWorld.getConfig(CONFIG_UINT32_BUFF_JIEFUFUTI);
+                if (jiefufuti > 99)
+                    jiefufuti = 99;
+                if (Player const* pPlayer = this->ToPlayer())
+                {
+                    if (pPlayer->GetLevel() < 60 && pPlayer->GetQuestStatus(10000) == QUEST_STATUS_COMPLETE)
+                        jiefufuti = 0;
+                }
+                if (Player* pOwner = ::ToPlayer(this->GetOwner()))
+                {
+                    if(pOwner->GetLevel() < 60 && pOwner->GetQuestStatus(10000) == QUEST_STATUS_COMPLETE)
+                        jiefufuti = 0;
+                }
+                damage = dither(damage * (100.0f - jiefufuti) / 100.0f);
+            }
+
             pVictim->DealDamageMods(this, damage, nullptr);
 
             WorldPacket data(SMSG_SPELLDAMAGESHIELD, (8 + 8 + 4 + 4));
