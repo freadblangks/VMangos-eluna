@@ -5353,7 +5353,7 @@ void Player::DurabilityPointsLossAll(int32 points, bool inventory)
 void Player::DurabilityPointsLoss(Item* item, int32 points)
 {
     //bot do not loss durabilitypoints
-    if (IsBot() && sWorld.getConfig(CONFIG_BOT_DURABILITY_POINTS_LOSS) == 0)
+    if ((IsBot() && sWorld.getConfig(CONFIG_BOT_DURABILITY_POINTS_LOSS) == 0) || !sWorld.getConfig(CONFIG_BOOL_DURABILITY_LOSS_ENABLE))
         return;
 
     int32 pMaxDurability = item->GetUInt32Value(ITEM_FIELD_MAXDURABILITY);
