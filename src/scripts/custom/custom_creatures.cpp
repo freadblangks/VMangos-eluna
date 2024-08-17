@@ -1030,6 +1030,46 @@ bool GossipSelect_TeleportNPC(Player *player, Creature *_Creature, uint32 sender
     return true;
 }
 
+bool GossipHello_Chromie(Player *player, Creature *_Creature)   
+{
+    player->ADD_GOSSIP_ITEM(5, "传送：黑色沼泽",               GOSSIP_SENDER_MAIN, 1);
+    player->ADD_GOSSIP_ITEM(5, "传送：旧希尔斯布莱德丘陵",             GOSSIP_SENDER_MAIN, 2);
+    player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+    return true;
+}
+void SendDefaultMenu_Chromie(Player *player, Creature *_Creature, uint32 action)
+{
+    switch (action)
+    {
+        case 1:
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetLevel() < 60)
+            {
+                player->GetSession()->SendNotification("You must be at least level 60 to enter.");
+                break;
+            }
+            player->TeleportTo(269, -2001.74f, 6576.61f, -154.822f, 0.0f);
+            break;
+        case 2:
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetLevel() < 60)
+            {
+                player->GetSession()->SendNotification("You must be at least level 60 to enter.");
+                break;
+            }
+            player->TeleportTo(269, 2370.611f, 1167.000f, 64.1f, 0.0f);
+            break;
+    }
+}
+bool GossipSelect_Chromie(Player *player, Creature *_Creature, uint32 sender, uint32 action)
+{
+    // Main menu
+    if (sender == GOSSIP_SENDER_MAIN)
+        SendDefaultMenu_Chromie(player, _Creature, action);
+
+    return true;
+}
+
 bool GossipHello_TransmogNPC(Player* player, Creature* creature)
 {
     player->ADD_GOSSIP_ITEM(5, "头部",      GOSSIP_SENDER_MAIN, EQUIPMENT_SLOT_HEAD);
@@ -1867,6 +1907,12 @@ void AddSC_custom_creatures()
     newscript->Name = "custom_teleport_npc";
     newscript->pGossipHello = &GossipHello_TeleportNPC;
     newscript->pGossipSelect = &GossipSelect_TeleportNPC;
+    newscript->RegisterSelf(false);
+
+    newscript = new Script;
+    newscript->Name = "npc_chromie";
+    newscript->pGossipHello = &GossipHello_Chromie;
+    newscript->pGossipSelect = &GossipSelect_Chromie;
     newscript->RegisterSelf(false);
 
     newscript = new Script;
