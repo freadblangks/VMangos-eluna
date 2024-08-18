@@ -115,7 +115,21 @@ void SendDefaultMenu_TeleportNPC(Player *player, Creature *_Creature, uint32 act
             player->ADD_GOSSIP_ITEM(5, "黑石塔 57-60级",     GOSSIP_SENDER_MAIN, 1264);
             player->ADD_GOSSIP_ITEM(5, "斯坦索姆 55-60级",          GOSSIP_SENDER_MAIN, 1265);
             player->ADD_GOSSIP_ITEM(5, "通灵学院 55-60级",         GOSSIP_SENDER_MAIN, 1266);
+            player->ADD_GOSSIP_ITEM(7, "[更多] ->",             GOSSIP_SENDER_MAIN, 5552);
             player->ADD_GOSSIP_ITEM(7, "<- [后退]",           GOSSIP_SENDER_MAIN, 5);
+            player->ADD_GOSSIP_ITEM(5, "<-[主菜单]",       GOSSIP_SENDER_MAIN, 100);
+
+            player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+            break;
+        case 5552: // Instances [PAGE 3]
+            player->ADD_GOSSIP_ITEM(5, "暴风城金库 60级",             GOSSIP_SENDER_MAIN, 1267);
+            player->ADD_GOSSIP_ITEM(5, "时光之穴 60级",             GOSSIP_SENDER_MAIN, 1268);
+            player->ADD_GOSSIP_ITEM(5, "卡拉赞 60级",          GOSSIP_SENDER_MAIN, 1269);
+            player->ADD_GOSSIP_ITEM(5, "翡翠圣殿 60级",            GOSSIP_SENDER_MAIN, 1270);
+            player->ADD_GOSSIP_ITEM(5, "仇恨熔炉 60级",   GOSSIP_SENDER_MAIN, 1271);
+            player->ADD_GOSSIP_ITEM(5, "冬幕谷 60级",    GOSSIP_SENDER_MAIN, 1272);
+            player->ADD_GOSSIP_ITEM(5, "亚楠镇 60级",           GOSSIP_SENDER_MAIN, 1273);
+            player->ADD_GOSSIP_ITEM(7, "<- [后退]",           GOSSIP_SENDER_MAIN, 5551);
             player->ADD_GOSSIP_ITEM(5, "<-[主菜单]",       GOSSIP_SENDER_MAIN, 100);
 
             player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
@@ -647,6 +661,76 @@ void SendDefaultMenu_TeleportNPC(Player *player, Creature *_Creature, uint32 act
             }
             player->ModifyMoney(-5 * GOLD);
             player->TeleportTo(0, 1219.01f, -2604.66f, 85.61f, 0.50f);
+            break;
+        case 1267:// Teleport player to StormwindVault
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetMoney() < 5 * GOLD)
+            {
+                player->GetSession()->SendNotification("传送需要5金币。");
+                break;
+            }
+            player->ModifyMoney(-5 * GOLD);
+            player->TeleportTo(0, -8691.629f, 572.148f, 93.662f, 0.00f);
+            break;
+        case 1268:// Teleport player to CavernsOfTime
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetMoney() < 5 * GOLD)
+            {
+                player->GetSession()->SendNotification("传送需要5金币。");
+                break;
+            }
+            player->ModifyMoney(-5 * GOLD);
+            player->TeleportTo(1, -8510.25f, -4391.74f, -218.636f, 0.00f);
+            break;
+        case 1269:// Teleport player to Karazahn
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetMoney() < 5 * GOLD)
+            {
+                player->GetSession()->SendNotification("传送需要5金币。");
+                break;
+            }
+            player->ModifyMoney(-5 * GOLD);
+            player->TeleportTo(0, -11120.826172f, -2012.403687f, 47.094982f, 0.00f);
+            break;
+        case 1270:// Teleport player to EmeraldSanctum
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetMoney() < 5 * GOLD)
+            {
+                player->GetSession()->SendNotification("传送需要5金币。");
+                break;
+            }
+            player->ModifyMoney(-5 * GOLD);
+            player->TeleportTo(1, 7815.447266f, -2857.259766f, 459.636658f, 0.00f);
+            break;
+        case 1271:// Teleport player to Hateforge
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetMoney() < 5 * GOLD)
+            {
+                player->GetSession()->SendNotification("传送需要5金币。");
+                break;
+            }
+            player->ModifyMoney(-5 * GOLD);
+            player->TeleportTo(0, -8149.071289f, -3020.921631f, 134.421799f, 0.00f);
+            break;
+        case 1272:// Teleport player to Winterveil
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetMoney() < 5 * GOLD)
+            {
+                player->GetSession()->SendNotification("传送需要5金币。");
+                break;
+            }
+            player->ModifyMoney(-5 * GOLD);
+            player->TeleportTo(1, 6723.171387f, -5282.243652f, 779.779480f, 0.00f);
+            break;
+        case 1273:// Teleport player to Yharnam
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetMoney() < 5 * GOLD)
+            {
+                player->GetSession()->SendNotification("传送需要5金币。");
+                break;
+            }
+            player->ModifyMoney(-5 * GOLD);
+            player->TeleportTo(0, -733.396729f, 1536.514160f, 16.620735f, 0.00f);
             break;
         case 4000:// Teleport to Zul'Gurub
             player->CLOSE_GOSSIP_MENU();
