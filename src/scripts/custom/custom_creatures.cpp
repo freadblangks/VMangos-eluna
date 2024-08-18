@@ -1222,7 +1222,7 @@ void SendDefaultMenu_Winterfall_Ursa(Player *player, Creature *_Creature, uint32
     {
         case 1:
             player->CLOSE_GOSSIP_MENU();
-            player->TeleportTo(1, 6723.171387f, -5282.243652f, 779.779480f,, 0.0f);
+            player->TeleportTo(1, 6723.171387f, -5282.243652f, 779.779480f, 0.0f);
             break;
         case 2:
             player->CLOSE_GOSSIP_MENU();
