@@ -1070,6 +1070,221 @@ bool GossipSelect_Chromie(Player *player, Creature *_Creature, uint32 sender, ui
     return true;
 }
 
+bool GossipHello_Black_Knight(Player *player, Creature *_Creature)   
+{
+    if (player->GetMapId() == 540 || player->GetMapId() == 541)
+    {
+        player->ADD_GOSSIP_ITEM(5, "离开副本",               GOSSIP_SENDER_MAIN, 1);
+    }
+    else
+    {
+        player->ADD_GOSSIP_ITEM(5, "传送：卡拉赞",               GOSSIP_SENDER_MAIN, 2);
+        player->ADD_GOSSIP_ITEM(5, "传送：卡拉赞墓穴",             GOSSIP_SENDER_MAIN, 3);
+    }
+    player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+    return true;
+}
+void SendDefaultMenu_Black_Knight(Player *player, Creature *_Creature, uint32 action)
+{
+    switch (action)
+    {
+        case 1:
+            player->CLOSE_GOSSIP_MENU();
+            player->TeleportTo(0, -11120.826172f, -2012.403687f, 47.094982f, 0.0f);
+            break;
+        case 2:
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetLevel() < 60)
+            {
+                player->GetSession()->SendNotification("You must be at least level 60 to enter.");
+                break;
+            }
+            player->TeleportTo(540, -11039.6f, -1997.65f, 94.0802f, 0.0f);
+            break;
+        case 3:
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetLevel() < 60)
+            {
+                player->GetSession()->SendNotification("You must be at least level 60 to enter.");
+                break;
+            }
+            player->TeleportTo(541, -11068.1f, -1806.4f, 52.7f, 0.0f);
+            break;
+    }
+}
+bool GossipSelect_Black_Knight(Player *player, Creature *_Creature, uint32 sender, uint32 action)
+{
+    // Main menu
+    if (sender == GOSSIP_SENDER_MAIN)
+        SendDefaultMenu_Black_Knight(player, _Creature, action);
+
+    return true;
+}
+
+bool GossipHello_Elven_Wisp(Player *player, Creature *_Creature)   
+{
+    if (player->GetMapId() == 542)
+    {
+        player->ADD_GOSSIP_ITEM(5, "离开副本",               GOSSIP_SENDER_MAIN, 1);
+    }
+    else
+    {
+        player->ADD_GOSSIP_ITEM(5, "传送：翡翠圣殿",               GOSSIP_SENDER_MAIN, 2);
+    }
+    player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+    return true;
+}
+void SendDefaultMenu_Elven_Wisp(Player *player, Creature *_Creature, uint32 action)
+{
+    switch (action)
+    {
+        case 1:
+            player->CLOSE_GOSSIP_MENU();
+            player->TeleportTo(1, 7815.447266f, -2857.259766f, 459.636658f, 0.0f);
+            break;
+        case 2:
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetLevel() < 60)
+            {
+                player->GetSession()->SendNotification("You must be at least level 60 to enter.");
+                break;
+            }
+            player->TeleportTo(542, 2762.25f, 2972.77f, 26.903f, 0.0f);
+            break;
+    }
+}
+bool GossipSelect_Elven_Wisp(Player *player, Creature *_Creature, uint32 sender, uint32 action)
+{
+    // Main menu
+    if (sender == GOSSIP_SENDER_MAIN)
+        SendDefaultMenu_Elven_Wisp(player, _Creature, action);
+
+    return true;
+}
+
+bool GossipHello_Twilight_Disciple(Player *player, Creature *_Creature)   
+{
+    if (player->GetMapId() == 543)
+    {
+        player->ADD_GOSSIP_ITEM(5, "离开副本",               GOSSIP_SENDER_MAIN, 1);
+    }
+    else
+    {
+        player->ADD_GOSSIP_ITEM(5, "传送：仇恨熔炉",               GOSSIP_SENDER_MAIN, 2);
+    }
+    player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+    return true;
+}
+void SendDefaultMenu_Twilight_Disciple(Player *player, Creature *_Creature, uint32 action)
+{
+    switch (action)
+    {
+        case 1:
+            player->CLOSE_GOSSIP_MENU();
+            player->TeleportTo(0, -8149.071289f, -3020.921631f, 134.421799f, 0.0f);
+            break;
+        case 2:
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetLevel() < 60)
+            {
+                player->GetSession()->SendNotification("You must be at least level 60 to enter.");
+                break;
+            }
+            player->TeleportTo(543, -8170.91f, -3125.6f, 199.593f, 0.0f);
+            break;
+    }
+}
+bool GossipSelect_Twilight_Disciple(Player *player, Creature *_Creature, uint32 sender, uint32 action)
+{
+    // Main menu
+    if (sender == GOSSIP_SENDER_MAIN)
+        SendDefaultMenu_Twilight_Disciple(player, _Creature, action);
+
+    return true;
+}
+
+bool GossipHello_Winterfall_Ursa(Player *player, Creature *_Creature)   
+{
+    if (player->GetMapId() == 544)
+    {
+        player->ADD_GOSSIP_ITEM(5, "离开副本",               GOSSIP_SENDER_MAIN, 1);
+    }
+    else
+    {
+        player->ADD_GOSSIP_ITEM(5, "传送：冬幕谷",               GOSSIP_SENDER_MAIN, 2);
+    }
+    player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+    return true;
+}
+void SendDefaultMenu_Winterfall_Ursa(Player *player, Creature *_Creature, uint32 action)
+{
+    switch (action)
+    {
+        case 1:
+            player->CLOSE_GOSSIP_MENU();
+            player->TeleportTo(1, 6723.171387f, -5282.243652f, 779.779480f,, 0.0f);
+            break;
+        case 2:
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetLevel() < 60)
+            {
+                player->GetSession()->SendNotification("You must be at least level 60 to enter.");
+                break;
+            }
+            player->TeleportTo(544, -2653.06f, 1117.36f, 54.9084f, 0.0f);
+            break;
+    }
+}
+bool GossipSelect_Winterfall_Ursa(Player *player, Creature *_Creature, uint32 sender, uint32 action)
+{
+    // Main menu
+    if (sender == GOSSIP_SENDER_MAIN)
+        SendDefaultMenu_Winterfall_Ursa(player, _Creature, action);
+
+    return true;
+}
+
+bool GossipHello_Yarntown(Player *player, Creature *_Creature)   
+{
+    if (player->GetMapId() == 545)
+    {
+        player->ADD_GOSSIP_ITEM(5, "离开梦境",               GOSSIP_SENDER_MAIN, 1);
+    }
+    else
+    {
+        player->ADD_GOSSIP_ITEM(5, "传送：亚楠镇",               GOSSIP_SENDER_MAIN, 2);
+    }
+    player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+    return true;
+}
+void SendDefaultMenu_Yarntown(Player *player, Creature *_Creature, uint32 action)
+{
+    switch (action)
+    {
+        case 1:
+            player->CLOSE_GOSSIP_MENU();
+            player->TeleportTo(0, -733.396729f, 1536.514160f, 16.620735f, 0.0f);
+            break;
+        case 2:
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetLevel() < 60)
+            {
+                player->GetSession()->SendNotification("You must be at least level 60 to enter.");
+                break;
+            }
+            player->TeleportTo(545, -1095.44f, 2234.75f, 182.862f, 0.0f);
+            break;
+    }
+}
+bool GossipSelect_Yarntown(Player *player, Creature *_Creature, uint32 sender, uint32 action)
+{
+    // Main menu
+    if (sender == GOSSIP_SENDER_MAIN)
+        SendDefaultMenu_Yarntown(player, _Creature, action);
+
+    return true;
+}
+
 bool GossipHello_TransmogNPC(Player* player, Creature* creature)
 {
     player->ADD_GOSSIP_ITEM(5, "头部",      GOSSIP_SENDER_MAIN, EQUIPMENT_SLOT_HEAD);
@@ -1913,6 +2128,36 @@ void AddSC_custom_creatures()
     newscript->Name = "npc_chromie";
     newscript->pGossipHello = &GossipHello_Chromie;
     newscript->pGossipSelect = &GossipSelect_Chromie;
+    newscript->RegisterSelf(false);
+
+    newscript = new Script;
+    newscript->Name = "npc_black_knight";
+    newscript->pGossipHello = &GossipHello_Black_Knight;
+    newscript->pGossipSelect = &GossipSelect_Black_Knight;
+    newscript->RegisterSelf(false);
+
+    newscript = new Script;
+    newscript->Name = "npc_elven_wisp";
+    newscript->pGossipHello = &GossipHello_Elven_Wisp;
+    newscript->pGossipSelect = &GossipSelect_Elven_Wisp;
+    newscript->RegisterSelf(false);
+
+    newscript = new Script;
+    newscript->Name = "npc_twilight_disciple";
+    newscript->pGossipHello = &GossipHello_Twilight_Disciple;
+    newscript->pGossipSelect = &GossipSelect_Twilight_Disciple;
+    newscript->RegisterSelf(false);
+
+    newscript = new Script;
+    newscript->Name = "npc_winterfall_ursa";
+    newscript->pGossipHello = &GossipHello_Winterfall_Ursa;
+    newscript->pGossipSelect = &GossipSelect_Winterfall_Ursa;
+    newscript->RegisterSelf(false);
+
+    newscript = new Script;
+    newscript->Name = "npc_yarntown";
+    newscript->pGossipHello = &GossipHello_Yarntown;
+    newscript->pGossipSelect = &GossipSelect_Yarntown;
     newscript->RegisterSelf(false);
 
     newscript = new Script;
