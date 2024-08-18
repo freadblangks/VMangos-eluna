@@ -1116,8 +1116,7 @@ bool GossipSelect_TeleportNPC(Player *player, Creature *_Creature, uint32 sender
 
 bool GossipHello_Chromie(Player *player, Creature *_Creature)   
 {
-    player->ADD_GOSSIP_ITEM(5, "传送：黑色沼泽",               GOSSIP_SENDER_MAIN, 1);
-    player->ADD_GOSSIP_ITEM(5, "传送：旧希尔斯布莱德丘陵",             GOSSIP_SENDER_MAIN, 2);
+    player->ADD_GOSSIP_ITEM(5, "黑暗力量已经渗透了时光之穴，尝试着改变过去、现在和未来的走向。时间的平衡危在旦夕，如果过去的历史无法被拯救……艾泽拉斯将不再有未来。",               GOSSIP_SENDER_MAIN, 1);
     player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
     return true;
 }
@@ -1126,6 +1125,11 @@ void SendDefaultMenu_Chromie(Player *player, Creature *_Creature, uint32 action)
     switch (action)
     {
         case 1:
+            player->ADD_GOSSIP_ITEM(5, "传送：黑色沼泽",               GOSSIP_SENDER_MAIN, 2);
+            player->ADD_GOSSIP_ITEM(5, "传送：旧希尔斯布莱德丘陵",             GOSSIP_SENDER_MAIN, 3);
+            player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+            break;
+        case 2:
             player->CLOSE_GOSSIP_MENU();
             if(player->GetLevel() < 60)
             {
@@ -1134,7 +1138,7 @@ void SendDefaultMenu_Chromie(Player *player, Creature *_Creature, uint32 action)
             }
             player->TeleportTo(269, -2001.74f, 6576.61f, -154.822f, 0.0f);
             break;
-        case 2:
+        case 3:
             player->CLOSE_GOSSIP_MENU();
             if(player->GetLevel() < 60)
             {
@@ -1162,8 +1166,7 @@ bool GossipHello_Black_Knight(Player *player, Creature *_Creature)
     }
     else
     {
-        player->ADD_GOSSIP_ITEM(5, "传送：卡拉赞",               GOSSIP_SENDER_MAIN, 2);
-        player->ADD_GOSSIP_ITEM(5, "传送：卡拉赞墓穴",             GOSSIP_SENDER_MAIN, 3);
+        player->ADD_GOSSIP_ITEM(5, "卡拉赞之塔曾属于艾泽拉斯大陆上最强的人：星界法师麦迪文。这里只有一条真理：进去以后，你或许永远也无法出来……",               GOSSIP_SENDER_MAIN, 2);
     }
     player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
     return true;
@@ -1177,6 +1180,11 @@ void SendDefaultMenu_Black_Knight(Player *player, Creature *_Creature, uint32 ac
             player->TeleportTo(0, -11120.826172f, -2012.403687f, 47.094982f, 0.0f);
             break;
         case 2:
+            player->ADD_GOSSIP_ITEM(5, "传送：卡拉赞",               GOSSIP_SENDER_MAIN, 3);
+            player->ADD_GOSSIP_ITEM(5, "传送：卡拉赞墓穴",             GOSSIP_SENDER_MAIN, 4);
+            player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+            break;
+        case 3:
             player->CLOSE_GOSSIP_MENU();
             if(player->GetLevel() < 60)
             {
@@ -1185,7 +1193,7 @@ void SendDefaultMenu_Black_Knight(Player *player, Creature *_Creature, uint32 ac
             }
             player->TeleportTo(540, -11039.6f, -1997.65f, 94.0802f, 0.0f);
             break;
-        case 3:
+        case 4:
             player->CLOSE_GOSSIP_MENU();
             if(player->GetLevel() < 60)
             {
@@ -1213,7 +1221,7 @@ bool GossipHello_Elven_Wisp(Player *player, Creature *_Creature)
     }
     else
     {
-        player->ADD_GOSSIP_ITEM(5, "传送：翡翠圣殿",               GOSSIP_SENDER_MAIN, 2);
+        player->ADD_GOSSIP_ITEM(5, "在上一次冥想中进入翡翠梦境之后，玛法里奥迟迟未能醒来。德鲁伊们推断，某种可怕的东西已经越过绿龙的守护进入了翡翠圣殿。",               GOSSIP_SENDER_MAIN, 2);
     }
     player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
     return true;
@@ -1227,6 +1235,10 @@ void SendDefaultMenu_Elven_Wisp(Player *player, Creature *_Creature, uint32 acti
             player->TeleportTo(1, 7815.447266f, -2857.259766f, 459.636658f, 0.0f);
             break;
         case 2:
+            player->ADD_GOSSIP_ITEM(5, "传送：翡翠圣殿",               GOSSIP_SENDER_MAIN, 3);
+            player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+            break;
+        case 3:
             player->CLOSE_GOSSIP_MENU();
             if(player->GetLevel() < 60)
             {
@@ -1254,7 +1266,7 @@ bool GossipHello_Twilight_Disciple(Player *player, Creature *_Creature)
     }
     else
     {
-        player->ADD_GOSSIP_ITEM(5, "传送：仇恨熔炉",               GOSSIP_SENDER_MAIN, 2);
+        player->ADD_GOSSIP_ITEM(5, "巅峰产生虚伪的拥护，黄昏见证真正的使徒。上古之神归来，暮光审判将至。",               GOSSIP_SENDER_MAIN, 2);
     }
     player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
     return true;
@@ -1268,6 +1280,10 @@ void SendDefaultMenu_Twilight_Disciple(Player *player, Creature *_Creature, uint
             player->TeleportTo(0, -8149.071289f, -3020.921631f, 134.421799f, 0.0f);
             break;
         case 2:
+            player->ADD_GOSSIP_ITEM(5, "传送：仇恨熔炉",               GOSSIP_SENDER_MAIN, 3);
+            player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+            break;
+        case 3:
             player->CLOSE_GOSSIP_MENU();
             if(player->GetLevel() < 60)
             {
@@ -1295,7 +1311,7 @@ bool GossipHello_Winterfall_Ursa(Player *player, Creature *_Creature)
     }
     else
     {
-        player->ADD_GOSSIP_ITEM(5, "传送：冬幕谷",               GOSSIP_SENDER_MAIN, 2);
+        player->ADD_GOSSIP_ITEM(5, "欢迎来到冬幕谷，冒险者。冬天爷爷为大家准备了冬幕节礼物。",               GOSSIP_SENDER_MAIN, 2);
     }
     player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
     return true;
@@ -1309,6 +1325,10 @@ void SendDefaultMenu_Winterfall_Ursa(Player *player, Creature *_Creature, uint32
             player->TeleportTo(1, 6723.171387f, -5282.243652f, 779.779480f, 0.0f);
             break;
         case 2:
+            player->ADD_GOSSIP_ITEM(5, "传送：冬幕谷",               GOSSIP_SENDER_MAIN, 3);
+            player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+            break;
+        case 3:
             player->CLOSE_GOSSIP_MENU();
             if(player->GetLevel() < 60)
             {
@@ -1336,7 +1356,7 @@ bool GossipHello_Yarntown(Player *player, Creature *_Creature)
     }
     else
     {
-        player->ADD_GOSSIP_ITEM(5, "传送：亚楠镇",               GOSSIP_SENDER_MAIN, 2);
+        player->ADD_GOSSIP_ITEM(5, "民风淳朴亚楠镇，热情好客不死街。美丽富饶苇名城，勤劳勇敢水生村。",               GOSSIP_SENDER_MAIN, 2);
     }
     player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
     return true;
@@ -1350,6 +1370,10 @@ void SendDefaultMenu_Yarntown(Player *player, Creature *_Creature, uint32 action
             player->TeleportTo(0, -733.396729f, 1536.514160f, 16.620735f, 0.0f);
             break;
         case 2:
+            player->ADD_GOSSIP_ITEM(5, "传送：亚楠镇",               GOSSIP_SENDER_MAIN, 3);
+            player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+            break;
+        case 3:
             player->CLOSE_GOSSIP_MENU();
             if(player->GetLevel() < 60)
             {
