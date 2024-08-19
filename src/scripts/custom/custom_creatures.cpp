@@ -63,7 +63,7 @@ void SendDefaultMenu_TeleportNPC(Player *player, Creature *_Creature, uint32 act
             player->ADD_GOSSIP_ITEM(5, "幽暗城",                 GOSSIP_SENDER_MAIN, 21);
             player->ADD_GOSSIP_ITEM(5, "雷霆崖",              GOSSIP_SENDER_MAIN, 22);
             //player->ADD_GOSSIP_ITEM(5, "Goldshire (Stormwind)",   GOSSIP_SENDER_MAIN, 4018);
-            player->ADD_GOSSIP_ITEM(5, "<-[主菜单]",             GOSSIP_SENDER_MAIN, 100);
+            player->ADD_GOSSIP_ITEM(7, "<-[主菜单]",             GOSSIP_SENDER_MAIN, 100);
 
             player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
             break;
@@ -72,7 +72,7 @@ void SendDefaultMenu_TeleportNPC(Player *player, Creature *_Creature, uint32 act
             player->ADD_GOSSIP_ITEM(5, "铁炉堡",                 GOSSIP_SENDER_MAIN, 24);
             player->ADD_GOSSIP_ITEM(5, "达纳苏斯",                 GOSSIP_SENDER_MAIN, 25);
             //player->ADD_GOSSIP_ITEM(5, "Razor Hill(Orgrimmar)",   GOSSIP_SENDER_MAIN, 4017);
-            player->ADD_GOSSIP_ITEM(5, "<-[主菜单]",             GOSSIP_SENDER_MAIN, 100);
+            player->ADD_GOSSIP_ITEM(7, "<-[主菜单]",             GOSSIP_SENDER_MAIN, 100);
 
             player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
             break;
@@ -80,7 +80,7 @@ void SendDefaultMenu_TeleportNPC(Player *player, Creature *_Creature, uint32 act
             player->ADD_GOSSIP_ITEM(5, "亡灵-灰影墓穴",       GOSSIP_SENDER_MAIN, 40);
             player->ADD_GOSSIP_ITEM(5, "兽人&巨魔-试炼谷",   GOSSIP_SENDER_MAIN, 41);
             player->ADD_GOSSIP_ITEM(5, "牛头人-纳拉其营地",       GOSSIP_SENDER_MAIN, 42);
-            player->ADD_GOSSIP_ITEM(5, "<-[主菜单]",      GOSSIP_SENDER_MAIN, 100);
+            player->ADD_GOSSIP_ITEM(7, "<-[主菜单]",      GOSSIP_SENDER_MAIN, 100);
 
             player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
             break;
@@ -88,7 +88,7 @@ void SendDefaultMenu_TeleportNPC(Player *player, Creature *_Creature, uint32 act
             player->ADD_GOSSIP_ITEM(5, "人类-北郡山谷",   GOSSIP_SENDER_MAIN, 43);
             player->ADD_GOSSIP_ITEM(5, "矮人&侏儒-寒脊山谷",    GOSSIP_SENDER_MAIN, 44);
             player->ADD_GOSSIP_ITEM(5, "暗夜精灵-幽影谷",          GOSSIP_SENDER_MAIN, 45);
-            player->ADD_GOSSIP_ITEM(5, "<-[主菜单]",       GOSSIP_SENDER_MAIN, 100);
+            player->ADD_GOSSIP_ITEM(7, "<-[主菜单]",       GOSSIP_SENDER_MAIN, 100);
 
             player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
             break;
@@ -101,7 +101,7 @@ void SendDefaultMenu_TeleportNPC(Player *player, Creature *_Creature, uint32 act
             player->ADD_GOSSIP_ITEM(5, "剃刀高地 34-37级",        GOSSIP_SENDER_MAIN, 1256);
             player->ADD_GOSSIP_ITEM(5, "血色修道院 29-40级",     GOSSIP_SENDER_MAIN, 1257);
             player->ADD_GOSSIP_ITEM(7, "[更多] ->",             GOSSIP_SENDER_MAIN, 5551);
-            player->ADD_GOSSIP_ITEM(5, "<-[主菜单]",         GOSSIP_SENDER_MAIN, 100);
+            player->ADD_GOSSIP_ITEM(7, "<-[主菜单]",         GOSSIP_SENDER_MAIN, 100);
 
             player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
             break;
@@ -117,7 +117,7 @@ void SendDefaultMenu_TeleportNPC(Player *player, Creature *_Creature, uint32 act
             player->ADD_GOSSIP_ITEM(5, "通灵学院 55-60级",         GOSSIP_SENDER_MAIN, 1266);
             player->ADD_GOSSIP_ITEM(7, "[更多] ->",             GOSSIP_SENDER_MAIN, 5552);
             player->ADD_GOSSIP_ITEM(7, "<- [后退]",           GOSSIP_SENDER_MAIN, 5);
-            player->ADD_GOSSIP_ITEM(5, "<-[主菜单]",       GOSSIP_SENDER_MAIN, 100);
+            player->ADD_GOSSIP_ITEM(7, "<-[主菜单]",       GOSSIP_SENDER_MAIN, 100);
 
             player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
             break;
@@ -130,7 +130,7 @@ void SendDefaultMenu_TeleportNPC(Player *player, Creature *_Creature, uint32 act
             player->ADD_GOSSIP_ITEM(5, "冬幕谷 60级",    GOSSIP_SENDER_MAIN, 1272);
             player->ADD_GOSSIP_ITEM(5, "亚楠镇 60级",           GOSSIP_SENDER_MAIN, 1273);
             player->ADD_GOSSIP_ITEM(7, "<- [后退]",           GOSSIP_SENDER_MAIN, 5551);
-            player->ADD_GOSSIP_ITEM(5, "<-[主菜单]",       GOSSIP_SENDER_MAIN, 100);
+            player->ADD_GOSSIP_ITEM(7, "<-[主菜单]",       GOSSIP_SENDER_MAIN, 100);
 
             player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
             break;
@@ -142,7 +142,7 @@ void SendDefaultMenu_TeleportNPC(Player *player, Creature *_Creature, uint32 act
             player->ADD_GOSSIP_ITEM(5, "安其拉废墟 20人",    GOSSIP_SENDER_MAIN, 4004);
             player->ADD_GOSSIP_ITEM(5, "安其拉神殿 40人 t2.5",   GOSSIP_SENDER_MAIN, 4005);
             player->ADD_GOSSIP_ITEM(5, "纳克萨玛斯 40人 t3",             GOSSIP_SENDER_MAIN, 4006);
-            player->ADD_GOSSIP_ITEM(5, "<-[主菜单]",         GOSSIP_SENDER_MAIN, 100);
+            player->ADD_GOSSIP_ITEM(7, "<-[主菜单]",         GOSSIP_SENDER_MAIN, 100);
 
             player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
             break;
@@ -159,7 +159,7 @@ void SendDefaultMenu_TeleportNPC(Player *player, Creature *_Creature, uint32 act
             player->ADD_GOSSIP_ITEM(5, "贫瘠之地",            GOSSIP_SENDER_MAIN, 610);
             player->ADD_GOSSIP_ITEM(5, "千针石林",       GOSSIP_SENDER_MAIN, 611);
             player->ADD_GOSSIP_ITEM(5, "冬泉谷",           GOSSIP_SENDER_MAIN, 612);
-            player->ADD_GOSSIP_ITEM(5, "<-[主菜单]",          GOSSIP_SENDER_MAIN, 100);
+            player->ADD_GOSSIP_ITEM(7, "<-[主菜单]",          GOSSIP_SENDER_MAIN, 100);
 
             player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
             break;
@@ -174,7 +174,7 @@ void SendDefaultMenu_TeleportNPC(Player *player, Creature *_Creature, uint32 act
             player->ADD_GOSSIP_ITEM(5, "赤脊山",   GOSSIP_SENDER_MAIN, 620);
             player->ADD_GOSSIP_ITEM(5, "银松森林",    GOSSIP_SENDER_MAIN, 621);
             player->ADD_GOSSIP_ITEM(7, "[更多] ->",            GOSSIP_SENDER_MAIN, 6021);
-            player->ADD_GOSSIP_ITEM(5, "<-[主菜单]",        GOSSIP_SENDER_MAIN, 100);
+            player->ADD_GOSSIP_ITEM(7, "<-[主菜单]",        GOSSIP_SENDER_MAIN, 100);
 
             player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
             break;
@@ -186,7 +186,7 @@ void SendDefaultMenu_TeleportNPC(Player *player, Creature *_Creature, uint32 act
             player->ADD_GOSSIP_ITEM(5, "西部荒野",             GOSSIP_SENDER_MAIN, 626);
             player->ADD_GOSSIP_ITEM(5, "湿地",             GOSSIP_SENDER_MAIN, 627);
             player->ADD_GOSSIP_ITEM(7, "<- [后退]",            GOSSIP_SENDER_MAIN, 6020);
-            player->ADD_GOSSIP_ITEM(5, "<-[主菜单]",        GOSSIP_SENDER_MAIN, 100);
+            player->ADD_GOSSIP_ITEM(7, "<-[主菜单]",        GOSSIP_SENDER_MAIN, 100);
 
             player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
             break;
@@ -1116,7 +1116,7 @@ bool GossipSelect_TeleportNPC(Player *player, Creature *_Creature, uint32 sender
 
 bool GossipHello_Chromie(Player *player, Creature *_Creature)   
 {
-    player->ADD_GOSSIP_ITEM(5, "黑暗力量已经渗透了时光之穴，尝试着改变过去、现在和未来的走向。时间的平衡危在旦夕，如果过去的历史无法被拯救……艾泽拉斯将不再有未来。",               GOSSIP_SENDER_MAIN, 1);
+    player->ADD_GOSSIP_ITEM(7, "黑暗力量已经渗透了时光之穴，尝试着改变过去、现在和未来的走向。时间的平衡危在旦夕，如果过去的历史无法被拯救……艾泽拉斯将不再有未来。",               GOSSIP_SENDER_MAIN, 1);
     player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
     return true;
 }
@@ -1166,7 +1166,7 @@ bool GossipHello_Black_Knight(Player *player, Creature *_Creature)
     }
     else
     {
-        player->ADD_GOSSIP_ITEM(5, "卡拉赞之塔曾属于艾泽拉斯大陆上最强的人：星界法师麦迪文。这里只有一条真理：进去以后，你或许永远也无法出来……",               GOSSIP_SENDER_MAIN, 2);
+        player->ADD_GOSSIP_ITEM(7, "卡拉赞之塔曾属于艾泽拉斯大陆上最强的人：星界法师麦迪文。这里只有一条真理：进去以后，你或许永远也无法出来……",               GOSSIP_SENDER_MAIN, 2);
     }
     player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
     return true;
@@ -1221,7 +1221,7 @@ bool GossipHello_Elven_Wisp(Player *player, Creature *_Creature)
     }
     else
     {
-        player->ADD_GOSSIP_ITEM(5, "在上一次冥想中进入翡翠梦境之后，玛法里奥迟迟未能醒来。德鲁伊们推断，某种可怕的东西已经越过绿龙的守护进入了翡翠圣殿。",               GOSSIP_SENDER_MAIN, 2);
+        player->ADD_GOSSIP_ITEM(7, "在上一次冥想中进入翡翠梦境之后，玛法里奥迟迟未能醒来。德鲁伊们推断，某种可怕的东西已经越过绿龙的守护进入了翡翠圣殿。",               GOSSIP_SENDER_MAIN, 2);
     }
     player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
     return true;
@@ -1266,7 +1266,7 @@ bool GossipHello_Twilight_Disciple(Player *player, Creature *_Creature)
     }
     else
     {
-        player->ADD_GOSSIP_ITEM(5, "巅峰产生虚伪的拥护，黄昏见证真正的使徒。上古之神归来，暮光审判将至。",               GOSSIP_SENDER_MAIN, 2);
+        player->ADD_GOSSIP_ITEM(7, "巅峰产生虚伪的拥护，黄昏见证真正的使徒。上古之神归来，暮光审判将至。",               GOSSIP_SENDER_MAIN, 2);
     }
     player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
     return true;
@@ -1311,7 +1311,7 @@ bool GossipHello_Winterfall_Ursa(Player *player, Creature *_Creature)
     }
     else
     {
-        player->ADD_GOSSIP_ITEM(5, "欢迎来到冬幕谷，冒险者。冬天爷爷为大家准备了冬幕节礼物。",               GOSSIP_SENDER_MAIN, 2);
+        player->ADD_GOSSIP_ITEM(7, "欢迎来到冬幕谷，冒险者。冬天爷爷为大家准备了冬幕节礼物。",               GOSSIP_SENDER_MAIN, 2);
     }
     player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
     return true;
@@ -1356,7 +1356,7 @@ bool GossipHello_Yarntown(Player *player, Creature *_Creature)
     }
     else
     {
-        player->ADD_GOSSIP_ITEM(5, "民风淳朴亚楠镇，热情好客不死街。美丽富饶苇名城，勤劳勇敢水生村。",               GOSSIP_SENDER_MAIN, 2);
+        player->ADD_GOSSIP_ITEM(7, "民风淳朴亚楠镇，热情好客不死街。美丽富饶苇名城，勤劳勇敢水生村。",               GOSSIP_SENDER_MAIN, 2);
     }
     player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
     return true;
