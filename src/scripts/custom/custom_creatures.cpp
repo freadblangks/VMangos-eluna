@@ -129,6 +129,7 @@ void SendDefaultMenu_TeleportNPC(Player *player, Creature *_Creature, uint32 act
             player->ADD_GOSSIP_ITEM(5, "仇恨熔炉 60级",   GOSSIP_SENDER_MAIN, 1271);
             player->ADD_GOSSIP_ITEM(5, "冬幕谷 60级",    GOSSIP_SENDER_MAIN, 1272);
             player->ADD_GOSSIP_ITEM(5, "亚楠镇 60级",           GOSSIP_SENDER_MAIN, 1273);
+            player->ADD_GOSSIP_ITEM(5, "修道院 60级",           GOSSIP_SENDER_MAIN, 1274);
             player->ADD_GOSSIP_ITEM(7, "<- [后退]",           GOSSIP_SENDER_MAIN, 5551);
             player->ADD_GOSSIP_ITEM(7, "<-[主菜单]",       GOSSIP_SENDER_MAIN, 100);
 
@@ -731,6 +732,16 @@ void SendDefaultMenu_TeleportNPC(Player *player, Creature *_Creature, uint32 act
             }
             player->ModifyMoney(-5 * GOLD);
             player->TeleportTo(0, -733.396729f, 1536.514160f, 16.620735f, 0.00f);
+            break;
+        case 1274:// Teleport player to Monastery
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetMoney() < 5 * GOLD)
+            {
+                player->GetSession()->SendNotification("传送需要5金币。");
+                break;
+            }
+            player->ModifyMoney(-5 * GOLD);
+            player->TeleportTo(0, 2813.558105f, -875.338440f, 154.011703f, 0.00f);
             break;
         case 4000:// Teleport to Zul'Gurub
             player->CLOSE_GOSSIP_MENU();
@@ -1389,6 +1400,51 @@ bool GossipSelect_Yarntown(Player *player, Creature *_Creature, uint32 sender, u
     // Main menu
     if (sender == GOSSIP_SENDER_MAIN)
         SendDefaultMenu_Yarntown(player, _Creature, action);
+
+    return true;
+}
+
+bool GossipHello_Zealot(Player *player, Creature *_Creature)   
+{
+    if (player->GetMapId() == 44)
+    {
+        player->ADD_GOSSIP_ITEM(5, "离开副本",               GOSSIP_SENDER_MAIN, 1);
+    }
+    else
+    {
+        player->ADD_GOSSIP_ITEM(7, "我们血色十字军是不可战胜的。",               GOSSIP_SENDER_MAIN, 2);
+    }
+    player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+    return true;
+}
+void SendDefaultMenu_Zealot(Player *player, Creature *_Creature, uint32 action)
+{
+    switch (action)
+    {
+        case 1:
+            player->CLOSE_GOSSIP_MENU();
+            player->TeleportTo(0, 2813.558105f, -875.338440f, 154.011703f, 0.0f);
+            break;
+        case 2:
+            player->ADD_GOSSIP_ITEM(5, "传送：修道院",               GOSSIP_SENDER_MAIN, 3);
+            player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+            break;
+        case 3:
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetLevel() < 60)
+            {
+                player->GetSession()->SendNotification("You must be at least level 60 to enter.");
+                break;
+            }
+            player->TeleportTo(44, 78.339188f, -0.845785f, 18.677134f, 0.0f);
+            break;
+    }
+}
+bool GossipSelect_Zealot(Player *player, Creature *_Creature, uint32 sender, uint32 action)
+{
+    // Main menu
+    if (sender == GOSSIP_SENDER_MAIN)
+        SendDefaultMenu_Zealot(player, _Creature, action);
 
     return true;
 }
@@ -2266,6 +2322,12 @@ void AddSC_custom_creatures()
     newscript->Name = "npc_yarntown";
     newscript->pGossipHello = &GossipHello_Yarntown;
     newscript->pGossipSelect = &GossipSelect_Yarntown;
+    newscript->RegisterSelf(false);
+
+    newscript = new Script;
+    newscript->Name = "npc_zealot";
+    newscript->pGossipHello = &GossipHello_Zealot;
+    newscript->pGossipSelect = &GossipSelect_Zealot;
     newscript->RegisterSelf(false);
 
     newscript = new Script;
