@@ -130,6 +130,7 @@ void SendDefaultMenu_TeleportNPC(Player *player, Creature *_Creature, uint32 act
             player->ADD_GOSSIP_ITEM(5, "冬幕谷 60级",    GOSSIP_SENDER_MAIN, 1272);
             player->ADD_GOSSIP_ITEM(5, "亚楠镇 60级",           GOSSIP_SENDER_MAIN, 1273);
             player->ADD_GOSSIP_ITEM(5, "修道院 60级",           GOSSIP_SENDER_MAIN, 1274);
+            player->ADD_GOSSIP_ITEM(5, "凄凉山 60级",           GOSSIP_SENDER_MAIN, 1275);
             player->ADD_GOSSIP_ITEM(7, "<- [后退]",           GOSSIP_SENDER_MAIN, 5551);
             player->ADD_GOSSIP_ITEM(7, "<-[主菜单]",       GOSSIP_SENDER_MAIN, 100);
 
@@ -742,6 +743,16 @@ void SendDefaultMenu_TeleportNPC(Player *player, Creature *_Creature, uint32 act
             }
             player->ModifyMoney(-5 * GOLD);
             player->TeleportTo(0, 2813.558105f, -875.338440f, 154.011703f, 0.00f);
+            break;
+        case 1275:// Teleport player to DesolateMountain
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetMoney() < 5 * GOLD)
+            {
+                player->GetSession()->SendNotification("传送需要5金币。");
+                break;
+            }
+            player->ModifyMoney(-5 * GOLD);
+            player->TeleportTo(1, 2938.545166f, -4226.861328f, 95.391983f, 0.00f);
             break;
         case 4000:// Teleport to Zul'Gurub
             player->CLOSE_GOSSIP_MENU();
@@ -1445,6 +1456,51 @@ bool GossipSelect_Zealot(Player *player, Creature *_Creature, uint32 sender, uin
     // Main menu
     if (sender == GOSSIP_SENDER_MAIN)
         SendDefaultMenu_Zealot(player, _Creature, action);
+
+    return true;
+}
+
+bool GossipHello_Timbermaw_Ursa(Player *player, Creature *_Creature)   
+{
+    if (player->GetMapId() == 37)
+    {
+        player->ADD_GOSSIP_ITEM(5, "离开副本",               GOSSIP_SENDER_MAIN, 1);
+    }
+    else
+    {
+        player->ADD_GOSSIP_ITEM(7, "为什么我的眼里常含泪水？因为我对这土地爱得深沉……",               GOSSIP_SENDER_MAIN, 2);
+    }
+    player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+    return true;
+}
+void SendDefaultMenu_Timbermaw_Ursa(Player *player, Creature *_Creature, uint32 action)
+{
+    switch (action)
+    {
+        case 1:
+            player->CLOSE_GOSSIP_MENU();
+            player->TeleportTo(1, 2938.545166f, -4226.861328f, 95.391983f, 0.0f);
+            break;
+        case 2:
+            player->ADD_GOSSIP_ITEM(5, "传送：凄凉山",               GOSSIP_SENDER_MAIN, 3);
+            player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+            break;
+        case 3:
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetLevel() < 60)
+            {
+                player->GetSession()->SendNotification("You must be at least level 60 to enter.");
+                break;
+            }
+            player->TeleportTo(37, 322.269989f, 170.296997f, 234.933701f, 0.0f);
+            break;
+    }
+}
+bool GossipSelect_Timbermaw_Ursa(Player *player, Creature *_Creature, uint32 sender, uint32 action)
+{
+    // Main menu
+    if (sender == GOSSIP_SENDER_MAIN)
+        SendDefaultMenu_Timbermaw_Ursa(player, _Creature, action);
 
     return true;
 }
@@ -2328,6 +2384,12 @@ void AddSC_custom_creatures()
     newscript->Name = "npc_zealot";
     newscript->pGossipHello = &GossipHello_Zealot;
     newscript->pGossipSelect = &GossipSelect_Zealot;
+    newscript->RegisterSelf(false);
+
+    newscript = new Script;
+    newscript->Name = "npc_timbermaw_ursa";
+    newscript->pGossipHello = &GossipHello_Timbermaw_Ursa;
+    newscript->pGossipSelect = &GossipSelect_Timbermaw_Ursa;
     newscript->RegisterSelf(false);
 
     newscript = new Script;
