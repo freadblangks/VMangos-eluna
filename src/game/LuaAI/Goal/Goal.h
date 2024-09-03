@@ -47,7 +47,7 @@ class Goal {
 
 	std::vector<GoalParamP> params;
 	std::array<double, GOAL_NUMBER_COUNT_MAX> numbers;
-	std::array<double, GOAL_TIMER_COUNT_MAX> timers;
+	std::array<clock_t, GOAL_TIMER_COUNT_MAX> timers;
 	std::deque<std::shared_ptr<Goal>> subgoals; // we own the subgoals. if we die we take them with us.
 
 public:

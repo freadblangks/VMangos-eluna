@@ -50,7 +50,8 @@ PartyIntelligence::PartyIntelligence(std::string name, ObjectGuid owner) :
 	m_bCeaseUpdates(false),
 	m_owner(owner),
 	m_updateInterval(50),
-	m_dungeon(nullptr)
+	m_dungeon(nullptr),
+    m_timers{}
 {
 	m_init = m_name + "_Init";
 	m_update = m_name + "_Update";
@@ -332,6 +333,24 @@ void PartyIntelligence::UpdateCC()
 			it = m_cc.erase(it);
 		else
 			++it;
+}
+
+
+double PartyIntelligence::GetTimer(int index)
+{
+    return double(m_timers[index] - clock()) / (double) CLOCKS_PER_SEC;
+}
+
+
+void PartyIntelligence::SetTimer(int index, double time)
+{
+    m_timers[index] = clock() + CLOCKS_PER_SEC * time;
+}
+
+
+bool PartyIntelligence::HasTimerFinished(int index)
+{
+    return clock() >= m_timers[index];
 }
 
 
@@ -787,4 +806,42 @@ int LuaBindsAI::PartyInt_RemoveAll(lua_State* L)
 	PartyIntelligence* intelligence = PartyInt_GetPIObject(L);
 	intelligence->RemoveAll();
 	return 0;
+}
+
+// ---------------------------------------------------------
+//    TIMERS
+// ---------------------------------------------------------
+
+
+int LuaBindsAI::PartyInt_GetTimer(lua_State* L) {
+    PartyIntelligence* intelligence = PartyInt_GetPIObject(L);
+    lua_Integer i = luaL_checkinteger(L, 2);
+    if (i > -1 && i < PARTYINT_TIMER_COUNT_MAX)
+        lua_pushnumber(L, intelligence->GetTimer(i));
+    else
+        luaL_error(L, "PartyIntelligence.GetTimer - number index out of bounds. Allowed - [0, %d)", PARTYINT_TIMER_COUNT_MAX);
+    return 1;
+}
+
+
+int LuaBindsAI::PartyInt_SetTimer(lua_State* L) {
+    PartyIntelligence* intelligence = PartyInt_GetPIObject(L);
+    lua_Integer i = luaL_checkinteger(L, 2);
+    lua_Number n = luaL_checknumber(L, 3);
+    if (i > -1 && i < PARTYINT_TIMER_COUNT_MAX)
+        intelligence->SetTimer(i, n);
+    else
+        luaL_error(L, "PartyIntelligence.SetTimer - number index out of bounds. Allowed - [0, %d)", PARTYINT_TIMER_COUNT_MAX);
+    return 0;
+}
+
+
+int LuaBindsAI::PartyInt_IsFinishTimer(lua_State* L) {
+    PartyIntelligence* intelligence = PartyInt_GetPIObject(L);
+    lua_Integer i = luaL_checkinteger(L, 2);
+    if (i > -1 && i < PARTYINT_TIMER_COUNT_MAX)
+        lua_pushboolean(L, intelligence->HasTimerFinished(i));
+    else
+        luaL_error(L, "PartyIntelligence.IsFinishTimer - number index out of bounds. Allowed - [0, %d)", PARTYINT_TIMER_COUNT_MAX);
+    return 1;
 }

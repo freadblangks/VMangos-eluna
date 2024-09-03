@@ -4,6 +4,7 @@
 
 #include "lua.hpp"
 
+const int PARTYINT_TIMER_COUNT_MAX = 20;
 typedef std::unordered_map<ObjectGuid, Player*> LuaAgentMap;
 class LuaAgent;
 class Unit;
@@ -62,6 +63,10 @@ public:
 	void RemoveCC(const ObjectGuid& guid) { m_cc.erase(guid); }
 	void UpdateCC();
 
+    double GetTimer(int index);
+    void SetTimer(int index, double time);
+    bool HasTimerFinished(int index);
+
 private:
 	bool m_bCeaseUpdates;
 	int m_userDataRef;
@@ -80,6 +85,8 @@ private:
 	std::string m_update;
 
 	std::unordered_map<ObjectGuid, CCInfo> m_cc;
+
+    std::array<clock_t, PARTYINT_TIMER_COUNT_MAX> m_timers;
 };
 
 
@@ -128,7 +135,12 @@ namespace LuaBindsAI {
 	int PartyInt_RemoveAgent(lua_State* L);
 	int PartyInt_RemoveAll(lua_State* L);
 
-	static const struct luaL_Reg PartyInt_BindLib[]{
+    // timer
+    int PartyInt_SetTimer(lua_State* L);
+    int PartyInt_GetTimer(lua_State* L);
+    int PartyInt_IsFinishTimer(lua_State* L);
+
+    static const struct luaL_Reg PartyInt_BindLib[]{
 		{"CanPullTarget", PartyInt_CanPullTarget},
 
 		{"CmdBuff", PartyInt_CmdBuff},
@@ -167,7 +179,12 @@ namespace LuaBindsAI {
 		{"RemoveAgent", PartyInt_RemoveAgent},
 		{"RemoveAll", PartyInt_RemoveAll},
 
-		{NULL, NULL}
+        // timers
+        {"SetTimer", PartyInt_SetTimer},
+        {"GetTimer", PartyInt_GetTimer},
+        {"IsFinishTimer", PartyInt_IsFinishTimer},
+
+        {NULL, NULL}
 	};
 
 }

@@ -184,18 +184,18 @@ void Goal::SetNumber(int index, double value) {
 // Returns the time left on a timer in seconds. Index must be within [0, GOAL_TIMER_COUNT_MAX].
 double  Goal::GetTimer(int index) {
 	//if ( index > -1 && index < timers.size() )
-	return timers[index] - clock() / (double) CLOCKS_PER_SEC;
+	return double(timers[index] - clock()) / (double) CLOCKS_PER_SEC;
 	//return -1.0;
 }
 // Starts the timer at specified index. Time is in seconds. Index must be within [0, GOAL_TIMER_COUNT_MAX].
 void Goal::SetTimer(int index, double time) {
 	//if ( index > -1 && index < timers.size() )
 	// only store the time at which we should be finished
-	timers[index] = clock() / (double) CLOCKS_PER_SEC + time;
+	timers[index] = clock() + CLOCKS_PER_SEC * time;
 }
 // Returns true if the timer at specified index has finished. Index must be within [0, GOAL_TIMER_COUNT_MAX].
 bool Goal::HasTimerFinished(int index) {
-	return (clock() / (double) CLOCKS_PER_SEC) >= timers[index];
+	return clock() >= timers[index];
 }
 
 
