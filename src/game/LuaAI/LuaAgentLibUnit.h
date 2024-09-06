@@ -25,6 +25,7 @@ namespace LuaBindsAI {
 	int Unit_CanAttack(lua_State* L);
 	int Unit_CastSpell(lua_State* L);
 	int Unit_GetCurrentSpellId(lua_State* L);
+	int Unit_GetSheath(lua_State* L);
 	int Unit_GetPowerCost(lua_State* L);
 	/**
 	 * @brief Calculates spell effect value. Only accounts for spell mods for healing spells.
@@ -159,6 +160,7 @@ namespace LuaBindsAI {
 		{"CanAttack", Unit_CanAttack},
 		{"CastSpell", Unit_CastSpell},
 		{"GetCurrentSpellId", Unit_GetCurrentSpellId},
+		{"GetSheath", Unit_GetSheath},
 		{"GetPowerCost", Unit_GetPowerCost},
 		{"GetSpellDamageAndThreat", Unit_GetSpellDamageAndThreat},
 		{"GetSpellCastLeft", Unit_GetSpellCastLeft},

@@ -192,6 +192,14 @@ int LuaBindsAI::Unit_GetPowerCost(lua_State* L)
 }
 
 
+int LuaBindsAI::Unit_GetSheath(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_pushinteger(L, unit->GetSheath());
+	return 1;
+}
+
+
 int LuaBindsAI::Unit_GetSpellDamageAndThreat(lua_State* L)
 {
 	Unit* unit = Unit_GetUnitObject(L);
@@ -1105,7 +1113,7 @@ int LuaBindsAI::Unit_HasUnitState(lua_State* L)
 {
 	Unit* unit = Unit_GetUnitObject(L);
 	lua_Integer state = luaL_checkinteger(L, 2);
-	lua_pushinteger(L, unit->HasUnitState(state));
+	lua_pushboolean(L, unit->HasUnitState(state));
 	return 1;
 }
 
