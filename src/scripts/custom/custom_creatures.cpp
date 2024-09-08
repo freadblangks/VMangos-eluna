@@ -125,11 +125,11 @@ void SendDefaultMenu_TeleportNPC(Player *player, Creature *_Creature, uint32 act
             player->ADD_GOSSIP_ITEM(5, "暴风城金库 60级",             GOSSIP_SENDER_MAIN, 1267);
             player->ADD_GOSSIP_ITEM(5, "时光之穴 60级",             GOSSIP_SENDER_MAIN, 1268);
             player->ADD_GOSSIP_ITEM(5, "卡拉赞 60级",          GOSSIP_SENDER_MAIN, 1269);
-            player->ADD_GOSSIP_ITEM(5, "翡翠圣殿 60级",            GOSSIP_SENDER_MAIN, 1270);
+            player->ADD_GOSSIP_ITEM(5, "翡翠圣所 60级",            GOSSIP_SENDER_MAIN, 1270);
             player->ADD_GOSSIP_ITEM(5, "仇恨熔炉 60级",   GOSSIP_SENDER_MAIN, 1271);
             player->ADD_GOSSIP_ITEM(5, "冬幕谷 60级",    GOSSIP_SENDER_MAIN, 1272);
             player->ADD_GOSSIP_ITEM(5, "亚楠镇 60级",           GOSSIP_SENDER_MAIN, 1273);
-            player->ADD_GOSSIP_ITEM(5, "修道院 60级",           GOSSIP_SENDER_MAIN, 1274);
+            player->ADD_GOSSIP_ITEM(5, "崔斯特瑞姆 60级",           GOSSIP_SENDER_MAIN, 1274);
             player->ADD_GOSSIP_ITEM(5, "凄凉山 60级",           GOSSIP_SENDER_MAIN, 1275);
             player->ADD_GOSSIP_ITEM(7, "<- [后退]",           GOSSIP_SENDER_MAIN, 5551);
             player->ADD_GOSSIP_ITEM(7, "<-[主菜单]",       GOSSIP_SENDER_MAIN, 100);
@@ -1202,7 +1202,7 @@ void SendDefaultMenu_Black_Knight(Player *player, Creature *_Creature, uint32 ac
             player->TeleportTo(0, -11120.826172f, -2012.403687f, 47.094982f, 0.0f);
             break;
         case 2:
-            player->ADD_GOSSIP_ITEM(5, "传送：卡拉赞",               GOSSIP_SENDER_MAIN, 3);
+            player->ADD_GOSSIP_ITEM(5, "传送：卡拉赞下层",               GOSSIP_SENDER_MAIN, 3);
             player->ADD_GOSSIP_ITEM(5, "传送：卡拉赞墓穴",             GOSSIP_SENDER_MAIN, 4);
             player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
             break;
@@ -1243,7 +1243,7 @@ bool GossipHello_Elven_Wisp(Player *player, Creature *_Creature)
     }
     else
     {
-        player->ADD_GOSSIP_ITEM(7, "在上一次冥想中进入翡翠梦境之后，玛法里奥迟迟未能醒来。德鲁伊们推断，某种可怕的东西已经越过绿龙的守护进入了翡翠圣殿。",               GOSSIP_SENDER_MAIN, 2);
+        player->ADD_GOSSIP_ITEM(7, "在上一次冥想中进入翡翠梦境之后，玛法里奥迟迟未能醒来。德鲁伊们推断，某种可怕的东西已经越过绿龙的守护进入了翡翠圣所。",               GOSSIP_SENDER_MAIN, 2);
     }
     player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
     return true;
@@ -1257,7 +1257,7 @@ void SendDefaultMenu_Elven_Wisp(Player *player, Creature *_Creature, uint32 acti
             player->TeleportTo(1, 7815.447266f, -2857.259766f, 459.636658f, 0.0f);
             break;
         case 2:
-            player->ADD_GOSSIP_ITEM(5, "传送：翡翠圣殿",               GOSSIP_SENDER_MAIN, 3);
+            player->ADD_GOSSIP_ITEM(5, "传送：翡翠圣所",               GOSSIP_SENDER_MAIN, 3);
             player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
             break;
         case 3:
@@ -1437,7 +1437,7 @@ void SendDefaultMenu_Zealot(Player *player, Creature *_Creature, uint32 action)
             player->TeleportTo(0, 2813.558105f, -875.338440f, 154.011703f, 0.0f);
             break;
         case 2:
-            player->ADD_GOSSIP_ITEM(5, "传送：修道院",               GOSSIP_SENDER_MAIN, 3);
+            player->ADD_GOSSIP_ITEM(5, "传送：崔斯特瑞姆",               GOSSIP_SENDER_MAIN, 3);
             player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
             break;
         case 3:
@@ -1468,7 +1468,7 @@ bool GossipHello_Timbermaw_Ursa(Player *player, Creature *_Creature)
     }
     else
     {
-        player->ADD_GOSSIP_ITEM(7, "为什么我的眼里常含泪水？因为我对这土地爱得深沉……",               GOSSIP_SENDER_MAIN, 2);
+        player->ADD_GOSSIP_ITEM(7, "扭曲、腐化、堕落……这片土地亟需净化与治愈。",               GOSSIP_SENDER_MAIN, 2);
     }
     player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
     return true;
