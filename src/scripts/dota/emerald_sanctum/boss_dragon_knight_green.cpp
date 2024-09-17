@@ -31,6 +31,7 @@ struct boss_dragon_knight_greenAI : public ScriptedAI
     bool shapeshifting_green;
     bool bkb_green;
     bool bkb_again_green;
+    bool kill;
 
     void Reset() override
     {
@@ -42,13 +43,13 @@ struct boss_dragon_knight_greenAI : public ScriptedAI
         shapeshifting_green = false;
         bkb_green = false;
         bkb_again_green = false;
+        kill = false;
     }
 
     void JustDied(Unit* Killer) override
     {
         m_creature->LoadEquipment(m_creature->GetCreatureInfo()->equipment_id, true);
         m_creature->SetDisplayId(MODEL_HUMAN_GREEN);
-        DoScriptText(SAY_DEATH_GREEN, Killer);
     }
 
     void Aggro(Unit* pWho) override
@@ -83,6 +84,12 @@ struct boss_dragon_knight_greenAI : public ScriptedAI
             DoCastSpellIfCan(m_creature, SPELL_BKB);
             DoScriptText(SAY_BKB, m_creature);
             bkb_again_green = true;
+        }
+
+        if (m_creature->GetHealthPercent() < 10.0f && !kill)
+        {
+            DoScriptText(SAY_DEATH_GREEN, m_creature);
+            kill = true;
         }
 
         //SLAM

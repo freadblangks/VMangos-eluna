@@ -31,6 +31,7 @@ struct boss_dragon_knight_blueAI : public ScriptedAI
     bool shapeshifting_blue;
     bool bkb_blue;
     bool bkb_again_blue;
+    bool kill;
 
     void Reset() override
     {
@@ -42,13 +43,13 @@ struct boss_dragon_knight_blueAI : public ScriptedAI
         shapeshifting_blue = false;
         bkb_blue = false;
         bkb_again_blue = false;
+        kill = false;
     }
 
     void JustDied(Unit* Killer) override
     {
         m_creature->LoadEquipment(m_creature->GetCreatureInfo()->equipment_id, true);
         m_creature->SetDisplayId(MODEL_HUMAN_BLUE);
-        DoScriptText(SAY_DEATH_BLUE, Killer);
     }
 
     void Aggro(Unit* pWho) override
@@ -83,6 +84,12 @@ struct boss_dragon_knight_blueAI : public ScriptedAI
             DoCastSpellIfCan(m_creature, SPELL_BKB);
             DoScriptText(SAY_BKB, m_creature);
             bkb_again_blue = true;
+        }
+
+        if (m_creature->GetHealthPercent() < 10.0f && !kill)
+        {
+            DoScriptText(SAY_DEATH_BLUE, m_creature);
+            kill = true;
         }
 
         //SLAM
