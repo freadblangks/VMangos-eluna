@@ -48,7 +48,7 @@ struct boss_dragon_knight_redAI : public ScriptedAI
     {
         m_creature->LoadEquipment(m_creature->GetCreatureInfo()->equipment_id, true);
         m_creature->SetDisplayId(MODEL_HUMAN_RED);
-        DoScriptText(SAY_DEATH_RED, m_creature);
+        DoScriptText(SAY_DEATH_RED, Killer);
     }
 
     void Aggro(Unit* pWho) override
