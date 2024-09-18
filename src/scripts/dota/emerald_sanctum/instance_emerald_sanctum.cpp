@@ -12,6 +12,7 @@ struct instance_emerald_sanctum : public ScriptedInstance
     uint64 m_uiDragonKnightRedGUID;
     uint64 m_uiDragonKnightBlueGUID;
     uint32 m_uiSpawnChestOnDragonKnightsDeath;
+    uint32 m_uiDragonKnightDeathCount;
     bool   m_isDragonKnightGreenDead;
     bool   m_isDragonKnightRedDead;
     bool   m_isDragonKnightBlueDead;
@@ -22,6 +23,7 @@ struct instance_emerald_sanctum : public ScriptedInstance
         m_uiDragonKnightRedGUID = 0;
         m_uiDragonKnightBlueGUID = 0;
         m_uiSpawnChestOnDragonKnightsDeath = 10000;
+        m_uiDragonKnightDeathCount = 0;
         m_isDragonKnightGreenDead = false;
         m_isDragonKnightRedDead = false;
         m_isDragonKnightBlueDead = false;
@@ -50,17 +52,28 @@ struct instance_emerald_sanctum : public ScriptedInstance
             case NPC_DRAGON_KNIGHT_GREEN :
                 m_isDragonKnightGreenDead = true;
                 m_uiSpawnChestOnDragonKnightsDeath = 10000;
+                m_uiDragonKnightDeathCount += 1;
                 break;
             case NPC_DRAGON_KNIGHT_RED :
                 m_isDragonKnightRedDead = true;
                 m_uiSpawnChestOnDragonKnightsDeath = 10000;
+                m_uiDragonKnightDeathCount += 1;
                 break;
             case NPC_DRAGON_KNIGHT_BLUE :
                 m_isDragonKnightBlueDead = true;
                 m_uiSpawnChestOnDragonKnightsDeath = 10000;
+                m_uiDragonKnightDeathCount += 1;
                 break;
         }
     }
+
+    uint32 GetData(uint32 uiType) override
+    {
+        if (uiType == TYPE_DRAGON_KNIGHT_DEATH_COUNT)
+            return m_uiDragonKnightDeathCount;
+        return 0;
+    }
+
     void Update(uint32 uiDiff) override
     {
         if (m_isDragonKnightGreenDead && m_isDragonKnightRedDead && m_isDragonKnightBlueDead && m_uiSpawnChestOnDragonKnightsDeath)

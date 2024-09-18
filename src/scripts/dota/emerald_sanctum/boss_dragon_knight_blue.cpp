@@ -3,9 +3,11 @@
 
 enum
 {
+    SAY_DEATH_GREEN         = -2000002,
+    SAY_DEATH_RED           = -2000005,
+    SAY_DEATH_BLUE          = -2000008,
     SAY_AGGRO_BLUE          = -2000006,
     SAY_SHAPESHIFTING_BLUE  = -2000007,
-    SAY_DEATH_BLUE          = -2000008,
     SAY_BKB                 = -2000009,
     SPELL_BKB               = 34210,
     SPELL_SLAM              = 34211,
@@ -88,7 +90,12 @@ struct boss_dragon_knight_blueAI : public ScriptedAI
 
         if (m_creature->GetHealthPercent() < 10.0f && !kill)
         {
-            DoScriptText(SAY_DEATH_BLUE, m_creature);
+            if (m_pInstance->GetData(TYPE_DRAGON_KNIGHT_DEATH_COUNT) == 0)
+                DoScriptText(SAY_DEATH_GREEN, m_creature);
+            else if (m_pInstance->GetData(TYPE_DRAGON_KNIGHT_DEATH_COUNT) == 1)
+                DoScriptText(SAY_DEATH_RED, m_creature);
+            else if (m_pInstance->GetData(TYPE_DRAGON_KNIGHT_DEATH_COUNT) == 2)
+                DoScriptText(SAY_DEATH_BLUE, m_creature);
             kill = true;
         }
 
