@@ -96,8 +96,11 @@ struct instance_emerald_sanctum : public ScriptedInstance
             {
                 if (Creature* pDragonKnightGreen = instance->GetCreature(m_uiDragonKnightGreenGUID))
                 {
-                    pDragonKnightGreen->SummonCreature(NPC_WARLOCK, 3319.990f, 3057.540f, 23.333f, 3.172990f, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 120 * MINUTE * IN_MILLISECONDS);
-                    m_uiSpawnWarlockOnDragonKnightsDeath = 0;
+                    if (Creature* pWarlock = pDragonKnightGreen->SummonCreature(NPC_WARLOCK, 3319.990f, 3057.540f, 23.333f, 3.172990f, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 120 * MINUTE * IN_MILLISECONDS))
+                    {
+                        pWarlock->SetRespawnDelay(7 * DAY);
+                        m_uiSpawnWarlockOnDragonKnightsDeath = 0;
+                    }
                 }
             }
             else
