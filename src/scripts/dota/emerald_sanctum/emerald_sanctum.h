@@ -12,6 +12,8 @@ enum
     NPC_EMERALD_DRAKONID            = 200035,
     NPC_EMERALD_WYRMKIN             = 200036,
     NPC_EMERALD_DRAKE               = 200037,
+    NPC_WARLOCK                     = 200038,
+    NPC_INFERNAL                    = 200039,
     GO_CHEST                        = 220000,
 };
 
