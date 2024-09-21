@@ -29,10 +29,12 @@ struct Npc_EmeraldDragonWhelpAI : public ScriptedAI
     }
 
     uint32 POISON_BOLT_TIMER;
+    bool HasFled;
 
     void Reset() override
     {
         POISON_BOLT_TIMER = 500;
+        HasFled = false;
     }
 
     void Aggro(Unit* pWho) override
@@ -45,11 +47,18 @@ struct Npc_EmeraldDragonWhelpAI : public ScriptedAI
         if (!m_creature->SelectHostileTarget() || !m_creature->GetVictim())
             return;
 
+        //FLEE
+        if (!HasFled && m_creature->GetHealthPercent() < 15.0f)
+        {
+            HasFled = true;
+            m_creature->DoFlee();
+            return;
+        }
         //POISON BOLT
         if (POISON_BOLT_TIMER < uiDiff)
         {
             DoCastSpellIfCan(m_creature->GetVictim(), SPELL_POISON_BOLT);
-            POISON_BOLT_TIMER = urand(2500,3000);
+            POISON_BOLT_TIMER = urand(4000,5000);
         }
         else POISON_BOLT_TIMER -= uiDiff;
 
@@ -207,11 +216,13 @@ struct Npc_EmeraldWyrmkinAI : public ScriptedAI
 
     uint32 SLEEP_TIMER;
     uint32 WRATH_TIMER;
+    bool HasFled;
 
     void Reset() override
     {
         SLEEP_TIMER = 5000;
         WRATH_TIMER = 1000;
+        HasFled = false;
     }
 
     void Aggro(Unit* pWho) override
@@ -224,12 +235,20 @@ struct Npc_EmeraldWyrmkinAI : public ScriptedAI
         if (!m_creature->SelectHostileTarget() || !m_creature->GetVictim())
             return;
 
+        //FLEE
+        if (!HasFled && m_creature->GetHealthPercent() < 15.0f)
+        {
+            HasFled = true;
+            m_creature->DoFlee();
+            return;
+        }
         //SLEEP
         if (SLEEP_TIMER < uiDiff)
         {
             if (Unit* pTarget = m_creature->SelectAttackingTarget(ATTACKING_TARGET_NEAREST, 0, nullptr, SELECT_FLAG_PLAYER))
             {
-                DoCastSpellIfCan(pTarget, SPELL_SLEEP);
+                if (!pTarget->HasAura(SPELL_SLEEP))
+                    DoCastSpellIfCan(pTarget, SPELL_SLEEP);
                 SLEEP_TIMER = urand(8000,12000);
             }
         }
