@@ -257,6 +257,14 @@ int LuaBindsAI::Item_GetSlots(lua_State* L)
 }
 
 
+int LuaBindsAI::Item_GetSubclass(lua_State* L)
+{
+	LuaAI_Item* item = Item_GetItemObject(L, 1);
+	lua_pushinteger(L, item->proto->SubClass);
+	return 1;
+}
+
+
 int LuaBindsAI::Item_Print(lua_State* L)
 {
 	LuaAI_Item* item = Item_GetItemObject(L, 1);

@@ -4,10 +4,12 @@
 #include "LuaAgentLibAux.h"
 #include "LuaAgentLibWorldObj.h"
 #include "LuaAgentUtils.h"
+#include "LuaAgentMgr.h"
 #include "ScriptedInstance.h"
 #include "GridNotifiers.h"
 #include "GridSearchers.h"
 #include "eastern_kingdoms/dun_morogh/gnomeregan/gnomeregan.h"
+#include "PathFinder.h"
 
 
 enum
@@ -28,6 +30,61 @@ namespace
 		uint32 m_uiEntry;
 	};
 
+	class AllObjects
+	{
+	public:
+		AllObjects() {}
+		bool operator() (Object* pUnit) { return true; }
+	};
+
+	class AllCreatures
+	{
+	public:
+		AllCreatures(bool aliveOnly) : m_alive(aliveOnly) {}
+		bool operator() (Unit* pUnit) { return !m_alive || pUnit->IsAlive(); }
+		
+	private:
+		bool m_alive;
+	};
+
+	class AllCreaturesEx
+	{
+	public:
+		AllCreaturesEx(Unit* searcher, bool aliveOnly, ReputationRank repLTE, bool allowPlayers, uint32 entry, float zr, bool bPath)
+			: m_alive(aliveOnly), m_searcher(searcher), m_allowPlayers(allowPlayers), m_repLTE(repLTE), m_entry(entry), m_checkPath(bPath), m_zr(zr) {}
+		bool operator() (Unit* pUnit)
+		{
+			if (pUnit->IsAlive() != m_alive) return false;
+			if (pUnit->GetReactionTo(m_searcher) > m_repLTE) return false;
+			if (pUnit->IsPlayer() != m_allowPlayers) return false;
+			if (m_entry > 0 && pUnit->GetEntry() != m_entry) return false;
+			if (m_zr > 0.f && std::abs(pUnit->GetPositionZ() - m_searcher->GetPositionZ()) > m_zr) return false;
+			if (m_checkPath)
+			{
+				if (pUnit->GetDistance(m_searcher, SizeFactor::None) < 1.f)
+					return pUnit->IsWithinLOSInMap(m_searcher);
+				PathFinder path(m_searcher);
+				path.calculate(pUnit->GetPositionX(), pUnit->GetPositionY(), pUnit->GetPositionZ(), false);
+				PathType pathType = path.getPathType();
+				if (pathType & PATHFIND_NORMAL)
+				{
+					path.CutPathWithDynamicLoS();
+					if (path.getPath().size() < 2) return false;
+					return path.Length() > 0.1f;
+				}
+				return false;
+			}
+			return true;
+		}
+
+	private:
+		float m_zr;
+		bool m_alive, m_allowPlayers, m_checkPath;
+		ReputationRank m_repLTE;
+		Unit* m_searcher;
+		uint32 m_entry;
+	};
+
 	class AllCreaturesOfEntry
 	{
 	public:
@@ -39,9 +96,33 @@ namespace
 		bool m_alive;
 	};
 
+	void GetCreatureListAt(std::list<Creature*>& lList, float x, float y, Map* map, float fMaxRange, bool aliveOnly, bool dont_load)
+	{
+		ASSERT(map);
+		AllCreatures check(aliveOnly);
+		MaNGOS::CreatureListSearcher<AllCreatures> searcher(lList, check);
+		Cell::VisitGridObjects(x, y, map, searcher, fMaxRange, dont_load);
+	}
+
+	void GetCreatureListAtEx(std::list<Creature*>& lList, float x, float y, Unit* seeker, float r,  float zr, bool aliveOnly, bool allowPlayers, ReputationRank repLTE, uint32 entry, bool checkPath, bool dont_load)
+	{
+		Map* map = seeker->GetMap();
+		ASSERT(map);
+		AllCreaturesEx check(seeker, aliveOnly, repLTE, allowPlayers, entry, zr, checkPath);
+		MaNGOS::CreatureListSearcher<AllCreaturesEx> searcher(lList, check);
+		Cell::VisitGridObjects(x, y, map, searcher, r, dont_load);
+	}
+
+	void GetObjectListAt(std::list<GameObject*>& lList, float x, float y, Map* map, float fMaxSearchRange, bool dont_load)
+	{
+		ASSERT(map);
+		AllObjects check;
+		MaNGOS::GameObjectListSearcher<AllObjects> searcher(lList, check);
+		Cell::VisitGridObjects(x, y, map, searcher, fMaxSearchRange, dont_load);
+	}
+
 	void GetCreatureListWithEntryAt(std::list<Creature*>& lList, float x, float y, Map* map, uint32 entry, float fMaxRange, bool aliveOnly, bool dont_load)
 	{
-		Creature c;
 		ASSERT(map);
 		AllCreaturesOfEntry check(entry, aliveOnly);
 		MaNGOS::CreatureListSearcher<AllCreaturesOfEntry> searcher(lList, check);
@@ -55,13 +136,41 @@ namespace
 		MaNGOS::GameObjectListSearcher<AllObjectsOfEntry> searcher(lList, check);
 		Cell::VisitGridObjects(x, y, map, searcher, fMaxSearchRange, dont_load);
 	}
+
+	int GetUnitsHelper(lua_State* L, Unit* unit, float x, float y, float z, float r, float zr, bool alive_only, bool allow_players, lua_Integer repLTE, lua_Integer entry, bool check_path, bool dont_load)
+	{
+		if (repLTE < 0 || repLTE >= MAX_REPUTATION_RANK)
+			luaL_error(L, "GetUnitsNearEx: invalid rep rank. Got %lld, allowed [0, %d)", repLTE, MAX_REPUTATION_RANK);
+
+		lua_newtable(L);
+
+		if (r > 0.f)
+		{
+			std::list<Creature*> units;
+			GetCreatureListAtEx(units, x, y, unit, r, zr, alive_only, allow_players, ReputationRank(repLTE), entry, check_path, dont_load);
+			lua_Integer idx = 1;
+			for (auto& u : units)
+			{
+				lua_pushunitornil(L, u);
+				lua_seti(L, -2, idx);
+				++idx;
+			}
+		}
+
+		return 1;
+	}
 }
 
 
 void LuaBindsAI::BindLibAux(lua_State* L)
 {
+	lua_register(L, "import", import);
 	lua_register(L, "GetUnitByGuid", GetUnitByGuid);
 	lua_register(L, "GetUnitByGuidEx", GetUnitByGuidEx);
+	lua_register(L, "GetUnitsNear", GetUnitsNear);
+	lua_register(L, "GetUnitsAroundEx", GetUnitsAroundEx);
+	lua_register(L, "GetUnitsNearEx", GetUnitsNearEx);
+	lua_register(L, "GetObjectsNear", GetObjectsNear);
 	lua_register(L, "GetUnitsWithEntryNear", GetUnitsWithEntryNear);
 	lua_register(L, "GetObjectsWithEntryNear", GetObjectsWithEntryNear);
 	lua_register(L, "GetObjectsWithEntryAround", GetObjectsWithEntryAround);
@@ -74,6 +183,14 @@ void LuaBindsAI::BindLibAux(lua_State* L)
 	lua_register(L, "isinteger", isinteger);
 	lua_register(L, "Gnomeregan_GetFaceData", Gnomeregan_GetFaceData);
 	lua_register(L, "Gnomeregan_GetBombs", Gnomeregan_GetBombs);
+}
+
+
+int LuaBindsAI::import(lua_State* L)
+{
+	std::string fname(luaL_checkstring(L, 1));
+	sLuaAgentMgr.LuaDofile(fname);
+	return 0;
 }
 
 
@@ -133,6 +250,98 @@ int LuaBindsAI::GetSpellName(lua_State* L) {
 		luaL_error(L, "GetSpellName: spell %d not found", spellID);
 	lua_pushstring(L, info_orig->SpellName[0].c_str());
 	return 1;
+}
+
+
+int LuaBindsAI::GetObjectsNear(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L, 1);
+	lua_Number x = luaL_checknumber(L, 2);
+	lua_Number y = luaL_checknumber(L, 3);
+	lua_Number z = luaL_checknumber(L, 4);
+	lua_Number r = luaL_checknumber(L, 5);
+	bool dont_load = luaL_checkboolean(L, 6);
+
+	lua_newtable(L);
+
+	if (r > 0.f)
+	{
+		std::list<GameObject*> objs;
+		GetObjectListAt(objs, x, y, unit->GetMap(), r, dont_load);
+		lua_Integer idx = 1;
+		for (auto& u : objs)
+		{
+			Guid_CreateUD(L, u->GetObjectGuid());
+			lua_seti(L, -2, idx);
+			++idx;
+		}
+	}
+
+	return 1;
+}
+
+
+int LuaBindsAI::GetUnitsNear(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L, 1);
+	lua_Number x = luaL_checknumber(L, 2);
+	lua_Number y = luaL_checknumber(L, 3);
+	lua_Number z = luaL_checknumber(L, 4);
+	lua_Number r = luaL_checknumber(L, 5);
+	bool alive_only = luaL_checkboolean(L, 6);
+	bool dont_load = luaL_checkboolean(L, 7);
+
+	lua_newtable(L);
+
+	if (r > 0.f)
+	{
+		std::list<Creature*> units;
+		GetCreatureListAt(units, x, y, unit->GetMap(), r, alive_only, dont_load);
+		lua_Integer idx = 1;
+		for (auto& u : units)
+		{
+			lua_pushunitornil(L, u);
+			lua_seti(L, -2, idx);
+			++idx;
+		}
+	}
+
+	return 1;
+}
+
+
+int LuaBindsAI::GetUnitsAroundEx(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L, 1);
+	lua_Number r = luaL_checknumber(L, 2);
+	lua_Number zr = luaL_checknumber(L, 3);
+	bool alive_only = luaL_checkboolean(L, 4);
+	bool allow_players = luaL_checkboolean(L, 5);
+	lua_Integer repLTE = luaL_checkinteger(L, 6);
+	lua_Integer entry = luaL_checkinteger(L, 7);
+	bool check_path = luaL_checkboolean(L, 8);
+	bool dont_load = luaL_checkboolean(L, 9);
+
+	return GetUnitsHelper(L, unit, unit->GetPositionX(), unit->GetPositionY(), unit->GetPositionZ(), r, zr, alive_only, allow_players, repLTE, entry, check_path, dont_load);
+}
+
+
+int LuaBindsAI::GetUnitsNearEx(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L, 1);
+	lua_Number x = luaL_checknumber(L, 2);
+	lua_Number y = luaL_checknumber(L, 3);
+	lua_Number z = luaL_checknumber(L, 4);
+	lua_Number r = luaL_checknumber(L, 5);
+	lua_Number zr = luaL_checknumber(L, 6);
+	bool alive_only = luaL_checkboolean(L, 7);
+	bool allow_players = luaL_checkboolean(L, 8);
+	lua_Integer repLTE = luaL_checkinteger(L, 9);
+	lua_Integer entry = luaL_checkinteger(L, 10);
+	bool check_path = luaL_checkboolean(L, 11);
+	bool dont_load = luaL_checkboolean(L, 12);
+
+	return GetUnitsHelper(L, unit, x, y, z, r, zr, alive_only, allow_players, repLTE, entry, check_path, dont_load);
 }
 
 

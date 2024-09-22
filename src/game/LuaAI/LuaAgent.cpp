@@ -16,6 +16,7 @@ LuaAgent::LuaAgent(Player* me, ObjectGuid masterGuid, int logicID) :
 	m_roleId(LuaAgentRoles::Invalid),
 
 	m_updateInterval(50),
+	m_updateSpeedInterval(10000),
 	m_bCeaseUpdates(false),
 	m_bInitialized(false),
 	m_bCmdQueueMode(false),
@@ -39,6 +40,7 @@ LuaAgent::LuaAgent(Player* me, ObjectGuid masterGuid, int logicID) :
 	m_queueGonameName("")
 {
 	m_updateTimer.Reset(2000);
+	m_updateSpeedTimer.Reset(m_updateSpeedInterval);
 	m_topGoal.SetTerminated(true);
 }
 
@@ -107,6 +109,14 @@ void LuaAgent::Update(uint32 diff)
 		return;
 	}
 
+	m_updateSpeedTimer.Update(diff);
+	if ((me->GetSpeedRate(UnitMoveType::MOVE_RUN) < 0.99f && !me->HasAuraType(AuraType::SPELL_AURA_MOD_DECREASE_SPEED)) || m_updateSpeedTimer.Passed())
+	{
+		m_updateSpeedTimer.Reset(m_updateSpeedInterval);
+		me->UpdateSpeed(UnitMoveType::MOVE_RUN, false);
+		me->UpdateSpeed(UnitMoveType::MOVE_SWIM, false);
+	}
+
 	lua_State* L = sLuaAgentMgr.Lua();
 	m_logicManager.Execute(L, this);
 	if (!m_topGoal.GetTerminated()) {
@@ -157,7 +167,8 @@ void LuaAgent::Reset(bool dropRefs)
     me->SetWalk(false, true);
 
 	// reset speed
-	me->SetSpeedRate(UnitMoveType::MOVE_RUN, 1.0f);
+	me->UpdateSpeed(UnitMoveType::MOVE_RUN, false);
+	me->UpdateSpeed(UnitMoveType::MOVE_SWIM, false);
 
 	// stop attacking
 	me->AttackStop();
@@ -403,7 +414,7 @@ void LuaAgent::EquipPrint()
 {
 	for (int i = EQUIPMENT_SLOT_START; i < EQUIPMENT_SLOT_END; ++i)
 		if (Item* item = me->GetItemByPos(INVENTORY_SLOT_BAG_0, i))
-			printf("%d %s\n", item->GetEntry(), item->GetProto()->Name1);
+			printf("%d %s %d\n", item->GetEntry(), item->GetProto()->Name1, item->GetItemRandomPropertyId());
 }
 
 

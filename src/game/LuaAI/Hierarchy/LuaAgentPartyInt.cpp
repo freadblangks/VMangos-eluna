@@ -715,11 +715,24 @@ int LuaBindsAI::PartyInt_ShouldReverseCLine(lua_State* L)
 
 	if (Player* owner = sObjectAccessor.FindPlayer(intelligence->GetOwnerGuid()))
 	{
-		int resultS;
+		int resultS, lineIdx;
 		float resultD, resultpct;
 		G3D::Vector3 result;
 		G3D::Vector3 from(unit->GetPositionX(), unit->GetPositionY(), unit->GetPositionZ());
-		CLine& line = cline->lines[cline->ClosestP(from, result, resultD, resultS, resultpct)];
+		lineIdx = cline->ClosestP(from, result, resultD, resultS, resultpct);
+		CLine& line = cline->lines[lineIdx];
+
+		// If we're on the same line check if target's segment is further than my segment;
+		{
+			int targetSegment;
+			G3D::Vector3 fromTarget(target->GetPositionX(), target->GetPositionY(), target->GetPositionZ());
+			int targetLineIdx = cline->ClosestP(fromTarget, result, resultD, targetSegment, resultpct);
+			if (targetLineIdx == lineIdx && targetSegment != resultS)
+			{
+				lua_pushboolean(L, targetSegment < resultS);
+				return 1;
+			}
+		}
 
 		G3D::Vector3& AB = line.pts[resultS + 1].pos - line.pts[resultS].pos;
 

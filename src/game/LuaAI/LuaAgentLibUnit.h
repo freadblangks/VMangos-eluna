@@ -108,9 +108,11 @@ namespace LuaBindsAI {
 	int Unit_IsRanged(lua_State* L);
 
 	int Unit_GetAuraStacks(lua_State* L);
+	int Unit_GetAurasByTypeTbl(lua_State* L);
 	int Unit_GetAuraTimeLeft(lua_State* L);
 	int Unit_GetAuraTypeTimeLeft(lua_State* L);
 	int Unit_GetDispelTbl(lua_State* L);
+	int Unit_GetPersistentAreaAuraInfo(lua_State* L);
 	int Unit_HasAura(lua_State* L);
 	int Unit_HasAuraType(lua_State* L);
 	int Unit_HasAuraWithMechanics(lua_State* L);
@@ -123,6 +125,7 @@ namespace LuaBindsAI {
 
 	int Unit_GetClass(lua_State* L);
 	int Unit_GetEntry(lua_State* L);
+	int Unit_GetId(lua_State* L);
 	int Unit_GetGuid(lua_State* L);
 	int Unit_GetLevel(lua_State* L);
 	int Unit_GetName(lua_State* L);
@@ -135,8 +138,11 @@ namespace LuaBindsAI {
 
 	int Unit_ClearMotion(lua_State* L);
 	int Unit_GetMotionType(lua_State* L);
+	int Unit_GetSpeed(lua_State* L);
 	int Unit_HasLostControl(lua_State* L);
 	int Unit_IsMoving(lua_State* L);
+	int Unit_IsWalking(lua_State* L);
+	int Unit_MoveFacing(lua_State* L);
 	int Unit_MoveFollow(lua_State* L);
 	int Unit_MoveChase(lua_State* L);
 	int Unit_MovePoint(lua_State* L);
@@ -236,10 +242,12 @@ namespace LuaBindsAI {
 		{"IsRanged", Unit_IsRanged},
 
 		{"CancelAura", Unit_RemoveAuraByCancel},
+		{"GetAurasByTypeTbl", Unit_GetAurasByTypeTbl},
 		{"GetAuraStacks", Unit_GetAuraStacks},
 		{"GetAuraTimeLeft", Unit_GetAuraTimeLeft},
 		{"GetAuraTypeTimeLeft", Unit_GetAuraTypeTimeLeft},
 		{"GetDispelTbl", Unit_GetDispelTbl},
+		{"GetPersistentAreaAuraInfo", Unit_GetPersistentAreaAuraInfo},
 		{"HasAura", Unit_HasAura},
 		{"HasAuraType", Unit_HasAuraType},
 		{"HasAuraWithMechanics", Unit_HasAuraWithMechanics},
@@ -250,6 +258,7 @@ namespace LuaBindsAI {
 		// General info
 		{"GetClass", Unit_GetClass},
 		{"GetEntry", Unit_GetEntry},
+		{"GetId", Unit_GetId},
 		{"GetGuid", Unit_GetGuid},
 		{"GetLevel", Unit_GetLevel},
 		{"GetName", Unit_GetName},
@@ -261,8 +270,11 @@ namespace LuaBindsAI {
 		// Motion
 		{"ClearMotion", Unit_ClearMotion},
 		{"GetMotionType", Unit_GetMotionType},
+		{"GetSpeed", Unit_GetSpeed},
 		{"HasLostControl", Unit_HasLostControl},
 		{"IsMoving", Unit_IsMoving},
+		{"IsWalking", Unit_IsWalking},
+		{"MoveFacing", Unit_MoveFacing},
 		{"MoveFollow", Unit_MoveFollow},
 		{"MoveChase", Unit_MoveChase},
 		{"MovePoint", Unit_MovePoint},

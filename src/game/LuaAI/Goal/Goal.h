@@ -7,9 +7,9 @@
 class GoalManager;
 
 // size of numbers array in Goal objects
-const uint8_t GOAL_NUMBER_COUNT_MAX = 10;
+const uint8_t GOAL_NUMBER_COUNT_MAX = 20;
 // size of timers array in Goal objects
-const uint8_t GOAL_TIMER_COUNT_MAX = 10;
+const uint8_t GOAL_TIMER_COUNT_MAX = 20;
 
 // TODO: Index boundary checks errors. Perhaps replace number type with lua_Number.
 

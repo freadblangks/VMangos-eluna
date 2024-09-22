@@ -7,6 +7,7 @@
 #include "SpellAuras.h"
 #include "TargetedMovementGenerator.h"
 #include "Totem.h"
+#include "DynamicObject.h"
 
 
 void LuaBindsAI::BindUnit(lua_State* L) {
@@ -24,6 +25,14 @@ void LuaBindsAI::Unit_CreateUD(Unit* unit, lua_State* L) {
 	Unit** unitud = static_cast<Unit**>(lua_newuserdatauv(L, sizeof(Unit*), 0));
 	*unitud = unit; // swap the AI object being pointed to to the current instance
 	luaL_setmetatable(L, LuaBindsAI::UnitMtName);
+}
+
+
+int LuaBindsAI_Unit_ToString(lua_State* L)
+{
+	WorldObject* obj1 = *LuaBindsAI::WObj_GetWObjObject(L);
+	lua_pushfstring(L, obj1->GetObjectGuid().GetString().c_str());
+	return 1;
 }
 
 
@@ -46,6 +55,8 @@ void LuaBindsAI::Unit_CreateMetatable(lua_State* L) {
 	lua_setfield(L, -2, "isWorldObject");
 	lua_pushboolean(L, true);
 	lua_setfield(L, -2, "isUnit");
+	lua_pushcfunction(L, LuaBindsAI_Unit_ToString);
+	lua_setfield(L, -2, "__tostring");
 	lua_pop(L, 1); // pop mt
 }
 
@@ -1011,6 +1022,25 @@ int LuaBindsAI::Unit_HasAuraWithMechanics(lua_State* L) {
 	return 1;
 }
 
+int LuaBindsAI::Unit_GetAurasByTypeTbl(lua_State* L) {
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_Integer tp = luaL_checkinteger(L, 2);
+	lua_newtable(L);
+	lua_Integer idx = 1;
+	for (auto& itr : unit->GetAurasByType(AuraType(tp)))
+	{
+		lua_newtable(L);
+		lua_pushboolean(L, itr->IsPositive());
+		lua_setfield(L, -2, "positive");
+		lua_pushinteger(L, itr->GetSpellProto()->Id);
+		lua_setfield(L, -2, "spellid");
+		lua_pushinteger(L, itr->GetSpellProto()->Dispel);
+		lua_setfield(L, -2, "dispel");
+		lua_seti(L, -2, idx);
+		++idx;
+	}
+	return 1;
+}
 
 int LuaBindsAI::Unit_GetAuraStacks(lua_State* L) {
 	Unit* unit = Unit_GetUnitObject(L);
@@ -1089,6 +1119,30 @@ int LuaBindsAI::Unit_GetDispelTbl(lua_State* L) {
 }
 
 
+int LuaBindsAI::Unit_GetPersistentAreaAuraInfo(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_Integer spellId = luaL_checkinteger(L, 2);
+	if (DynamicObject* obj = unit->GetDynObject(spellId))
+	{
+		lua_newtable(L);
+		lua_pushnumber(L, obj->GetPositionX());
+		lua_setfield(L, -2, "x");
+		lua_pushnumber(L, obj->GetPositionY());
+		lua_setfield(L, -2, "y");
+		lua_pushnumber(L, obj->GetPositionZ());
+		lua_setfield(L, -2, "z");
+		lua_pushnumber(L, obj->GetRadius());
+		lua_setfield(L, -2, "r");
+		lua_pushinteger(L, obj->GetDuration());
+		lua_setfield(L, -2, "d");
+	}
+	else
+		lua_pushnil(L);
+	return 1;
+}
+
+
 int LuaBindsAI::Unit_RemoveAuraByCancel(lua_State* L) {
 	Unit* unit = Unit_GetUnitObject(L);
 	lua_Integer spellId = luaL_checkinteger(L, 2);
@@ -1135,6 +1189,14 @@ int LuaBindsAI::Unit_GetEntry(lua_State* L)
 {
 	Unit* unit = Unit_GetUnitObject(L);
 	lua_pushinteger(L, unit->GetEntry());
+	return 1;
+}
+
+
+int LuaBindsAI::Unit_GetId(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_pushinteger(L, unit->GetObjectGuid().GetCounter());
 	return 1;
 }
 
@@ -1209,8 +1271,7 @@ int LuaBindsAI::Unit_IsPlayer(lua_State* L)
 int LuaBindsAI::Unit_ClearMotion(lua_State* L)
 {
 	Unit* unit = Unit_GetUnitObject(L);
-	unit->GetMotionMaster()->Clear();
-	unit->StopMoving();
+	unit->GetMotionMaster()->LuaAIMoveClear();
 	return 0;
 }
 
@@ -1219,6 +1280,15 @@ int LuaBindsAI::Unit_GetMotionType(lua_State* L)
 {
 	Unit* unit = Unit_GetUnitObject(L);
 	lua_pushnumber(L, unit->GetMotionMaster()->GetCurrentMovementGeneratorType());
+	return 1;
+}
+
+
+int LuaBindsAI::Unit_GetSpeed(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_Integer mode = luaL_checkinteger(L, 2);
+	lua_pushnumber(L, unit->GetSpeed(UnitMoveType(mode)));
 	return 1;
 }
 
@@ -1245,6 +1315,23 @@ int LuaBindsAI::Unit_IsMoving(lua_State* L)
 	Unit* unit = Unit_GetUnitObject(L);
 	lua_pushboolean(L, unit->IsMoving());
 	return 1;
+}
+
+
+int LuaBindsAI::Unit_IsWalking(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_pushboolean(L, !unit->HasUnitState(UnitState::UNIT_STAT_RUNNING) || unit->IsWalking());
+	return 1;
+}
+
+
+int LuaBindsAI::Unit_MoveFacing(lua_State* L)
+{
+	Unit* unit = Unit_GetUnitObject(L);
+	lua_Number offset = luaL_checknumber(L, 2);
+	unit->SetFacingTo(offset);
+	return 0;
 }
 
 

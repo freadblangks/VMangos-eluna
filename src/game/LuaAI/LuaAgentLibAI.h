@@ -52,8 +52,10 @@ namespace LuaBindsAI {
 	int AI_GetPosForTanking(lua_State* L);
 	int AI_IsCLineAvailable(lua_State* L);
 	int AI_IsFollowing(lua_State* L);
+	int AI_IsFalling(lua_State* L);
 	int AI_IsMovingTo(lua_State* L);
 	int AI_IsUsingAbsAngle(lua_State* L);
+	int AI_Jump(lua_State* L);
 	int AI_SetAbsAngle(lua_State* L);
 	int AI_UnsetAbsAngle(lua_State* L);
 
@@ -67,6 +69,8 @@ namespace LuaBindsAI {
 	int AI_EquipGetEnchantId(lua_State* L);
 	int AI_EquipGetRandomProp(lua_State* L);
 	int AI_EquipPrint(lua_State* L);
+	int AI_EquipSlotEmpty(lua_State* L);
+	int AI_EquipSlotItemId(lua_State* L);
 	int AI_UpdateVisibilityForMaster(lua_State* L);
 	int AI_SetAmmo(lua_State* L);
 	int AI_GetAmmo(lua_State* L);
@@ -141,9 +145,11 @@ namespace LuaBindsAI {
 		{"GetPosForTanking", AI_GetPosForTanking},
 		{"GetAngleForTanking", AI_GetAngleForTanking},
 		{"IsCLineAvailable", AI_IsCLineAvailable},
+		{"IsFalling", AI_IsFalling},
 		{"IsFollowing", AI_IsFollowing},
 		{"IsMovingTo", AI_IsMovingTo},
 		{"IsUsingAbsAngle", AI_IsUsingAbsAngle},
+		{"Jump", AI_Jump},
 		{"SetAbsAngle", AI_SetAbsAngle},
 		{"UnsetAbsAngle", AI_UnsetAbsAngle},
 
@@ -156,6 +162,8 @@ namespace LuaBindsAI {
 		{"EquipGetEnchantId", AI_EquipGetEnchantId},
 		{"EquipGetRandomProp", AI_EquipGetRandomProp},
 		{"EquipPrint", AI_EquipPrint},
+		{"EquipSlotEmpty", AI_EquipSlotEmpty},
+		{"EquipSlotItemId", AI_EquipSlotItemId},
 		{"UpdateVisibilityForMaster", AI_UpdateVisibilityForMaster},
 		{"GetAmmo", AI_GetAmmo},
 		{"SetAmmo", AI_SetAmmo},

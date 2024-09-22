@@ -78,12 +78,12 @@ LuaAgentMgr::LuaAgentMgr() :
 	L(nullptr),
 	m_updateInterval(50),
 	m_bLuaCeaseUpdates(false),
-	m_bLuaReload(false),
+	m_bLuaReload(true),
 	m_bGroupAllInProgress(false),
 	m_bDisableAgentSaving(true),
-	m_dungeons()
+	m_dungeons(),
+	m_loadedFiles()
 {
-	LuaLoadAll();
 	m_updateTimer.Reset(0);
 }
 
@@ -100,6 +100,11 @@ LuaAgentMgr::~LuaAgentMgr() noexcept
 
 
 bool LuaAgentMgr::LuaDofile(const std::string& filename) {
+	// already compiled
+	if (m_loadedFiles.find(filename) != m_loadedFiles.end())
+		return true;
+	m_loadedFiles.insert(filename);
+
 	if ((luaL_loadfile(L, filename.c_str()) || lua_dopcall(L, 0, LUA_MULTRET)) != LUA_OK) {
 		m_bLuaCeaseUpdates = true;
 		sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "LuaAgentMgr: Lua error executing file %s: %s\n", filename.c_str(), lua_tostring(L, -1));
@@ -112,6 +117,8 @@ bool LuaAgentMgr::LuaDofile(const std::string& filename) {
 
 void LuaAgentMgr::LuaLoadFiles(const std::string& fpath) {
 	if (!L) return;
+
+	m_loadedFiles.clear();
 
 	// logic and goal list must be loaded before all other files.
 	if (!LuaDofile((fpath + "/logic_list.lua")))

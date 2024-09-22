@@ -309,6 +309,8 @@ class ChatHandler
         bool HandleLuabGroupAllCommand(char* args);
         bool HandleLuabReviveAllCommand(char* args);
 
+        bool HandleLuabClearBags(char* args);
+
         bool HandleLuabCLinePointCommand(char* args);
         bool HandleLuabCLineMoveCommand(char* args);
         bool HandleLuabCLineRemoveCommand(char* args);

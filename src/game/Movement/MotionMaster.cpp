@@ -979,3 +979,22 @@ void MotionMaster::LuaAIMoveFollow(Unit* target, float dist, float angle)
 
     Mutate(new LuaAIFollowMovementGenerator<Player>(*target, dist, angle));
 }
+
+void MotionMaster::LuaAIMoveClear(bool all)
+{
+    for (iterator it = begin(); it != end();)
+    {
+        MovementGeneratorType mgt = (*it)->GetMovementGeneratorType();
+        if (all ||
+            mgt == MovementGeneratorType::CHASE_MOTION_TYPE ||
+            mgt == MovementGeneratorType::FOLLOW_MOTION_TYPE ||
+            mgt == MovementGeneratorType::POINT_MOTION_TYPE)
+        {
+            (*it)->Finalize(*m_owner);
+            erase(it);
+            it = begin();
+        }
+        else
+            ++it;
+    }
+}

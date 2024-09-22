@@ -55,6 +55,8 @@ class LuaAgent
 
 	ShortTimeTracker m_updateTimer;
 	uint32 m_updateInterval;
+	ShortTimeTracker m_updateSpeedTimer;
+	uint32 m_updateSpeedInterval;
 
 	int m_logic;
 	std::string m_spec;
@@ -77,7 +79,6 @@ class LuaAgent
 	LogicManager m_logicManager;
 	std::vector<std::unique_ptr<AgentCmd>> commands;
 
-	void FallBegin(float vcos, float vsin, float speedxy, float speedz, uint32 beginT);
 	void Fall();
 	void FallEnd(float x, float y, float z);
 
@@ -178,7 +179,8 @@ public:
 	uint32 GetSpellOfRank(uint32 lastSpell, uint32 rank);
 	uint32 GetSpellLevel(uint32 spellID);
 
-	bool IsFalling() { return m_fall.falling; }
+	void FallBegin(float vcos, float vsin, float speedxy, float speedz, uint32 beginT);
+	bool IsFalling() const { return m_fall.falling; }
 
 	const ObjectGuid& GetMasterGuid() { return m_masterGuid; }
 	Player* GetPlayer() { return me; }

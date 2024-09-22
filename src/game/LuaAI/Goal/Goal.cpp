@@ -210,6 +210,9 @@ void Goal::Print(const char* indent) {
 	printf("%s-Numbers:\n", indent);
 	for (int i = 0; i < numbers.size(); i++)
 		printf("%s-  Number[%d] = %f\n", indent, i, numbers[i]);
+	printf("%s-Timers:\n", indent);
+	for (int i = 0; i < timers.size(); i++)
+		printf("%s-  Timer[%d] = %llu, F = %d, Get = %f\n", indent, i, timers[i], HasTimerFinished(i), GetTimer(i));
 	printf("%s-Subgoals:\n", indent);
 	auto i = subgoals.begin();
 	while (i != subgoals.end()) {
