@@ -1271,7 +1271,8 @@ int LuaBindsAI::Unit_IsPlayer(lua_State* L)
 int LuaBindsAI::Unit_ClearMotion(lua_State* L)
 {
 	Unit* unit = Unit_GetUnitObject(L);
-	unit->GetMotionMaster()->LuaAIMoveClear();
+	if (unit->GetMotionMaster()->LuaAIMoveClear())
+		unit->StopMoving();
 	return 0;
 }
 

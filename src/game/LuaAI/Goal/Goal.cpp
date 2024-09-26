@@ -212,7 +212,7 @@ void Goal::Print(const char* indent) {
 		printf("%s-  Number[%d] = %f\n", indent, i, numbers[i]);
 	printf("%s-Timers:\n", indent);
 	for (int i = 0; i < timers.size(); i++)
-		printf("%s-  Timer[%d] = %llu, F = %d, Get = %f\n", indent, i, timers[i], HasTimerFinished(i), GetTimer(i));
+		printf("%s-  Timer[%d] = %u, F = %d, Get = %f\n", indent, i, timers[i], HasTimerFinished(i), GetTimer(i));
 	printf("%s-Subgoals:\n", indent);
 	auto i = subgoals.begin();
 	while (i != subgoals.end()) {
@@ -429,4 +429,10 @@ int LuaBindsAI::Goal_GetActiveSubGoalId(lua_State* L) {
 		}
 	lua_pushinteger(L, -1);
 	return 1;
+}
+
+int LuaBindsAI::Goal_Print(lua_State* L) {
+	Goal* goal = Goal_GetGoalObject(L);
+	goal->Print();
+	return 0;
 }

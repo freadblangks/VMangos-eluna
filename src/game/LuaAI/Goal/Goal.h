@@ -154,6 +154,7 @@ namespace LuaBindsAI {
 	int Goal_SetLifeEndSuccess(lua_State* L);
 	int Goal_SetNumber(lua_State* L);
 	int Goal_SetTimer(lua_State* L);
+	int Goal_Print(lua_State* L);
 
 	int Goal_GetActiveSubGoalId(lua_State* L);
 
@@ -176,6 +177,7 @@ namespace LuaBindsAI {
 		{"SetLifeEndSuccess", Goal_SetLifeEndSuccess},
 		{"SetNumber", Goal_SetNumber},
 		{"SetTimer", Goal_SetTimer},
+		{"Print", Goal_Print},
 
 		{"GetActiveSubGoalId", Goal_GetActiveSubGoalId},
 
