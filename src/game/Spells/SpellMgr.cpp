@@ -1344,42 +1344,10 @@ bool SpellMgr::IsPrimaryProfessionSpell(uint32 spellId)
     if (!spellInfo)
         return false;
 
-#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_5_1
     if (spellInfo->Effect[EFFECT_INDEX_1] != SPELL_EFFECT_SKILL)
         return false;
 
     uint32 skill = spellInfo->EffectMiscValue[EFFECT_INDEX_1];
-#else
-    struct ProfessionInfo
-    {
-        std::vector<uint32> spells;
-        uint32 skill;
-        ProfessionInfo(uint32 skill, std::vector<uint32>& spells) : skill(skill), spells(std::move(spells)) {}
-    };
-    ProfessionInfo Alchemy       (171u, std::vector<uint32>{2259u, 3101u, 3464u, 11611u});
-    ProfessionInfo Blacksmithing (164u, std::vector<uint32>{2018u, 3100u, 3538u, 9785u});
-    ProfessionInfo Enchanting    (333u, std::vector<uint32>{7411u, 7412u, 7413u, 13920u});
-    ProfessionInfo Engineering   (202u, std::vector<uint32>{4036u, 4037u, 4038u, 12656u});
-    ProfessionInfo HerbGathering (182u, std::vector<uint32>{2366u, 2368u, 3570u, 11993u});
-    ProfessionInfo Leatherworking(165u, std::vector<uint32>{2108u, 3104u, 3811u, 10662u});
-    ProfessionInfo Mining        (186u, std::vector<uint32>{2575u, 2576u, 3564u, 10248u});
-    ProfessionInfo Skinning      (393u, std::vector<uint32>{8613u, 8617u, 8618u, 10768u});
-    ProfessionInfo Tailoring     (197u, std::vector<uint32>{3908u, 3909u, 3910u, 12180u});
-    std::vector<ProfessionInfo*> professions
-    {
-        &Alchemy, &Blacksmithing, &Enchanting, &Engineering, &HerbGathering, &Leatherworking, &Mining, &Skinning, &Tailoring
-    };
-    uint32 skill = 0u;
-    for (auto& proInfo : professions)
-        for (auto& spell : proInfo->spells)
-            if (spell == spellId)
-            {
-                skill = proInfo->skill;
-                break;
-            }
-    if (skill == 0u)
-        return false;
-#endif
 
     return IsPrimaryProfessionSkill(skill);
 }
@@ -2082,7 +2050,7 @@ void SpellMgr::LoadSpellScriptTarget()
 
     uint32 count = 0;
 
-    result.reset(WorldDatabase.PQuery("SELECT `entry`, `type`, `targetEntry`, `conditionId`, `inverseEffectMask` FROM `spell_script_target` WHERE %u BETWEEN `build_min` AND `build_max`", SUPPORTED_CLIENT_BUILD));
+    result = WorldDatabase.PQuery("SELECT `entry`, `type`, `targetEntry`, `conditionId`, `inverseEffectMask` FROM `spell_script_target` WHERE %u BETWEEN `build_min` AND `build_max`", SUPPORTED_CLIENT_BUILD);
 
     if (!result)
     {
@@ -3743,7 +3711,7 @@ void SpellMgr::LoadSpells()
     uint32 maxEntry = fields[0].GetUInt32() + 1;
 
     // Actually loading the spells.
-    result.reset(WorldDatabase.PQuery("SELECT * FROM `spell_template` t1 WHERE `build`=(SELECT max(`build`) FROM `spell_template` t2 WHERE t1.`entry`=t2.`entry` && `build` <= %u)", SUPPORTED_CLIENT_BUILD));
+    result = WorldDatabase.PQuery("SELECT * FROM `spell_template` t1 WHERE `build`=(SELECT max(`build`) FROM `spell_template` t2 WHERE t1.`entry`=t2.`entry` && `build` <= %u)", SUPPORTED_CLIENT_BUILD);
 
     if (!result)
     {
@@ -4028,8 +3996,8 @@ void SpellMgr::LoadSpells()
 
 #if SUPPORTED_CLIENT_BUILD == CLIENT_BUILD_1_12_1
     // Load localized texts (currently we only have 1.12 locales).
-    //                                        0        1            2            3            4            5            6            7                   8                   9                   10                  11                  12                  13                  14                  15                  16                  17                  18                  19                      20                      21                      22                      23                      24
-    result.reset(WorldDatabase.Query("SELECT `entry`, `name_loc1`, `name_loc2`, `name_loc3`, `name_loc4`, `name_loc5`, `name_loc6`, `nameSubtext_loc1`, `nameSubtext_loc2`, `nameSubtext_loc3`, `nameSubtext_loc4`, `nameSubtext_loc5`, `nameSubtext_loc6`, `description_loc1`, `description_loc2`, `description_loc3`, `description_loc4`, `description_loc5`, `description_loc6`, `auraDescription_loc1`, `auraDescription_loc2`, `auraDescription_loc3`, `auraDescription_loc4`, `auraDescription_loc5`, `auraDescription_loc6` FROM `locales_spell`"));
+    //                                    0        1            2            3            4            5            6            7                   8                   9                   10                  11                  12                  13                  14                  15                  16                  17                  18                  19                      20                      21                      22                      23                      24
+    result = WorldDatabase.Query("SELECT `entry`, `name_loc1`, `name_loc2`, `name_loc3`, `name_loc4`, `name_loc5`, `name_loc6`, `nameSubtext_loc1`, `nameSubtext_loc2`, `nameSubtext_loc3`, `nameSubtext_loc4`, `nameSubtext_loc5`, `nameSubtext_loc6`, `description_loc1`, `description_loc2`, `description_loc3`, `description_loc4`, `description_loc5`, `description_loc6`, `auraDescription_loc1`, `auraDescription_loc2`, `auraDescription_loc3`, `auraDescription_loc4`, `auraDescription_loc5`, `auraDescription_loc6` FROM `locales_spell`");
     if (result)
     {
         do

@@ -7,9 +7,9 @@
 class GoalManager;
 
 // size of numbers array in Goal objects
-const uint8_t GOAL_NUMBER_COUNT_MAX = 10;
+const uint8_t GOAL_NUMBER_COUNT_MAX = 20;
 // size of timers array in Goal objects
-const uint8_t GOAL_TIMER_COUNT_MAX = 10;
+const uint8_t GOAL_TIMER_COUNT_MAX = 20;
 
 // TODO: Index boundary checks errors. Perhaps replace number type with lua_Number.
 
@@ -47,7 +47,7 @@ class Goal {
 
 	std::vector<GoalParamP> params;
 	std::array<double, GOAL_NUMBER_COUNT_MAX> numbers;
-	std::array<double, GOAL_TIMER_COUNT_MAX> timers;
+	std::array<clock_t, GOAL_TIMER_COUNT_MAX> timers;
 	std::deque<std::shared_ptr<Goal>> subgoals; // we own the subgoals. if we die we take them with us.
 
 public:
@@ -154,6 +154,7 @@ namespace LuaBindsAI {
 	int Goal_SetLifeEndSuccess(lua_State* L);
 	int Goal_SetNumber(lua_State* L);
 	int Goal_SetTimer(lua_State* L);
+	int Goal_Print(lua_State* L);
 
 	int Goal_GetActiveSubGoalId(lua_State* L);
 
@@ -176,6 +177,7 @@ namespace LuaBindsAI {
 		{"SetLifeEndSuccess", Goal_SetLifeEndSuccess},
 		{"SetNumber", Goal_SetNumber},
 		{"SetTimer", Goal_SetTimer},
+		{"Print", Goal_Print},
 
 		{"GetActiveSubGoalId", Goal_GetActiveSubGoalId},
 

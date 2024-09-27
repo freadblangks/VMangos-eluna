@@ -33,6 +33,7 @@ namespace LuaBindsAI {
 	int Item_GetSlots(lua_State* L);
 	int Item_GetSpell(lua_State* L);
 	int Item_GetStat(lua_State* L);
+	int Item_GetSubclass(lua_State* L);
 	int Item_IsUnique(lua_State* L);
 
 	int Item_GetUtility(lua_State* L);
@@ -53,6 +54,7 @@ namespace LuaBindsAI {
 		{"GetSlots", Item_GetSlots},
 		{"GetSpell", Item_GetSpell},
 		{"GetStat", Item_GetStat},
+		{"GetSubclass", Item_GetSubclass},
 		{"IsUnique", Item_IsUnique},
 
 		{"GetUtility", Item_GetUtility},

@@ -4,6 +4,7 @@
 
 #include "lua.hpp"
 
+const int PARTYINT_TIMER_COUNT_MAX = 20;
 typedef std::unordered_map<ObjectGuid, Player*> LuaAgentMap;
 class LuaAgent;
 class Unit;
@@ -62,6 +63,10 @@ public:
 	void RemoveCC(const ObjectGuid& guid) { m_cc.erase(guid); }
 	void UpdateCC();
 
+	double GetTimer(int index);
+	void SetTimer(int index, double time);
+	bool HasTimerFinished(int index);
+
 private:
 	bool m_bCeaseUpdates;
 	int m_userDataRef;
@@ -80,6 +85,8 @@ private:
 	std::string m_update;
 
 	std::unordered_map<ObjectGuid, CCInfo> m_cc;
+
+	std::array<clock_t, PARTYINT_TIMER_COUNT_MAX> m_timers;
 };
 
 
@@ -98,6 +105,7 @@ namespace LuaBindsAI {
 	int PartyInt_CmdHeal(lua_State* L);
 	int PartyInt_CmdTank(lua_State* L);
 	int PartyInt_CmdPull(lua_State* L);
+	int PartyInt_CmdScript(lua_State* L);
 
 	int PartyInt_GetData(lua_State* L);
 	int PartyInt_GetOwnerGuid(lua_State* L);
@@ -127,6 +135,11 @@ namespace LuaBindsAI {
 	int PartyInt_RemoveAgent(lua_State* L);
 	int PartyInt_RemoveAll(lua_State* L);
 
+	// timer
+	int PartyInt_SetTimer(lua_State* L);
+	int PartyInt_GetTimer(lua_State* L);
+	int PartyInt_IsFinishTimer(lua_State* L);
+
 	static const struct luaL_Reg PartyInt_BindLib[]{
 		{"CanPullTarget", PartyInt_CanPullTarget},
 
@@ -138,6 +151,7 @@ namespace LuaBindsAI {
 		{"CmdHeal", PartyInt_CmdHeal},
 		{"CmdTank", PartyInt_CmdTank},
 		{"CmdPull", PartyInt_CmdPull},
+		{"CmdScript", PartyInt_CmdScript},
 
 		{"GetData", PartyInt_GetData},
 		{"GetOwnerGuid", PartyInt_GetOwnerGuid},
@@ -164,6 +178,11 @@ namespace LuaBindsAI {
 		{"GetCC", PartyInt_GetCCTable},
 		{"RemoveAgent", PartyInt_RemoveAgent},
 		{"RemoveAll", PartyInt_RemoveAll},
+
+		// timers
+		{"SetTimer", PartyInt_SetTimer},
+		{"GetTimer", PartyInt_GetTimer},
+		{"IsFinishTimer", PartyInt_IsFinishTimer},
 
 		{NULL, NULL}
 	};

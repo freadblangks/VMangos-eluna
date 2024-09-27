@@ -5,6 +5,7 @@
 #include "LuaAgentUtils.h"
 #include "Spell.h"
 #include "Group.h"
+#include "Bag.h"
 
 
 namespace
@@ -111,6 +112,80 @@ int LuaBindsAI::Player_LearnSpell(lua_State* L)
 }
 
 
+int LuaBindsAI::Player_UseItem(lua_State* L)
+{
+	Player* me = Player_GetPlayerObject(L);
+	ObjectGuid guid = Guid_GetGuidObject(L, 2)->guid;
+	lua_Integer itemId = luaL_checkinteger(L, 3);
+	lua_Integer spellSlot = luaL_checkinteger(L, 4);
+
+	const ItemPrototype* item = sObjectMgr.GetItemPrototype(itemId);
+	if (itemId < 1 || !item)
+		luaL_error(L, "Player_UseItem: item %I not found", itemId);
+	if (spellSlot < 0 || spellSlot > 4)
+		luaL_error(L, "Player_UseItem: invalid spell slot. Allowed [0, 4], got %I", spellSlot);
+
+	const SpellEntry* spell = sSpellMgr.GetSpellEntry(item->Spells[spellSlot].SpellId);
+	if (!spell)
+		luaL_error(L, "Player_UseItem: item %I has no spell in slot %I, spell id was %u", itemId, spellSlot, item->Spells[spellSlot].SpellId);
+
+	SpellCastTargets targets;
+	if (guid.IsUnit())
+	{
+		targets.m_targetMask = SpellCastTargetFlags::TARGET_FLAG_UNIT;
+		if (Unit* unit = me->GetMap()->GetUnit(guid))
+			targets.setUnitTarget(unit);
+		else
+			return 0;
+	}
+	else if (guid.IsGameObject())
+	{
+		targets.m_targetMask = SpellCastTargetFlags::TARGET_FLAG_OBJECT;
+		if (GameObject* go = me->GetMap()->GetGameObject(guid))
+			targets.setGOTarget(go);
+		else
+			return 0;
+	}
+	else
+		luaL_error(L, "Player_UseItem: provided target guid is of unsupported type: %s", guid.GetString().c_str());
+
+	for (int i = EQUIPMENT_SLOT_START; i < INVENTORY_SLOT_ITEM_END; ++i)
+		if (Item* pItem = me->GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+			if (pItem->GetEntry() == itemId)
+			{
+				WorldPacket p(CMSG_USE_ITEM);
+				p << uint8(INVENTORY_SLOT_BAG_0) << uint8(i) << uint8(spellSlot) << targets;
+				me->GetSession()->HandleUseItemOpcode(p);
+				return 0;
+			}
+	
+	for (int i = KEYRING_SLOT_START; i < KEYRING_SLOT_END; ++i)
+		if (Item* pItem = me->GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+			if (pItem->GetEntry() == itemId)
+			{
+				WorldPacket p(CMSG_USE_ITEM);
+				p << uint8(INVENTORY_SLOT_BAG_0) << uint8(i) << uint8(spellSlot) << targets;
+				me->GetSession()->HandleUseItemOpcode(p);
+				return 0;
+			}
+
+	for (int i = INVENTORY_SLOT_BAG_START; i < INVENTORY_SLOT_BAG_END; ++i)
+		if (Bag* pBag = (Bag*) me->GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+			for (uint32 j = 0; j < pBag->GetBagSize(); ++j)
+				if (Item* pItem = pBag->GetItemByPos(j))
+					if (pItem->GetEntry() == itemId)
+					{
+						WorldPacket p(CMSG_USE_ITEM);
+						p << uint8(j) << uint8(i) << uint8(spellSlot) << targets;
+						me->GetSession()->HandleUseItemOpcode(p);
+						return 0;
+					}
+	
+	luaL_error(L, "Player_UseItem: item %I not found in player inventory %s", itemId, me->GetName());
+	return 0;
+}
+
+
 int LuaBindsAI::Player_GetGroupMemberCount(lua_State* L) {
 	Player* player = Player_GetPlayerObject(L);
 	if (Group* grp = player->GetGroup())
@@ -126,6 +201,88 @@ int LuaBindsAI::Player_IsInSameSubGroup(lua_State* L)
 	Player* me = Player_GetPlayerObject(L);
 	Player* other = Player_GetPlayerObject(L, 2);
 	lua_pushboolean(L, me->IsInSameGroupWith(other));
+	return 1;
+}
+
+
+int LuaBindsAI::Player_GetLootMode(lua_State* L)
+{
+	Player* me = Player_GetPlayerObject(L);
+	if (Group* group = me->GetGroup())
+	{
+		lua_pushinteger(L, group->GetLootMethod());
+		return 1;
+	}
+	lua_pushinteger(L, LootMethod::FREE_FOR_ALL);
+	return 1;
+}
+
+
+int LuaBindsAI::Player_LootCorpse(lua_State* L)
+{
+	Player* me = Player_GetPlayerObject(L);
+	Unit* other = Unit_GetUnitObject(L, 2);
+	lua_Integer itemid = luaL_checkinteger(L, 3);
+	if (other->IsCreature() && other->IsDead())
+	{
+		bool found = false;
+		Creature* c = static_cast<Creature*>(other);
+		if (c->GetLootRecipientGuid() == me->GetObjectGuid())
+		{
+			Loot& loot = c->loot;
+			for (uint8 itemSlot = 0; itemSlot < loot.items.size(); ++itemSlot)
+			{
+				LootItem& lootItem = loot.items[itemSlot];
+				ItemPrototype const* itemProto = sObjectMgr.GetItemPrototype(lootItem.itemid);
+				if (!itemProto)
+				{
+					sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "Player_GetLootList: missing item prototype for item with id: %d", lootItem.itemid);
+					continue;
+				}
+				if (lootItem.itemid == itemid && !lootItem.is_looted)
+				{
+					me->SendLoot(c->GetObjectGuid(), LootType::LOOT_CORPSE);
+					if (loot.gold)
+					{
+						WorldPacket p(CMSG_LOOT_MONEY);
+						me->GetSession()->HandleLootMoneyOpcode(p);
+					}
+					{
+						WorldPacket p(CMSG_AUTOSTORE_LOOT_ITEM);
+						p << itemSlot;
+						me->GetSession()->HandleAutostoreLootItemOpcode(p);
+					}
+					{
+						WorldPacket p(CMSG_LOOT_RELEASE);
+						p << c->GetObjectGuid();
+						me->GetSession()->HandleLootReleaseOpcode(p);
+					}
+					lua_pushinteger(L, 1);
+					return 1;
+				}
+			}
+			// item not found
+			lua_pushinteger(L, 0);
+			return 1;
+		}
+		// not our loot
+		lua_pushinteger(L, -1);
+		return 1;
+	}
+	// not dead/not creature
+	lua_pushinteger(L, -2);
+	return 1;
+}
+
+
+int LuaBindsAI::Player_HasItemCount(lua_State* L)
+{
+	Player* me = Player_GetPlayerObject(L);
+	lua_Integer itemId = luaL_checkinteger(L, 2);
+	lua_Integer count = luaL_checkinteger(L, 3);
+	if (itemId <= 0 || count <= 0)
+		luaL_error(L, "Player_HasItemCount: item id and count must be > 0, got %I, %I", itemId, count);
+	lua_pushboolean(L, me->HasItemCount(itemId, count));
 	return 1;
 }
 

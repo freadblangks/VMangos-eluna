@@ -86,6 +86,19 @@ int LuaBindsAI::AI_AddTopGoal(lua_State* L)
 }
 
 
+int LuaBindsAI::AI_GetTopGoal(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	if (Goal* goal = ai->GetTopGoal())
+		if (!goal->GetTerminated())
+		{
+			lua_rawgeti(L, LUA_REGISTRYINDEX, goal->GetRef());
+			return 1;
+		}
+	return 0;
+}
+
+
 int LuaBindsAI::AI_HasTopGoal(lua_State* L)
 {
 	LuaAgent* ai = AI_GetAIObject(L);
@@ -210,6 +223,17 @@ int LuaBindsAI::AI_SetCCTarget(lua_State* L)
 // -----------------------------------------------------------
 //                      Chase Control
 // -----------------------------------------------------------
+
+
+int LuaBindsAI::AI_GetChaseTarget(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	if (auto gen = AI_GetChaseGen(ai->GetPlayer()))
+		lua_pushunitornil(L, gen->GetTarget());
+	else
+		lua_pushnil(L);
+	return 1;
+}
 
 
 int LuaBindsAI::AI_GetChaseAngle(lua_State* L)
@@ -427,6 +451,14 @@ int LuaBindsAI::AI_IsCLineAvailable(lua_State* L)
 }
 
 
+int LuaBindsAI::AI_IsFalling(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	lua_pushboolean(L, ai->IsFalling());
+	return 1;
+}
+
+
 int LuaBindsAI::AI_IsFollowing(lua_State* L)
 {
 	LuaAgent* ai = AI_GetAIObject(L);
@@ -485,6 +517,17 @@ int LuaBindsAI::AI_IsUsingAbsAngle(lua_State* L)
 
 	lua_pushboolean(L, false);
 	return 1;
+}
+
+
+int LuaBindsAI::AI_Jump(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	lua_Number fwdSpeed = luaL_checknumber(L, 2);
+	lua_Number upSpeed = luaL_checknumber(L, 3);
+	Unit* me = (Unit*) ai->GetPlayer();
+	me->KnockBackFrom(me, -fwdSpeed, upSpeed);
+	return 0;
 }
 
 
@@ -597,6 +640,25 @@ int LuaBindsAI::AI_EquipPrint(lua_State* L)
 	LuaAgent* ai = AI_GetAIObject(L);
 	ai->EquipPrint();
 	return 0;
+}
+
+
+int LuaBindsAI::AI_EquipSlotEmpty(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	lua_pushboolean(L, ai->GetPlayer()->GetItemByPos(INVENTORY_SLOT_BAG_0, luaL_checkinteger(L, 2)) == nullptr);
+	return 1;
+}
+
+
+int LuaBindsAI::AI_EquipSlotItemId(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L);
+	if (Item* item = ai->GetPlayer()->GetItemByPos(INVENTORY_SLOT_BAG_0, luaL_checkinteger(L, 2)))
+		lua_pushinteger(L, item->GetEntry());
+	else
+		lua_pushinteger(L, 0);
+	return 1;
 }
 
 

@@ -353,7 +353,7 @@ void FlightPathMovementGenerator::Initialize(Player &player)
 void FlightPathMovementGenerator::Finalize(Player & player)
 {
     // Reset fall information to prevent fall dmg at arrive
-    player.SetFallInformation(0, player.GetPositionZ());
+    player.SetFallInformation(0);
 
     // remove flag to prevent send object build movement packets for flight state and crash (movement generator already not at top of stack)
     player.ClearUnitState(UNIT_STAT_TAXI_FLIGHT);
@@ -533,16 +533,9 @@ bool PatrolMovementGenerator::Update(Creature &creature, uint32 const& diff)
         return true;
     }
 
-    if (Creature* leader = creature.GetMap()->GetCreature(m_leaderGuid))
-    {
-        if (leader->IsWalking() != creature.IsWalking())
-        {
-            creature.SetWalk(leader->IsWalking());
-        }
-    }
-
     if (creature.movespline->Finalized())
         StartMove(creature);
+
     return true;
 }
 

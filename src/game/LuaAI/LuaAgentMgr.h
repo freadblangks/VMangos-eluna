@@ -46,6 +46,8 @@ class LuaAgentMgr
 	int m_updateInterval;
 	ShortTimeTracker m_updateTimer;
 
+	std::set<std::string> m_loadedFiles;
+
 	std::set<uint32> m_toRemoveParties;
 	std::vector<std::unique_ptr<PartyIntelligence>> m_parties;
 	LuaAgentMap m_agents;
@@ -61,7 +63,6 @@ class LuaAgentMgr
 
 	void SetGroupAllInProgress(bool value) { m_bGroupAllInProgress = value; }
 
-	bool LuaDofile(const std::string& filename);
 	void LuaLoadAll();
 	void LuaLoadFiles(const std::string& fpath);
 	bool LoadDungeonData();
@@ -90,7 +91,9 @@ public:
 	lua_State* Lua() { return L; }
 
 	void LuaReload() { m_bLuaReload = true; }
-	bool IsReloading() { return m_bLuaReload; }
+	bool IsReloading() const { return m_bLuaReload; }
+	bool LuaDofile(const std::string& filename);
+	bool LuaIsFiledLoaded(const std::string& fname) { return m_loadedFiles.find(fname) != m_loadedFiles.end(); }
 
 	Player* GetAgent(ObjectGuid guid);
 	const LuaAgentInfoHolder* GetLoginInfo(ObjectGuid guid);

@@ -16,6 +16,7 @@ LuaAgent::LuaAgent(Player* me, ObjectGuid masterGuid, int logicID) :
 	m_roleId(LuaAgentRoles::Invalid),
 
 	m_updateInterval(50),
+	m_updateSpeedInterval(10000),
 	m_bCeaseUpdates(false),
 	m_bInitialized(false),
 	m_bCmdQueueMode(false),
@@ -39,6 +40,7 @@ LuaAgent::LuaAgent(Player* me, ObjectGuid masterGuid, int logicID) :
 	m_queueGonameName("")
 {
 	m_updateTimer.Reset(2000);
+	m_updateSpeedTimer.Reset(m_updateSpeedInterval);
 	m_topGoal.SetTerminated(true);
 }
 
@@ -107,6 +109,14 @@ void LuaAgent::Update(uint32 diff)
 		return;
 	}
 
+	m_updateSpeedTimer.Update(diff);
+	if ((me->GetSpeedRate(UnitMoveType::MOVE_RUN) < 0.99f && !me->HasAuraType(AuraType::SPELL_AURA_MOD_DECREASE_SPEED)) || m_updateSpeedTimer.Passed())
+	{
+		m_updateSpeedTimer.Reset(m_updateSpeedInterval);
+		me->UpdateSpeed(UnitMoveType::MOVE_RUN, false);
+		me->UpdateSpeed(UnitMoveType::MOVE_SWIM, false);
+	}
+
 	lua_State* L = sLuaAgentMgr.Lua();
 	m_logicManager.Execute(L, this);
 	if (!m_topGoal.GetTerminated()) {
@@ -154,8 +164,11 @@ void LuaAgent::Reset(bool dropRefs)
 	if (me->HasAuraType(AuraType::SPELL_AURA_MOD_SHAPESHIFT))
 		me->RemoveSpellsCausingAura(AuraType::SPELL_AURA_MOD_SHAPESHIFT);
 
+    me->SetWalk(false, true);
+
 	// reset speed
-	me->SetSpeedRate(UnitMoveType::MOVE_RUN, 1.0f);
+	me->UpdateSpeed(UnitMoveType::MOVE_RUN, false);
+	me->UpdateSpeed(UnitMoveType::MOVE_SWIM, false);
 
 	// stop attacking
 	me->AttackStop();
@@ -198,6 +211,7 @@ void LuaAgent::Init()
 		CreateUserTbl();
 
 	me->UpdateSkillsToMaxSkillsForLevel();
+	me->SetWaterBreathingIntervalMultiplier(9000.f);
 
 	m_logicManager.Init(L, this);
 	m_bInitialized = true;
@@ -269,7 +283,7 @@ void LuaAgent::OnPacketReceived(const WorldPacket& pck)
 		float vcos, vsin, speedxy, speedz;
 #if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_8_4
 		guid = pck.readPackGUID();
-#elif SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_2_4
+#else
 		pck >> guid;
 #endif
 #if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_9_4
@@ -283,18 +297,15 @@ void LuaAgent::OnPacketReceived(const WorldPacket& pck)
 		movementInfo.jump.xyspeed = speedxy;
 		movementInfo.jump.zspeed = speedz;
 		movementInfo.jump.startClientTime = WorldTimer::getMSTime();
-		std::unique_ptr<WorldPacket>send = std::make_unique<WorldPacket>(CMSG_MOVE_KNOCK_BACK_ACK);
-#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_8_4
-		*send << guid.WriteAsPacked();
-#elif SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_2_4
-		*send << guid;
-#endif
+		WorldPacket send(CMSG_MOVE_KNOCK_BACK_ACK);
+		send << guid;
 #if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_9_4
-		*send << mCounter;
+		send << mCounter;
 #endif
-		*send << movementInfo;
+		send << movementInfo;
 		FallBegin(vcos, vsin, speedxy, speedz, WorldTimer::getMSTime());
-		me->GetSession()->QueuePacket(std::move(send));
+		me->SetSplineDonePending(false);
+		me->GetSession()->HandleMoveKnockBackAck(send);
 		break;
 	}
 	case SMSG_NEW_WORLD:
@@ -320,9 +331,9 @@ void LuaAgent::OnPacketReceived(const WorldPacket& pck)
 
 void LuaAgent::OnLoggedIn()
 {
-	std::unique_ptr<WorldPacket> send = std::make_unique<WorldPacket>(CMSG_SET_ACTIVE_MOVER);
-	*send << me->GetObjectGuid();
-	me->GetSession()->QueuePacket(std::move(send));
+	WorldPacket send(CMSG_SET_ACTIVE_MOVER);
+	send << me->GetObjectGuid();
+	me->GetSession()->HandleSetActiveMoverOpcode(send);
 }
 
 
@@ -403,7 +414,7 @@ void LuaAgent::EquipPrint()
 {
 	for (int i = EQUIPMENT_SLOT_START; i < EQUIPMENT_SLOT_END; ++i)
 		if (Item* item = me->GetItemByPos(INVENTORY_SLOT_BAG_0, i))
-			printf("%d %s\n", item->GetEntry(), item->GetProto()->Name1);
+			printf("%d %s %d\n", item->GetEntry(), item->GetProto()->Name1, item->GetItemRandomPropertyId());
 }
 
 

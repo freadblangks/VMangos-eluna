@@ -115,7 +115,6 @@ inline char const* QuestStatusToString(QuestStatus status)
     return "UNKNOWN";
 }
 
-#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_2_4
 enum __QuestGiverStatus
 {
     DIALOG_STATUS_NONE                     = 0,
@@ -129,20 +128,6 @@ enum __QuestGiverStatus
     // [-ZERO] tbc?  DIALOG_STATUS_REWARD                   = 8              // yellow dot on minimap
     DIALOG_STATUS_UNDEFINED                = 100            // Used as result for unassigned ScriptCall
 };
-#else
-enum __QuestGiverStatus
-{
-    DIALOG_STATUS_NONE,
-    DIALOG_STATUS_UNAVAILABLE,
-    DIALOG_STATUS_CHAT,
-    DIALOG_STATUS_INCOMPLETE,
-    //DIALOG_STATUS_REWARD_REP,
-    DIALOG_STATUS_AVAILABLE,
-    DIALOG_STATUS_REWARD_OLD,             // red dot on minimap
-    DIALOG_STATUS_REWARD2 = 6,             // yellow dot on minimap
-    DIALOG_STATUS_UNDEFINED = 100            // Used as result for unassigned ScriptCall
-};
-#endif
 
 // values based at QuestInfo.dbc
 enum QuestTypes

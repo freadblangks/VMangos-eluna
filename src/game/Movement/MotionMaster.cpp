@@ -39,8 +39,6 @@
 #include "MoveSpline.h"
 #include "MoveSplineInit.h"
 
-#include <cassert>
-
 inline bool isStatic(MovementGenerator* mv)
 {
     return (mv == &si_idleMovement);
@@ -955,7 +953,7 @@ void Creature::PauseOutOfCombatMovement(uint32 pauseTime)
     }
 }
 
-void MotionMaster::LuaAIMoveChase(Unit* target, float dist, float distMin, float distMax, float angle, float angleT, float noMinOffsetIfMutual, bool useAngle)
+void MotionMaster::LuaAIMoveChase(Unit* target, float dist, float distMin, float distMax, float angle, float angleT, float noMinOffsetIfMutual, bool useAngle, bool isRanged)
 {
     // ignore movement request if target not exist
     if (!target)
@@ -963,7 +961,7 @@ void MotionMaster::LuaAIMoveChase(Unit* target, float dist, float distMin, float
 
     DEBUG_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS, "%s chase to %s", m_owner->GetGuidStr().c_str(), target->GetGuidStr().c_str());
 
-    Mutate(new LuaAIChaseMovementGenerator<Player>(*target, dist, distMin, distMax, angle, angleT, noMinOffsetIfMutual, useAngle));
+    Mutate(new LuaAIChaseMovementGenerator<Player>(*target, dist, distMin, distMax, angle, angleT, noMinOffsetIfMutual, useAngle, isRanged));
 }
 
 void MotionMaster::LuaAIMoveFollow(Unit* target, float dist, float angle)
@@ -980,4 +978,27 @@ void MotionMaster::LuaAIMoveFollow(Unit* target, float dist, float angle)
     DEBUG_FILTER_LOG(LOG_FILTER_AI_AND_MOVEGENSS, "%s follow to %s", m_owner->GetGuidStr().c_str(), target->GetGuidStr().c_str());
 
     Mutate(new LuaAIFollowMovementGenerator<Player>(*target, dist, angle));
+}
+
+bool MotionMaster::LuaAIMoveClear(bool all)
+{
+    MovementGeneratorType topMgt = GetCurrentMovementGeneratorType();
+    bool removedTop = false;
+    for (iterator it = begin(); it != end();)
+    {
+        MovementGeneratorType mgt = (*it)->GetMovementGeneratorType();
+        if (all ||
+            mgt == MovementGeneratorType::CHASE_MOTION_TYPE ||
+            mgt == MovementGeneratorType::FOLLOW_MOTION_TYPE ||
+            mgt == MovementGeneratorType::POINT_MOTION_TYPE)
+        {
+            if (!removedTop && (*it)->GetMovementGeneratorType() == topMgt) removedTop = true;
+            (*it)->Finalize(*m_owner);
+            erase(it);
+            it = begin();
+        }
+        else
+            ++it;
+    }
+    return removedTop;
 }

@@ -622,7 +622,7 @@ void WorldSession::HandleGroupAssistantLeaderOpcode(WorldPacket& recv_data)
 
 void WorldSession::HandleRaidReadyCheckOpcode(WorldPacket& recv_data)
 {
-#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_8_4
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_10_2
     if (recv_data.empty())                                  // request
     {
         Group* group = GetPlayer()->GetGroup();
@@ -668,7 +668,6 @@ void WorldSession::BuildPartyMemberStatsPacket(Player* player, WorldPacket* data
 #else
     *data << player->GetGUID();
 #endif
-#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_2_4
     *data << uint32(mask);
 
     if (mask & GROUP_UPDATE_FLAG_STATUS)
@@ -809,23 +808,6 @@ void WorldSession::BuildPartyMemberStatsPacket(Player* player, WorldPacket* data
         else
             *data << uint16(0);
     }
-#else
-    *data << uint32(player->GetHealth());
-    *data << uint32(player->GetMaxHealth());
-    Powers powerType = player->GetPowerType();
-    *data << uint8(powerType);
-    *data << uint32(player->GetPower(powerType));
-    *data << uint32(player->GetMaxPower(powerType));
-    *data << uint32(player->GetLevel());
-    *data << uint32(player->GetCachedZoneId()); // could be incorrect
-    *data << uint32(player->GetCachedAreaId()); // could be incorrect
-    *data << float(player->GetPositionX());
-    *data << float(player->GetPositionY());
-#if SUPPORTED_CLIENT_BUILD < CLIENT_BUILD_1_4_2
-    *data << float(player->GetPositionZ()); // not sent in 1.4
-#endif
-    *data << uint32(GetGroupMemberStatus(player));
-#endif
 }
 
 void WorldSession::BuildPartyMemberStatsChangedPacket(Player* player, WorldPacket* data)
@@ -857,40 +839,15 @@ void WorldSession::HandleRequestPartyMemberStatsOpcode(WorldPacket& recv_data)
 
     if (!player || player->GetGroup() != _player->GetGroup())
     {
-#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_4_2
         WorldPacket data(SMSG_PARTY_MEMBER_STATS_FULL, 3 + 4 + 1);
         data << guid.WriteAsPacked();
         data << uint32(GROUP_UPDATE_FLAG_STATUS);
         data << uint8(MEMBER_STATUS_OFFLINE);
         SendPacket(&data);
         return;
-#else
-        WorldPacket data(SMSG_PARTY_MEMBER_STATS_FULL);
-        data << guid;
-        data << uint32(0);
-        data << uint32(0);
-        data << uint8(0);
-        data << uint32(0);
-        data << uint32(0);
-        data << uint32(0);
-        data << uint32(0); // could be incorrect
-        data << uint32(0); // could be incorrect
-        data << float(0.f);
-        data << float(0.f);
-#if SUPPORTED_CLIENT_BUILD < CLIENT_BUILD_1_4_2
-        data << float(0.f); // not sent in 1.4
-#endif
-        data << uint32(MEMBER_STATUS_OFFLINE);
-        SendPacket(&data);
-        return;
-#endif
     }
 
-#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_4_2
     WorldPacket data(SMSG_PARTY_MEMBER_STATS_FULL, 4 + 2 + 2 + 2 + 1 + 2 * 6 + 8 + 1 + 8);
-#else
-    WorldPacket data(SMSG_PARTY_MEMBER_STATS_FULL);
-#endif
     BuildPartyMemberStatsPacket(player, &data, GROUP_UPDATE_FULL, true);
     SendPacket(&data);
 }

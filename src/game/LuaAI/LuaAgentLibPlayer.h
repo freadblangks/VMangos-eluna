@@ -18,11 +18,18 @@ namespace LuaBindsAI {
 
 	int Player_HasSpell(lua_State* L);
 	int Player_LearnSpell(lua_State* L);
+	int Player_UseItem(lua_State* L);
 
 	// group
 
 	int Player_GetGroupMemberCount(lua_State* L);
 	int Player_IsInSameSubGroup(lua_State* L);
+	int Player_GetLootMode(lua_State* L);
+	int Player_LootCorpse(lua_State* L);
+
+	// equip
+
+	int Player_HasItemCount(lua_State* L);
 
 	// talents
 
@@ -47,10 +54,16 @@ namespace LuaBindsAI {
 		// spells
 		{"HasSpell", Player_HasSpell},
 		{"LearnSpell", Player_LearnSpell},
+		{"UseItem", Player_UseItem},
 
 		// group
 		{"GetGroupMemberCount", Player_GetGroupMemberCount},
 		{"IsInSameSubGroup", Player_IsInSameSubGroup},
+		{"GetLootMode", Player_GetLootMode},
+		{"LootCorpse", Player_LootCorpse},
+
+		// equip
+		{"HasItemCount", Player_HasItemCount},
 
 		// talents
 		{"GetTalentTbl", Player_GetTalentTbl},

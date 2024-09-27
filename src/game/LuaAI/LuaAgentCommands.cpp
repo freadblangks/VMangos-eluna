@@ -233,3 +233,18 @@ bool ChatHandler::HandleLuabCLineLoadFromCommand(char* args)
 	sLuaAgentMgr.CLineLoadForEdit(player, player->GetMapId());
 	return true;
 }
+
+
+bool ChatHandler::HandleLuabClearBags(char* args)
+{
+	/*
+	Player* player = GetSession()->GetPlayer();
+	for (int i = INVENTORY_SLOT_ITEM_START; i < INVENTORY_SLOT_ITEM_END; ++i)
+	{
+		Item* pItem = player->GetItemByPos(INVENTORY_SLOT_BAG_0, i);
+		if (pItem && !pItem->IsEquipped())
+			player->DestroyItem(INVENTORY_SLOT_BAG_0, i, true);
+	}
+	//*/
+	return true;
+}

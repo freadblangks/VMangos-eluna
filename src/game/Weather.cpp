@@ -213,21 +213,7 @@ void Weather::SendWeatherUpdateToPlayer(Player* player)
 {
     NormalizeGrade();
 
-    // Patch 1.10.
-    // Weather has been introduced in the following areas around Azeroth:
-    // - Elwynn Forest
-    // - Tirisfal Glades
-    // - Dun Morogh
-    // - Darkshore
-    // - Alterac Mountains
-    // - Stranglethorn Vale
-    // - Feralas
-    // - Un'Goro Crater
-    // - Tanaris
-    // - Winterspring
-    // - Ahn'Qiraj
-    // We will be adding more weather to the world as time progresses; this is simply the beginning!
-#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_10_2
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_7_1
     WorldPacket data(SMSG_WEATHER, 4 + 4 + 4 + 1);
     data << uint32(m_type);
     data << float(m_grade);
@@ -243,21 +229,7 @@ bool Weather::SendWeatherForPlayersInZone(Map const* _map)
 {
     NormalizeGrade();
 
-    // Patch 1.10.
-    // Weather has been introduced in the following areas around Azeroth:
-    // - Elwynn Forest
-    // - Tirisfal Glades
-    // - Dun Morogh
-    // - Darkshore
-    // - Alterac Mountains
-    // - Stranglethorn Vale
-    // - Feralas
-    // - Un'Goro Crater
-    // - Tanaris
-    // - Winterspring
-    // - Ahn'Qiraj
-    // We will be adding more weather to the world as time progresses; this is simply the beginning!
-#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_10_2
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_7_1
     WorldPacket data(SMSG_WEATHER, 4 + 4 + 4 + 1);
     data << uint32(m_type);
     data << float(m_grade);
@@ -268,6 +240,7 @@ bool Weather::SendWeatherForPlayersInZone(Map const* _map)
     if (!_map->SendToPlayersInZone(&data, m_zone))
         return false;
 #endif
+
     // Log the event
     LogWeatherState(GetWeatherState());
 

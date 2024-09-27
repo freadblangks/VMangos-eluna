@@ -88,6 +88,7 @@ void Goal::SetTerminated(bool v) {
 // SUBGOALS -----------------------------------------------------------------------
 
 void Goal::UpdateSubGoal() {
+	if (subgoals.empty()) return;
 	subgoals.pop_front();
 	if (!subgoals.empty() && !bTerminationState)
 		manager->PushGoalOnActivationStack(subgoals.front().get());
@@ -183,18 +184,18 @@ void Goal::SetNumber(int index, double value) {
 // Returns the time left on a timer in seconds. Index must be within [0, GOAL_TIMER_COUNT_MAX].
 double  Goal::GetTimer(int index) {
 	//if ( index > -1 && index < timers.size() )
-	return timers[index] - clock() / (double) CLOCKS_PER_SEC;
+	return double(timers[index] - clock()) / (double) CLOCKS_PER_SEC;
 	//return -1.0;
 }
 // Starts the timer at specified index. Time is in seconds. Index must be within [0, GOAL_TIMER_COUNT_MAX].
 void Goal::SetTimer(int index, double time) {
 	//if ( index > -1 && index < timers.size() )
 	// only store the time at which we should be finished
-	timers[index] = clock() / (double) CLOCKS_PER_SEC + time;
+	timers[index] = clock() + CLOCKS_PER_SEC * time;
 }
 // Returns true if the timer at specified index has finished. Index must be within [0, GOAL_TIMER_COUNT_MAX].
 bool Goal::HasTimerFinished(int index) {
-	return (clock() / (double) CLOCKS_PER_SEC) >= timers[index];
+	return clock() >= timers[index];
 }
 
 
@@ -209,6 +210,9 @@ void Goal::Print(const char* indent) {
 	printf("%s-Numbers:\n", indent);
 	for (int i = 0; i < numbers.size(); i++)
 		printf("%s-  Number[%d] = %f\n", indent, i, numbers[i]);
+	printf("%s-Timers:\n", indent);
+	for (int i = 0; i < timers.size(); i++)
+		printf("%s-  Timer[%d] = %u, F = %d, Get = %f\n", indent, i, timers[i], HasTimerFinished(i), GetTimer(i));
 	printf("%s-Subgoals:\n", indent);
 	auto i = subgoals.begin();
 	while (i != subgoals.end()) {
@@ -425,4 +429,10 @@ int LuaBindsAI::Goal_GetActiveSubGoalId(lua_State* L) {
 		}
 	lua_pushinteger(L, -1);
 	return 1;
+}
+
+int LuaBindsAI::Goal_Print(lua_State* L) {
+	Goal* goal = Goal_GetGoalObject(L);
+	goal->Print();
+	return 0;
 }

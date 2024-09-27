@@ -50,7 +50,8 @@ PartyIntelligence::PartyIntelligence(std::string name, ObjectGuid owner) :
 	m_bCeaseUpdates(false),
 	m_owner(owner),
 	m_updateInterval(50),
-	m_dungeon(nullptr)
+	m_dungeon(nullptr),
+	m_timers{}
 {
 	m_init = m_name + "_Init";
 	m_update = m_name + "_Update";
@@ -319,7 +320,9 @@ void PartyIntelligence::Unref(lua_State* L)
 
 bool PartyIntelligence::HasCLineFor(Unit* agent)
 {
-	return m_dungeon ? m_dungeon->mapId == agent->GetMapId() : false;
+	if (m_dungeon ? m_dungeon->mapId == agent->GetMapId() : false)
+		return m_dungeon->lines.size() > 0;
+	return false;
 }
 
 
@@ -330,6 +333,24 @@ void PartyIntelligence::UpdateCC()
 			it = m_cc.erase(it);
 		else
 			++it;
+}
+
+
+double PartyIntelligence::GetTimer(int index)
+{
+	return double(m_timers[index] - clock()) / (double) CLOCKS_PER_SEC;
+}
+
+
+void PartyIntelligence::SetTimer(int index, double time)
+{
+	m_timers[index] = clock() + CLOCKS_PER_SEC * time;
+}
+
+
+bool PartyIntelligence::HasTimerFinished(int index)
+{
+	return clock() >= m_timers[index];
 }
 
 
@@ -461,6 +482,15 @@ int LuaBindsAI::PartyInt_CmdPull(lua_State* L)
 }
 
 
+int LuaBindsAI::PartyInt_CmdScript(lua_State* L)
+{
+	LuaAgent* ai = AI_GetAIObject(L, 2);
+	AgentCmdScript* cmd = new AgentCmdScript();
+	lua_pushinteger(L, ai->CommandsAdd(cmd));
+	return 1;
+}
+
+
 int LuaBindsAI::PartyInt_GetOwnerGuid(lua_State* L)
 {
 	PartyIntelligence* intelligence = PartyInt_GetPIObject(L);
@@ -542,17 +572,18 @@ int LuaBindsAI::PartyInt_GetCLinePInLosAtD(lua_State* L)
 	PartyIntelligence* intelligence = PartyInt_GetPIObject(L);
 	Unit* agent = Unit_GetUnitObject(L, 2);
 	Unit* target = Unit_GetUnitObject(L, 3);
-	lua_Number minD = luaL_checknumber(L, 4);
-	lua_Number maxD = luaL_checknumber(L, 5);
-	lua_Number step = luaL_checknumber(L, 6);
-	bool reverse = luaL_checkboolean(L, 7);
+	Unit* losTarget = Unit_GetUnitObject(L, 4);
+	lua_Number minD = luaL_checknumber(L, 5);
+	lua_Number maxD = luaL_checknumber(L, 6);
+	lua_Number step = luaL_checknumber(L, 7);
+	bool reverse = luaL_checkboolean(L, 8);
 	DungeonData* cline = intelligence->GetDungeonData();
 	if (!cline)
 		luaL_error(L, "PartyInt_GetCLinePInLosAtD: cline doesn't exist");
 	if (cline->mapId != agent->GetMapId())
 		luaL_error(L, "PartyInt_GetCLinePInLosAtD: cline map mismatch");
 	G3D::Vector3 result;
-	bool found = cline->GetPointInLosAtD(agent, target, result, minD, maxD, step, reverse);
+	bool found = cline->GetPointInLosAtD(agent, target, losTarget, result, minD, maxD, step, reverse);
 	if (!found || agent->GetDistanceSqr(result.x, result.y, result.z) < 4.0f)
 	{
 		lua_pushnil(L);
@@ -684,11 +715,24 @@ int LuaBindsAI::PartyInt_ShouldReverseCLine(lua_State* L)
 
 	if (Player* owner = sObjectAccessor.FindPlayer(intelligence->GetOwnerGuid()))
 	{
-		int resultS;
+		int resultS, lineIdx;
 		float resultD, resultpct;
 		G3D::Vector3 result;
 		G3D::Vector3 from(unit->GetPositionX(), unit->GetPositionY(), unit->GetPositionZ());
-		CLine& line = cline->lines[cline->ClosestP(from, result, resultD, resultS, resultpct)];
+		lineIdx = cline->ClosestP(from, result, resultD, resultS, resultpct);
+		CLine& line = cline->lines[lineIdx];
+
+		// If we're on the same line check if target's segment is further than my segment;
+		{
+			int targetSegment;
+			G3D::Vector3 fromTarget(target->GetPositionX(), target->GetPositionY(), target->GetPositionZ());
+			int targetLineIdx = cline->ClosestP(fromTarget, result, resultD, targetSegment, resultpct);
+			if (targetLineIdx == lineIdx && targetSegment != resultS)
+			{
+				lua_pushboolean(L, targetSegment < resultS);
+				return 1;
+			}
+		}
 
 		G3D::Vector3& AB = line.pts[resultS + 1].pos - line.pts[resultS].pos;
 
@@ -775,4 +819,42 @@ int LuaBindsAI::PartyInt_RemoveAll(lua_State* L)
 	PartyIntelligence* intelligence = PartyInt_GetPIObject(L);
 	intelligence->RemoveAll();
 	return 0;
+}
+
+// ---------------------------------------------------------
+//    TIMERS
+// ---------------------------------------------------------
+
+
+int LuaBindsAI::PartyInt_GetTimer(lua_State* L) {
+	PartyIntelligence* intelligence = PartyInt_GetPIObject(L);
+	lua_Integer i = luaL_checkinteger(L, 2);
+	if (i > -1 && i < PARTYINT_TIMER_COUNT_MAX)
+		lua_pushnumber(L, intelligence->GetTimer(i));
+	else
+		luaL_error(L, "PartyIntelligence.GetTimer - number index out of bounds. Allowed - [0, %d)", PARTYINT_TIMER_COUNT_MAX);
+	return 1;
+}
+
+
+int LuaBindsAI::PartyInt_SetTimer(lua_State* L) {
+	PartyIntelligence* intelligence = PartyInt_GetPIObject(L);
+	lua_Integer i = luaL_checkinteger(L, 2);
+	lua_Number n = luaL_checknumber(L, 3);
+	if (i > -1 && i < PARTYINT_TIMER_COUNT_MAX)
+		intelligence->SetTimer(i, n);
+	else
+		luaL_error(L, "PartyIntelligence.SetTimer - number index out of bounds. Allowed - [0, %d)", PARTYINT_TIMER_COUNT_MAX);
+	return 0;
+}
+
+
+int LuaBindsAI::PartyInt_IsFinishTimer(lua_State* L) {
+	PartyIntelligence* intelligence = PartyInt_GetPIObject(L);
+	lua_Integer i = luaL_checkinteger(L, 2);
+	if (i > -1 && i < PARTYINT_TIMER_COUNT_MAX)
+		lua_pushboolean(L, intelligence->HasTimerFinished(i));
+	else
+		luaL_error(L, "PartyIntelligence.IsFinishTimer - number index out of bounds. Allowed - [0, %d)", PARTYINT_TIMER_COUNT_MAX);
+	return 1;
 }

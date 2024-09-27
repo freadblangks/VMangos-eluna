@@ -75,6 +75,12 @@ void WorldSession::HandlePetitionBuyOpcode(WorldPacket& recv_data)
     if (!pCreature->IsTabardDesigner())
         return;
 
+    if (HasTrialRestrictions())
+    {
+        SendNotification(LANG_RESTRICTED_ACCOUNT);
+        return;
+    }
+
     // remove fake death
     if (GetPlayer()->HasUnitState(UNIT_STAT_FEIGN_DEATH))
         GetPlayer()->RemoveSpellsCausingAura(SPELL_AURA_FEIGN_DEATH);
@@ -289,6 +295,12 @@ void WorldSession::HandlePetitionSignOpcode(WorldPacket& recv_data)
         return;
     }
 
+    if (HasTrialRestrictions())
+    {
+        SendNotification(LANG_RESTRICTED_ACCOUNT);
+        return;
+    }
+
     // not let enemies sign guild charter
     if (!sWorld.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_GUILD) &&
             GetPlayer()->GetTeam() != petition->GetTeam())
@@ -408,6 +420,12 @@ void WorldSession::HandleOfferPetitionOpcode(WorldPacket& recv_data)
         return;
     }
 
+    if (player->GetSession()->HasTrialRestrictions())
+    {
+        SendNotification(LANG_RESTRICTED_ACCOUNT);
+        return;
+    }
+
     Item *charter = _player->GetItemByGuid(itemGuid);
     if (!charter)
         return;
@@ -455,6 +473,12 @@ void WorldSession::HandleTurnInPetitionOpcode(WorldPacket& recv_data)
     {
         sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "[PetitionHandler] No petition exists for charter with guid %u for guild master %s",
             itemGuid.GetCounter(), _player->GetGuidStr().c_str());
+        return;
+    }
+
+    if (HasTrialRestrictions())
+    {
+        SendNotification(LANG_RESTRICTED_ACCOUNT);
         return;
     }
 
@@ -531,11 +555,6 @@ void WorldSession::SendPetitionShowList(ObjectGuid& guid)
     // remove fake death
     if (GetPlayer()->HasUnitState(UNIT_STAT_FEIGN_DEATH))
         GetPlayer()->RemoveSpellsCausingAura(SPELL_AURA_FEIGN_DEATH);
-
-#if SUPPORTED_CLIENT_BUILD < CLIENT_BUILD_1_6_1
-    if (!pCreature->HasFlag(UNIT_NPC_FLAGS, 0x100))
-        pCreature->SetFlag(UNIT_NPC_FLAGS, 0x100);
-#endif
 
     uint8 count = 1;
 

@@ -156,10 +156,6 @@ if(UNIX)
   )
 endif()
 
-target_link_libraries(${EXECUTABLE_NAME}
-    readline
-)
-
 set(EXECUTABLE_LINK_FLAGS "")
 
 if(UNIX)

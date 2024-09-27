@@ -31,17 +31,15 @@ void LuaBindsAI::BindAll(lua_State* L) {
 	BindUnit(L);
 	BindWorldObject(L);
 	BindPartyIntelligence(L);
-	lua_register(L, "GetUnitByGuid", GetUnitByGuid);
-	lua_register(L, "GetUnitByGuidEx", GetUnitByGuidEx);
-	lua_register(L, "GetPlayerByGuid", GetPlayerByGuid);
-	lua_register(L, "GetPlayerById", GetPlayerById);
-	lua_register(L, "GetSpellName", GetSpellName);
-	lua_register(L, "isinteger", isinteger);
+	BindLibAux(L);
 	BindItem(L);
 	BindSpell(L);
 	lua_setglobalint(L, "CVER", SUPPORTED_CLIENT_BUILD);
 	lua_setglobalint(L, "CAST_NOT_SHAPESHIFT", SpellCastResult::SPELL_FAILED_NOT_SHAPESHIFT);
 	lua_setglobalint(L, "CAST_ONLY_SHAPESHIFT", SpellCastResult::SPELL_FAILED_ONLY_SHAPESHIFT);
+#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_10_2
+	lua_setglobalint(L, "CAST_NOTHING_TO_DISPEL", SpellCastResult::SPELL_FAILED_NOTHING_TO_DISPEL);
+#endif
 }
 
 

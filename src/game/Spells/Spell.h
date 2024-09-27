@@ -37,8 +37,6 @@
 
 #include <memory>
 
-#define MAX_SPELL_ID 40000
-
 class WorldSession;
 class WorldPacket;
 class DynamicObj;
@@ -324,8 +322,6 @@ class Spell
         void EffectNostalrius(SpellEffectIndex effIdx);
         void HandleAddTargetTriggerAuras();
 
-        SpellCastResult ProgCheckCast(SpellCastResult result, bool strict);
-
         Spell(Unit* caster, SpellEntry const* info, bool triggered, ObjectGuid originalCasterGUID = ObjectGuid(), SpellEntry const* triggeredBy = nullptr, Unit* victim = nullptr, SpellEntry const* triggeredByParent = nullptr);
         Spell(GameObject* caster, SpellEntry const* info, bool triggered, ObjectGuid originalCasterGUID = ObjectGuid(), SpellEntry const* triggeredBy = nullptr, Unit* victim = nullptr, SpellEntry const* triggeredByParent = nullptr);
         ~Spell();
@@ -343,8 +339,7 @@ class Spell
         void TakeCastItem();
         void TakeAmmo();
 
-        SpellCastResult _CheckCast(bool strict);
-        SpellCastResult CheckCast(bool strict) { return ProgCheckCast(_CheckCast(strict), strict); }
+        SpellCastResult CheckCast(bool strict);
         SpellCastResult CheckPetCast(Unit* target);
 
         bool isSuccessCast() const { return m_successCast; }
