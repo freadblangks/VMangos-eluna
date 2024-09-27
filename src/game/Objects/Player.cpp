@@ -412,7 +412,7 @@ SpellModifier::SpellModifier(SpellModOp _op, SpellModType _type, int32 _value, A
     mask = sSpellMgr.GetSpellAffectMask(aura->GetId(), aura->GetEffIndex());
 }
 
-bool SpellModifier::isAffectedOnSpell(SpellEntry const* spell) const
+bool SpellModifier::IsAffectedOnSpell(SpellEntry const* spell) const
 {
     SpellEntry const* affect_spell = sSpellMgr.GetSpellEntry(spellId);
     // False if affect_spell == nullptr or spellFamily not equal
@@ -1860,7 +1860,7 @@ void Player::SetWorldMask(uint32 newMask)
 void Player::UpdateCinematic(uint32 diff)
 {
     m_cinematicElapsedTime += diff;
-    // On check une nouvelle position toutes les secondes.
+    // We check a new position every second.
     if ((m_cinematicLastCheck + 1000) > m_cinematicElapsedTime)
         return;
 
@@ -1874,13 +1874,13 @@ void Player::UpdateCinematic(uint32 diff)
 
     float x_diff = (m_cinematicStartPos.x - tpPosition->x);
     float y_diff = (m_cinematicStartPos.y - tpPosition->y);
-    // Re-tp a la position de fin de la cinematique
+    // Re-teleport to end of cinematic's position
     if ((x_diff * x_diff) <= 20 || (y_diff * y_diff) <= 20)
     {
         GetCamera().ResetView();
         return;
     }
-    // Sinon on place un petit waypoint sur lequel on met notre camera, pour voir les mobs alentour
+    // Otherwise we place a small waypoint on which we put our camera, to see the surrounding mobs.
     if (Creature* viewPoint = SummonCreature(1, tpPosition->x, tpPosition->y, tpPosition->z - 20, 0.0f, TEMPSUMMON_TIMED_DESPAWN, 5000, true))
         GetCamera().SetView(viewPoint);
 }
@@ -1896,7 +1896,7 @@ void Player::CinematicStart(uint32 id)
     m_cinematicElapsedTime = 0;
     m_currentCinematicEntry = id;
 
-    // Pour teleporter a la premiere position de la cinematique
+    // Teleport to the first position of the cinematic
     UpdateCinematic(1);
 }
 
@@ -10357,8 +10357,13 @@ InventoryResult Player::CanUnequipItem(uint16 pos, bool swap) const
     if (pItem->HasTemporaryLoot())
         return EQUIP_ERR_ALREADY_LOOTED;
 
-    // do not allow unequipping gear except weapons, offhands, projectiles, relics in
-    // - combat
+    // you cannot unequip main hand weapon while disarmed
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_6_1
+    if (IsMainHandPos(pos) && HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_DISARMED))
+        return EQUIP_ERR_NOT_WHILE_DISARMED;
+#endif
+
+    // do not allow unequipping gear except weapons, offhands, projectiles, relics in combat
     if (!pProto->CanChangeEquipStateInCombat())
     {
         if (IsInCombat())
@@ -18230,7 +18235,7 @@ bool Player::HasInstantCastingSpellMod(SpellEntry const* spellInfo) const
 {
     for (const auto& mod : m_spellMods[SPELLMOD_CASTING_TIME])
     {
-        if ((mod->type == SPELLMOD_PCT) && (mod->value <= -100) && mod->isAffectedOnSpell(spellInfo))
+        if ((mod->type == SPELLMOD_PCT) && (mod->value <= -100) && mod->IsAffectedOnSpell(spellInfo))
             return true;
     }
     return false;
@@ -18251,7 +18256,7 @@ bool Player::IsAffectedBySpellmod(SpellEntry const* spellInfo, SpellModifier con
             return false;
     }
 
-    return mod->isAffectedOnSpell(spellInfo);
+    return mod->IsAffectedOnSpell(spellInfo);
 }
 
 void Player::AddSpellMod(SpellModifier* mod, bool apply)
@@ -20474,9 +20479,6 @@ uint32 Player::SelectResurrectionSpellId() const
                 case 20765:
                     spellId = 20761;
                     break;        // rank 5
-                case 27239:
-                    spellId = 27240;
-                    break;        // rank 6
                 default:
                     sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Unhandled spell %u: S.Resurrection", dummyAura->GetId());
                     continue;

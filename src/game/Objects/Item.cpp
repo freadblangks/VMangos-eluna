@@ -878,8 +878,10 @@ void Item::AddToUpdateQueueOf(Player* player)
         player = GetOwner();
         if (!player)
         {
-            sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Item::AddToUpdateQueueOf - %s current owner (%s) not in world!",
-                          GetGuidStr().c_str(), GetOwnerGuid().GetString().c_str());
+            if (GetOwnerGuid())
+            {
+                sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Item::AddToUpdateQueueOf - %s current owner (%s) not in world!", GetGuidStr().c_str(), GetOwnerGuid().GetString().c_str());
+            }
             return;
         }
     }

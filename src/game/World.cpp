@@ -1632,9 +1632,6 @@ void World::SetInitialWorldSettings()
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading spell target destination coordinates...");
     sSpellMgr.LoadSpellTargetPositions();
 
-    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading SpellAffect definitions...");
-    sSpellMgr.LoadSpellAffects();
-
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading spell pet auras...");
     sSpellMgr.LoadSpellPetAuras();
 
@@ -2033,8 +2030,6 @@ void World::Update(uint32 diff)
         sAuctionMgr.Update();
     }
 
-    m_canProcessAsyncPackets = false;
-
     GetMessager().Execute(this);
 
     // <li> Handle session updates
@@ -2100,7 +2095,7 @@ void World::Update(uint32 diff)
     if (getConfig(CONFIG_UINT32_PERFLOG_SLOW_MAPSYSTEM_UPDATE) && updateMapSystemTime > getConfig(CONFIG_UINT32_PERFLOG_SLOW_MAPSYSTEM_UPDATE))
         sLog.Out(LOG_PERFORMANCE, LOG_LVL_MINIMAL, "Update map system: %ums [%ums for async]", updateMapSystemTime, WorldTimer::getMSTimeDiffToNow(asyncWaitBegin));
 
-    // Sauvegarde des variables internes (table variables) : MaJ par rapport a la DB
+    // Save internal variables (table variables) : DB update
     if (m_timers[WUPDATE_SAVE_VAR].Passed())
     {
         m_timers[WUPDATE_SAVE_VAR].Reset();
@@ -2158,8 +2153,6 @@ void World::Update(uint32 diff)
 
     // And last, but not least handle the issued cli commands
     ProcessCliCommands();
-
-    m_canProcessAsyncPackets = true;
 
     //cleanup unused GridMap objects as well as VMaps
     if (getConfig(CONFIG_BOOL_CLEANUP_TERRAIN))

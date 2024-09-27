@@ -63,7 +63,7 @@ void SendDefaultMenu_TeleportNPC(Player *player, Creature *_Creature, uint32 act
             player->ADD_GOSSIP_ITEM(5, "幽暗城",                 GOSSIP_SENDER_MAIN, 21);
             player->ADD_GOSSIP_ITEM(5, "雷霆崖",              GOSSIP_SENDER_MAIN, 22);
             //player->ADD_GOSSIP_ITEM(5, "Goldshire (Stormwind)",   GOSSIP_SENDER_MAIN, 4018);
-            player->ADD_GOSSIP_ITEM(5, "<-[主菜单]",             GOSSIP_SENDER_MAIN, 100);
+            player->ADD_GOSSIP_ITEM(7, "<-[主菜单]",             GOSSIP_SENDER_MAIN, 100);
 
             player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
             break;
@@ -72,7 +72,7 @@ void SendDefaultMenu_TeleportNPC(Player *player, Creature *_Creature, uint32 act
             player->ADD_GOSSIP_ITEM(5, "铁炉堡",                 GOSSIP_SENDER_MAIN, 24);
             player->ADD_GOSSIP_ITEM(5, "达纳苏斯",                 GOSSIP_SENDER_MAIN, 25);
             //player->ADD_GOSSIP_ITEM(5, "Razor Hill(Orgrimmar)",   GOSSIP_SENDER_MAIN, 4017);
-            player->ADD_GOSSIP_ITEM(5, "<-[主菜单]",             GOSSIP_SENDER_MAIN, 100);
+            player->ADD_GOSSIP_ITEM(7, "<-[主菜单]",             GOSSIP_SENDER_MAIN, 100);
 
             player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
             break;
@@ -80,7 +80,7 @@ void SendDefaultMenu_TeleportNPC(Player *player, Creature *_Creature, uint32 act
             player->ADD_GOSSIP_ITEM(5, "亡灵-灰影墓穴",       GOSSIP_SENDER_MAIN, 40);
             player->ADD_GOSSIP_ITEM(5, "兽人&巨魔-试炼谷",   GOSSIP_SENDER_MAIN, 41);
             player->ADD_GOSSIP_ITEM(5, "牛头人-纳拉其营地",       GOSSIP_SENDER_MAIN, 42);
-            player->ADD_GOSSIP_ITEM(5, "<-[主菜单]",      GOSSIP_SENDER_MAIN, 100);
+            player->ADD_GOSSIP_ITEM(7, "<-[主菜单]",      GOSSIP_SENDER_MAIN, 100);
 
             player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
             break;
@@ -88,7 +88,7 @@ void SendDefaultMenu_TeleportNPC(Player *player, Creature *_Creature, uint32 act
             player->ADD_GOSSIP_ITEM(5, "人类-北郡山谷",   GOSSIP_SENDER_MAIN, 43);
             player->ADD_GOSSIP_ITEM(5, "矮人&侏儒-寒脊山谷",    GOSSIP_SENDER_MAIN, 44);
             player->ADD_GOSSIP_ITEM(5, "暗夜精灵-幽影谷",          GOSSIP_SENDER_MAIN, 45);
-            player->ADD_GOSSIP_ITEM(5, "<-[主菜单]",       GOSSIP_SENDER_MAIN, 100);
+            player->ADD_GOSSIP_ITEM(7, "<-[主菜单]",       GOSSIP_SENDER_MAIN, 100);
 
             player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
             break;
@@ -101,7 +101,7 @@ void SendDefaultMenu_TeleportNPC(Player *player, Creature *_Creature, uint32 act
             player->ADD_GOSSIP_ITEM(5, "剃刀高地 34-37级",        GOSSIP_SENDER_MAIN, 1256);
             player->ADD_GOSSIP_ITEM(5, "血色修道院 29-40级",     GOSSIP_SENDER_MAIN, 1257);
             player->ADD_GOSSIP_ITEM(7, "[更多] ->",             GOSSIP_SENDER_MAIN, 5551);
-            player->ADD_GOSSIP_ITEM(5, "<-[主菜单]",         GOSSIP_SENDER_MAIN, 100);
+            player->ADD_GOSSIP_ITEM(7, "<-[主菜单]",         GOSSIP_SENDER_MAIN, 100);
 
             player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
             break;
@@ -115,8 +115,22 @@ void SendDefaultMenu_TeleportNPC(Player *player, Creature *_Creature, uint32 act
             player->ADD_GOSSIP_ITEM(5, "黑石塔 57-60级",     GOSSIP_SENDER_MAIN, 1264);
             player->ADD_GOSSIP_ITEM(5, "斯坦索姆 55-60级",          GOSSIP_SENDER_MAIN, 1265);
             player->ADD_GOSSIP_ITEM(5, "通灵学院 55-60级",         GOSSIP_SENDER_MAIN, 1266);
+            player->ADD_GOSSIP_ITEM(7, "[更多] ->",             GOSSIP_SENDER_MAIN, 5552);
             player->ADD_GOSSIP_ITEM(7, "<- [后退]",           GOSSIP_SENDER_MAIN, 5);
-            player->ADD_GOSSIP_ITEM(5, "<-[主菜单]",       GOSSIP_SENDER_MAIN, 100);
+            player->ADD_GOSSIP_ITEM(7, "<-[主菜单]",       GOSSIP_SENDER_MAIN, 100);
+
+            player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+            break;
+        case 5552: // Instances [PAGE 3]
+            player->ADD_GOSSIP_ITEM(5, "暴风城金库 60级",             GOSSIP_SENDER_MAIN, 1267);
+            player->ADD_GOSSIP_ITEM(5, "时光之穴 60级",             GOSSIP_SENDER_MAIN, 1268);
+            player->ADD_GOSSIP_ITEM(5, "卡拉赞 60级",          GOSSIP_SENDER_MAIN, 1269);
+            player->ADD_GOSSIP_ITEM(5, "翡翠圣所 60级",            GOSSIP_SENDER_MAIN, 1270);
+            player->ADD_GOSSIP_ITEM(5, "仇恨熔炉 60级",   GOSSIP_SENDER_MAIN, 1271);
+            player->ADD_GOSSIP_ITEM(5, "冬幕谷 60级",    GOSSIP_SENDER_MAIN, 1272);
+            player->ADD_GOSSIP_ITEM(5, "亚楠镇 60级",           GOSSIP_SENDER_MAIN, 1273);
+            player->ADD_GOSSIP_ITEM(7, "<- [后退]",           GOSSIP_SENDER_MAIN, 5551);
+            player->ADD_GOSSIP_ITEM(7, "<-[主菜单]",       GOSSIP_SENDER_MAIN, 100);
 
             player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
             break;
@@ -128,7 +142,7 @@ void SendDefaultMenu_TeleportNPC(Player *player, Creature *_Creature, uint32 act
             player->ADD_GOSSIP_ITEM(5, "安其拉废墟 20人",    GOSSIP_SENDER_MAIN, 4004);
             player->ADD_GOSSIP_ITEM(5, "安其拉神殿 40人 t2.5",   GOSSIP_SENDER_MAIN, 4005);
             player->ADD_GOSSIP_ITEM(5, "纳克萨玛斯 40人 t3",             GOSSIP_SENDER_MAIN, 4006);
-            player->ADD_GOSSIP_ITEM(5, "<-[主菜单]",         GOSSIP_SENDER_MAIN, 100);
+            player->ADD_GOSSIP_ITEM(7, "<-[主菜单]",         GOSSIP_SENDER_MAIN, 100);
 
             player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
             break;
@@ -145,7 +159,7 @@ void SendDefaultMenu_TeleportNPC(Player *player, Creature *_Creature, uint32 act
             player->ADD_GOSSIP_ITEM(5, "贫瘠之地",            GOSSIP_SENDER_MAIN, 610);
             player->ADD_GOSSIP_ITEM(5, "千针石林",       GOSSIP_SENDER_MAIN, 611);
             player->ADD_GOSSIP_ITEM(5, "冬泉谷",           GOSSIP_SENDER_MAIN, 612);
-            player->ADD_GOSSIP_ITEM(5, "<-[主菜单]",          GOSSIP_SENDER_MAIN, 100);
+            player->ADD_GOSSIP_ITEM(7, "<-[主菜单]",          GOSSIP_SENDER_MAIN, 100);
 
             player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
             break;
@@ -160,7 +174,7 @@ void SendDefaultMenu_TeleportNPC(Player *player, Creature *_Creature, uint32 act
             player->ADD_GOSSIP_ITEM(5, "赤脊山",   GOSSIP_SENDER_MAIN, 620);
             player->ADD_GOSSIP_ITEM(5, "银松森林",    GOSSIP_SENDER_MAIN, 621);
             player->ADD_GOSSIP_ITEM(7, "[更多] ->",            GOSSIP_SENDER_MAIN, 6021);
-            player->ADD_GOSSIP_ITEM(5, "<-[主菜单]",        GOSSIP_SENDER_MAIN, 100);
+            player->ADD_GOSSIP_ITEM(7, "<-[主菜单]",        GOSSIP_SENDER_MAIN, 100);
 
             player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
             break;
@@ -172,7 +186,7 @@ void SendDefaultMenu_TeleportNPC(Player *player, Creature *_Creature, uint32 act
             player->ADD_GOSSIP_ITEM(5, "西部荒野",             GOSSIP_SENDER_MAIN, 626);
             player->ADD_GOSSIP_ITEM(5, "湿地",             GOSSIP_SENDER_MAIN, 627);
             player->ADD_GOSSIP_ITEM(7, "<- [后退]",            GOSSIP_SENDER_MAIN, 6020);
-            player->ADD_GOSSIP_ITEM(5, "<-[主菜单]",        GOSSIP_SENDER_MAIN, 100);
+            player->ADD_GOSSIP_ITEM(7, "<-[主菜单]",        GOSSIP_SENDER_MAIN, 100);
 
             player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
             break;
@@ -648,6 +662,76 @@ void SendDefaultMenu_TeleportNPC(Player *player, Creature *_Creature, uint32 act
             player->ModifyMoney(-5 * GOLD);
             player->TeleportTo(0, 1219.01f, -2604.66f, 85.61f, 0.50f);
             break;
+        case 1267:// Teleport player to StormwindVault
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetMoney() < 5 * GOLD)
+            {
+                player->GetSession()->SendNotification("传送需要5金币。");
+                break;
+            }
+            player->ModifyMoney(-5 * GOLD);
+            player->TeleportTo(0, -8691.629f, 572.148f, 93.662f, 0.00f);
+            break;
+        case 1268:// Teleport player to CavernsOfTime
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetMoney() < 5 * GOLD)
+            {
+                player->GetSession()->SendNotification("传送需要5金币。");
+                break;
+            }
+            player->ModifyMoney(-5 * GOLD);
+            player->TeleportTo(1, -8510.25f, -4391.74f, -218.636f, 0.00f);
+            break;
+        case 1269:// Teleport player to Karazahn
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetMoney() < 5 * GOLD)
+            {
+                player->GetSession()->SendNotification("传送需要5金币。");
+                break;
+            }
+            player->ModifyMoney(-5 * GOLD);
+            player->TeleportTo(0, -11120.826172f, -2012.403687f, 47.094982f, 0.00f);
+            break;
+        case 1270:// Teleport player to EmeraldSanctum
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetMoney() < 5 * GOLD)
+            {
+                player->GetSession()->SendNotification("传送需要5金币。");
+                break;
+            }
+            player->ModifyMoney(-5 * GOLD);
+            player->TeleportTo(1, 7815.447266f, -2857.259766f, 459.636658f, 0.00f);
+            break;
+        case 1271:// Teleport player to Hateforge
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetMoney() < 5 * GOLD)
+            {
+                player->GetSession()->SendNotification("传送需要5金币。");
+                break;
+            }
+            player->ModifyMoney(-5 * GOLD);
+            player->TeleportTo(0, -8149.071289f, -3020.921631f, 134.421799f, 0.00f);
+            break;
+        case 1272:// Teleport player to Winterveil
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetMoney() < 5 * GOLD)
+            {
+                player->GetSession()->SendNotification("传送需要5金币。");
+                break;
+            }
+            player->ModifyMoney(-5 * GOLD);
+            player->TeleportTo(1, 6723.171387f, -5282.243652f, 779.779480f, 0.00f);
+            break;
+        case 1273:// Teleport player to Yharnam
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetMoney() < 5 * GOLD)
+            {
+                player->GetSession()->SendNotification("传送需要5金币。");
+                break;
+            }
+            player->ModifyMoney(-5 * GOLD);
+            player->TeleportTo(0, -733.396729f, 1536.514160f, 16.620735f, 0.00f);
+            break;
         case 4000:// Teleport to Zul'Gurub
             player->CLOSE_GOSSIP_MENU();
             if(player->GetMoney() < 5 * GOLD)
@@ -1032,8 +1116,7 @@ bool GossipSelect_TeleportNPC(Player *player, Creature *_Creature, uint32 sender
 
 bool GossipHello_Chromie(Player *player, Creature *_Creature)   
 {
-    player->ADD_GOSSIP_ITEM(5, "传送：黑色沼泽",               GOSSIP_SENDER_MAIN, 1);
-    player->ADD_GOSSIP_ITEM(5, "传送：旧希尔斯布莱德丘陵",             GOSSIP_SENDER_MAIN, 2);
+    player->ADD_GOSSIP_ITEM(7, "黑暗力量已经渗透了时光之穴，尝试着改变过去、现在和未来的走向。时间的平衡危在旦夕，如果过去的历史无法被拯救……艾泽拉斯将不再有未来。",               GOSSIP_SENDER_MAIN, 1);
     player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
     return true;
 }
@@ -1042,6 +1125,11 @@ void SendDefaultMenu_Chromie(Player *player, Creature *_Creature, uint32 action)
     switch (action)
     {
         case 1:
+            player->ADD_GOSSIP_ITEM(5, "传送：黑色沼泽",               GOSSIP_SENDER_MAIN, 2);
+            player->ADD_GOSSIP_ITEM(5, "传送：旧希尔斯布莱德丘陵",             GOSSIP_SENDER_MAIN, 3);
+            player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+            break;
+        case 2:
             player->CLOSE_GOSSIP_MENU();
             if(player->GetLevel() < 60)
             {
@@ -1050,7 +1138,7 @@ void SendDefaultMenu_Chromie(Player *player, Creature *_Creature, uint32 action)
             }
             player->TeleportTo(269, -2001.74f, 6576.61f, -154.822f, 0.0f);
             break;
-        case 2:
+        case 3:
             player->CLOSE_GOSSIP_MENU();
             if(player->GetLevel() < 60)
             {
@@ -1066,6 +1154,241 @@ bool GossipSelect_Chromie(Player *player, Creature *_Creature, uint32 sender, ui
     // Main menu
     if (sender == GOSSIP_SENDER_MAIN)
         SendDefaultMenu_Chromie(player, _Creature, action);
+
+    return true;
+}
+
+bool GossipHello_Black_Knight(Player *player, Creature *_Creature)   
+{
+    if (player->GetMapId() == 540 || player->GetMapId() == 541)
+    {
+        player->ADD_GOSSIP_ITEM(5, "离开副本",               GOSSIP_SENDER_MAIN, 1);
+    }
+    else
+    {
+        player->ADD_GOSSIP_ITEM(7, "卡拉赞之塔曾属于艾泽拉斯大陆上最强的人：星界法师麦迪文。这里只有一条真理：进去以后，你或许永远也无法出来……",               GOSSIP_SENDER_MAIN, 2);
+    }
+    player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+    return true;
+}
+void SendDefaultMenu_Black_Knight(Player *player, Creature *_Creature, uint32 action)
+{
+    switch (action)
+    {
+        case 1:
+            player->CLOSE_GOSSIP_MENU();
+            player->TeleportTo(0, -11120.826172f, -2012.403687f, 47.094982f, 0.0f);
+            break;
+        case 2:
+            player->ADD_GOSSIP_ITEM(5, "传送：卡拉赞下层",               GOSSIP_SENDER_MAIN, 3);
+            player->ADD_GOSSIP_ITEM(5, "传送：卡拉赞墓穴",             GOSSIP_SENDER_MAIN, 4);
+            player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+            break;
+        case 3:
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetLevel() < 60)
+            {
+                player->GetSession()->SendNotification("You must be at least level 60 to enter.");
+                break;
+            }
+            player->TeleportTo(540, -11039.6f, -1997.65f, 94.0802f, 0.0f);
+            break;
+        case 4:
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetLevel() < 60)
+            {
+                player->GetSession()->SendNotification("You must be at least level 60 to enter.");
+                break;
+            }
+            player->TeleportTo(541, -11068.1f, -1806.4f, 52.7f, 0.0f);
+            break;
+    }
+}
+bool GossipSelect_Black_Knight(Player *player, Creature *_Creature, uint32 sender, uint32 action)
+{
+    // Main menu
+    if (sender == GOSSIP_SENDER_MAIN)
+        SendDefaultMenu_Black_Knight(player, _Creature, action);
+
+    return true;
+}
+
+bool GossipHello_Elven_Wisp(Player *player, Creature *_Creature)   
+{
+    if (player->GetMapId() == 542)
+    {
+        player->ADD_GOSSIP_ITEM(5, "离开副本",               GOSSIP_SENDER_MAIN, 1);
+    }
+    else
+    {
+        player->ADD_GOSSIP_ITEM(7, "在上一次冥想中进入翡翠梦境之后，玛法里奥迟迟未能醒来。德鲁伊们推断，某种可怕的东西已经越过绿龙的守护进入了翡翠圣所。",               GOSSIP_SENDER_MAIN, 2);
+    }
+    player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+    return true;
+}
+void SendDefaultMenu_Elven_Wisp(Player *player, Creature *_Creature, uint32 action)
+{
+    switch (action)
+    {
+        case 1:
+            player->CLOSE_GOSSIP_MENU();
+            player->TeleportTo(1, 7815.447266f, -2857.259766f, 459.636658f, 0.0f);
+            break;
+        case 2:
+            player->ADD_GOSSIP_ITEM(5, "传送：翡翠圣所",               GOSSIP_SENDER_MAIN, 3);
+            player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+            break;
+        case 3:
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetLevel() < 60)
+            {
+                player->GetSession()->SendNotification("You must be at least level 60 to enter.");
+                break;
+            }
+            player->TeleportTo(542, 2762.25f, 2972.77f, 26.903f, 0.0f);
+            break;
+    }
+}
+bool GossipSelect_Elven_Wisp(Player *player, Creature *_Creature, uint32 sender, uint32 action)
+{
+    // Main menu
+    if (sender == GOSSIP_SENDER_MAIN)
+        SendDefaultMenu_Elven_Wisp(player, _Creature, action);
+
+    return true;
+}
+
+bool GossipHello_Twilight_Disciple(Player *player, Creature *_Creature)   
+{
+    if (player->GetMapId() == 543)
+    {
+        player->ADD_GOSSIP_ITEM(5, "离开副本",               GOSSIP_SENDER_MAIN, 1);
+    }
+    else
+    {
+        player->ADD_GOSSIP_ITEM(7, "巅峰产生虚伪的拥护，黄昏见证真正的使徒。上古之神归来，暮光审判将至。",               GOSSIP_SENDER_MAIN, 2);
+    }
+    player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+    return true;
+}
+void SendDefaultMenu_Twilight_Disciple(Player *player, Creature *_Creature, uint32 action)
+{
+    switch (action)
+    {
+        case 1:
+            player->CLOSE_GOSSIP_MENU();
+            player->TeleportTo(0, -8149.071289f, -3020.921631f, 134.421799f, 0.0f);
+            break;
+        case 2:
+            player->ADD_GOSSIP_ITEM(5, "传送：仇恨熔炉",               GOSSIP_SENDER_MAIN, 3);
+            player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+            break;
+        case 3:
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetLevel() < 60)
+            {
+                player->GetSession()->SendNotification("You must be at least level 60 to enter.");
+                break;
+            }
+            player->TeleportTo(543, -8170.91f, -3125.6f, 199.593f, 0.0f);
+            break;
+    }
+}
+bool GossipSelect_Twilight_Disciple(Player *player, Creature *_Creature, uint32 sender, uint32 action)
+{
+    // Main menu
+    if (sender == GOSSIP_SENDER_MAIN)
+        SendDefaultMenu_Twilight_Disciple(player, _Creature, action);
+
+    return true;
+}
+
+bool GossipHello_Winterfall_Ursa(Player *player, Creature *_Creature)   
+{
+    if (player->GetMapId() == 544)
+    {
+        player->ADD_GOSSIP_ITEM(5, "离开副本",               GOSSIP_SENDER_MAIN, 1);
+    }
+    else
+    {
+        player->ADD_GOSSIP_ITEM(7, "欢迎来到冬幕谷，冒险者。冬天爷爷为大家准备了冬幕节礼物。",               GOSSIP_SENDER_MAIN, 2);
+    }
+    player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+    return true;
+}
+void SendDefaultMenu_Winterfall_Ursa(Player *player, Creature *_Creature, uint32 action)
+{
+    switch (action)
+    {
+        case 1:
+            player->CLOSE_GOSSIP_MENU();
+            player->TeleportTo(1, 6723.171387f, -5282.243652f, 779.779480f, 0.0f);
+            break;
+        case 2:
+            player->ADD_GOSSIP_ITEM(5, "传送：冬幕谷",               GOSSIP_SENDER_MAIN, 3);
+            player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+            break;
+        case 3:
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetLevel() < 60)
+            {
+                player->GetSession()->SendNotification("You must be at least level 60 to enter.");
+                break;
+            }
+            player->TeleportTo(544, -2653.06f, 1117.36f, 54.9084f, 0.0f);
+            break;
+    }
+}
+bool GossipSelect_Winterfall_Ursa(Player *player, Creature *_Creature, uint32 sender, uint32 action)
+{
+    // Main menu
+    if (sender == GOSSIP_SENDER_MAIN)
+        SendDefaultMenu_Winterfall_Ursa(player, _Creature, action);
+
+    return true;
+}
+
+bool GossipHello_Yarntown(Player *player, Creature *_Creature)   
+{
+    if (player->GetMapId() == 545)
+    {
+        player->ADD_GOSSIP_ITEM(5, "离开梦境",               GOSSIP_SENDER_MAIN, 1);
+    }
+    else
+    {
+        player->ADD_GOSSIP_ITEM(7, "民风淳朴亚楠镇，热情好客不死街。美丽富饶苇名城，勤劳勇敢水生村。",               GOSSIP_SENDER_MAIN, 2);
+    }
+    player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+    return true;
+}
+void SendDefaultMenu_Yarntown(Player *player, Creature *_Creature, uint32 action)
+{
+    switch (action)
+    {
+        case 1:
+            player->CLOSE_GOSSIP_MENU();
+            player->TeleportTo(0, -733.396729f, 1536.514160f, 16.620735f, 0.0f);
+            break;
+        case 2:
+            player->ADD_GOSSIP_ITEM(5, "传送：亚楠镇",               GOSSIP_SENDER_MAIN, 3);
+            player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+            break;
+        case 3:
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetLevel() < 60)
+            {
+                player->GetSession()->SendNotification("You must be at least level 60 to enter.");
+                break;
+            }
+            player->TeleportTo(545, -1095.44f, 2234.75f, 182.862f, 0.0f);
+            break;
+    }
+}
+bool GossipSelect_Yarntown(Player *player, Creature *_Creature, uint32 sender, uint32 action)
+{
+    // Main menu
+    if (sender == GOSSIP_SENDER_MAIN)
+        SendDefaultMenu_Yarntown(player, _Creature, action);
 
     return true;
 }
@@ -1913,6 +2236,36 @@ void AddSC_custom_creatures()
     newscript->Name = "npc_chromie";
     newscript->pGossipHello = &GossipHello_Chromie;
     newscript->pGossipSelect = &GossipSelect_Chromie;
+    newscript->RegisterSelf(false);
+
+    newscript = new Script;
+    newscript->Name = "npc_black_knight";
+    newscript->pGossipHello = &GossipHello_Black_Knight;
+    newscript->pGossipSelect = &GossipSelect_Black_Knight;
+    newscript->RegisterSelf(false);
+
+    newscript = new Script;
+    newscript->Name = "npc_elven_wisp";
+    newscript->pGossipHello = &GossipHello_Elven_Wisp;
+    newscript->pGossipSelect = &GossipSelect_Elven_Wisp;
+    newscript->RegisterSelf(false);
+
+    newscript = new Script;
+    newscript->Name = "npc_twilight_disciple";
+    newscript->pGossipHello = &GossipHello_Twilight_Disciple;
+    newscript->pGossipSelect = &GossipSelect_Twilight_Disciple;
+    newscript->RegisterSelf(false);
+
+    newscript = new Script;
+    newscript->Name = "npc_winterfall_ursa";
+    newscript->pGossipHello = &GossipHello_Winterfall_Ursa;
+    newscript->pGossipSelect = &GossipSelect_Winterfall_Ursa;
+    newscript->RegisterSelf(false);
+
+    newscript = new Script;
+    newscript->Name = "npc_yarntown";
+    newscript->pGossipHello = &GossipHello_Yarntown;
+    newscript->pGossipSelect = &GossipSelect_Yarntown;
     newscript->RegisterSelf(false);
 
     newscript = new Script;
