@@ -340,9 +340,8 @@ struct Boss_Warlock : public ScriptedAI
     uint32 SHADOW_WORD_TIMER;
     uint32 REVULSION_TIMER;
     bool summon_99;
-    bool summon_75;
-    bool summon_50;
-    bool summon_25;
+    bool summon_66;
+    bool summon_33;
     bool kill;
 
     void Reset() override
@@ -350,9 +349,8 @@ struct Boss_Warlock : public ScriptedAI
         SHADOW_WORD_TIMER = 5000;
         REVULSION_TIMER = 20000;
         summon_99 = false;
-        summon_75 = false;
-        summon_50 = false;
-        summon_25 = false;
+        summon_66 = false;
+        summon_33 = false;
         kill = false;
     }
 
@@ -375,31 +373,20 @@ struct Boss_Warlock : public ScriptedAI
             summon_99 = true;
         }
 
-        if (m_creature->GetHealthPercent() < 75.0f && !summon_75)
+        if (m_creature->GetHealthPercent() < 66.0f && !summon_66)
         {
             DoCastSpellIfCan(m_creature->GetVictim(), SPELL_RAIN_OF_CHAOS);
             m_creature->SummonCreature(NPC_INFERNAL, m_creature->GetVictim()->GetPositionX(), m_creature->GetVictim()->GetPositionY(), m_creature->GetVictim()->GetPositionZ(), 0.0f, TEMPSUMMON_TIMED_OR_CORPSE_DESPAWN, MINUTE * IN_MILLISECONDS);
-            m_creature->SummonCreature(NPC_INFERNAL, m_creature->GetVictim()->GetPositionX(), m_creature->GetVictim()->GetPositionY(), m_creature->GetVictim()->GetPositionZ(), 0.0f, TEMPSUMMON_TIMED_OR_CORPSE_DESPAWN, MINUTE * IN_MILLISECONDS);
             DoScriptText(SAY_SUMMON_WARLOCK, m_creature);
-            summon_75 = true;
+            summon_66 = true;
         }
 
-        if (m_creature->GetHealthPercent() < 50.0f && !summon_50)
+        if (m_creature->GetHealthPercent() < 33.0f && !summon_33)
         {
             DoCastSpellIfCan(m_creature->GetVictim(), SPELL_RAIN_OF_CHAOS);
             m_creature->SummonCreature(NPC_INFERNAL, m_creature->GetVictim()->GetPositionX(), m_creature->GetVictim()->GetPositionY(), m_creature->GetVictim()->GetPositionZ(), 0.0f, TEMPSUMMON_TIMED_OR_CORPSE_DESPAWN, MINUTE * IN_MILLISECONDS);
-            m_creature->SummonCreature(NPC_INFERNAL, m_creature->GetVictim()->GetPositionX(), m_creature->GetVictim()->GetPositionY(), m_creature->GetVictim()->GetPositionZ(), 0.0f, TEMPSUMMON_TIMED_OR_CORPSE_DESPAWN, MINUTE * IN_MILLISECONDS);
             DoScriptText(SAY_SUMMON_WARLOCK, m_creature);
-            summon_50 = true;
-        }
-
-        if (m_creature->GetHealthPercent() < 25.0f && !summon_25)
-        {
-            DoCastSpellIfCan(m_creature->GetVictim(), SPELL_RAIN_OF_CHAOS);
-            m_creature->SummonCreature(NPC_INFERNAL, m_creature->GetVictim()->GetPositionX(), m_creature->GetVictim()->GetPositionY(), m_creature->GetVictim()->GetPositionZ(), 0.0f, TEMPSUMMON_TIMED_OR_CORPSE_DESPAWN, MINUTE * IN_MILLISECONDS);
-            m_creature->SummonCreature(NPC_INFERNAL, m_creature->GetVictim()->GetPositionX(), m_creature->GetVictim()->GetPositionY(), m_creature->GetVictim()->GetPositionZ(), 0.0f, TEMPSUMMON_TIMED_OR_CORPSE_DESPAWN, MINUTE * IN_MILLISECONDS);
-            DoScriptText(SAY_SUMMON_WARLOCK, m_creature);
-            summon_25 = true;
+            summon_33 = true;
         }
 
         if (m_creature->GetHealthPercent() < 10.0f && !kill)
