@@ -511,7 +511,7 @@ void AddSC_yharnam()
     newscript->RegisterSelf();
 
     newscript = new Script;
-    newscript->Name = "npc_545_npc_545_bloodwolf";
+    newscript->Name = "npc_545_bloodwolf";
     newscript->GetAI = &GetAI_Npc_BloodwolfAI;
     newscript->RegisterSelf();
 
