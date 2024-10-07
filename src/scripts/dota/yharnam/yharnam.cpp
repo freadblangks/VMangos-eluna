@@ -536,6 +536,7 @@ struct Boss_BloodStarvedBeast : public ScriptedAI
     void Aggro(Unit* pWho) override
     {
         DoScriptText(SAY_AGGRO_BLOOD_STARVED_BEAST, m_creature);
+        m_creature->CallForHelp(90.0f);
     }
 
     void SpellHit(SpellCaster* /*pCaster*/, SpellEntry const* pSpell) override
