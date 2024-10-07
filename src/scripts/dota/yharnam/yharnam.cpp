@@ -4,31 +4,43 @@
 enum
 {
     EMOTE_ENRAGE          = 2384,
-    //COMMON
     SPELL_ENRAGE                = 34234,
-    //TRANSFUR_PATIENT
+    //SPELL_TRANSFUR_PATIENT
     SPELL_PIERCE_ARMOR          = 12097,
     SPELL_TERRIFYING_SCREECH    = 6605,
-    //BLOODWOLF
+    //SPELL_BLOODWOLF
     SPELL_RAVENOUS_CLAW_1       = 17470,
     SPELL_REND                  = 21949,
-    //HEMOTHERAPY_PATIENT
+    //SPELL_HEMOTHERAPY_PATIENT
     SPELL_RAVENOUS_CLAW_2       = 34235,
     SPELL_DEAFENING_SCREECH     = 34236,
-    //YHARNAM_CITIZEN
+    //SPELL_YHARNAM_CITIZEN
     SPELL_SUNDER_ARMOR          = 11971,
     SPELL_KICK                  = 11978,
-    //YHARNAM_GUARD
+    //SPELL_YHARNAM_GUARD
     SPELL_SHIELD_CHARGE         = 15749,
     SPELL_SHIELD_SLAM           = 34237,
     SPELL_DISARM                = 8379,
-    //YHARNAM_HUNTER
+    //SPELL_YHARNAM_HUNTER
     SPELL_THUNDER_CLAP          = 34238,
     SPELL_INTIMIDATING_SHOUT    = 19134,
-    //YHARNAM_MEDIC
+    //SPELL_YHARNAM_MEDIC
     SPELL_HEAL                  = 34239,
     SPELL_POWER_WORD_SHIELD     = 34240,
     SPELL_HOLY_FIRE             = 34241,
+    //SPELL_BLOOD_STARVED_BEAST
+    SPELL_PUNGENT_BLOOD_COCKTAIL    = 34242,
+    SPELL_IMPACT                    = 34245,
+    SPELL_BLOODTHIRST               = 34246,
+    SPELL_CONFUSE                   = 34248,
+    SPELL_DRUNKEN                   = 34249,
+    //SAY_BOSS
+    SAY_AGGRO_BLOOD_STARVED_BEAST   = -2000013,
+    SAY_AGGRO_THE_HUNTER            = -2000014,
+    SAY_AGGRO_PUDGE                 = -2000015,
+    SAY_AGGRO_THE_FIRST_HUNTER      = -2000016,
+    SAY_AGGRO_MOON_PRESENCE         = -2000017,
+    SAY_AGGRO_LUDWIG_THE_HOLY_BLADE = -2000018, 
 };
 
 //npc_545_transfur_patient
@@ -501,6 +513,84 @@ CreatureAI* GetAI_Npc_YharnamMedicAI(Creature* pCreature)
     return new Npc_YharnamMedicAI(pCreature);
 }
 
+
+//boss_bloodstarvedbeast
+struct Boss_BloodStarvedBeast : public ScriptedAI
+{
+    Boss_BloodStarvedBeast(Creature* pCreature) : ScriptedAI(pCreature)
+    {
+        Reset();
+    }
+
+    uint32 IMPACT_TIMER;
+    bool bloodthirst_70;
+    bool bloodthirst_30;
+
+    void Reset() override
+    {
+        IMPACT_TIMER = 7500;
+        bloodthirst_70 = false;
+        bloodthirst_30 = false;
+    }
+
+    void Aggro(Unit* pWho) override
+    {
+        DoScriptText(SAY_AGGRO_BLOOD_STARVED_BEAST, m_creature);
+    }
+
+    void SpellHit(SpellCaster* /*pCaster*/, SpellEntry const* pSpell) override
+    {
+        if (pSpell->Id == SPELL_PUNGENT_BLOOD_COCKTAIL)
+        {
+            if (m_creature->HasAura(SPELL_BLOODTHIRST))
+            {
+                m_creature->RemoveAurasDueToSpell(SPELL_BLOODTHIRST);
+                DoCastSpellIfCan(m_creature, SPELL_DRUNKEN);
+            }
+            else
+            {
+                DoResetThreat();
+                DoCastSpellIfCan(m_creature, SPELL_CONFUSE);
+            }
+        }
+    }
+
+    void UpdateAI(uint32 const uiDiff) override
+    {
+        if (!m_creature->SelectHostileTarget() || !m_creature->GetVictim())
+            return;
+
+        if (m_creature->GetHealthPercent() < 70.0f && !bloodthirst_70)
+        {
+            DoCastSpellIfCan(m_creature, SPELL_BLOODTHIRST);
+            DoScriptText(EMOTE_ENRAGE, m_creature);
+            bloodthirst_70 = true;
+        }
+
+        if (m_creature->GetHealthPercent() < 30.0f && !bloodthirst_30)
+        {
+            DoCastSpellIfCan(m_creature, SPELL_BLOODTHIRST);
+            DoScriptText(EMOTE_ENRAGE, m_creature);
+            bloodthirst_30 = true;
+        }
+
+        //IMPACT
+        if (IMPACT_TIMER < uiDiff)
+        {
+            DoCastSpellIfCan(m_creature->GetVictim(), SPELL_IMPACT);
+            IMPACT_TIMER = urand(12500,17500);
+        }
+        else IMPACT_TIMER -= uiDiff;
+
+        DoMeleeAttackIfReady();
+    }
+};
+
+CreatureAI* GetAI_Boss_BloodStarvedBeast(Creature* pCreature)
+{
+    return new Boss_BloodStarvedBeast(pCreature);
+}
+
 void AddSC_yharnam()
 {
     Script* newscript;
@@ -538,5 +628,10 @@ void AddSC_yharnam()
     newscript = new Script;
     newscript->Name = "npc_545_yharnam_medic";
     newscript->GetAI = &GetAI_Npc_YharnamMedicAI;
+    newscript->RegisterSelf();
+
+    newscript = new Script;
+    newscript->Name = "boss_blood_starved_beast";
+    newscript->GetAI = &GetAI_Boss_BloodStarvedBeast;
     newscript->RegisterSelf();
 }

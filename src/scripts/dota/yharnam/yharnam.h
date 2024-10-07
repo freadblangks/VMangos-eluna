@@ -10,6 +10,8 @@ enum
     NPC_YHARNAM_GUARD           = 200044,
     NPC_YHARNAM_HUNTER          = 200045,
     NPC_YHARNAM_MEDIC           = 200046,
+    NPC_BLOOD_STARVED_BEAST     = 200047,
+    GO_CHEST                    = 220002,
 };
 
 #endif
