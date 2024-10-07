@@ -47,9 +47,9 @@ struct instance_yharnam : public ScriptedInstance
         {
             if (m_uiSpawnChestOnAllBossDeath <= uiDiff)
             {
-                if (Creature* pDummy = instance->GetCreature(2000398))
+                if (Creature* pBloodStarvedBeast = instance->GetCreature(m_uiBloodStarvedBeastGUID))
                 {
-                    pDummy->SummonGameObject(GO_CHEST, -1095.44f, 2234.75f, 182.862f, 0.0f, 0, 0, 0, 0, 43200);
+                    pBloodStarvedBeast->SummonGameObject(GO_CHEST, -1095.44f, 2234.75f, 182.862f, 0.0f, 0, 0, 0, 0, 43200);
                     m_uiSpawnChestOnAllBossDeath = 0;
                 }
             }
