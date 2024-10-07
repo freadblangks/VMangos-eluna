@@ -539,6 +539,15 @@ struct Boss_BloodStarvedBeast : public ScriptedAI
         m_creature->CallForHelp(90.0f);
     }
 
+    void AssignRandomThreat()
+    {
+        if (Unit* pTarget = m_creature->SelectAttackingTarget(ATTACKING_TARGET_RANDOM, 0, nullptr, SELECT_FLAG_PLAYER))
+        {
+            DoResetThreat();
+            m_creature->GetThreatManager().addThreatDirectly(pTarget, urand(1000, 2000));
+        }
+    }
+
     void SpellHit(SpellCaster* /*pCaster*/, SpellEntry const* pSpell) override
     {
         if (!m_creature->SelectHostileTarget() || !m_creature->GetVictim())
@@ -553,7 +562,7 @@ struct Boss_BloodStarvedBeast : public ScriptedAI
             }
             else
             {
-                DoResetThreat();
+                AssignRandomThreat();
                 DoCastSpellIfCan(m_creature, SPELL_CONFUSE);
             }
         }
