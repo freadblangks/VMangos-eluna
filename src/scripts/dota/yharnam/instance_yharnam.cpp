@@ -42,15 +42,18 @@ struct instance_yharnam : public ScriptedInstance
 
     void Update(uint32 uiDiff) override
     {
-        //spawn chest
+        //spawn the cow king
         if (m_isBloodStarvedBeastDead && m_uiSpawnChestOnAllBossDeath)
         {
             if (m_uiSpawnChestOnAllBossDeath <= uiDiff)
             {
                 if (Creature* pBloodStarvedBeast = instance->GetCreature(m_uiBloodStarvedBeastGUID))
                 {
-                    pBloodStarvedBeast->SummonGameObject(GO_CHEST, -1095.44f, 2234.75f, 182.862f, 0.0f, 0, 0, 0, 0, 43200);
-                    m_uiSpawnChestOnAllBossDeath = 0;
+                    if (Creature* pTheCowKing = pBloodStarvedBeast->SummonCreature(NPC_THE_COW_KING, -1095.44f, 2234.75f, 182.862f, 0.0f, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 120 * MINUTE * IN_MILLISECONDS))
+                    {
+                        pTheCowKing->SetRespawnDelay(7 * DAY);
+                        m_uiSpawnChestOnAllBossDeath = 0;
+                    }
                 }
             }
             else
