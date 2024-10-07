@@ -540,6 +540,9 @@ struct Boss_BloodStarvedBeast : public ScriptedAI
 
     void SpellHit(SpellCaster* /*pCaster*/, SpellEntry const* pSpell) override
     {
+        if (!m_creature->SelectHostileTarget() || !m_creature->GetVictim())
+            return;
+
         if (pSpell->Id == SPELL_PUNGENT_BLOOD_COCKTAIL)
         {
             if (m_creature->HasAura(SPELL_BLOODTHIRST))
