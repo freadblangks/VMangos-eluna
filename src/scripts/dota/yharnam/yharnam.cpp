@@ -3,7 +3,7 @@
 
 enum
 {
-    EMOTE_ENRAGE          = 2384,
+    EMOTE_ENRAGE    = 2384,
     SPELL_ENRAGE                = 34234,
     //SPELL_TRANSFUR_PATIENT
     SPELL_PIERCE_ARMOR          = 12097,
@@ -34,13 +34,21 @@ enum
     SPELL_BLOODTHIRST               = 34246,
     SPELL_CONFUSE                   = 34248,
     SPELL_DRUNKEN                   = 34249,
-    //SAY_BOSS
-    SAY_AGGRO_BLOOD_STARVED_BEAST   = -2000013,
-    SAY_AGGRO_THE_HUNTER            = -2000014,
-    SAY_AGGRO_PUDGE                 = -2000015,
-    SAY_AGGRO_THE_FIRST_HUNTER      = -2000016,
-    SAY_AGGRO_MOON_PRESENCE         = -2000017,
-    SAY_AGGRO_LUDWIG_THE_HOLY_BLADE = -2000018, 
+    //SAY
+    SAY_AGGRO_BLOOD_STARVED_BEAST           = -2000013,
+    SAY_AGGRO_THE_HUNTER                    = -2000014,
+    SAY_AGGRO_PUDGE                         = -2000015,
+    SAY_AGGRO_THE_FIRST_HUNTER              = -2000016,
+    SAY_AGGRO_MOON_PRESENCE                 = -2000017,
+    SAY_AGGRO_LUDWIG_THE_HOLY_BLADE         = -2000018,
+    SAY_TRANSITION_THE_HUNTER               = -2000019,
+    SAY_DEATH_THE_HUNTER                    = -2000020,
+    SAY_DEATH_THE_FIRST_HUNTER              = -2000021,
+    SAY_TRANSITION_LUDWIG_THE_HOLY_BLADE    = -2000022,
+    SAY_DEATH_LUDWIG_THE_HOLY_BLADE         = -2000023,
+    SAY_DEATH_YHARNAM_COMMON                = -2000024,
+    SAY_DRUNK_BLOOD_STARVED_BEAST           = -2000025,
+    SAY_CONFUSED_BLOOD_STARVED_BEAST        = -2000026,
 };
 
 //npc_545_transfur_patient
@@ -76,6 +84,7 @@ struct Npc_TransfurPatientAI : public ScriptedAI
         if (!HasFled && m_creature->GetHealthPercent() < 15.0f)
         {
             HasFled = true;
+            DoScriptText(SAY_DEATH_YHARNAM_COMMON, m_creature);
             m_creature->DoFlee();
             return;
         }
@@ -268,6 +277,7 @@ struct Npc_YharnamCitizenAI : public ScriptedAI
         if (!HasFled && m_creature->GetHealthPercent() < 15.0f)
         {
             HasFled = true;
+            DoScriptText(SAY_DEATH_YHARNAM_COMMON, m_creature);
             m_creature->DoFlee();
             return;
         }
@@ -472,6 +482,7 @@ struct Npc_YharnamMedicAI : public ScriptedAI
         if (!HasFled && m_creature->GetHealthPercent() < 15.0f)
         {
             HasFled = true;
+            DoScriptText(SAY_DEATH_YHARNAM_COMMON, m_creature);
             m_creature->DoFlee();
             return;
         }
@@ -559,11 +570,13 @@ struct Boss_BloodStarvedBeast : public ScriptedAI
             {
                 m_creature->RemoveAurasDueToSpell(SPELL_BLOODTHIRST);
                 DoCastSpellIfCan(m_creature, SPELL_DRUNKEN);
+                DoScriptText(SAY_DRUNK_BLOOD_STARVED_BEAST, m_creature);
             }
             else
             {
                 AssignRandomThreat();
                 DoCastSpellIfCan(m_creature, SPELL_CONFUSE);
+                DoScriptText(SAY_CONFUSED_BLOOD_STARVED_BEAST, m_creature);
             }
         }
     }
