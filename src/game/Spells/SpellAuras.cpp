@@ -1115,8 +1115,6 @@ void Aura::TriggerSpell()
     uint32 auraId = auraSpellInfo->Id;
     Unit* target = GetTarget();
 
-    uint32 spellRandom;
-
     // not in banished state
     if (triggerTarget->HasUnitState(UNIT_STAT_ISOLATED))
         return;
@@ -1456,10 +1454,15 @@ void Aura::TriggerSpell()
         switch (auraId)
         {
             case 7054:
-                spellRandom = urand(0, 14) + 7038;
+            {
+                uint32 spellRandom = urand(0, 14) + 7038;
+                // spellRandom contains a random number from 7038 to 7052. But the available spells range from 7038 to 7051 and 7053. So we increase 7052 to 7053
+                if (spellRandom == 7052)
+                    spellRandom = 7053;
+
                 target->CastSpell(target, spellRandom, true, nullptr, this);
                 return;
-                break;
+            }
             case 8892:  // Goblin Rocket Boots
             case 13141: // Gnomish Rocket Boots
                 // FIXME: Confirm that the chance for rocket boots to explode in retail is actually meant to be 1% per-tick or 1/5 overall
@@ -1866,7 +1869,10 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
                         return;
                     }
                     case 16739: // Orb of Deception (before patch 1.7)
+                    {
                         return HandleAuraTransform(apply, Real);
+                    }
+                    case 21051: // Melodious Rapture Visual (DND)
                     case 21827: // Frostwolf Aura DND
                     case 21863: // Alterac Ram Aura DND
                     {
@@ -6742,7 +6748,9 @@ void Aura::PeriodicDummyTick()
                 case 7054:
                 {
                     uint32 spellRandom = urand(0, 14) + 7038;
-                    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "7054 %u", spellRandom);
+                    // spellRandom contains a random number from 7038 to 7052. But the available spells range from 7038 to 7051 and 7053. So we increase 7052 to 7053
+                    if (spellRandom == 7052)
+                        spellRandom = 7053;
 
                     target->CastSpell(target, spellRandom, true, nullptr, this);
                     // Possibly need cast one of them (but
@@ -6787,6 +6795,18 @@ void Aura::PeriodicDummyTick()
                             target->CastSpell(target, 16334, true); // Summon Spiteful Phantom
                         else
                             target->CastSpell(target, 16335, true); // Summon Wrath Phantom
+                    }
+                    return;
+                }
+                case 21051: // Melodious Rapture Visual (DND)
+                {
+                    if (Creature* pRat = target->ToCreature())
+                    {
+                        if (pRat->GetMotionMaster()->GetCurrentMovementGeneratorType() != FOLLOW_MOTION_TYPE)
+                        {
+                            // lost track of player
+                            pRat->DespawnOrUnsummon(1);
+                        }
                     }
                     return;
                 }
