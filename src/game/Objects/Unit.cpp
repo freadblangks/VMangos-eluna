@@ -4246,6 +4246,62 @@ Aura* Unit::GetAura(AuraType type, SpellFamily family, uint64 familyFlag, Object
     return nullptr;
 }
 
+int32 Unit::HasAura_34140_34141_total() const
+{
+    int32 total = 0;
+    AuraList const& mTotalAuraList = GetAurasByType(SPELL_AURA_MOD_INCREASE_ENERGY);
+    for (const auto& i : mTotalAuraList)
+    {
+        if (i->GetId() == 34140)
+            total += 2;
+        else if (i->GetId() == 34141)
+            total += 4;
+    }
+    return total;
+}
+
+int32 Unit::HasAura_34142_34143_total() const
+{
+    int32 total = 0;
+    AuraList const& mTotalAuraList = GetAurasByType(SPELL_AURA_MOD_INCREASE_ENERGY);
+    for (const auto& i : mTotalAuraList)
+    {
+        if (i->GetId() == 34142)
+            total += 2;
+        else if (i->GetId() == 34143)
+            total += 4;
+    }
+    return total;
+}
+
+int32 Unit::HasAura_34155_34156_total() const
+{
+    int32 total = 0;
+    AuraList const& mTotalAuraList = GetAurasByType(SPELL_AURA_MOD_INCREASE_ENERGY_PERCENT);
+    for (const auto& i : mTotalAuraList)
+    {
+        if (i->GetId() == 34155)
+            total += 2;
+        else if (i->GetId() == 34156)
+            total += 4;
+    }
+    return total;
+}
+
+int32 Unit::HasAura_34165_34166_total() const
+{
+    int32 total = 0;
+    AuraList const& mTotalAuraList = GetAurasByType(SPELL_AURA_MOD_TOTAL_STAT_PERCENTAGE);
+    for (const auto& i : mTotalAuraList)
+    {
+        if (i->GetId() == 34165)
+            total += 1;
+        else if (i->GetId() == 34166)
+            total += 2;
+    }
+    return total;
+}
+
 bool Unit::HasAura(uint32 spellId, SpellEffectIndex effIndex) const
 {
     SpellAuraHolderConstBounds spair = GetSpellAuraHolderBounds(spellId);

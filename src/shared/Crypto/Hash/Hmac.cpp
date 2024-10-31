@@ -16,36 +16,50 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef _AUTH_HMAC_H
-#define _AUTH_HMAC_H
+#include "Hmac.h"
+#include "../BigNumber.h"
 
-#include "Common.h"
 #include <openssl/hmac.h>
-#include <openssl/sha.h>
-#include <vector>
 
-class BigNumber;
-
-class HmacHash
+HmacHash::HmacHash(uint8 const* data, int length)
 {
-    public:
-        HmacHash() { }
-        HmacHash(uint8 const* data, int length);
-        ~HmacHash();
-        void UpdateBigNumber(BigNumber* bn);
-        void UpdateData(std::vector<uint8> const& data);
-        void UpdateData(uint8 const* data, int length);
-        void Initialize();
-        void Finalize();
-        uint8* GetDigest() { return m_digest; };
-        int GetLength() { return SHA_DIGEST_LENGTH; };
-    private:
-
 #if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
-        HMAC_CTX* m_ctx;
+    m_ctx = HMAC_CTX_new();
 #else
-        HMAC_CTX m_ctx;
+    m_ctx = new HMAC_CTX;
+    HMAC_CTX_init(m_ctx);
 #endif
-        uint8 m_digest[SHA_DIGEST_LENGTH];
-};
+
+    HMAC_Init_ex(m_ctx, data, length, EVP_sha1(), nullptr);
+}
+
+HmacHash::~HmacHash()
+{
+#if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
+    HMAC_CTX_free(m_ctx);
+#else
+    HMAC_CTX_cleanup(m_ctx);
+    delete m_ctx;
 #endif
+}
+
+void HmacHash::UpdateBigNumber(BigNumber* bn)
+{
+    UpdateData(bn->AsByteArray());
+}
+
+void HmacHash::UpdateData(std::vector<uint8> const& data)
+{
+    HMAC_Update(m_ctx, data.data(), data.size());
+}
+
+void HmacHash::UpdateData(uint8 const* data, int length)
+{
+    HMAC_Update(m_ctx, data, length);
+}
+
+void HmacHash::Finalize()
+{
+    uint32 length = 0;
+    HMAC_Final(m_ctx, (uint8*)m_digest, &length);
+}

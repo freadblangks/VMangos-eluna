@@ -11,8 +11,13 @@ enum
     NPC_YHARNAM_HUNTER          = 200045,
     NPC_YHARNAM_MEDIC           = 200046,
     NPC_BLOOD_STARVED_BEAST     = 200047,
-    NPC_THE_COW_KING            = 200048,
+    NPC_FATHER_GASCOIGNE        = 200048,
+    NPC_LUDWIG                  = 200049,
+    NPC_PUDGE                   = 200051,
+    NPC_GEHRMAN                 = 200052,
+    NPC_MOON_PRESENCE           = 200053,
     GO_CHEST                    = 220002,
+    SAY_AGGRO_MOON_PRESENCE     = -2000017,
 };
 
 #endif

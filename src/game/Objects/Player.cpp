@@ -2708,6 +2708,8 @@ void Player::RewardRage(uint32 damage, bool attacker)
         if (HasAura(18499, EFFECT_INDEX_0))
             addRage *= 1.3f;
     }
+    // 34142 34143 effect
+    addRage *= (HasAura_34142_34143_total() * 0.01f + 1.0f);
 
     addRage *= sWorld.getConfig(CONFIG_FLOAT_RATE_POWER_RAGE_INCOME);
 
@@ -2789,6 +2791,8 @@ void Player::Regenerate(Powers power)
             }
             else
                 addvalue = m_modManaRegen * ManaIncreaseRate * 2.00f;
+            // 34155 34156 effect
+            addvalue *= (HasAura_34155_34156_total() * 0.01f + 1.0f);
         }
         break;
         case POWER_RAGE:                                    // Regenerate rage
@@ -2801,6 +2805,8 @@ void Player::Regenerate(Powers power)
         {
             float EnergyRate = sWorld.getConfig(CONFIG_FLOAT_RATE_POWER_ENERGY);
             addvalue = 20 * EnergyRate;
+            // 34140 34141 effect
+            addvalue *= (HasAura_34140_34141_total() * 0.01f + 1.0f);
             break;
         }
         case POWER_FOCUS:
