@@ -4654,14 +4654,14 @@ float Aura::CalculateDotDamage() const
                     uint8 cp = ((Player*)caster)->GetComboPoints();
 
                     if (cp > 4) cp = 4;
-                    damage += caster->GetTotalAttackPowerValue(BASE_ATTACK) * cp / 100;
+                    damage += (caster->GetTotalAttackPowerValue(BASE_ATTACK) * cp / 100) * 1.33f;
                 }
             }
             // Rake
             else if (spellProto->Id == 1822 || spellProto->Id == 1823 || spellProto->Id == 1824 || spellProto->Id == 9904)
             {
-                // 0.03 * AP per trigger
-                damage = damage + (caster->GetTotalAttackPowerValue(BASE_ATTACK) * 0.03f);
+                // 0.035 * AP per trigger
+                damage = damage + (caster->GetTotalAttackPowerValue(BASE_ATTACK) * 0.035f);
             }
 #endif
             break;
@@ -7567,17 +7567,17 @@ void SpellAuraHolder::HandleCastOnAuraRemoval() const
 
     switch (GetId())
     {
-        case 26180:
+        case 26180:                              // Wyvern Sting (AQ40, Princess Huhuran)
         {
             if (mode == AURA_REMOVE_BY_DISPEL)
-                uiTriggeredSpell = 26233;        // Wyvern Sting (AQ40, Princess Huhuran)
+                uiTriggeredSpell = 26233;
             break;
         }
-        case 24002:
+        case 24002:                              // Tranquilizing Poison (ZG, Razzashi Serpent)
         case 24003:
         {
             if (mode == AURA_REMOVE_BY_EXPIRE)
-                uiTriggeredSpell = 24004;        // Tranquilizing Poison (ZG, Razzashi Serpent)
+                GetTarget()->CastSpell(GetTarget(), 24004, true);
             break;
         }
         default:
