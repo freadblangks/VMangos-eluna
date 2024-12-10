@@ -1496,7 +1496,7 @@ void Spell::EffectDummy(SpellEffectIndex effIdx)
                         else
                         {
                             if (Player* pPlayer = m_casterUnit->GetMap()->GetPlayer(playerGUID))
-                                pPlayer->TeleportTo(1, -7341.38f, -3908.11f, 150.7f, 0.51f);
+                                pPlayer->TeleportTo(MAP_KALIMDOR, -7341.38f, -3908.11f, 150.7f, 0.51f);
                         }
                     }
                     return;
@@ -1508,7 +1508,7 @@ void Spell::EffectDummy(SpellEffectIndex effIdx)
                 case 23725:                                 // Gift of Life (warrior bwl trinket)
                     if (m_casterUnit)
                     {
-                        int32 LifegivingGemHealthMod = int32(m_casterUnit->GetMaxHealth() * 0.15);
+                        int32 LifegivingGemHealthMod = int32(m_casterUnit->GetMaxHealth() * 0.15f);
                         m_casterUnit->CastCustomSpell(m_casterUnit, 23782, LifegivingGemHealthMod, {}, {}, true, nullptr);
                     }
                     return;
@@ -2190,7 +2190,7 @@ void Spell::EffectDummy(SpellEffectIndex effIdx)
                 // but own calculation say 0.385 gives at most one point difference to published values
                 float spellDamage = m_caster->SpellBaseDamageBonusDone(m_spellInfo->GetSpellSchoolMask());
                 float weaponSpeed = (1.0f / IN_MILLISECONDS) * m_CastItem->GetProto()->Delay;
-                float totalDamage = (damage + 3.85f * spellDamage) * 0.01 * weaponSpeed;
+                float totalDamage = (damage + 3.85f * spellDamage) * 0.01f * weaponSpeed;
 
                 m_caster->CastCustomSpell(unitTarget, 10444, dither(totalDamage), {}, {}, true, m_CastItem);
                 return;
@@ -3389,7 +3389,7 @@ void Spell::EffectDispel(SpellEffectIndex effIdx)
                     }
                 }
                 if (!foundDispelled)
-                    successList.push_back(std::pair<SpellAuraHolder*, uint32>(holder, 1));
+                    successList.emplace_back(holder, 1);
             }
         }
         // Send success log and really remove auras
@@ -4604,7 +4604,7 @@ void Spell::EffectSummonObjectWild(SpellEffectIndex effIdx)
 
         switch (pGameObj->GetMapId())
         {
-            case 489:                                       //WS
+            case MAP_WARSONG_GULCH: //WS
             {
                 if (bg && bg->GetTypeID() == BATTLEGROUND_WS && bg->GetStatus() == STATUS_IN_PROGRESS)
                 {
