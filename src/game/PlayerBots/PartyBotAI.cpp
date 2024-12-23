@@ -365,8 +365,8 @@ Unit* PartyBotAI::SelectAttackTarget(Player* pLeader) const
 {
     if (IsInDuel())
     {
-        if (me->duel->opponent && IsValidHostileTarget(me->duel->opponent))
-            return me->duel->opponent;
+        if (me->m_duel->opponent && IsValidHostileTarget(me->m_duel->opponent))
+            return me->m_duel->opponent;
     }
     else
     {
@@ -1209,6 +1209,12 @@ void PartyBotAI::UpdateInCombatAI_Paladin()
                 CanTryToCastSpell(pVictim, m_spells.paladin.pJudgement))
             {
                 if (DoCastSpell(pVictim, m_spells.paladin.pJudgement) == SPELL_CAST_OK)
+                    return;
+            }
+            if (m_spells.paladin.pShiZiJunDaJi &&
+                CanTryToCastSpell(pVictim, m_spells.paladin.pShiZiJunDaJi))
+            {
+                if (DoCastSpell(pVictim, m_spells.paladin.pShiZiJunDaJi) == SPELL_CAST_OK)
                     return;
             }
             if (m_spells.paladin.pHammerOfJustice &&

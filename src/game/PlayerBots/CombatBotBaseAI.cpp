@@ -255,6 +255,12 @@ void CombatBotBaseAI::PopulateSpellData()
                         m_spells.paladin.pQuZhu->Id < pSpellEntry->Id)
                         m_spells.paladin.pQuZhu = pSpellEntry;
                 }
+                else if (pSpellEntry->SpellName[0].find("Shi Zi Jun Da Ji") != std::string::npos)
+                {
+                    if (!m_spells.paladin.pShiZiJunDaJi ||
+                        m_spells.paladin.pShiZiJunDaJi->Id < pSpellEntry->Id)
+                        m_spells.paladin.pShiZiJunDaJi = pSpellEntry;
+                }
                 else if (pSpellEntry->SpellName[0].find("Seal of Command") != std::string::npos)
                 {
                     if (IsHigherRankSpell(pSealOfCommand))
@@ -3137,7 +3143,7 @@ bool CombatBotBaseAI::IsWearingShield(Player* pPlayer) const
 
 bool CombatBotBaseAI::IsInDuel() const
 {
-    return me->duel && me->duel->startTime != 0;
+    return me->m_duel && me->m_duel->startTime != 0;
 }
 
 CombatBotRoles CombatBotBaseAI::GetRole() const
