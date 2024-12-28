@@ -805,7 +805,52 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 amount, uint
                     }
                     basepoints[0] = (dither(this->GetMaxHealth() * 0.35f) >= dither((pVictim->GetHealth() * 0.04f + this->GetTotalAttackPowerValue(RANGED_ATTACK)) * distance_coefficient)) ? dither((pVictim->GetHealth() * 0.04f + this->GetTotalAttackPowerValue(RANGED_ATTACK)) * distance_coefficient) : dither(this->GetMaxHealth() * 0.35f);
                     target = pVictim;
-                    triggered_spell_id = 34011;
+                    if (this->HasAura(34302) || this->HasAura(34303))
+                    {
+                        if (Pet* pet = this->GetPet())
+                        {
+                            switch (pet->GetMeleeDamageSchoolMask())
+                            {
+                                case SPELL_SCHOOL_MASK_NORMAL:
+                                    triggered_spell_id = 34011;
+                                    break;
+                                case SPELL_SCHOOL_MASK_HOLY:
+                                    if (this->HasAura(34303))
+                                        triggered_spell_id = 34304;
+                                    else
+                                        triggered_spell_id = 34011;
+                                    break;
+                                case SPELL_SCHOOL_MASK_FIRE:
+                                    triggered_spell_id = 34305;
+                                    break;
+                                case SPELL_SCHOOL_MASK_NATURE:
+                                    triggered_spell_id = 34306;
+                                    break;
+                                case SPELL_SCHOOL_MASK_FROST:
+                                    triggered_spell_id = 34307;
+                                    break;
+                                case SPELL_SCHOOL_MASK_SHADOW:
+                                    if (this->HasAura(34303))
+                                        triggered_spell_id = 34308;
+                                    else
+                                        triggered_spell_id = 34011;
+                                    break;
+                                case SPELL_SCHOOL_MASK_ARCANE:
+                                    if (this->HasAura(34303))
+                                        triggered_spell_id = 34309;
+                                    else
+                                        triggered_spell_id = 34011;
+                                    break;
+                                default:
+                                    triggered_spell_id = 34011;
+                                    break;
+                            }
+                        }
+                        else
+                            triggered_spell_id = 34011;
+                    }
+                    else
+                        triggered_spell_id = 34011;
                     break;                               // no hidden cooldown
                 }
                 // Shaman: thundercloud
@@ -848,6 +893,24 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 amount, uint
                     basepoints[0] = dither(triggerAmount * amount / 100);
                     target = this;
                     triggered_spell_id = 34125;
+                    break;                               // no hidden cooldown
+                }
+                // Hunter - Synergy - Rank1
+                case 34297:
+                {
+                    // heal amount
+                    basepoints[0] = dither(triggerAmount * amount / 100);
+                    target = this;
+                    triggered_spell_id = 34299;
+                    break;                               // no hidden cooldown
+                }
+                // Hunter - Synergy - Rank2
+                case 34298:
+                {
+                    // heal amount
+                    basepoints[0] = dither(triggerAmount * amount / 100);
+                    target = this;
+                    triggered_spell_id = 34299;
                     break;                               // no hidden cooldown
                 }
                 // melee blood drain + 1%
@@ -1087,7 +1150,30 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 amount, uint
         case SPELLFAMILY_WARRIOR:
             break;
         case SPELLFAMILY_WARLOCK:
+        {
+            switch (dummySpell->Id)
+            {
+                // Warlock - Unstable Affliction - Rank1
+                case 34310:
+                {
+                    // heal amount
+                    basepoints[0] = dither(triggerAmount * amount / 100);
+                    target = this;
+                    triggered_spell_id = 34312;
+                    break;                               // no hidden cooldown
+                }
+                // Warlock - Unstable Affliction - Rank2
+                case 34311:
+                {
+                    // heal amount
+                    basepoints[0] = dither(triggerAmount * amount / 100);
+                    target = this;
+                    triggered_spell_id = 34312;
+                    break;                               // no hidden cooldown
+                }
+            }
             break;
+        }
         case SPELLFAMILY_PRIEST:
         {
             switch (dummySpell->Id)
