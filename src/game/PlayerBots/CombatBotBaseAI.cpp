@@ -1859,7 +1859,7 @@ bool CombatBotBaseAI::AreOthersOnSameTarget(ObjectGuid guid, bool checkMelee, bo
 
             if (pMember->GetTargetGuid() == guid)
             {
-                if (checkMelee && pMember->HasUnitState(UNIT_STAT_MELEE_ATTACKING))
+                if (checkMelee && pMember->HasUnitState(UNIT_STATE_MELEE_ATTACKING))
                     return true;
 
                 if (checkSpells && pMember->IsNonMeleeSpellCasted())
@@ -3052,7 +3052,7 @@ bool CombatBotBaseAI::IsWearingShield(Player* pPlayer) const
 
 bool CombatBotBaseAI::IsInDuel() const
 {
-    return me->duel && me->duel->startTime != 0;
+    return me->m_duel && me->m_duel->startTime != 0;
 }
 
 CombatBotRoles CombatBotBaseAI::GetRole() const
