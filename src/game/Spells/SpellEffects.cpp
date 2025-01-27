@@ -227,7 +227,7 @@ void Spell::EffectResurrectNew(SpellEffectIndex effIdx)
         pet->SetUInt32Value(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_NONE);
         pet->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SKINNABLE);
         pet->SetDeathState(ALIVE);
-        pet->ClearUnitState(UNIT_STAT_ALL_DYN_STATES);
+        pet->ClearUnitState(UNIT_STATE_ALL_DYN_STATES);
         pet->SetHealth(pet->GetMaxHealth() > health ? health : pet->GetMaxHealth());
 
         pet->AIM_Initialize();
@@ -434,7 +434,35 @@ void Spell::EffectSchoolDMG(SpellEffectIndex effect_idx)
             }
 
             case SPELLFAMILY_MAGE:
+            {
+                // Multi Cast
+                if (Player* pPlayer = ToPlayer(m_casterUnit))
+                {
+                    if (pPlayer->HasAura(34318) && m_spellInfo->IsFitToFamily<SPELLFAMILY_MAGE, CF_MAGE_ARCANE_MISSILES, CF_MAGE_FIREBALL, CF_MAGE_FROSTBOLT>())
+                    {
+                        uint32 randomchance = urand(1, 100);
+                        // 3% chances deal 4 times damage
+                        if (randomchance >= 98)
+                        {
+                            damage *= 4;
+                            pPlayer->GetSession()->SendNotification("Multi Cast X4!");
+                        }
+                        // 6% chances deal 3 times damage
+                        else if (randomchance >= 92 && randomchance < 98)
+                        {
+                            damage *= 3;
+                            pPlayer->GetSession()->SendNotification("Multi Cast X3!");
+                        }
+                        // 12% chances deal 2 times damage
+                        else if (randomchance >= 80 && randomchance < 92)
+                        {
+                            damage *= 2;
+                            pPlayer->GetSession()->SendNotification("Multi Cast X2!");
+                        }
+                    }
+                }
                 break;
+            }
             case SPELLFAMILY_WARRIOR:
             {
                 if (!m_casterUnit)
@@ -568,8 +596,8 @@ void Spell::EffectSchoolDMG(SpellEffectIndex effect_idx)
                     damage = damage + (m_casterUnit->GetTotalAttackPowerValue(BASE_ATTACK) * 0.75f);
                 // Explosive Trap
                 else if (m_spellInfo->Id == 13812 || m_spellInfo->Id == 14314 || m_spellInfo->Id == 14315)
-                    // HUNTER - Explosive Trap : direct damage bonus 15% hp
-                    damage = damage + (m_casterUnit->GetMaxHealth() * 0.15f);
+                    // HUNTER - Explosive Trap : direct damage bonus 15% hp and mana
+                    damage = damage + ((m_casterUnit->GetMaxHealth() + m_casterUnit->GetMaxPower(POWER_MANA)) * 0.15f);
                 break;
             }
             case SPELLFAMILY_PALADIN:
@@ -585,7 +613,7 @@ void Spell::EffectSchoolDMG(SpellEffectIndex effect_idx)
                 else if (m_spellInfo->SpellIconID == 561)
                 {
                     // base damage halved if target not stunned.
-                    if (!unitTarget->HasUnitState(UNIT_STAT_STUNNED | UNIT_STAT_PENDING_STUNNED))
+                    if (!unitTarget->HasUnitState(UNIT_STATE_STUNNED | UNIT_STATE_PENDING_STUNNED))
                         damage = damage * 0.5f;
 
                     damage = m_caster->SpellDamageBonusDone(unitTarget, m_spellInfo, effect_idx, damage, SPELL_DIRECT_DAMAGE);
@@ -1634,7 +1662,7 @@ void Spell::EffectDummy(SpellEffectIndex effIdx)
                     //m_casterUnit->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_FEING_DEATH);
                     m_casterUnit->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SPAWNING);
                     m_casterUnit->SetFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_DEAD);
-                    m_casterUnit->AddUnitState(UNIT_STAT_FEIGN_DEATH);
+                    m_casterUnit->AddUnitState(UNIT_STATE_FEIGN_DEATH);
 
                     // Summon globs
                     m_casterUnit->CastSpell(m_casterUnit, 25885, true);
@@ -3587,11 +3615,11 @@ void Spell::EffectDistract(SpellEffectIndex effIdx)
         return;
 
     // target must be OK to do this
-    if (unitTarget->HasUnitState(UNIT_STAT_CAN_NOT_REACT))
+    if (unitTarget->HasUnitState(UNIT_STATE_CAN_NOT_REACT))
         return;
 
     unitTarget->SetFacingTo(unitTarget->GetAngle(m_targets.m_destX, m_targets.m_destY));
-    unitTarget->ClearUnitState(UNIT_STAT_MOVING);
+    unitTarget->ClearUnitState(UNIT_STATE_MOVING);
 
     if (unitTarget->GetTypeId() == TYPEID_UNIT)
         unitTarget->GetMotionMaster()->MoveDistract(damage * IN_MILLISECONDS);
@@ -4212,6 +4240,65 @@ void Spell::EffectSummonPet(SpellEffectIndex effIdx)
     uint32 petLevel = m_casterUnit->IsPlayer() ? m_casterUnit->GetLevel() : std::max(int32(m_casterUnit->GetLevel()) + int32(m_spellInfo->EffectMultipleValue[effIdx]), 1);
 
     ObjectGuid petGuid = m_casterUnit->EffectSummonPet(m_spellInfo->Id, m_spellInfo->EffectMiscValue[effIdx], petLevel);
+
+    if (m_spellInfo->Id == 883 && m_casterUnit->IsPlayer())
+    {
+        if (Pet* pet = m_casterUnit->GetPet())
+        {
+            CharmInfo* charmInfo = pet->GetCharmInfo();
+            std::unique_ptr<QueryResult> result = CharacterDatabase.PQuery("SELECT type FROM `hunter_pet_train_points` WHERE `pet_guid`='%u' and `owner_guid`='%u'", charmInfo->GetPetNumber(), m_casterUnit->GetGUIDLow());
+            if (result)
+            {
+                Field* fields = result->Fetch();
+                uint8 type = fields[0].GetUInt8();
+                bool aura_34316 = m_casterUnit->HasAura(34316);
+                bool aura_34317 = m_casterUnit->HasAura(34317);
+                if ((type == 1 || type == 2) && !aura_34316 && !aura_34317)
+                {
+                    for (PetSpellMap::iterator itr = pet->m_petSpells.begin(); itr != pet->m_petSpells.end();)
+                    {
+                        uint32 spellId = itr->first;
+                        ++itr;
+                        pet->unlearnSpell(spellId, false);
+                    }
+
+                    pet->SetTP(pet->GetLevel() * (pet->GetLoyaltyLevel() - 1));
+                    CharacterDatabase.PExecute("replace into `hunter_pet_train_points` (`pet_guid`, `owner_guid`, `type`) VALUES (%u, %u, %u)", charmInfo->GetPetNumber(), m_casterUnit->GetGUIDLow(), 0);
+
+                    for (int i = 0; i < MAX_UNIT_ACTION_BAR_INDEX; ++i)
+                        if (UnitActionBarEntry const* ab = charmInfo->GetActionBarEntry(i))
+                            if (ab->GetAction() && ab->IsActionBarForSpell())
+                                charmInfo->SetActionBar(i, 0, ACT_DISABLED);
+
+                    pet->LearnPetPassives();
+
+                    ToPlayer(m_casterUnit)->PetSpellInitialize();
+                }
+                else if (type == 2 && aura_34316 && !aura_34317)
+                {
+                    for (PetSpellMap::iterator itr = pet->m_petSpells.begin(); itr != pet->m_petSpells.end();)
+                    {
+                        uint32 spellId = itr->first;
+                        ++itr;
+                        pet->unlearnSpell(spellId, false);
+                    }
+
+                    pet->SetTP(pet->GetLevel() * pet->GetLoyaltyLevel());
+                    CharacterDatabase.PExecute("replace into `hunter_pet_train_points` (`pet_guid`, `owner_guid`, `type`) VALUES (%u, %u, %u)", charmInfo->GetPetNumber(), m_casterUnit->GetGUIDLow(), 1);
+
+                    for (int i = 0; i < MAX_UNIT_ACTION_BAR_INDEX; ++i)
+                        if (UnitActionBarEntry const* ab = charmInfo->GetActionBarEntry(i))
+                            if (ab->GetAction() && ab->IsActionBarForSpell())
+                                charmInfo->SetActionBar(i, 0, ACT_DISABLED);
+
+                    pet->LearnPetPassives();
+
+                    ToPlayer(m_casterUnit)->PetSpellInitialize();
+                }
+            }
+        }
+    }
+
     if (petGuid)
         AddExecuteLogInfo(effIdx, ExecuteLogInfo(petGuid));
 }
@@ -6775,7 +6862,7 @@ void Spell::EffectSummonDeadPet(SpellEffectIndex /*effIdx*/)
     pet->SetUInt32Value(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_NONE);
     pet->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SKINNABLE);
     pet->SetDeathState(ALIVE);
-    pet->ClearUnitState(UNIT_STAT_ALL_DYN_STATES);
+    pet->ClearUnitState(UNIT_STATE_ALL_DYN_STATES);
     pet->SetHealth(uint32(pet->GetMaxHealth() * (damage / 100)));
 
     pet->AIM_Initialize();
