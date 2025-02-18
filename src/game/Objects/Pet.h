@@ -159,6 +159,10 @@ class Pet : public Creature
 
         bool Create (uint32 guidlow, CreatureCreatePos& cPos, CreatureInfo const* cinfo, uint32 pet_number);
         bool CreateBaseAtCreature(Creature* creature);
+
+        // lfm create pet base from template 
+        bool CreateBaseAtCreatureInfo(const CreatureInfo* pmCI, Map* pmCreatePositionMap, float pmCreatePositionX, float pmCreatePositionY, float pmCreatePositionZ, float pmCreatePositionOrientation);
+
         bool LoadPetFromDB(Player* owner, uint32 petEntry = 0, uint32 petNumber = 0, bool current = false);
         void SavePetToDB(PetSaveMode mode);
         void Unsummon(PetSaveMode mode, Unit* owner = nullptr);

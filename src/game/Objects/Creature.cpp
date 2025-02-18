@@ -1035,6 +1035,9 @@ void Creature::RegenerateMana()
     {
         if (!IsUnderLastManaUseEffect())
             addvalue = round_float_chance(m_manaRegen);
+
+        // lfm creature mana regen too much
+        addvalue = addvalue / 4;
     }
     else
         addvalue = maxValue / 3;

@@ -733,6 +733,9 @@ class Player final: public Unit
         explicit Player (WorldSession* session);
         ~Player() override;
 
+        // lfm auto fish
+        int fishingDelay;
+
         void CleanupsBeforeDelete() override;
 
         // Initializes a new Player object that was not loaded from the database.

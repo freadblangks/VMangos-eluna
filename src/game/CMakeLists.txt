@@ -220,6 +220,7 @@ set (game_SRCS
     vmap/VMapFactory.cpp
     vmap/VMapManager2.cpp
     vmap/WorldModel.cpp
+			
     AccountData.h
     AccountMgr.h
     AuraRemovalMgr.h
@@ -449,6 +450,10 @@ set (game_SRCS
     vmap/VMapTools.h
     vmap/WorldModel.h
 
+    Ming/MingConfig.cpp
+    Ming/MingManager.cpp
+    Ming/MingConfig.h
+    Ming/MingManager.h
 )
 
 if((${CMAKE_VERSION} VERSION_LESS "3.16") OR USE_PCH_OLD)
@@ -525,6 +530,7 @@ include_directories(
   ${ACE_INCLUDE_DIR}
   ${OPENSSL_INCLUDE_DIR}
   ${ZLIB_INCLUDE_DIRS}
+  ${CMAKE_CURRENT_SOURCE_DIR}/Ming
 )
 
 if(WIN32)
@@ -567,6 +573,10 @@ source_group("References"
 
 source_group("Anticheat"
   REGULAR_EXPRESSION Anticheat
+)
+
+source_group("Ming"
+  REGULAR_EXPRESSION Ming
 )
 
 add_library(game STATIC
