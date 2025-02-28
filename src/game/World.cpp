@@ -34,6 +34,7 @@
 #include "WorldPacket.h"
 #include "Weather.h"
 #include "Player.h"
+#include "TransactionLog.h"
 #include "Group.h"
 #include "AccountMgr.h"
 #include "AuctionHouseMgr.h"
@@ -1088,7 +1089,6 @@ void World::LoadConfigSettings(bool reload)
     setConfig(CONFIG_BOOL_ACCURATE_PETS, "Progression.AccuratePetStatistics", true);
     setConfig(CONFIG_BOOL_ACCURATE_LFG, "Progression.AccurateLFGAvailability", true);
     setConfig(CONFIG_BOOL_ACCURATE_PVE_EVENTS, "Progression.AccuratePVEEvents", true);
-    setConfig(CONFIG_BOOL_ACCURATE_SPELL_EFFECTS, "Progression.AccurateSpellEffects", true);
     setConfig(CONFIG_BOOL_NO_RESPEC_PRICE_DECAY, "Progression.NoRespecPriceDecay", true);
     setConfig(CONFIG_BOOL_NO_QUEST_XP_TO_GOLD, "Progression.NoQuestXpToGold", true);
     setConfig(CONFIG_BOOL_RESTORE_DELETED_ITEMS, "Progression.RestoreDeletedItems", true);
@@ -3112,7 +3112,7 @@ void World::AddAsyncTask(std::function<void()> task) {
     _asyncTasks.push_back(std::move(task));
 }
 
-void World::LogMoneyTrade(ObjectGuid sender, ObjectGuid receiver, uint32 amount, const char* type, uint32 dataInt)
+void World::LogMoneyTrade(ObjectGuid sender, ObjectGuid receiver, uint32 amount, char const* type, uint32 dataInt)
 {
     if (!LogsDatabase || !getConfig(CONFIG_BOOL_LOGSDB_TRADES))
         return;

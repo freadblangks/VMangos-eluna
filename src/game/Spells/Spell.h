@@ -361,7 +361,7 @@ class Spell
         SpellCastResult CheckCasterAuras() const;
 
         float CalculateDamage(SpellEffectIndex i, Unit* target) { return m_caster->CalculateSpellEffectValue(target, m_spellInfo, i, &m_currentBasePoints[i], this); }
-        static uint32 CalculatePowerCost(SpellEntry const* spellInfo, Unit* caster, Spell* spell = nullptr, Item* castItem = nullptr, bool casting = true);
+        static uint32 CalculatePowerCost(SpellEntry const* spellInfo, Unit* caster, Spell* spell = nullptr, Item* castItem = nullptr, bool dropModCharge = true);
 
         bool HaveTargetsForEffect(SpellEffectIndex effect) const;
         void Delayed();
@@ -651,7 +651,7 @@ class Spell
         void DoAllEffectOnTarget(ItemTargetInfo *target);
         bool HasValidUnitPresentInTargetList();
         SpellCastResult CanOpenLock(SpellEffectIndex effIndex, uint32 lockid, SkillType& skillid, int32& reqSkillValue, int32& skillValue);
-        uint32 GetSpellBatchingEffectDelay(SpellCaster const* pTarget) const;
+        uint32 GetSpellBatchingEffectDelay(SpellCaster const* pTarget, SpellEffectIndex effIndex) const;
         // -------------------------------------------
 
         //List For Triggered Spells
