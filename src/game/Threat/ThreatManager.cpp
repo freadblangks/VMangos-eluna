@@ -462,7 +462,10 @@ void ThreatManager::addThreat(Unit* pVictim, float threat, bool crit, SpellSchoo
                          pThreatSpell->Id == 34307 ||
                          pThreatSpell->Id == 34308 ||
                          pThreatSpell->Id == 34309 ||
-                         pThreatSpell->Id == 34312))
+                         pThreatSpell->Id == 34312 ||
+                         pThreatSpell->Id == 34328 ||
+                         pThreatSpell->Id == 34342 ||
+                         pThreatSpell->Id == 34352))
         return;
     
     MANGOS_ASSERT(getOwner()->GetTypeId() == TYPEID_UNIT);
@@ -478,14 +481,14 @@ void ThreatManager::addThreat(Unit* pVictim, float threat, bool crit, SpellSchoo
         }
     }
 
-    // Voidwalker - Torment : add 15% max health threat
+    // Voidwalker - Torment : add 12.5% max health threat
     if (pThreatSpell && (pThreatSpell->Id == 3716 ||
                          pThreatSpell->Id == 7809 ||
                          pThreatSpell->Id == 7810 ||
                          pThreatSpell->Id == 7811 ||
                          pThreatSpell->Id == 11774 ||
                          pThreatSpell->Id == 11775))
-        threat = threat + pVictim->GetMaxHealth()*0.15;
+        threat = threat + pVictim->GetMaxHealth()*0.125;
 
     float totalThreat = ThreatCalcHelper::CalcThreat(pVictim, threat, crit, schoolMask, pThreatSpell);
     addThreatDirectly(pVictim, totalThreat, pThreatSpell && pThreatSpell->HasAttribute(SPELL_ATTR_EX_NO_THREAT));

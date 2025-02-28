@@ -797,7 +797,18 @@ void Pet::LooseHappiness()
     }
     else
     {
-        ModifyPower(POWER_HAPPINESS, -addvalue);
+        if (pOwner->HasAura(34316))
+        {
+            ModifyPower(POWER_HAPPINESS, dither(-addvalue * 0.5f));
+        }
+        else if (pOwner->HasAura(34317))
+        {
+            ModifyPower(POWER_HAPPINESS, dither(-addvalue * 0.25f));
+        }
+        else
+        {
+            ModifyPower(POWER_HAPPINESS, -addvalue);
+        }
     }
 }
 
