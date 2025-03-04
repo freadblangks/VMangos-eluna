@@ -839,14 +839,14 @@ void PartyBotAI::UpdateAI(uint32 const diff)
                 auto auraList = pLeader->GetAurasByType(SPELL_AURA_MOUNTED);
                 if (!auraList.empty())
                 {
-                    bool oldStateNoCastTime = me->HasCheatOption(PLAYER_CHEAT_NO_CAST_TIME);
-                    bool oldStateNoPower = me->HasCheatOption(PLAYER_CHEAT_NO_POWER);
+                    bool oldStateCastTime = me->HasCheatOption(PLAYER_CHEAT_NO_CAST_TIME);
+                    bool oldStatePower = me->HasCheatOption(PLAYER_CHEAT_NO_POWER);
                     me->SetCheatOption(PLAYER_CHEAT_NO_CAST_TIME, true);
                     me->SetCheatOption(PLAYER_CHEAT_NO_POWER, true);
                     me->CastSpell(me, (*auraList.begin())->GetId(), true);
-                    me->SetCheatOption(PLAYER_CHEAT_NO_CAST_TIME, oldStateNoCastTime);
-                    me->SetCheatOption(PLAYER_CHEAT_NO_POWER, oldStateNoPower);
-                }
+                    me->SetCheatOption(PLAYER_CHEAT_NO_CAST_TIME, oldStateCastTime);
+                    me->SetCheatOption(PLAYER_CHEAT_NO_POWER, oldStatePower);
+                } 
             }
         }
         else if (me->IsMounted())
@@ -1225,6 +1225,13 @@ void PartyBotAI::UpdateInCombatAI_Paladin()
                 if (DoCastSpell(pVictim, m_spells.paladin.pHammerOfJustice) == SPELL_CAST_OK)
                     return;
             }
+            if (m_spells.paladin.pRepentance &&
+                pVictim->IsNonMeleeSpellCasted() &&
+                CanTryToCastSpell(pVictim, m_spells.paladin.pRepentance))
+            {
+                if (DoCastSpell(pVictim, m_spells.paladin.pRepentance) == SPELL_CAST_OK)
+                    return;
+            }
             if (m_spells.paladin.pHammerOfWrath &&
                 pVictim->GetHealthPercent() < 20.0f &&
                 CanTryToCastSpell(pVictim, m_spells.paladin.pHammerOfWrath))
@@ -1489,6 +1496,13 @@ void PartyBotAI::UpdateInCombatAI_Shaman()
 
 void PartyBotAI::UpdateOutOfCombatAI_Hunter()
 {
+    if (m_spells.hunter.pTrueshotAura &&
+        CanTryToCastSpell(me, m_spells.hunter.pTrueshotAura))
+    {
+        if (DoCastSpell(me, m_spells.hunter.pTrueshotAura) == SPELL_CAST_OK)
+            return;
+    }
+
     if (m_spells.hunter.pAspectOfTheHawk &&
         CanTryToCastSpell(me, m_spells.hunter.pAspectOfTheHawk))
     {
@@ -1571,6 +1585,14 @@ void PartyBotAI::UpdateInCombatAI_Hunter()
                 return;
         }
 
+        if (m_spells.hunter.pScatterShot &&
+            pVictim->IsMoving() && (pVictim->GetVictim() == me) &&
+            CanTryToCastSpell(pVictim, m_spells.hunter.pScatterShot))
+        {
+            if (DoCastSpell(pVictim, m_spells.hunter.pScatterShot) == SPELL_CAST_OK)
+                return;
+        }
+
         if (m_spells.hunter.pAimedShot &&
             CanTryToCastSpell(pVictim, m_spells.hunter.pAimedShot))
         {
@@ -1635,6 +1657,13 @@ void PartyBotAI::UpdateInCombatAI_Hunter()
 
         if (pVictim->CanReachWithMeleeAutoAttack(me))
         {
+            if (m_spells.hunter.pDeterrence &&
+                CanTryToCastSpell(pVictim, m_spells.hunter.pDeterrence) &&
+                (pVictim->GetVictim() == me))
+            {
+                DoCastSpell(pVictim, m_spells.hunter.pDeterrence);
+            }
+
             if (m_spells.hunter.pWingClip &&
                 CanTryToCastSpell(pVictim, m_spells.hunter.pWingClip))
             {
@@ -1781,6 +1810,14 @@ void PartyBotAI::UpdateInCombatAI_Mage()
             !pVictim->HasAura(34003))
         {
             if (DoCastSpell(pVictim, m_spells.mage.pATuoSiZhiGun) == SPELL_CAST_OK)
+                return;
+        }
+
+        if (m_spells.mage.pDetectMagic &&
+            CanTryToCastSpell(pVictim, m_spells.mage.pDetectMagic) &&
+            !pVictim->HasAura(m_spells.mage.pDetectMagic->Id))
+        {
+            if (DoCastSpell(pVictim, m_spells.mage.pDetectMagic) == SPELL_CAST_OK)
                 return;
         }
 
@@ -2877,17 +2914,25 @@ void PartyBotAI::UpdateInCombatAI_Warlock()
                 return;
         }
 
-        if (m_spells.warlock.pConflagrate &&
-            CanTryToCastSpell(pVictim, m_spells.warlock.pConflagrate))
-        {
-            if (DoCastSpell(pVictim, m_spells.warlock.pConflagrate) == SPELL_CAST_OK)
-                return;
-        }
-
         if (m_spells.warlock.pCorruption &&
             CanTryToCastSpell(pVictim, m_spells.warlock.pCorruption))
         {
             if (DoCastSpell(pVictim, m_spells.warlock.pCorruption) == SPELL_CAST_OK)
+                return;
+        }
+
+        if (m_spells.warlock.pCurseofAgony &&
+            CanTryToCastSpell(pVictim, m_spells.warlock.pCurseofAgony))
+        {
+            if (DoCastSpell(pVictim, m_spells.warlock.pCurseofAgony) == SPELL_CAST_OK)
+                return;
+        }
+
+        if (m_spells.warlock.pConflagrate &&
+            (pVictim->GetHealthPercent() < 90.0f) &&
+            CanTryToCastSpell(pVictim, m_spells.warlock.pConflagrate))
+        {
+            if (DoCastSpell(pVictim, m_spells.warlock.pConflagrate) == SPELL_CAST_OK)
                 return;
         }
 
@@ -2912,13 +2957,6 @@ void PartyBotAI::UpdateInCombatAI_Warlock()
             CanTryToCastSpell(pVictim, m_spells.warlock.pFear))
         {
             if (DoCastSpell(pVictim, m_spells.warlock.pFear) == SPELL_CAST_OK)
-                return;
-        }
-
-        if (m_spells.warlock.pCurseofAgony &&
-            CanTryToCastSpell(pVictim, m_spells.warlock.pCurseofAgony))
-        {
-            if (DoCastSpell(pVictim, m_spells.warlock.pCurseofAgony) == SPELL_CAST_OK)
                 return;
         }
 
@@ -3522,6 +3560,15 @@ void PartyBotAI::UpdateInCombatAI_Rogue()
                 CanTryToCastSpell(me, m_spells.rogue.pEvasion))
             {
                 if (DoCastSpell(me, m_spells.rogue.pEvasion) == SPELL_CAST_OK)
+                    return;
+            }
+
+            if (m_spells.rogue.pSmokeBomb &&
+                !pVictim->HasAura(m_spells.rogue.pSmokeBomb->Id) &&
+                ((GetAttackersInRangeCount(10.0f) > 2) || IsMeleeDamageClass(pVictim->GetClass())) &&
+                CanTryToCastSpell(me, m_spells.rogue.pSmokeBomb))
+            {
+                if (DoCastSpell(me, m_spells.rogue.pSmokeBomb) == SPELL_CAST_OK)
                     return;
             }
 

@@ -311,6 +311,7 @@ public:
             SpellEntry const* pHolyWrath;
             SpellEntry const* pTurnEvil;
             SpellEntry const* pHolyShield;
+            SpellEntry const* pRepentance;
         } paladin;
         struct
         {
@@ -351,6 +352,9 @@ public:
             SpellEntry const* pFeignDeath;
             SpellEntry const* pScareBeast;
             SpellEntry const* pVolley;
+            SpellEntry const* pTrueshotAura;
+            SpellEntry const* pDeterrence;
+            SpellEntry const* pScatterShot;
         } hunter;
         struct
         {
@@ -380,6 +384,7 @@ public:
             SpellEntry const* pBlizzard;
             SpellEntry const* pBlastWave;
             SpellEntry const* pCombustion;
+            SpellEntry const* pDetectMagic;
         } mage;
         struct
         {
@@ -505,6 +510,7 @@ public:
             SpellEntry const* pSprint;
             SpellEntry const* pMainHandPoison;
             SpellEntry const* pOffHandPoison;
+            SpellEntry const* pSmokeBomb;
         } rogue;
         struct
         {
