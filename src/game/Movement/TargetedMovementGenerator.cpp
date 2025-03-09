@@ -467,6 +467,10 @@ void ChaseMovementGenerator<T>::DoBackMovement(T &owner, Unit* target)
     Movement::MoveSplineInit init(owner, "ChaseMovementGenerator");
     init.MoveTo(x, y, z, MOVE_WALK_MODE);
     init.SetWalk(true);
+
+    // lfm back movement
+    init.SetFacing(owner.GetOrientation());
+
     init.Launch();
 }
 

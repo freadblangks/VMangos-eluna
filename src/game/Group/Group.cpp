@@ -132,6 +132,9 @@ bool Group::Create(ObjectGuid guid, char const*  name)
     m_lootThreshold = ITEM_QUALITY_UNCOMMON;
     m_looterGuid = guid;
 
+    // lfm free loot
+    m_lootMethod = FREE_FOR_ALL;
+
     if (!isBGGroup())
     {
         m_Id = sObjectMgr.GenerateGroupId();
@@ -2526,4 +2529,26 @@ void Group::UpdateLooterGuid(WorldObject* pLootedObject, bool ifneed)
         SetLooterGuid(0);
         SendUpdate();
     }
+}
+
+// lfm nier
+uint32 Group::GetTargetIconByGuid(ObjectGuid ogTarget)
+{
+    for (uint32 i = 0; i < TARGET_ICON_COUNT; ++i)
+    {
+        if (m_targetIcons[i] == ogTarget)
+        {
+            return i;
+        }
+    }
+    return -1;
+}
+
+ObjectGuid Group::GetGuidByTargetIcon(uint32 icon)
+{
+    if (icon >= 0 && icon < TARGET_ICON_COUNT)
+    {
+        return m_targetIcons[icon];
+    }
+    return ObjectGuid();
 }

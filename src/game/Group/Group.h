@@ -207,6 +207,10 @@ class Group
         Group();
         ~Group();
 
+        // lfm nier
+        uint32 GetTargetIconByGuid(ObjectGuid ogTarget);
+        ObjectGuid GetGuidByTargetIcon(uint32 icon);
+
         // group manipulation methods
         bool   Create(ObjectGuid guid, char const*  name);
         bool   LoadGroupFromDB(Field* fields);

@@ -319,6 +319,9 @@ Player::Player(WorldSession* session) : Unit(),
     m_cameraUpdateTimer = 0;
     m_longSightSpell = 0;
     m_longSightRange = 0.0f;
+
+    // lfm auto fish
+    fishingDelay = 0;
 }
 
 Player::~Player()
@@ -1350,6 +1353,17 @@ void Player::Update(uint32 update_diff, uint32 p_time)
         uint32 cheatAction = GetCheatData()->Update(this, p_time, reason);
         if (cheatAction)
             GetSession()->ProcessAnticheatAction("MovementAnticheat", reason.str().c_str(), cheatAction, sWorld.getConfig(CONFIG_UINT32_AC_MOVEMENT_BAN_DURATION));
+    }
+
+    // lfm auto fish
+    if (fishingDelay > 0)
+    {
+        fishingDelay -= p_time;
+        if (fishingDelay <= 0)
+        {
+            CastSpell(this, 7620, true);
+            fishingDelay = 0;
+        }
     }
 }
 
@@ -5432,6 +5446,9 @@ bool Player::UpdateFishingSkill()
 
     int32 chance = skillValue < 75 ? 100 : 2500 / (skillValue - 50);
     uint32 gatheringSkillGain = sWorld.getConfig(CONFIG_UINT32_SKILL_GAIN_GATHERING);
+
+    // lfm fishing skill increase rate will always be 100%
+    chance = 100;
 
     return UpdateSkillPro(SKILL_FISHING, chance * 10, gatheringSkillGain);
 }
@@ -20461,6 +20478,10 @@ void Player::AutoStoreLoot(Loot& loot, bool broadcast, uint8 bag, uint8 slot)
         SendNotifyLootItemRemoved(i);
         Item* pItem = StoreNewItem(dest, lootItem->itemid, true, lootItem->randomPropertyId);
         SendNewItem(pItem, lootItem->count, false, false, broadcast);
+
+        // lfm update loot when auto store
+        loot.NotifyItemRemoved(i);
+        loot.unlootedCount--;
     }
 }
 

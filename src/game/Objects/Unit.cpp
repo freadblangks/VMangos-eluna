@@ -58,6 +58,9 @@
 #include "InstanceStatistics.h"
 #include "MovementPacketSender.h"
 
+ // lfm ming 
+#include "MingManager.h"
+
 //#define DEBUG_DEBUFF_LIMIT
 
 float baseMoveSpeed[MAX_MOVE_TYPE] =
@@ -176,6 +179,9 @@ Unit::Unit()
 
     m_isCreatureLinkingTrigger = false;
     m_isSpawningLinked = false;
+
+    // lfm vendor replacement
+    vendorReplaceCheckDelay = urand(10000, 30000);
 }
 
 Unit::~Unit()
@@ -338,6 +344,110 @@ void Unit::Update(uint32 update_diff, uint32 p_time)
     m_lastDamageTaken += p_time;
     if (m_lastDamageTaken > 60000)
         m_damageTakenHistory.clear();
+
+    // lfm vendor replacement
+    if (vendorReplaceCheckDelay > 0)
+    {
+        vendorReplaceCheckDelay -= p_time;
+    }
+    else
+    {
+        vendorReplaceCheckDelay = urand(sMingConfig.VenderReplaceDelay_Min, sMingConfig.VenderReplaceDelay_Max);
+        VendorItemData const* vItems = sObjectMgr.GetNpcVendorItemList(GetEntry());
+        if (!vItems || vItems->Empty())
+        {
+            return;
+        }
+        for (VendorItemList::const_iterator itr = vItems->m_items.begin(); itr != vItems->m_items.end(); ++itr)
+        {
+            if (const ItemPrototype* proto = sObjectMgr.GetItemPrototype((*itr)->item))
+            {
+                if (proto->Class == ItemClass::ITEM_CLASS_WEAPON || proto->Class == ItemClass::ITEM_CLASS_ARMOR)
+                {
+                    if (proto->Quality == ItemQualities::ITEM_QUALITY_NORMAL)
+                    {
+                        std::unordered_map<uint32, uint32> replaceMap;
+                        int equipLevel = proto->RequiredLevel;
+                        if (equipLevel >= 5)
+                        {
+                            int minLevel = equipLevel - 3;
+                            int maxLevel = equipLevel + 3;
+                            if (minLevel < 1)
+                            {
+                                minLevel = 1;
+                            }
+                            if (maxLevel > 80)
+                            {
+                                maxLevel = 80;
+                            }
+                            for (int checkLevel = minLevel; checkLevel <= maxLevel; checkLevel++)
+                            {
+                                for (std::unordered_set<uint32>::iterator entryIT = sMingManager->equipsMap[proto->Class][proto->SubClass][proto->InventoryType][checkLevel].begin(); entryIT != sMingManager->equipsMap[proto->Class][proto->SubClass][proto->InventoryType][checkLevel].end(); entryIT++)
+                                {
+                                    replaceMap[replaceMap.size()] = *entryIT;
+                                }
+                            }
+                            if (replaceMap.size() > 0)
+                            {
+                                uint32 replaceEntry = urand(0, replaceMap.size() - 1);
+                                replaceEntry = replaceMap[replaceEntry];
+                                (*itr)->item = replaceEntry;
+                                (*itr)->maxcount = 1;
+                                (*itr)->incrtime = 7200000;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        VendorItemData const* tItems = sObjectMgr.GetNpcVendorTemplateItemList(GetEntry());
+        if (!tItems || tItems->Empty())
+        {
+            return;
+        }
+        for (VendorItemList::const_iterator itr = tItems->m_items.begin(); itr != tItems->m_items.end(); ++itr)
+        {
+            if (const ItemPrototype* proto = sObjectMgr.GetItemPrototype((*itr)->item))
+            {
+                if (proto->Class == ItemClass::ITEM_CLASS_WEAPON || proto->Class == ItemClass::ITEM_CLASS_ARMOR)
+                {
+                    if (proto->Quality == ItemQualities::ITEM_QUALITY_NORMAL)
+                    {
+                        std::unordered_map<uint32, uint32> replaceMap;
+                        int equipLevel = proto->RequiredLevel;
+                        if (equipLevel >= 5)
+                        {
+                            int minLevel = equipLevel - 3;
+                            int maxLevel = equipLevel + 3;
+                            if (minLevel < 1)
+                            {
+                                minLevel = 1;
+                            }
+                            if (maxLevel > 80)
+                            {
+                                maxLevel = 80;
+                            }
+                            for (int checkLevel = minLevel; checkLevel <= maxLevel; checkLevel++)
+                            {
+                                for (std::unordered_set<uint32>::iterator entryIT = sMingManager->equipsMap[proto->Class][proto->SubClass][proto->InventoryType][checkLevel].begin(); entryIT != sMingManager->equipsMap[proto->Class][proto->SubClass][proto->InventoryType][checkLevel].end(); entryIT++)
+                                {
+                                    replaceMap[replaceMap.size()] = *entryIT;
+                                }
+                            }
+                            if (replaceMap.size() > 0)
+                            {
+                                uint32 replaceEntry = urand(0, replaceMap.size());
+                                replaceEntry = replaceMap[replaceEntry];
+                                (*itr)->item = replaceEntry;
+                                (*itr)->maxcount = 1;
+                                (*itr)->incrtime = 7200000;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 bool Unit::UsesPvPCombatTimer() const
@@ -2255,8 +2365,8 @@ MeleeHitOutcome Unit::RollMeleeOutcomeAgainst(Unit const* pVictim, WeaponAttackT
 
     // Dodge chance
 
-    // only players can't dodge if attacker is behind
-    if (!pVictim->IsPlayer() || !fromBehind)
+    // lfm anyone can not dodge if attacker is behind
+    if (!fromBehind)
     {
         dodgeChance -= dodgeSkillBonus;
 
@@ -10526,7 +10636,14 @@ float Unit::GetMeleeReach() const
 float Unit::GetCombatReach(bool forMeleeRange /*=true*/) const
 {
     float reach = GetFloatValue(UNIT_FIELD_COMBATREACH);
-    return (forMeleeRange && reach < 1.5f) ? 1.5f : reach;
+    
+    // lfm min reache from 1.5 to 0.5
+    //return (forMeleeRange && reach < 1.5f) ? 1.5f : reach;
+    if (reach < 0.5f)
+    {
+        reach = 0.5f;
+    }
+    return reach;
 }
 
 float Unit::GetCombatReachToTarget(Unit const* pVictim, bool ability, float flat_mod, bool ignoreLeeway /*= false*/) const
@@ -10535,7 +10652,9 @@ float Unit::GetCombatReachToTarget(Unit const* pVictim, bool ability, float flat
         ? pVictim->GetCombatReach(true)
         : 0.0f;
 
-    float reach = GetCombatReach(true) + victimReach + flat_mod;
+    // lfm each unit only do melee with own reach 
+    //float reach = GetCombatReach(true) + victimReach + flat_mod;
+    float reach = GetCombatReach(true) + flat_mod;
 
     reach += BASE_MELEERANGE_OFFSET;
     if (reach < ATTACK_DISTANCE)
