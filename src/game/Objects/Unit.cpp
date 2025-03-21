@@ -2183,6 +2183,8 @@ void Unit::AttackerStateUpdate(Unit* pVictim, WeaponAttackType attType, bool ext
     // melee attack spell casted at main hand attack only
     if (attType == BASE_ATTACK && m_currentSpells[CURRENT_MELEE_SPELL] && !extra)
     {
+        // we need to override the target otherwise its possible to hit a far away target with client modifications since melee spells skip range checks
+        m_currentSpells[CURRENT_MELEE_SPELL]->m_targets.setUnitTarget(pVictim);
         m_currentSpells[CURRENT_MELEE_SPELL]->cast();
         Spell* spell = m_currentSpells[CURRENT_MELEE_SPELL];
         if (!spell || !spell->m_spellInfo->IsNextMeleeSwingSpell() || spell->isSuccessCast())
@@ -2821,23 +2823,27 @@ float Unit::GetUnitCriticalChance(WeaponAttackType attackType, Unit const* pVict
     }
     else if (IsPet() && GetOwnerGuid().IsPlayer() && (GetEntry() == 200010 || GetEntry() == 1860 || GetEntry() == 1863 || GetEntry() == 417))
     {
+        crit = 10.0f;
         Player* pOwner = ::ToPlayer(GetOwner());
-        crit = pOwner->GetSpellCritPercent(SPELL_SCHOOL_HOLY) * 0.35 + GetTotalAuraModifier(SPELL_AURA_MOD_CRIT_PERCENT);
+        crit += pOwner->GetSpellCritPercent(SPELL_SCHOOL_HOLY) * 0.35 + GetTotalAuraModifier(SPELL_AURA_MOD_CRIT_PERCENT);
     }
     else if (IsPet() && GetOwnerGuid().IsPlayer() && (GetEntry() == 200011 || GetEntry() == 200013))
     {
+        crit = 5.0f;
         Player* pOwner = ::ToPlayer(GetOwner());
-        crit = pOwner->GetSpellCritPercent(SPELL_SCHOOL_HOLY) * 0.35 + pOwner->GetFloatValue(PLAYER_CRIT_PERCENTAGE) * 0.35 + GetTotalAuraModifier(SPELL_AURA_MOD_CRIT_PERCENT);
+        crit += pOwner->GetSpellCritPercent(SPELL_SCHOOL_HOLY) * 0.35 + pOwner->GetFloatValue(PLAYER_CRIT_PERCENTAGE) * 0.35 + GetTotalAuraModifier(SPELL_AURA_MOD_CRIT_PERCENT);
     }
     else if (IsPet() && GetOwnerGuid().IsPlayer() && (GetEntry() == 200014 || GetEntry() == 200015))
     {
+        crit = 5.0f;
         Player* pOwner = ::ToPlayer(GetOwner());
-        crit = pOwner->GetFloatValue(PLAYER_CRIT_PERCENTAGE) * 0.35 + GetTotalAuraModifier(SPELL_AURA_MOD_CRIT_PERCENT);
+        crit += pOwner->GetFloatValue(PLAYER_CRIT_PERCENTAGE) * 0.35 + GetTotalAuraModifier(SPELL_AURA_MOD_CRIT_PERCENT);
     }
     else if (IsPet() && GetOwnerGuid().IsPlayer() && (ToPet()->getPetType() == HUNTER_PET))
     {
+        crit = 10.0f;
         Player* pOwner = ::ToPlayer(GetOwner());
-        crit = pOwner->GetFloatValue(PLAYER_CRIT_PERCENTAGE) * 0.35 + GetTotalAuraModifier(SPELL_AURA_MOD_CRIT_PERCENT);
+        crit += pOwner->GetFloatValue(PLAYER_CRIT_PERCENTAGE) * 0.35 + GetTotalAuraModifier(SPELL_AURA_MOD_CRIT_PERCENT);
     }
     else
     {
@@ -3803,6 +3809,14 @@ bool Unit::RemoveNoStackAurasDueToAuraHolder(SpellAuraHolder* holder)
                 sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "SpellAuraHolder (Spell %u) is in process but attempt removed at SpellAuraHolder (Spell %u) adding, need add stack rule for Unit::RemoveNoStackAurasDueToAuraHolder", i.second->GetId(), holder->GetId());
                 continue;
             }
+
+            // 20142 - Improved Devotion Aura - rank 5
+            if (spellId_spec == SPELL_AURA && i_spellId_spec == SPELL_AURA)
+                if (Player *pPlayer = holder->GetCaster()->ToPlayer())
+                    if (pPlayer->HasAura(20142))
+                        if ((spellProto->IsFitToFamily<SPELLFAMILY_PALADIN, CF_PALADIN_DEVOTION_AURA>() && !i_spellProto->IsFitToFamily<SPELLFAMILY_PALADIN, CF_PALADIN_DEVOTION_AURA>()) || (!spellProto->IsFitToFamily<SPELLFAMILY_PALADIN, CF_PALADIN_DEVOTION_AURA>() && i_spellProto->IsFitToFamily<SPELLFAMILY_PALADIN, CF_PALADIN_DEVOTION_AURA>()))
+                            continue;
+
             sLog.Out(LOG_BASIC, LOG_LVL_DETAIL, "[STACK][%u/%u] SpellSpecPerTarget ou SpellSpecPerCaster", spellId, i_spellId);
             aurasToRemove.emplace_back(i_spellId, i.second->GetCasterGuid());
             continue;

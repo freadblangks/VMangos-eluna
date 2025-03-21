@@ -1673,6 +1673,14 @@ void BattleBotAI::UpdateInCombatAI_Shaman()
             return;
     }
 
+    if (m_spells.shaman.pLightningShield &&
+        !me->HasAura(m_spells.shaman.pLightningShield->Id) &&
+        CanTryToCastSpell(me, m_spells.shaman.pLightningShield))
+    {
+        if (DoCastSpell(me, m_spells.shaman.pLightningShield) == SPELL_CAST_OK)
+            return;
+    }
+
     FindAndHealInjuredAlly(40.0f);
 }
 
@@ -3665,6 +3673,13 @@ void BattleBotAI::UpdateOutOfCombatAI_Druid()
             return;
     }
 
+    if (m_spells.druid.pOmenOfClarity &&
+        CanTryToCastSpell(me, m_spells.druid.pOmenOfClarity))
+    {
+        if (DoCastSpell(me, m_spells.druid.pOmenOfClarity) == SPELL_CAST_OK)
+            return;
+    }
+
     if (m_isBuffing &&
        (!m_spells.druid.pMarkoftheWild ||
         !me->HasGCD(m_spells.druid.pMarkoftheWild)))
@@ -3769,6 +3784,13 @@ void BattleBotAI::UpdateInCombatAI_Druid()
                 if (DoCastSpell(pAttacker, m_spells.druid.pHibernate) == SPELL_CAST_OK)
                     return;
             }
+        }
+
+        if (m_spells.druid.pNaturesSwiftness &&
+            CanTryToCastSpell(me, m_spells.druid.pNaturesSwiftness))
+        {
+            if (DoCastSpell(me, m_spells.druid.pNaturesSwiftness) == SPELL_CAST_OK)
+                return;
         }
 
         // Heal
@@ -4066,6 +4088,14 @@ void BattleBotAI::UpdateInCombatAI_Druid()
                     }
                     me->SetCasterChaseDistance(25.0f);
                     if (me->GetMotionMaster()->MoveDistance(pVictim, 25.0f))
+                        return;
+                }
+
+                if (m_spells.druid.pInnervate &&
+                   (me->GetPowerPercent(POWER_MANA) < 65.0f) &&
+                    CanTryToCastSpell(me, m_spells.druid.pInnervate))
+                {
+                    if (DoCastSpell(me, m_spells.druid.pInnervate) == SPELL_CAST_OK)
                         return;
                 }
 

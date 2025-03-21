@@ -285,7 +285,7 @@ public:
     {
         struct
         {
-            SpellEntry const* spells[45];
+            SpellEntry const* spells[50];
         } raw;
         struct
         {
@@ -538,6 +538,7 @@ public:
             SpellEntry const* pNaturesSwiftness;
             SpellEntry const* pEntanglingRoots;
             SpellEntry const* pHibernate;
+            SpellEntry const* pOmenOfClarity;
             // Cat
             SpellEntry const* pProwl;
             SpellEntry const* pPounce;

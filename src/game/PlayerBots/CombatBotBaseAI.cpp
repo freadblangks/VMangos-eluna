@@ -31,8 +31,8 @@ enum CombatBotSpells
     SPELL_SUMMON_SPIRIT_BEAR = 34077,
     SPELL_SUMMON_OBSIDIAN_DESTROYER = 34084,
     SPELL_SUMMON_GOBLIN_SHREDDER = 34095,
-    SPELL_SUMMON_BONE_CLINCKZ = 34102,
-    SPELL_SUMMON_BANE = 34114,
+    SPELL_SUMMON_BONE_CLINCKZ = 34374,
+    SPELL_SUMMON_BANE = 34375,
 
     SPELL_SUMMON_IMP = 688,
     SPELL_SUMMON_VOIDWALKER = 697,
@@ -1561,6 +1561,11 @@ void CombatBotBaseAI::PopulateSpellData()
                 {
                     if (IsHigherRankSpell(m_spells.druid.pHibernate))
                         m_spells.druid.pHibernate = pSpellEntry;
+                }
+                else if (pSpellEntry->SpellName[0].find("Omen of Clarity") != std::string::npos)
+                {
+                    if (IsHigherRankSpell(m_spells.druid.pOmenOfClarity))
+                        m_spells.druid.pOmenOfClarity = pSpellEntry;
                 }
                 else if (pSpellEntry->SpellName[0].find("Pounce") != std::string::npos)
                 {

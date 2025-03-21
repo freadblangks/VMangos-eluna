@@ -54,6 +54,62 @@ SpellScript* GetScript_WarlockDemonicSacrifice(SpellEntry const*)
     return new WarlockDemonicSacrificeScript();
 }
 
+// 17962, 18930, 18931, 18932 - Conflagrate
+struct WarlockConflagrateScript : SpellScript
+{
+    void OnEffectExecute(Spell* spell, SpellEffectIndex effIdx) const final
+    {
+        if (effIdx == EFFECT_INDEX_0 && spell->GetUnitTarget())
+        {
+            // for caster applied auras only
+            Unit::AuraList const& mPeriodic = spell->GetUnitTarget()->GetAurasByType(SPELL_AURA_PERIODIC_DAMAGE);
+            float coefficientImmolate = 0.0f, coefficientCurseOfAgony = 0.0f, coefficientCorruption = 0.0f;
+            for (const auto i : mPeriodic)
+            {
+                // Immolate
+                if (i->GetSpellProto()->IsFitToFamily<SPELLFAMILY_WARLOCK, CF_WARLOCK_IMMOLATE>() &&
+                    i->GetCasterGuid() == spell->m_caster->GetObjectGuid())
+                {
+                    spell->GetUnitTarget()->RemoveAurasByCasterSpell(i->GetId(), spell->m_caster->GetObjectGuid());
+                    coefficientImmolate = 1.0f;
+                    break;
+                }
+            }
+            for (const auto i : mPeriodic)
+            {
+                // Curse of Agony
+                if (i->GetSpellProto()->IsFitToFamily<SPELLFAMILY_WARLOCK, CF_WARLOCK_CURSE_OF_AGONY>() &&
+                    i->GetCasterGuid() == spell->m_caster->GetObjectGuid())
+                {
+                    spell->GetUnitTarget()->RemoveAurasByCasterSpell(i->GetId(), spell->m_caster->GetObjectGuid());
+                    coefficientCurseOfAgony = 2.0f;
+                    break;
+                }
+            }
+            for (const auto i : mPeriodic)
+            {
+                // Corruption
+                if (i->GetSpellProto()->IsFitToFamily<SPELLFAMILY_WARLOCK, CF_WARLOCK_CORRUPTION>() &&
+                    i->GetCasterGuid() == spell->m_caster->GetObjectGuid())
+                {
+                    spell->GetUnitTarget()->RemoveAurasByCasterSpell(i->GetId(), spell->m_caster->GetObjectGuid());
+                    coefficientCorruption = 1.5f;
+                    break;
+                }
+            }
+            spell->damage = spell->damage * (coefficientImmolate + coefficientCurseOfAgony + coefficientCorruption);
+            // Wildfire - Conflagrate
+            if (spell->m_casterUnit->HasAura(34359) && spell->GetUnitTarget()->GetHealthPercent() < 50.0f)
+                spell->damage = spell->damage * 1.3f;
+        }
+    }
+};
+
+SpellScript* GetScript_WarlockConflagrate(SpellEntry const*)
+{
+    return new WarlockConflagrateScript();
+}
+
 void AddSC_warlock_spell_scripts()
 {
     Script* newscript;
@@ -61,5 +117,10 @@ void AddSC_warlock_spell_scripts()
     newscript = new Script;
     newscript->Name = "spell_warlock_demonic_sacrifice";
     newscript->GetSpellScript = &GetScript_WarlockDemonicSacrifice;
+    newscript->RegisterSelf();
+
+    newscript = new Script;
+    newscript->Name = "spell_warlock_conflagrate";
+    newscript->GetSpellScript = &GetScript_WarlockConflagrate;
     newscript->RegisterSelf();
 }

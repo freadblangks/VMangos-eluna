@@ -1484,6 +1484,14 @@ void PartyBotAI::UpdateInCombatAI_Shaman()
 
     if (GetRole() == ROLE_HEALER)
     {
+        if (m_spells.shaman.pLightningShield &&
+            !me->HasAura(m_spells.shaman.pLightningShield->Id) &&
+            CanTryToCastSpell(me, m_spells.shaman.pLightningShield))
+        {
+            if (DoCastSpell(me, m_spells.shaman.pLightningShield) == SPELL_CAST_OK)
+                return;
+        }
+
         if (FindAndHealInjuredAlly(50.0f, 90.0f))
             return;
 
@@ -1547,10 +1555,19 @@ void PartyBotAI::UpdateInCombatAI_Hunter()
             }
         }
 
-        if (me->GetMotionMaster()->GetCurrentMovementGeneratorType() == IDLE_MOTION_TYPE
-            && me->GetDistance(pVictim) > 30.0f)
+        if (me->GetMotionMaster()->GetCurrentMovementGeneratorType() == IDLE_MOTION_TYPE &&
+            me->GetDistance(pVictim) > 30.0f)
         {
             me->GetMotionMaster()->MoveChase(pVictim, 25.0f);
+        }
+        else if (!me->HasUnitState(UNIT_STATE_ROOT) &&
+                (me->GetCombatDistance(pVictim) < 8.0f) &&
+                (GetRole() != ROLE_MELEE_DPS) &&
+                me->GetMotionMaster()->GetCurrentMovementGeneratorType() != DISTANCING_MOTION_TYPE)
+        {
+            me->SetCasterChaseDistance(25.0f);
+            if (RunAwayFromTarget(pVictim))
+                return;
         }
 
         if (m_spells.hunter.pVolley &&
@@ -1690,18 +1707,6 @@ void PartyBotAI::UpdateInCombatAI_Hunter()
                 if (DoCastSpell(me, m_spells.hunter.pAspectOfTheHawk) == SPELL_CAST_OK)
                     return;
             }
-        }
-
-        if (!me->HasUnitState(UNIT_STATE_ROOT) &&
-            (me->GetCombatDistance(pVictim) < 8.0f) &&
-            (GetRole() != ROLE_MELEE_DPS) &&
-             me->GetMotionMaster()->GetCurrentMovementGeneratorType() != DISTANCING_MOTION_TYPE)
-        {
-            if (!me->IsStopped())
-                me->StopMoving();
-            me->GetMotionMaster()->Clear();
-            if (RunAwayFromTarget(pVictim))
-                return;
         }
     }
 }
@@ -3718,6 +3723,13 @@ void PartyBotAI::UpdateOutOfCombatAI_Druid()
             return;
     }
 
+    if (m_spells.druid.pOmenOfClarity &&
+        CanTryToCastSpell(me, m_spells.druid.pOmenOfClarity))
+    {
+        if (DoCastSpell(me, m_spells.druid.pOmenOfClarity) == SPELL_CAST_OK)
+            return;
+    }
+
     if (m_isBuffing &&
        (!m_spells.druid.pMarkoftheWild ||
         !me->HasGCD(m_spells.druid.pMarkoftheWild)))
@@ -3809,6 +3821,13 @@ void PartyBotAI::UpdateInCombatAI_Druid()
                 if (DoCastSpell(pAttacker, m_spells.druid.pHibernate) == SPELL_CAST_OK)
                     return;
             }
+        }
+
+        if (m_spells.druid.pNaturesSwiftness &&
+            CanTryToCastSpell(me, m_spells.druid.pNaturesSwiftness))
+        {
+            if (DoCastSpell(me, m_spells.druid.pNaturesSwiftness) == SPELL_CAST_OK)
+                return;
         }
 
         // Prioritize applying HoTs.
@@ -4071,6 +4090,14 @@ void PartyBotAI::UpdateInCombatAI_Druid()
                 }
                 me->SetCasterChaseDistance(25.0f);
                 if (RunAwayFromTarget(pVictim))
+                    return;
+            }
+
+            if (m_spells.druid.pInnervate &&
+               (me->GetPowerPercent(POWER_MANA) < 65.0f) &&
+                CanTryToCastSpell(me, m_spells.druid.pInnervate))
+            {
+                if (DoCastSpell(me, m_spells.druid.pInnervate) == SPELL_CAST_OK)
                     return;
             }
 
