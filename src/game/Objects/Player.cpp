@@ -5288,7 +5288,7 @@ void Player::HandleBaseModValue(BaseModGroup modGroup, BaseModType modType, floa
 
 float Player::GetBaseModValue(BaseModGroup modGroup, BaseModType modType) const
 {
-    if (modGroup >= BASEMOD_END || modType > MOD_END)
+    if (modGroup < 0 || modGroup >= BASEMOD_END || modType < 0 || modType >= MOD_END)
     {
         sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "trial to access nonexistent BaseModGroup or wrong BaseModType!");
         return 0.0f;
@@ -20211,7 +20211,7 @@ void Player::RewardSinglePlayerAtKill(Unit const* pVictim)
     uint32 xp = PvP ? 0 : MaNGOS::XP::Gain(this, static_cast<Creature const*>(pVictim));
     
     //Double Experience
-    if(HasItemCount(26002, 1))
+    if(HasItemCount(26002, 1) || HasItemCount(26048, 1))
     {
         xp = xp * 2;
     }
@@ -20231,7 +20231,7 @@ void Player::RewardSinglePlayerAtKill(Unit const* pVictim)
             {
                 //Double Experience
                 uint32 xp_pet = MaNGOS::XP::Gain(pet, static_cast<Creature const*>(pVictim));
-                if(HasItemCount(26002, 1))
+                if(HasItemCount(26002, 1) || HasItemCount(26048, 1))
                 {
                     xp_pet = xp_pet * 2;
                 }

@@ -795,6 +795,9 @@ void PartyBotAI::UpdateAI(uint32 const diff)
     if (me->GetStandState() != UNIT_STAND_STATE_STAND)
         me->SetStandState(UNIT_STAND_STATE_STAND);
 
+    if (me->GetSheath() == SHEATH_STATE_UNARMED && !me->IsMounted())
+        me->SetSheath(SHEATH_STATE_MELEE);
+
     if (!me->IsInCombat() && !me->IsMounted())
     {
         UpdateOutOfCombatAI();
@@ -1539,6 +1542,35 @@ void PartyBotAI::UpdateOutOfCombatAI_Hunter()
 
         if (Pet* pPet = me->GetPet())
         {
+            //Growl
+            if(pPet->GetLevel() >= 1 && pPet->GetLevel() < 10)
+            {
+                pPet->ToggleAutocast(2649, true);
+            }
+            else if(pPet->GetLevel() >= 10 && pPet->GetLevel() < 20)
+            {
+                pPet->ToggleAutocast(14916, true);
+            }
+            else if(pPet->GetLevel() >= 20 && pPet->GetLevel() < 30)
+            {
+                pPet->ToggleAutocast(14917, true);
+            }
+            else if(pPet->GetLevel() >= 30 && pPet->GetLevel() < 40)
+            {
+                pPet->ToggleAutocast(14918, true);
+            }
+            else if(pPet->GetLevel() >= 40 && pPet->GetLevel() < 50)
+            {
+                pPet->ToggleAutocast(14919, true);
+            }
+            else if(pPet->GetLevel() >= 50 && pPet->GetLevel() < 60)
+            {
+                pPet->ToggleAutocast(14920, true);
+            }
+            else if(pPet->GetLevel() == 60)
+            {
+                pPet->ToggleAutocast(14921, true);
+            }
             if (!pPet->GetVictim())
             {
                 pPet->GetCharmInfo()->SetIsCommandAttack(true);
@@ -1558,6 +1590,35 @@ void PartyBotAI::UpdateInCombatAI_Hunter()
     {
         if (Pet* pPet = me->GetPet())
         {
+            //Growl
+            if(pPet->GetLevel() >= 1 && pPet->GetLevel() < 10)
+            {
+                pPet->ToggleAutocast(2649, true);
+            }
+            else if(pPet->GetLevel() >= 10 && pPet->GetLevel() < 20)
+            {
+                pPet->ToggleAutocast(14916, true);
+            }
+            else if(pPet->GetLevel() >= 20 && pPet->GetLevel() < 30)
+            {
+                pPet->ToggleAutocast(14917, true);
+            }
+            else if(pPet->GetLevel() >= 30 && pPet->GetLevel() < 40)
+            {
+                pPet->ToggleAutocast(14918, true);
+            }
+            else if(pPet->GetLevel() >= 40 && pPet->GetLevel() < 50)
+            {
+                pPet->ToggleAutocast(14919, true);
+            }
+            else if(pPet->GetLevel() >= 50 && pPet->GetLevel() < 60)
+            {
+                pPet->ToggleAutocast(14920, true);
+            }
+            else if(pPet->GetLevel() == 60)
+            {
+                pPet->ToggleAutocast(14921, true);
+            }
             if (!pPet->GetVictim() && pPet->IsAlive())
             {
                 pPet->GetCharmInfo()->SetIsCommandAttack(true);
