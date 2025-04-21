@@ -1233,6 +1233,7 @@ void SendDefaultMenu_TeleportNPC(Player *player, Creature *_Creature, uint32 act
             player->ADD_GOSSIP_ITEM(5, "亚楠镇 60级",           GOSSIP_SENDER_MAIN, 1273);
             player->ADD_GOSSIP_ITEM(5, "凄凉山 60级",           GOSSIP_SENDER_MAIN, 1274);
             player->ADD_GOSSIP_ITEM(5, "修道院 60级",           GOSSIP_SENDER_MAIN, 1275);
+            player->ADD_GOSSIP_ITEM(5, "德拉诺 60级",           GOSSIP_SENDER_MAIN, 1276);
             player->ADD_GOSSIP_ITEM(7, "<- [后退]",           GOSSIP_SENDER_MAIN, 5551);
             player->ADD_GOSSIP_ITEM(7, "<-[主菜单]",       GOSSIP_SENDER_MAIN, 100);
 
@@ -1856,6 +1857,16 @@ void SendDefaultMenu_TeleportNPC(Player *player, Creature *_Creature, uint32 act
             player->ModifyMoney(-travelboots);
             player->TeleportTo(MAP_EASTERN_KINGDOMS, 2875.06f, -633.725f, 137.839f, 0.00f);
             break;
+        case 1276:// Teleport player to Draenor
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetMoney() < travelboots)
+            {
+                player->GetSession()->SendNotification(costprice.c_str());
+                break;
+            }
+            player->ModifyMoney(-travelboots);
+            player->TeleportTo(MAP_EASTERN_KINGDOMS, -11865.1f, -3203.32f, -22.8171f, 0.00f);
+            break;
         case 4000:// Teleport to Zul'Gurub
             player->CLOSE_GOSSIP_MENU();
             if(player->GetMoney() < travelboots)
@@ -2290,7 +2301,7 @@ bool GossipHello_Black_Knight(Player *player, Creature *_Creature)
     }
     else
     {
-        player->ADD_GOSSIP_ITEM(7, "卡拉赞之塔曾属于艾泽拉斯大陆上最强的人：星界法师麦迪文。这里只有一条真理：进去以后，你或许永远也无法出来……",               GOSSIP_SENDER_MAIN, 2);
+        player->ADD_GOSSIP_ITEM(7, "卡拉赞曾属于艾泽拉斯大陆上最强的人：星界法师麦迪文。这里只有一条真理：进去以后，你或许永远也无法出来……",               GOSSIP_SENDER_MAIN, 2);
     }
     player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
     return true;
@@ -2304,8 +2315,9 @@ void SendDefaultMenu_Black_Knight(Player *player, Creature *_Creature, uint32 ac
             player->TeleportTo(MAP_EASTERN_KINGDOMS, -11120.826172f, -2012.403687f, 47.094982f, 0.0f);
             break;
         case 2:
-            player->ADD_GOSSIP_ITEM(5, "传送：卡拉赞下层",               GOSSIP_SENDER_MAIN, 3);
-            player->ADD_GOSSIP_ITEM(5, "传送：卡拉赞墓穴",             GOSSIP_SENDER_MAIN, 4);
+            player->ADD_GOSSIP_ITEM(5, "传送：卡拉赞之塔",               GOSSIP_SENDER_MAIN, 3);
+            player->ADD_GOSSIP_ITEM(5, "传送：卡拉赞下层",               GOSSIP_SENDER_MAIN, 4);
+            player->ADD_GOSSIP_ITEM(5, "传送：卡拉赞墓穴",             GOSSIP_SENDER_MAIN, 5);
             player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
             break;
         case 3:
@@ -2318,6 +2330,15 @@ void SendDefaultMenu_Black_Knight(Player *player, Creature *_Creature, uint32 ac
             player->TeleportTo(540, -11039.6f, -1997.65f, 94.0802f, 0.0f);
             break;
         case 4:
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetLevel() < 60)
+            {
+                player->GetSession()->SendNotification("You must be at least level 60 to enter.");
+                break;
+            }
+            player->TeleportTo(540, -11101.692f, -1997.510f, 49.893f, 0.0f);
+            break;
+        case 5:
             player->CLOSE_GOSSIP_MENU();
             if(player->GetLevel() < 60)
             {
@@ -2525,7 +2546,7 @@ bool GossipHello_Elder_Timbermaw(Player *player, Creature *_Creature)
     }
     else
     {
-        player->ADD_GOSSIP_ITEM(7, "缓缓飘落的枫叶像思念。",               GOSSIP_SENDER_MAIN, 2);
+        player->ADD_GOSSIP_ITEM(7, "醉卧沙场君莫笑，古来征战几人回？",               GOSSIP_SENDER_MAIN, 2);
     }
     player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
     return true;
@@ -2603,6 +2624,51 @@ bool GossipSelect_Scarlet_Traitor(Player *player, Creature *_Creature, uint32 se
     // Main menu
     if (sender == GOSSIP_SENDER_MAIN)
         SendDefaultMenu_Scarlet_Traitor(player, _Creature, action);
+
+    return true;
+}
+
+bool GossipHello_Tirion_Fordring_Outland(Player *player, Creature *_Creature)   
+{
+    if (player->GetMapId() == 546)
+    {
+        player->ADD_GOSSIP_ITEM(5, "离开德拉诺（需自行/logout）",               GOSSIP_SENDER_MAIN, 1);
+    }
+    else
+    {
+        player->ADD_GOSSIP_ITEM(7, "勇士们，穿越黑暗之门，进攻！",               GOSSIP_SENDER_MAIN, 2);
+    }
+    player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+    return true;
+}
+void SendDefaultMenu_Tirion_Fordring_Outland(Player *player, Creature *_Creature, uint32 action)
+{
+    switch (action)
+    {
+        case 1:
+            player->CLOSE_GOSSIP_MENU();
+            player->TeleportTo(MAP_EASTERN_KINGDOMS, -11865.1f, -3203.32f, -22.8171f, 0.0f);
+            break;
+        case 2:
+            player->ADD_GOSSIP_ITEM(5, "传送：德拉诺",               GOSSIP_SENDER_MAIN, 3);
+            player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+            break;
+        case 3:
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetLevel() < 60)
+            {
+                player->GetSession()->SendNotification("You must be at least level 60 to enter.");
+                break;
+            }
+            player->TeleportTo(546, -6080.821f, -2356.988f, 56.089f, 0.0f);
+            break;
+    }
+}
+bool GossipSelect_Tirion_Fordring_Outland(Player *player, Creature *_Creature, uint32 sender, uint32 action)
+{
+    // Main menu
+    if (sender == GOSSIP_SENDER_MAIN)
+        SendDefaultMenu_Tirion_Fordring_Outland(player, _Creature, action);
 
     return true;
 }
@@ -3509,6 +3575,12 @@ void AddSC_custom_creatures()
     newscript->Name = "npc_scarlet_traitor";
     newscript->pGossipHello = &GossipHello_Scarlet_Traitor;
     newscript->pGossipSelect = &GossipSelect_Scarlet_Traitor;
+    newscript->RegisterSelf(false);
+
+    newscript = new Script;
+    newscript->Name = "npc_tirion_fordring_outland";
+    newscript->pGossipHello = &GossipHello_Tirion_Fordring_Outland;
+    newscript->pGossipSelect = &GossipSelect_Tirion_Fordring_Outland;
     newscript->RegisterSelf(false);
 
     newscript = new Script;
