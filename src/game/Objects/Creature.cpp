@@ -256,7 +256,10 @@ void Creature::RemoveFromWorld()
     if (IsInWorld())
     {
         if (GetUInt32Value(UNIT_CREATED_BY_SPELL))
+        {
             StartCooldownForSummoner();
+            CancelSummonPossessedCharm();
+        }
         if (AI())
             AI()->OnRemoveFromWorld();
         if (GetObjectGuid().GetHigh() == HIGHGUID_UNIT)
@@ -579,6 +582,11 @@ bool Creature::UpdateEntry(uint32 entry, GameEventCreatureData const* eventData 
 
     if (HasExtraFlag(CREATURE_FLAG_EXTRA_APPEAR_DEAD))
         SetFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_DEAD);
+
+    if (IsPlusMob())
+        SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PLUS_MOB);
+    else
+        RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PLUS_MOB);
 
     m_reputationId = -1;
     if (FactionTemplateEntry const* pFactionTemplate = sObjectMgr.GetFactionTemplateEntry(GetCreatureInfo()->faction))
@@ -1707,8 +1715,8 @@ void Creature::SelectLevel(float percentHealth, float percentMana)
     CreatureInfo const* cinfo = GetCreatureInfo();
 
     // level
-    uint32 const minLevel = std::min(cinfo->level_max, cinfo->level_min);
-    uint32 const maxLevel = std::max(cinfo->level_max, cinfo->level_min);
+    uint32 const minLevel = cinfo->level_min;
+    uint32 const maxLevel = cinfo->level_max;
     uint32 const level = minLevel == maxLevel ? minLevel : urand(minLevel, maxLevel);
 
     SetLevel(level);
@@ -2207,7 +2215,10 @@ void Creature::SetDeathState(DeathState s)
         }
 
         if (GetUInt32Value(UNIT_CREATED_BY_SPELL))
+        {
             StartCooldownForSummoner();
+            CancelSummonPossessedCharm();
+        }
 
         // return, since we promote to CORPSE_FALLING. CORPSE_FALLING is promoted to CORPSE at next update.
         if (!HasCreatureState(CSTATE_DESPAWNING) && CanFly() && FallGround())
@@ -2358,7 +2369,7 @@ void Creature::ForcedDespawn(uint32 msTimeToDespawn /*= 0*/, uint32 secsTimeToRe
 
 bool Creature::IsImmuneToSpell(SpellEntry const* spellInfo, bool castOnSelf) const
 {
-    if (!spellInfo)
+    if (!spellInfo || spellInfo->HasAttribute(SPELL_ATTR_NO_IMMUNITIES) || spellInfo->IsIgnoringCasterAndTargetRestrictions())
         return false;
 
     if (!castOnSelf)
@@ -2370,28 +2381,14 @@ bool Creature::IsImmuneToSpell(SpellEntry const* spellInfo, bool castOnSelf) con
             return true;
     }
 
-    // HACK!
-    if (IsWorldBoss())
-    {
-        if (spellInfo->IsFitToFamily<SPELLFAMILY_HUNTER, CF_HUNTER_SCORPID_STING>())
-            return true;
-
-#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_8_4
-        switch (spellInfo->Id)
-        {
-            case 67:              // Vindication
-            case 26017:
-            case 26018:
-                return true;
-        }
-#endif
-    }
-
     return Unit::IsImmuneToSpell(spellInfo, castOnSelf);
 }
 
 bool Creature::IsImmuneToDamage(SpellSchoolMask meleeSchoolMask, SpellEntry const* spellInfo) const
 {
+    if (spellInfo && (spellInfo->HasAttribute(SPELL_ATTR_NO_IMMUNITIES) || spellInfo->IsIgnoringCasterAndTargetRestrictions()))
+        return false;
+
     if (GetCreatureInfo()->school_immune_mask & meleeSchoolMask)
         return true;
 
@@ -2400,6 +2397,9 @@ bool Creature::IsImmuneToDamage(SpellSchoolMask meleeSchoolMask, SpellEntry cons
 
 bool Creature::IsImmuneToSpellEffect(SpellEntry const* spellInfo, SpellEffectIndex index, bool castOnSelf) const
 {
+    if (spellInfo->IsIgnoringCasterAndTargetRestrictions())
+        return false;
+
     if (!castOnSelf && spellInfo->EffectMechanic[index] && GetCreatureInfo()->mechanic_immune_mask & (1 << (spellInfo->EffectMechanic[index] - 1)))
         return true;
 
@@ -4309,6 +4309,23 @@ void Creature::StartCooldownForSummoner()
                 {
                     AddCreatureState(CSTATE_IMPOSED_COOLDOWN);
                     pOwner->AddCooldown(*pSpellInfo); // Remove infinity cooldown
+                }
+            }
+        }
+    }
+}
+
+void Creature::CancelSummonPossessedCharm()
+{
+    if (HasUnitState(UNIT_STATE_POSSESSED))
+    {
+        if (SpellEntry const* pSpellInfo = sSpellMgr.GetSpellEntry(GetUInt32Value(UNIT_CREATED_BY_SPELL)))
+        {
+            if (pSpellInfo->HasEffect(SPELL_EFFECT_SUMMON_POSSESSED))
+            {
+                if (Unit* pOwner = GetCharmer())
+                {
+                    pOwner->RemoveAurasDueToSpell(GetUInt32Value(UNIT_CREATED_BY_SPELL));
                 }
             }
         }

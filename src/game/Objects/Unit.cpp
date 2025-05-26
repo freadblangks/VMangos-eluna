@@ -49,11 +49,11 @@
 #include "MovementGenerator.h"
 #include "Transport.h"
 #include "CreatureGroups.h"
+#include "ScriptMgr.h"
 #include "ZoneScript.h"
 #include "MoveSplineInit.h"
 #include "MoveSpline.h"
 #include "packet_builder.h"
-#include "Chat.h"
 #include "Anticheat.h"
 #include "InstanceStatistics.h"
 #include "MovementPacketSender.h"
@@ -1855,7 +1855,7 @@ void Unit::CalculateDamageAbsorbAndResist(SpellCaster* pCaster, SpellSchoolMask 
         schoolMask = spell->m_spellSchoolMask;
 
     // Nostalrius : immune ?
-    if (IsImmuneToSchoolMask(schoolMask) && !(spellProto && (spellProto->Attributes & SPELL_ATTR_NO_IMMUNITIES)))
+    if (IsImmuneToSchoolMask(schoolMask) && !(spellProto && spellProto->HasAttribute(SPELL_ATTR_NO_IMMUNITIES)))
     {
         (*absorb) = damage;
         return;
@@ -3149,9 +3149,23 @@ namespace Movement
 
 bool Unit::ExtrapolateMovement(MovementInfo const& mi, uint32 diffMs, float &x, float &y, float &z, float &outOrientation) const
 {
+    // Currently moved by server.
+    if (!movespline->Finalized())
+    {
+        std::unique_lock<std::mutex> guard(asyncMovesplineLock, std::try_to_lock);
+        if (!guard.owns_lock())
+            return false;
+
+        auto loc = movespline->ComputePositionAfterTime(diffMs);
+        x = loc.x;
+        y = loc.y;
+        z = loc.z;
+        outOrientation = loc.orientation;
+        return true;
+    }
+
     // Not currently handled cases.
-    if ((mi.moveFlags & (MOVEFLAG_PITCH_UP | MOVEFLAG_PITCH_DOWN | MOVEFLAG_FALLINGFAR | MOVEFLAG_ONTRANSPORT)) ||
-        !movespline->Finalized() || (mi.ctime == 0) || !IsMovedByPlayer())
+    if ((mi.moveFlags & (MOVEFLAG_PITCH_UP | MOVEFLAG_PITCH_DOWN | MOVEFLAG_FALLINGFAR | MOVEFLAG_ONTRANSPORT)) || (mi.ctime == 0) || !IsMovedByPlayer())
         return false;
 
     x = mi.pos.x;
@@ -4409,6 +4423,20 @@ bool Unit::HasAura(uint32 spellId, SpellEffectIndex effIndex) const
     return false;
 }
 
+float Unit::HasAura_34382_34383_total() const
+{
+    int32 total = 0;
+    AuraList const& mTotalAuraList = GetAurasByType(SPELL_AURA_MOD_ATTACKER_SPELL_CRIT_CHANCE);
+    for (const auto& i : mTotalAuraList)
+    {
+        if (i->GetId() == 34382)
+            total += 2;
+        else if (i->GetId() == 34383)
+            total += 4;
+    }
+    return float(total);
+}
+
 GameObject* Unit::GetGameObject(uint32 spellId) const
 {
     for (const auto& i : m_spellGameObjects)
@@ -5545,6 +5573,12 @@ float Unit::SpellDamageBonusTaken(SpellCaster const* pCaster, SpellEntry const* 
     if (!(spellProto->Id == 1949 || spellProto->Id == 11683 ||spellProto->Id == 11684))
         takenTotalMod *= GetTotalAuraMultiplierByMiscMask(SPELL_AURA_MOD_DAMAGE_PERCENT_TAKEN, schoolMask);
 
+    // Resilience
+    if (IsPlayer())
+        if (Unit const* pUnit = pCaster->ToUnit())
+            if (pUnit->IsPlayer() || (pUnit->IsPet() && pUnit->GetOwnerGuid().IsPlayer()))
+                takenTotalMod *= (100.0f - this->HasAura_34382_34383_total()) / 100.0f;
+
     // Taken fixed damage bonus auras
     float takenFlatMod = SpellBaseDamageBonusTaken(spellProto->GetSpellSchoolMask());
 
@@ -5800,7 +5834,7 @@ bool Unit::IsImmuneToDamage(SpellSchoolMask shoolMask, SpellEntry const* spellIn
 
 bool Unit::IsImmuneToSpell(SpellEntry const* spellInfo, bool /*castOnSelf*/) const
 {
-    if (!spellInfo || spellInfo->IsIgnoringCasterAndTargetRestrictions())
+    if (!spellInfo || spellInfo->HasAttribute(SPELL_ATTR_NO_IMMUNITIES) || spellInfo->IsIgnoringCasterAndTargetRestrictions())
         return false;
 
     // Venomhide Ravasaur (6508) is immune to being poisoned by others, but has passive poison aura 14108.
@@ -5825,8 +5859,7 @@ bool Unit::IsImmuneToSpell(SpellEntry const* spellInfo, bool /*castOnSelf*/) con
         }
     }
 
-    if (!spellInfo->HasAttribute(SPELL_ATTR_NO_IMMUNITIES)             // ignore invulnerability
-     && !spellInfo->HasAttribute(SPELL_ATTR_EX_IMMUNITY_PURGES_EFFECT) // can remove immune (by dispell or immune it)
+    if (!spellInfo->HasAttribute(SPELL_ATTR_EX_IMMUNITY_PURGES_EFFECT) // can remove immune (by dispell or immune it)
      && !spellInfo->HasAttribute(SPELL_ATTR_EX2_NO_SCHOOL_IMMUNITIES))
     {
         SpellImmuneList const& schoolList = m_spellImmune[IMMUNITY_SCHOOL];
@@ -6077,6 +6110,16 @@ float Unit::MeleeDamageBonusTaken(SpellCaster const* pCaster, float pdamage, Wea
 
     // ..taken pct (by school mask)
     TakenPercent *= GetTotalAuraMultiplierByMiscMask(SPELL_AURA_MOD_DAMAGE_PERCENT_TAKEN, schoolMask);
+
+    // Resilience
+    if (IsPlayer())
+    {
+        Unit const* pUnit = pCaster->ToUnit();
+        if (pUnit->IsPlayer() || (pUnit->IsPet() && pUnit->GetOwnerGuid().IsPlayer()))
+        {
+            TakenPercent *= (100.0f - this->HasAura_34382_34383_total()) / 100.0f;
+        }
+    }
 
     // ..taken pct (melee/ranged)
     if (attType == RANGED_ATTACK)
@@ -10092,7 +10135,7 @@ void Unit::RemoveAurasAtMechanicImmunity(uint32 mechMask, uint32 exceptSpellId, 
             ++iter;
         else if (non_positive && iter->second->IsPositive())
             ++iter;
-        else if (spell->Attributes & SPELL_ATTR_NO_IMMUNITIES)
+        else if (spell->HasAttribute(SPELL_ATTR_NO_IMMUNITIES))
             ++iter;
         else if (iter->second->HasMechanicMask(mechMask))
         {
@@ -10595,18 +10638,23 @@ bool Unit::GetRandomAttackPoint(Unit const* attacker, float &x, float &y, float 
 
     angle += (attackerCount ? ((float(M_PI / 2) - float(M_PI) * rand_norm_f()) * attackerCount / sizeFactor) * 0.3f : 0);
 
-    float dist = GetCombatReachToTarget(attacker, false, 0.0f, true) - 0.5f;
-    float initialPosX, initialPosY, initialPosZ, o;
-    GetPosition(initialPosX, initialPosY, initialPosZ);
+    float dist;
+    Position initialPos;
+    GetPosition(initialPos.x, initialPos.y, initialPos.z);
 
-    // Moving player: try to extrapolate movement a bit
-    if (IsPlayer() && IsMoving())
-        if (!ExtrapolateMovement(m_movementInfo, 200, initialPosX, initialPosY, initialPosZ, o))
-            GetPosition(initialPosX, initialPosY, initialPosZ);
+    // Moving unit: try to extrapolate movement a bit
+    if (IsMoving())
+    {
+        dist = DEFAULT_COMBAT_REACH;
+        if (!ExtrapolateMovement(m_movementInfo, 200, initialPos.x, initialPos.y, initialPos.z, initialPos.o))
+            GetPosition(initialPos.x, initialPos.y, initialPos.z);
+    }
+    else
+        dist = GetCombatReachToTarget(attacker, false, 0.0f, true) - 0.5f;
 
-    float attackerTargetDistance = sqrt(pow(initialPosX - attacker->GetPositionX(), 2) +
-        pow(initialPosY - attacker->GetPositionY(), 2) +
-        pow(initialPosZ - attacker->GetPositionZ(), 2));
+    float attackerTargetDistance = sqrt(pow(initialPos.x - attacker->GetPositionX(), 2) +
+        pow(initialPos.y - attacker->GetPositionY(), 2) +
+        pow(initialPos.z - attacker->GetPositionZ(), 2));
     if (dist > attackerTargetDistance)
     {
         // We're not moving, we're already within range. 
@@ -10614,15 +10662,15 @@ bool Unit::GetRandomAttackPoint(Unit const* attacker, float &x, float &y, float 
         return true;
     }
 
-    float normalizedVectZ = (attacker->GetPositionZ() - initialPosZ) / attackerTargetDistance;
+    float normalizedVectZ = (attacker->GetPositionZ() - initialPos.z) / attackerTargetDistance;
     float normalizedVectXY = sqrt(1 - normalizedVectZ * normalizedVectZ);
-    x = initialPosX + dist * cos(angle) * normalizedVectXY;
-    y = initialPosY + dist * sin(angle) * normalizedVectXY;
-    z = initialPosZ + dist * normalizedVectZ;
+    x = initialPos.x + dist * cos(angle) * normalizedVectXY;
+    y = initialPos.y + dist * sin(angle) * normalizedVectXY;
+    z = initialPos.z + dist * normalizedVectZ;
 
     if (attacker->CanFly() || (attacker->CanSwim() && reachableBySwiming) || !HasMMapsForCurrentMap())
     {
-        GetMap()->GetLosHitPosition(initialPosX, initialPosY, initialPosZ, x, y, z, -0.2f);
+        GetMap()->GetLosHitPosition(initialPos.x, initialPos.y, initialPos.z, x, y, z, -0.2f);
         if (attacker->CanSwim() && reachableBySwiming)
         {
             float ground = 0.0f;
@@ -10666,7 +10714,7 @@ bool Unit::GetRandomAttackPoint(Unit const* attacker, float &x, float &y, float 
             nav |= NAV_MAGMA | NAV_SLIME;
 
         // Try mmaps. On fail, use target position (but should not fail)
-        if (GetMap()->GetWalkHitPosition(GetTransport(), initialPosX, initialPosY, initialPosZ, x, y, z, nav))
+        if (GetMap()->GetWalkHitPosition(GetTransport(), initialPos.x, initialPos.y, initialPos.z, x, y, z, nav))
             return true;
     }
 

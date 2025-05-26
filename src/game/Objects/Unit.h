@@ -825,6 +825,7 @@ class Unit : public SpellCaster
         int32 HasAura_34142_34143_total() const;
         int32 HasAura_34155_34156_total() const;
         int32 HasAura_34165_34166_total() const;
+        float HasAura_34382_34383_total() const;
         bool HasAuraType(AuraType auraType) const;
         bool HasAuraTypeByCaster(AuraType auraType, ObjectGuid casterGuid) const;
         bool HasAura(uint32 spellId, SpellEffectIndex effIndex) const;
@@ -1442,7 +1443,7 @@ class Unit : public SpellCaster
         // Serialize access to the movespline to prevent thread race conditions in async
         // move spline updates (one thread updates a spline, while another checks the
         // spline for end point with targeted move gen)
-        std::mutex asyncMovesplineLock;
+        mutable std::mutex asyncMovesplineLock;
 
         void HandleInterruptsOnMovement(bool positionChanged);
         void OnRelocated();

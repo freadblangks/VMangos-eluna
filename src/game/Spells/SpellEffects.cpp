@@ -32,6 +32,7 @@
 #include "DynamicObject.h"
 #include "SpellAuras.h"
 #include "Group.h"
+#include "Bag.h"
 #include "ObjectAccessor.h"
 #include "Creature.h"
 #include "Pet.h"
@@ -49,7 +50,6 @@
 #include "InstanceData.h"
 #include "ScriptMgr.h"
 #include "SocialMgr.h"
-#include "scriptPCH.h"
 
 using namespace Spells;
 
@@ -804,6 +804,77 @@ void Spell::EffectDummy(SpellEffectIndex effIdx)
                     // Path Of Flames
                     m_casterUnit->CastSpell(m_casterUnit, 34369, true);
                     m_casterUnit->CastSpell(m_casterUnit, 34366, true);
+                    return;
+                }
+                case 34376:
+                {
+                    if (!unitTarget || unitTarget->GetTypeId() != TYPEID_PLAYER)
+                        return;
+                    if (Player* pPlayer = unitTarget->ToPlayer())
+                    {
+                        // Hardcore Challenger Drop Item
+                        // Equipment
+                        for (int i = EQUIPMENT_SLOT_START; i < EQUIPMENT_SLOT_END; ++i)
+                        {
+                            if (Item* pItem = pPlayer->GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+                            {
+                                // Keep Weapon & Clear Enchantment
+                                if (i >= EQUIPMENT_SLOT_MAINHAND && i <= EQUIPMENT_SLOT_RANGED)
+                                {
+                                    pItem->ClearEnchantment(PERM_ENCHANTMENT_SLOT);
+                                }
+                                else
+                                {
+                                    pPlayer->DestroyItem(INVENTORY_SLOT_BAG_0, i, true);
+                                }
+                            }
+                        }
+                        // Bag
+                        for (int i = INVENTORY_SLOT_BAG_START; i < INVENTORY_SLOT_BAG_END; ++i)
+                        {
+                            if (Bag* pBag = (Bag*)pPlayer->GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+                            {
+                                for (uint32 j = 0; j < pBag->GetBagSize(); ++j)
+                                {
+                                    if (Item* pItem = pBag->GetItemByPos(j))
+                                    {
+                                        pPlayer->DestroyItem(i, j, true);
+                                    }
+                                }
+                            }
+                        }
+                        // Inventory & Bank
+                        for (int i = INVENTORY_SLOT_ITEM_START; i < BANK_SLOT_ITEM_END; ++i)
+                        {
+                            if (Item* pItem = pPlayer->GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+                            {
+                                pPlayer->DestroyItem(INVENTORY_SLOT_BAG_0, i, true);
+                            }
+                        }
+                        // Bank Bag
+                        for (int i = BANK_SLOT_BAG_START; i < BANK_SLOT_BAG_END; ++i)
+                        {
+                            if (Bag* pBag = (Bag*)pPlayer->GetItemByPos(INVENTORY_SLOT_BAG_0, i))
+                            {
+                                for (uint32 j = 0; j < pBag->GetBagSize(); ++j)
+                                {
+                                    if (Item* pItem = pBag->GetItemByPos(j))
+                                    {
+                                        pPlayer->DestroyItem(i, j, true);
+                                    }
+                                }
+                            }
+                        }
+                        // Keep Hearthstone
+                        pPlayer->AddItem(6948);
+                        // Hardcore Challenger Drop Money
+                        pPlayer->SetMoney(0);
+                        // Hardcore Challenger Quit Group
+                        if (Group* pGroup = pPlayer->GetGroup())
+                        {
+                            pPlayer->RemoveFromGroup();
+                        }
+                    }
                     return;
                 }
                 case 8344: // Universal Remote
@@ -2005,16 +2076,22 @@ void Spell::EffectPowerDrain(SpellEffectIndex effIdx)
     if (m_spellInfo->EffectMiscValue[effIdx] < 0 || m_spellInfo->EffectMiscValue[effIdx] >= MAX_POWERS)
         return;
 
+    if (!unitTarget || !unitTarget->IsAlive() || damage < 0)
+        return;
+
     Powers drainPower = Powers(m_spellInfo->EffectMiscValue[effIdx]);
 
-    if (!unitTarget)
-        return;
-    if (!unitTarget->IsAlive())
-        return;
-    if (unitTarget->GetPowerType() != drainPower)
-        return;
-    if (damage < 0)
-        return;
+    // happiness is never a creature's main power so it has special handling
+    if (drainPower == POWER_HAPPINESS)
+    {
+        if (!unitTarget->IsPet())
+            return;
+    }
+    else
+    {
+        if (unitTarget->GetPowerType() != drainPower)
+            return;
+    }
 
     int32 curPower = unitTarget->GetPower(drainPower);
 
@@ -2486,6 +2563,13 @@ void Spell::EffectOpenLock(SpellEffectIndex effIdx)
 
     if (gameObjTarget && m_casterUnit)
     {
+        // World of Warcraft Client Patch 1.6.0 (2005-07-12)
+        // - Disarming an enemy faction hunter's trap will now flag the rogue for PvP.
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_5_1
+        if (Unit* pOwner = gameObjTarget->GetOwner())
+            m_casterUnit->TogglePlayerPvPFlagOnAttackVictim(pOwner, true);
+#endif
+
         if (player)
             sScriptMgr.OnGameObjectOpen(player, gameObjTarget);
         if (gameObjTarget->AI())
@@ -3837,6 +3921,9 @@ void Spell::EffectWeaponDmg(SpellEffectIndex effIdx)
     // Hunter - Split Shot - 34322
     if (m_spellInfo->Id == 75 && m_casterUnit->HasAura(34322))
         bonus *= 0.7f;
+    // Morphling - Frostbolt Volley & Frost Nova
+    if ((m_spellInfo->Id == 34060 || m_spellInfo->Id == 34061) && (unitTarget->HasAura(118) || unitTarget->HasAura(12824) || unitTarget->HasAura(12825) || unitTarget->HasAura(12826) || unitTarget->HasAura(28271) || unitTarget->HasAura(28272)))
+        bonus = 0.f;
     // prevent negative damage
     m_damage += bonus > 0.f ? bonus : 0.f;
 }
@@ -4031,62 +4118,6 @@ void Spell::EffectScriptEffect(SpellEffectIndex effIdx)
         {
             switch (m_spellInfo->Id)
             {
-#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_10_2
-                case 456: // SHOWLABEL Only OFF
-                {
-                    if (Player* pPlayer = ToPlayer(m_caster))
-                        pPlayer->SetGMChat(false, true);
-                    return;
-                }
-                case 2765: // SHOWLABEL Only ON
-                {
-                    if (Player* pPlayer = ToPlayer(m_caster))
-                        pPlayer->SetGMChat(true, true);
-                    return;
-                }
-                case 1509: // GM Only OFF
-                {
-                    if (Player* pPlayer = ToPlayer(m_caster))
-                        pPlayer->SetGameMaster(false, true);
-                    return;
-                }
-                case 18139: // GM Only ON
-                {
-                    if (Player* pPlayer = ToPlayer(m_caster))
-                        pPlayer->SetGameMaster(true, true);
-                    return;
-                }
-                case 6147: // INVIS Only OFF
-                {
-                    if (Player* pPlayer = ToPlayer(m_caster))
-                        pPlayer->SetGMVisible(true, true);
-                    return;
-                }
-                case 2763: // INVIS Only ON
-                {
-                    if (Player* pPlayer = ToPlayer(m_caster))
-                        pPlayer->SetGMVisible(false, true);
-                    return;
-                }
-                case 20114: // BM Only OFF
-                {
-                    if (Player* pPlayer = ToPlayer(m_caster))
-                        pPlayer->SetCheatGod(false, true);
-                    return;
-                }
-                case 20115: // BM Only ON
-                {
-                    if (Player* pPlayer = ToPlayer(m_caster))
-                        pPlayer->SetCheatGod(true, true);
-                    return;
-                }
-                case 29313: // CooldownAll
-                {
-                    if (m_casterUnit)
-                        m_casterUnit->RemoveAllCooldowns();
-                    return;
-                }
-#endif
                 case 8856:                                  // Bending Shinbone
                 {
                     if (!itemTarget && m_caster->GetTypeId() != TYPEID_PLAYER)
@@ -4839,67 +4870,6 @@ void Spell::EffectScriptEffect(SpellEffectIndex effIdx)
         }
         case SPELLFAMILY_WARLOCK:
         {
-            switch (m_spellInfo->Id)
-            {
-                case  6201:                                 // Healthstone creating spells
-                case  6202:
-                case  5699:
-                case 11729:
-                case 11730:
-                {
-                    if (!unitTarget)
-                        return;
-
-                    uint32 itemtype;
-                    uint32 rank = 0;
-                    Unit::AuraList const& mDummyAuras = unitTarget->GetAurasByType(SPELL_AURA_DUMMY);
-                    for (const auto aura : mDummyAuras)
-                    {
-                        if (aura->GetId() == 18692)
-                        {
-                            rank = 1;
-                            break;
-                        }
-                        else if (aura->GetId() == 18693)
-                        {
-                            rank = 2;
-                            break;
-                        }
-                    }
-
-                    static uint32 const itypes[5][3] =
-                    {
-                        { 5512, 19004, 19005},              // Minor Healthstone
-                        { 5511, 19006, 19007},              // Lesser Healthstone
-                        { 5509, 19008, 19009},              // Healthstone
-                        { 5510, 19010, 19011},              // Greater Healthstone
-                        { 9421, 19012, 19013}               // Major Healthstone
-                    };
-
-                    switch (m_spellInfo->Id)
-                    {
-                        case  6201:
-                            itemtype = itypes[0][rank];
-                            break; // Minor Healthstone
-                        case  6202:
-                            itemtype = itypes[1][rank];
-                            break; // Lesser Healthstone
-                        case  5699:
-                            itemtype = itypes[2][rank];
-                            break; // Healthstone
-                        case 11729:
-                            itemtype = itypes[3][rank];
-                            break; // Greater Healthstone
-                        case 11730:
-                            itemtype = itypes[4][rank];
-                            break; // Major Healthstone
-                        default:
-                            return;
-                    }
-                    DoCreateItem(effIdx, itemtype);
-                    return;
-                }
-            }
             break;
         }
         case SPELLFAMILY_DRUID:
@@ -6128,7 +6098,7 @@ void Spell::EffectTransmitted(SpellEffectIndex effIdx)
 
     uint32 gameObjectId = m_spellInfo->EffectMiscValue[effIdx];
 
-    GameObjectInfo const* goinfo = ObjectMgr::GetGameObjectInfo(gameObjectId);
+    GameObjectInfo const* goinfo = sObjectMgr.GetGameObjectTemplate(gameObjectId);
 
     if (!goinfo)
     {

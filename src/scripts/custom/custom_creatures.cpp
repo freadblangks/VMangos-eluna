@@ -48,7 +48,7 @@ void SendDefaultMenu_Hardcore_Reward_NPC(Player *player, Creature *_Creature, ui
             if(result)
             {
                 std::string playerName = result->Fetch()[0].GetString();
-                player->GetSession()->SendNotification("玩家：%s已第一个到达60级，无法领取奖励。", playerName);
+                player->GetSession()->SendNotification("同职业玩家：%s已第一个到达60级，无法领取奖励。", playerName);
                 player->CLOSE_GOSSIP_MENU();
                 break;
             }
@@ -72,6 +72,8 @@ void SendDefaultMenu_Hardcore_Reward_NPC(Player *player, Creature *_Creature, ui
             bool has_26045 = player->HasItemCount(26045, 1, true);
             bool has_26046 = player->HasItemCount(26046, 1, true);
             bool has_26047 = player->HasItemCount(26047, 1, true);
+            bool has_26049 = player->HasItemCount(26049, 1, true);
+            bool has_26050 = player->HasItemCount(26050, 1, true);
             switch (player->GetClass())
             {
                 // WARRIOR
@@ -666,7 +668,55 @@ void SendDefaultMenu_Hardcore_Reward_NPC(Player *player, Creature *_Creature, ui
                 // SHAMAN
                 case 7:
                     // 有0件
-                    if (!has_26023 && !has_26029 && !has_26038)
+                    if (!has_26023 && !has_26038 && !has_26049 && !has_26050)
+                    {
+                        switch (urand(1,4))
+                        {
+                            case 1:
+                                player->AddItem(26023);
+                                CharacterDatabase.PExecute("REPLACE INTO `hardcore_reward` (`guid`, `name`, `class`) VALUES (%u, '%s', %u)", player->GetGUIDLow(), player->GetName(), player->GetClass());
+                                player->CLOSE_GOSSIP_MENU();
+                                break;
+                            case 2:
+                                player->AddItem(26038);
+                                CharacterDatabase.PExecute("REPLACE INTO `hardcore_reward` (`guid`, `name`, `class`) VALUES (%u, '%s', %u)", player->GetGUIDLow(), player->GetName(), player->GetClass());
+                                player->CLOSE_GOSSIP_MENU();
+                                break;
+                            case 3:
+                                player->AddItem(26049);
+                                CharacterDatabase.PExecute("REPLACE INTO `hardcore_reward` (`guid`, `name`, `class`) VALUES (%u, '%s', %u)", player->GetGUIDLow(), player->GetName(), player->GetClass());
+                                player->CLOSE_GOSSIP_MENU();
+                                break;
+                            case 4:
+                                player->AddItem(26050);
+                                CharacterDatabase.PExecute("REPLACE INTO `hardcore_reward` (`guid`, `name`, `class`) VALUES (%u, '%s', %u)", player->GetGUIDLow(), player->GetName(), player->GetClass());
+                                player->CLOSE_GOSSIP_MENU();
+                                break;
+                        }
+                    }
+                    // 有1件
+                    else if (has_26023 && !has_26038 && !has_26049 && !has_26050)
+                    {
+                        switch (urand(1,3))
+                        {
+                            case 1:
+                                player->AddItem(26038);
+                                CharacterDatabase.PExecute("REPLACE INTO `hardcore_reward` (`guid`, `name`, `class`) VALUES (%u, '%s', %u)", player->GetGUIDLow(), player->GetName(), player->GetClass());
+                                player->CLOSE_GOSSIP_MENU();
+                                break;
+                            case 2:
+                                player->AddItem(26049);
+                                CharacterDatabase.PExecute("REPLACE INTO `hardcore_reward` (`guid`, `name`, `class`) VALUES (%u, '%s', %u)", player->GetGUIDLow(), player->GetName(), player->GetClass());
+                                player->CLOSE_GOSSIP_MENU();
+                                break;
+                            case 3:
+                                player->AddItem(26050);
+                                CharacterDatabase.PExecute("REPLACE INTO `hardcore_reward` (`guid`, `name`, `class`) VALUES (%u, '%s', %u)", player->GetGUIDLow(), player->GetName(), player->GetClass());
+                                player->CLOSE_GOSSIP_MENU();
+                                break;
+                        }
+                    }
+                    else if (!has_26023 && has_26038 && !has_26049 && !has_26050)
                     {
                         switch (urand(1,3))
                         {
@@ -676,37 +726,20 @@ void SendDefaultMenu_Hardcore_Reward_NPC(Player *player, Creature *_Creature, ui
                                 player->CLOSE_GOSSIP_MENU();
                                 break;
                             case 2:
-                                player->AddItem(26029);
+                                player->AddItem(26049);
                                 CharacterDatabase.PExecute("REPLACE INTO `hardcore_reward` (`guid`, `name`, `class`) VALUES (%u, '%s', %u)", player->GetGUIDLow(), player->GetName(), player->GetClass());
                                 player->CLOSE_GOSSIP_MENU();
                                 break;
                             case 3:
-                                player->AddItem(26038);
+                                player->AddItem(26050);
                                 CharacterDatabase.PExecute("REPLACE INTO `hardcore_reward` (`guid`, `name`, `class`) VALUES (%u, '%s', %u)", player->GetGUIDLow(), player->GetName(), player->GetClass());
                                 player->CLOSE_GOSSIP_MENU();
                                 break;
                         }
                     }
-                    // 有1件
-                    else if (has_26023 && !has_26029 && !has_26038)
+                    else if (!has_26023 && !has_26038 && has_26049 && !has_26050)
                     {
-                        switch (urand(1,2))
-                        {
-                            case 1:
-                                player->AddItem(26029);
-                                CharacterDatabase.PExecute("REPLACE INTO `hardcore_reward` (`guid`, `name`, `class`) VALUES (%u, '%s', %u)", player->GetGUIDLow(), player->GetName(), player->GetClass());
-                                player->CLOSE_GOSSIP_MENU();
-                                break;
-                            case 2:
-                                player->AddItem(26038);
-                                CharacterDatabase.PExecute("REPLACE INTO `hardcore_reward` (`guid`, `name`, `class`) VALUES (%u, '%s', %u)", player->GetGUIDLow(), player->GetName(), player->GetClass());
-                                player->CLOSE_GOSSIP_MENU();
-                                break;
-                        }
-                    }
-                    else if (!has_26023 && has_26029 && !has_26038)
-                    {
-                        switch (urand(1,2))
+                        switch (urand(1,3))
                         {
                             case 1:
                                 player->AddItem(26023);
@@ -718,11 +751,16 @@ void SendDefaultMenu_Hardcore_Reward_NPC(Player *player, Creature *_Creature, ui
                                 CharacterDatabase.PExecute("REPLACE INTO `hardcore_reward` (`guid`, `name`, `class`) VALUES (%u, '%s', %u)", player->GetGUIDLow(), player->GetName(), player->GetClass());
                                 player->CLOSE_GOSSIP_MENU();
                                 break;
+                            case 3:
+                                player->AddItem(26050);
+                                CharacterDatabase.PExecute("REPLACE INTO `hardcore_reward` (`guid`, `name`, `class`) VALUES (%u, '%s', %u)", player->GetGUIDLow(), player->GetName(), player->GetClass());
+                                player->CLOSE_GOSSIP_MENU();
+                                break;
                         }
                     }
-                    else if (!has_26023 && !has_26029 && has_26038)
+                    else if (!has_26023 && !has_26038 && !has_26049 && has_26050)
                     {
-                        switch (urand(1,2))
+                        switch (urand(1,3))
                         {
                             case 1:
                                 player->AddItem(26023);
@@ -730,36 +768,144 @@ void SendDefaultMenu_Hardcore_Reward_NPC(Player *player, Creature *_Creature, ui
                                 player->CLOSE_GOSSIP_MENU();
                                 break;
                             case 2:
-                                player->AddItem(26029);
+                                player->AddItem(26038);
+                                CharacterDatabase.PExecute("REPLACE INTO `hardcore_reward` (`guid`, `name`, `class`) VALUES (%u, '%s', %u)", player->GetGUIDLow(), player->GetName(), player->GetClass());
+                                player->CLOSE_GOSSIP_MENU();
+                                break;
+                            case 3:
+                                player->AddItem(26049);
                                 CharacterDatabase.PExecute("REPLACE INTO `hardcore_reward` (`guid`, `name`, `class`) VALUES (%u, '%s', %u)", player->GetGUIDLow(), player->GetName(), player->GetClass());
                                 player->CLOSE_GOSSIP_MENU();
                                 break;
                         }
                     }
                     // 有2件
-                    else if (!has_26023 && has_26029 && has_26038)
+                    else if (has_26023 && has_26038 && !has_26049 && !has_26050)
+                    {
+                        switch (urand(1,2))
+                        {
+                            case 1:
+                                player->AddItem(26049);
+                                CharacterDatabase.PExecute("REPLACE INTO `hardcore_reward` (`guid`, `name`, `class`) VALUES (%u, '%s', %u)", player->GetGUIDLow(), player->GetName(), player->GetClass());
+                                player->CLOSE_GOSSIP_MENU();
+                                break;
+                            case 2:
+                                player->AddItem(26050);
+                                CharacterDatabase.PExecute("REPLACE INTO `hardcore_reward` (`guid`, `name`, `class`) VALUES (%u, '%s', %u)", player->GetGUIDLow(), player->GetName(), player->GetClass());
+                                player->CLOSE_GOSSIP_MENU();
+                                break;
+                        }
+                    }
+                    else if (has_26023 && !has_26038 && has_26049 && !has_26050)
+                    {
+                        switch (urand(1,2))
+                        {
+                            case 1:
+                                player->AddItem(26038);
+                                CharacterDatabase.PExecute("REPLACE INTO `hardcore_reward` (`guid`, `name`, `class`) VALUES (%u, '%s', %u)", player->GetGUIDLow(), player->GetName(), player->GetClass());
+                                player->CLOSE_GOSSIP_MENU();
+                                break;
+                            case 2:
+                                player->AddItem(26050);
+                                CharacterDatabase.PExecute("REPLACE INTO `hardcore_reward` (`guid`, `name`, `class`) VALUES (%u, '%s', %u)", player->GetGUIDLow(), player->GetName(), player->GetClass());
+                                player->CLOSE_GOSSIP_MENU();
+                                break;
+                        }
+                    }
+                    else if (has_26023 && !has_26038 && !has_26049 && has_26050)
+                    {
+                        switch (urand(1,2))
+                        {
+                            case 1:
+                                player->AddItem(26038);
+                                CharacterDatabase.PExecute("REPLACE INTO `hardcore_reward` (`guid`, `name`, `class`) VALUES (%u, '%s', %u)", player->GetGUIDLow(), player->GetName(), player->GetClass());
+                                player->CLOSE_GOSSIP_MENU();
+                                break;
+                            case 2:
+                                player->AddItem(26049);
+                                CharacterDatabase.PExecute("REPLACE INTO `hardcore_reward` (`guid`, `name`, `class`) VALUES (%u, '%s', %u)", player->GetGUIDLow(), player->GetName(), player->GetClass());
+                                player->CLOSE_GOSSIP_MENU();
+                                break;
+                        }
+                    }
+                    else if (!has_26023 && has_26038 && has_26049 && !has_26050)
+                    {
+                        switch (urand(1,2))
+                        {
+                            case 1:
+                                player->AddItem(26023);
+                                CharacterDatabase.PExecute("REPLACE INTO `hardcore_reward` (`guid`, `name`, `class`) VALUES (%u, '%s', %u)", player->GetGUIDLow(), player->GetName(), player->GetClass());
+                                player->CLOSE_GOSSIP_MENU();
+                                break;
+                            case 2:
+                                player->AddItem(26050);
+                                CharacterDatabase.PExecute("REPLACE INTO `hardcore_reward` (`guid`, `name`, `class`) VALUES (%u, '%s', %u)", player->GetGUIDLow(), player->GetName(), player->GetClass());
+                                player->CLOSE_GOSSIP_MENU();
+                                break;
+                        }
+                    }
+                    else if (!has_26023 && has_26038 && !has_26049 && has_26050)
+                    {
+                        switch (urand(1,2))
+                        {
+                            case 1:
+                                player->AddItem(26023);
+                                CharacterDatabase.PExecute("REPLACE INTO `hardcore_reward` (`guid`, `name`, `class`) VALUES (%u, '%s', %u)", player->GetGUIDLow(), player->GetName(), player->GetClass());
+                                player->CLOSE_GOSSIP_MENU();
+                                break;
+                            case 2:
+                                player->AddItem(26049);
+                                CharacterDatabase.PExecute("REPLACE INTO `hardcore_reward` (`guid`, `name`, `class`) VALUES (%u, '%s', %u)", player->GetGUIDLow(), player->GetName(), player->GetClass());
+                                player->CLOSE_GOSSIP_MENU();
+                                break;
+                        }
+                    }
+                    else if (!has_26023 && !has_26038 && has_26049 && has_26050)
+                    {
+                        switch (urand(1,2))
+                        {
+                            case 1:
+                                player->AddItem(26023);
+                                CharacterDatabase.PExecute("REPLACE INTO `hardcore_reward` (`guid`, `name`, `class`) VALUES (%u, '%s', %u)", player->GetGUIDLow(), player->GetName(), player->GetClass());
+                                player->CLOSE_GOSSIP_MENU();
+                                break;
+                            case 2:
+                                player->AddItem(26038);
+                                CharacterDatabase.PExecute("REPLACE INTO `hardcore_reward` (`guid`, `name`, `class`) VALUES (%u, '%s', %u)", player->GetGUIDLow(), player->GetName(), player->GetClass());
+                                player->CLOSE_GOSSIP_MENU();
+                                break;
+                        }
+                    }
+                    // 有3件
+                    else if (!has_26023 && has_26038 && has_26049 && has_26050)
                     {
                         player->AddItem(26023);
                         CharacterDatabase.PExecute("REPLACE INTO `hardcore_reward` (`guid`, `name`, `class`) VALUES (%u, '%s', %u)", player->GetGUIDLow(), player->GetName(), player->GetClass());
                         player->CLOSE_GOSSIP_MENU();
                     }
-                    else if (has_26023 && !has_26029 && has_26038)
-                    {
-                        player->AddItem(26029);
-                        CharacterDatabase.PExecute("REPLACE INTO `hardcore_reward` (`guid`, `name`, `class`) VALUES (%u, '%s', %u)", player->GetGUIDLow(), player->GetName(), player->GetClass());
-                        player->CLOSE_GOSSIP_MENU();
-                    }
-                    else if (has_26023 && has_26029 && !has_26038)
+                    else if (has_26023 && !has_26038 && has_26049 && has_26050)
                     {
                         player->AddItem(26038);
                         CharacterDatabase.PExecute("REPLACE INTO `hardcore_reward` (`guid`, `name`, `class`) VALUES (%u, '%s', %u)", player->GetGUIDLow(), player->GetName(), player->GetClass());
                         player->CLOSE_GOSSIP_MENU();
                     }
-                    // 有3件
-                    else if (has_26023 && has_26029 && has_26038)
+                    else if (has_26023 && has_26038 && !has_26049 && has_26050)
                     {
-                        player->GetSession()->SendNotification("已集齐职业橙装，奖励3000金币。");
-                        player->ModifyMoney(3000 * GOLD);
+                        player->AddItem(26049);
+                        CharacterDatabase.PExecute("REPLACE INTO `hardcore_reward` (`guid`, `name`, `class`) VALUES (%u, '%s', %u)", player->GetGUIDLow(), player->GetName(), player->GetClass());
+                        player->CLOSE_GOSSIP_MENU();
+                    }
+                    else if (has_26023 && has_26038 && has_26049 && !has_26050)
+                    {
+                        player->AddItem(26050);
+                        CharacterDatabase.PExecute("REPLACE INTO `hardcore_reward` (`guid`, `name`, `class`) VALUES (%u, '%s', %u)", player->GetGUIDLow(), player->GetName(), player->GetClass());
+                        player->CLOSE_GOSSIP_MENU();
+                    }
+                    // 有4件
+                    else if (has_26023 && has_26038 && has_26049 && has_26050)
+                    {
+                        player->GetSession()->SendNotification("已集齐职业橙装，奖励4000金币。");
+                        player->ModifyMoney(4000 * GOLD);
                         CharacterDatabase.PExecute("REPLACE INTO `hardcore_reward` (`guid`, `name`, `class`) VALUES (%u, '%s', %u)", player->GetGUIDLow(), player->GetName(), player->GetClass());
                         player->CLOSE_GOSSIP_MENU();
                     }
@@ -1092,6 +1238,42 @@ void SendDefaultMenu_Hardcore_Reward_NPC(Player *player, Creature *_Creature, ui
                     }
                     break;
             }
+            std::string className = "";
+            switch (player->GetClass())
+            {
+              case 1:
+                className = "战士";
+                break;
+              case 2:
+                className = "圣骑士";
+                break;
+              case 3:
+                className = "猎人";
+                break;
+              case 4:
+                className = "盗贼";
+                break;
+              case 5:
+                className = "牧师";
+                break;
+              case 7:
+                className = "萨满";
+                break;
+              case 8:
+                className = "法师";
+                break;
+              case 9:
+                className = "术士";
+                break;
+              case 11:
+                className = "德鲁伊";
+                break;
+            }
+            std::string str = "恭喜玩家：";
+            str.append(player->GetName());
+            str.append("完成硬核挑战，成为服务器第一个满级");
+            str.append(className+"。专属奖励已发放。");
+            sWorld.SendServerMessage(SERVER_MSG_CUSTOM, str.c_str());
             break;
     }
 }
@@ -1233,8 +1415,19 @@ void SendDefaultMenu_TeleportNPC(Player *player, Creature *_Creature, uint32 act
             player->ADD_GOSSIP_ITEM(5, "亚楠镇 60级",           GOSSIP_SENDER_MAIN, 1273);
             player->ADD_GOSSIP_ITEM(5, "凄凉山 60级",           GOSSIP_SENDER_MAIN, 1274);
             player->ADD_GOSSIP_ITEM(5, "修道院 60级",           GOSSIP_SENDER_MAIN, 1275);
-            player->ADD_GOSSIP_ITEM(5, "德拉诺 60级",           GOSSIP_SENDER_MAIN, 1276);
+            player->ADD_GOSSIP_ITEM(7, "[更多] ->",             GOSSIP_SENDER_MAIN, 5553);
             player->ADD_GOSSIP_ITEM(7, "<- [后退]",           GOSSIP_SENDER_MAIN, 5551);
+            player->ADD_GOSSIP_ITEM(7, "<-[主菜单]",       GOSSIP_SENDER_MAIN, 100);
+
+            player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+            break;
+        case 5553: // Instances [PAGE 4]
+            player->ADD_GOSSIP_ITEM(5, "德拉诺 60级",           GOSSIP_SENDER_MAIN, 1276);
+            player->ADD_GOSSIP_ITEM(5, "血环竞技场 60级",             GOSSIP_SENDER_MAIN, 1277);
+            player->ADD_GOSSIP_ITEM(5, "旧铁炉堡 60级",          GOSSIP_SENDER_MAIN, 1278);
+            player->ADD_GOSSIP_ITEM(5, "星露谷 60级",            GOSSIP_SENDER_MAIN, 1279);
+            player->ADD_GOSSIP_ITEM(5, "新月林地 60级",   GOSSIP_SENDER_MAIN, 1280);
+            player->ADD_GOSSIP_ITEM(7, "<- [后退]",           GOSSIP_SENDER_MAIN, 5552);
             player->ADD_GOSSIP_ITEM(7, "<-[主菜单]",       GOSSIP_SENDER_MAIN, 100);
 
             player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
@@ -1775,7 +1968,7 @@ void SendDefaultMenu_TeleportNPC(Player *player, Creature *_Creature, uint32 act
                 break;
             }
             player->ModifyMoney(-travelboots);
-            player->TeleportTo(MAP_EASTERN_KINGDOMS, -8691.629f, 572.148f, 93.662f, 0.00f);
+            player->TeleportTo(MAP_EASTERN_KINGDOMS, -9362.088867f, 539.202637f, 47.111515f, 0.00f);
             break;
         case 1268:// Teleport player to CavernsOfTime
             player->CLOSE_GOSSIP_MENU();
@@ -1866,6 +2059,46 @@ void SendDefaultMenu_TeleportNPC(Player *player, Creature *_Creature, uint32 act
             }
             player->ModifyMoney(-travelboots);
             player->TeleportTo(MAP_EASTERN_KINGDOMS, -11865.1f, -3203.32f, -22.8171f, 0.00f);
+            break;
+        case 1277:// Teleport player to BloodRing
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetMoney() < travelboots)
+            {
+                player->GetSession()->SendNotification(costprice.c_str());
+                break;
+            }
+            player->ModifyMoney(-travelboots);
+            player->TeleportTo(MAP_EASTERN_KINGDOMS, -492.673553f, -1570.729370f, 52.666183f, 0.00f);
+            break;
+        case 1278:// Teleport player to OldIronforge
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetMoney() < travelboots)
+            {
+                player->GetSession()->SendNotification(costprice.c_str());
+                break;
+            }
+            player->ModifyMoney(-travelboots);
+            player->TeleportTo(MAP_EASTERN_KINGDOMS, -5618.981934, -830.361633, 483.534393, 0.00f);
+            break;
+        case 1279:// Teleport player to StardewValley
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetMoney() < travelboots)
+            {
+                player->GetSession()->SendNotification(costprice.c_str());
+                break;
+            }
+            player->ModifyMoney(-travelboots);
+            player->TeleportTo(MAP_KALIMDOR, -6560.617188f, -545.094299f, -254.334824f, 0.00f);
+            break;
+        case 1280:// Teleport player to CrescentGrove
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetMoney() < travelboots)
+            {
+                player->GetSession()->SendNotification(costprice.c_str());
+                break;
+            }
+            player->ModifyMoney(-travelboots);
+            player->TeleportTo(MAP_EASTERN_KINGDOMS, -213.140915f, -2522.304688f, 118.503098f, 0.00f);
             break;
         case 4000:// Teleport to Zul'Gurub
             player->CLOSE_GOSSIP_MENU();
@@ -2295,7 +2528,7 @@ bool GossipSelect_Chromie(Player *player, Creature *_Creature, uint32 sender, ui
 
 bool GossipHello_Black_Knight(Player *player, Creature *_Creature)   
 {
-    if (player->GetMapId() == 540 || player->GetMapId() == 541)
+    if (player->GetMapId() == 549 || player->GetMapId() == 541)
     {
         player->ADD_GOSSIP_ITEM(5, "离开副本",               GOSSIP_SENDER_MAIN, 1);
     }
@@ -2327,7 +2560,7 @@ void SendDefaultMenu_Black_Knight(Player *player, Creature *_Creature, uint32 ac
                 player->GetSession()->SendNotification("You must be at least level 60 to enter.");
                 break;
             }
-            player->TeleportTo(540, -11039.6f, -1997.65f, 94.0802f, 0.0f);
+            player->TeleportTo(549, -11039.6f, -1997.65f, 94.0802f, 0.0f);
             break;
         case 4:
             player->CLOSE_GOSSIP_MENU();
@@ -2336,7 +2569,7 @@ void SendDefaultMenu_Black_Knight(Player *player, Creature *_Creature, uint32 ac
                 player->GetSession()->SendNotification("You must be at least level 60 to enter.");
                 break;
             }
-            player->TeleportTo(540, -11101.692f, -1997.510f, 49.893f, 0.0f);
+            player->TeleportTo(549, -11101.692f, -1997.510f, 49.893f, 0.0f);
             break;
         case 5:
             player->CLOSE_GOSSIP_MENU();
@@ -2540,9 +2773,9 @@ bool GossipSelect_Yarntown(Player *player, Creature *_Creature, uint32 sender, u
 
 bool GossipHello_Elder_Timbermaw(Player *player, Creature *_Creature)   
 {
-    if (player->GetMapId() == 37)
+    if (player->GetMapId() == 547)
     {
-        player->ADD_GOSSIP_ITEM(5, "离开凄凉山（需自行/logout）",               GOSSIP_SENDER_MAIN, 1);
+        player->ADD_GOSSIP_ITEM(5, "离开凄凉山",               GOSSIP_SENDER_MAIN, 1);
     }
     else
     {
@@ -2570,7 +2803,7 @@ void SendDefaultMenu_Elder_Timbermaw(Player *player, Creature *_Creature, uint32
                 player->GetSession()->SendNotification("You must be at least level 60 to enter.");
                 break;
             }
-            player->TeleportTo(37, 322.27f, 170.297f, 234.934f, 0.0f);
+            player->TeleportTo(547, 322.27f, 170.297f, 234.934f, 0.0f);
             break;
     }
 }
@@ -2585,9 +2818,9 @@ bool GossipSelect_Elder_Timbermaw(Player *player, Creature *_Creature, uint32 se
 
 bool GossipHello_Scarlet_Traitor(Player *player, Creature *_Creature)   
 {
-    if (player->GetMapId() == 44)
+    if (player->GetMapId() == 548)
     {
-        player->ADD_GOSSIP_ITEM(5, "离开修道院（需自行/logout）",               GOSSIP_SENDER_MAIN, 1);
+        player->ADD_GOSSIP_ITEM(5, "离开修道院",               GOSSIP_SENDER_MAIN, 1);
     }
     else
     {
@@ -2615,7 +2848,7 @@ void SendDefaultMenu_Scarlet_Traitor(Player *player, Creature *_Creature, uint32
                 player->GetSession()->SendNotification("You must be at least level 60 to enter.");
                 break;
             }
-            player->TeleportTo(44, 78.3392f, -0.845785f, 18.6771f, 0.0f);
+            player->TeleportTo(548, 78.3392f, -0.845785f, 18.6771f, 0.0f);
             break;
     }
 }
@@ -2632,7 +2865,7 @@ bool GossipHello_Tirion_Fordring_Outland(Player *player, Creature *_Creature)
 {
     if (player->GetMapId() == 546)
     {
-        player->ADD_GOSSIP_ITEM(5, "离开德拉诺（需自行/logout）",               GOSSIP_SENDER_MAIN, 1);
+        player->ADD_GOSSIP_ITEM(5, "离开德拉诺",               GOSSIP_SENDER_MAIN, 1);
     }
     else
     {
@@ -2669,6 +2902,186 @@ bool GossipSelect_Tirion_Fordring_Outland(Player *player, Creature *_Creature, u
     // Main menu
     if (sender == GOSSIP_SENDER_MAIN)
         SendDefaultMenu_Tirion_Fordring_Outland(player, _Creature, action);
+
+    return true;
+}
+
+bool GossipHello_Syndicate_Onlookers(Player *player, Creature *_Creature)   
+{
+    if (player->GetMapId() == 550)
+    {
+        player->ADD_GOSSIP_ITEM(5, "离开副本",               GOSSIP_SENDER_MAIN, 1);
+    }
+    else
+    {
+        player->ADD_GOSSIP_ITEM(7, "欢迎加入勇敢者的游戏。Make Arena Great Again!",               GOSSIP_SENDER_MAIN, 2);
+    }
+    player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+    return true;
+}
+void SendDefaultMenu_Syndicate_Onlookers(Player *player, Creature *_Creature, uint32 action)
+{
+    switch (action)
+    {
+        case 1:
+            player->CLOSE_GOSSIP_MENU();
+            player->TeleportTo(MAP_EASTERN_KINGDOMS, -492.673553f, -1570.729370f, 52.666183f, 0.0f);
+            break;
+        case 2:
+            player->ADD_GOSSIP_ITEM(5, "传送：血环竞技场",               GOSSIP_SENDER_MAIN, 3);
+            player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+            break;
+        case 3:
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetLevel() < 60)
+            {
+                player->GetSession()->SendNotification("You must be at least level 60 to enter.");
+                break;
+            }
+            player->TeleportTo(550, 15672.334961f, 16796.822266f, 2.957636f, 0.0f);
+            break;
+    }
+}
+bool GossipSelect_Syndicate_Onlookers(Player *player, Creature *_Creature, uint32 sender, uint32 action)
+{
+    // Main menu
+    if (sender == GOSSIP_SENDER_MAIN)
+        SendDefaultMenu_Syndicate_Onlookers(player, _Creature, action);
+
+    return true;
+}
+
+bool GossipHello_Foggy_Zoltan(Player *player, Creature *_Creature)   
+{
+    if (player->GetMapId() == 552)
+    {
+        player->ADD_GOSSIP_ITEM(5, "离开副本",               GOSSIP_SENDER_MAIN, 1);
+    }
+    else
+    {
+        player->ADD_GOSSIP_ITEM(7, "嗝~再给我一杯酒……还有丝绸！",               GOSSIP_SENDER_MAIN, 2);
+    }
+    player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+    return true;
+}
+void SendDefaultMenu_Foggy_Zoltan(Player *player, Creature *_Creature, uint32 action)
+{
+    switch (action)
+    {
+        case 1:
+            player->CLOSE_GOSSIP_MENU();
+            player->TeleportTo(MAP_EASTERN_KINGDOMS, -5618.981934, -830.361633, 483.534393, 0.0f);
+            break;
+        case 2:
+            player->ADD_GOSSIP_ITEM(5, "传送：旧铁炉堡",               GOSSIP_SENDER_MAIN, 3);
+            player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+            break;
+        case 3:
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetLevel() < 60)
+            {
+                player->GetSession()->SendNotification("You must be at least level 60 to enter.");
+                break;
+            }
+            player->TeleportTo(552, -4981.924805f, -881.592896f, 501.659760f, 0.0f);
+            break;
+    }
+}
+bool GossipSelect_Foggy_Zoltan(Player *player, Creature *_Creature, uint32 sender, uint32 action)
+{
+    // Main menu
+    if (sender == GOSSIP_SENDER_MAIN)
+        SendDefaultMenu_Foggy_Zoltan(player, _Creature, action);
+
+    return true;
+}
+
+bool GossipHello_Brave_Cow(Player *player, Creature *_Creature)   
+{
+    if (player->GetMapId() == 553)
+    {
+        player->ADD_GOSSIP_ITEM(5, "离开副本",               GOSSIP_SENDER_MAIN, 1);
+    }
+    else
+    {
+        player->ADD_GOSSIP_ITEM(7, "略略略！我什么都不知道，因为我只是一头奶牛。",               GOSSIP_SENDER_MAIN, 2);
+    }
+    player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+    return true;
+}
+void SendDefaultMenu_Brave_Cow(Player *player, Creature *_Creature, uint32 action)
+{
+    switch (action)
+    {
+        case 1:
+            player->CLOSE_GOSSIP_MENU();
+            player->TeleportTo(MAP_KALIMDOR, -6560.617188f, -545.094299f, -254.334824f, 0.0f);
+            break;
+        case 2:
+            player->ADD_GOSSIP_ITEM(5, "传送：星露谷",               GOSSIP_SENDER_MAIN, 3);
+            player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+            break;
+        case 3:
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetLevel() < 60)
+            {
+                player->GetSession()->SendNotification("You must be at least level 60 to enter.");
+                break;
+            }
+            player->TeleportTo(553, 16637.523438f, 16783.306641f, 70.350830f, 0.0f);
+            break;
+    }
+}
+bool GossipSelect_Brave_Cow(Player *player, Creature *_Creature, uint32 sender, uint32 action)
+{
+    // Main menu
+    if (sender == GOSSIP_SENDER_MAIN)
+        SendDefaultMenu_Brave_Cow(player, _Creature, action);
+
+    return true;
+}
+
+bool GossipHello_Luke_Skywalker(Player *player, Creature *_Creature)   
+{
+    if (player->GetMapId() == 554)
+    {
+        player->ADD_GOSSIP_ITEM(5, "离开副本",               GOSSIP_SENDER_MAIN, 1);
+    }
+    else
+    {
+        player->ADD_GOSSIP_ITEM(7, "我以前和你一样也是个冒险家，直到我的膝盖中了一箭。",               GOSSIP_SENDER_MAIN, 2);
+    }
+    player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+    return true;
+}
+void SendDefaultMenu_Luke_Skywalker(Player *player, Creature *_Creature, uint32 action)
+{
+    switch (action)
+    {
+        case 1:
+            player->CLOSE_GOSSIP_MENU();
+            player->TeleportTo(MAP_EASTERN_KINGDOMS, -213.140915f, -2522.304688f, 118.503098f, 0.0f);
+            break;
+        case 2:
+            player->ADD_GOSSIP_ITEM(5, "传送：新月林地",               GOSSIP_SENDER_MAIN, 3);
+            player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+            break;
+        case 3:
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetLevel() < 60)
+            {
+                player->GetSession()->SendNotification("You must be at least level 60 to enter.");
+                break;
+            }
+            player->TeleportTo(554, 560.769409f, 86.339394f, 273.202637f, 0.0f);
+            break;
+    }
+}
+bool GossipSelect_Luke_Skywalker(Player *player, Creature *_Creature, uint32 sender, uint32 action)
+{
+    // Main menu
+    if (sender == GOSSIP_SENDER_MAIN)
+        SendDefaultMenu_Luke_Skywalker(player, _Creature, action);
 
     return true;
 }
@@ -3205,7 +3618,6 @@ void LearnSkillRecipesHelper(Player *player, uint32 skill_id)
 
 bool LearnAllRecipesInProfession(Player *pPlayer, SkillType skill)
 {
-    ChatHandler handler(pPlayer->GetSession());
     char* skill_name;
 
     SkillLineEntry const *SkillInfo = sSkillLineStore.LookupEntry(skill);
@@ -3581,6 +3993,30 @@ void AddSC_custom_creatures()
     newscript->Name = "npc_tirion_fordring_outland";
     newscript->pGossipHello = &GossipHello_Tirion_Fordring_Outland;
     newscript->pGossipSelect = &GossipSelect_Tirion_Fordring_Outland;
+    newscript->RegisterSelf(false);
+
+    newscript = new Script;
+    newscript->Name = "npc_syndicate_onlookers";
+    newscript->pGossipHello = &GossipHello_Syndicate_Onlookers;
+    newscript->pGossipSelect = &GossipSelect_Syndicate_Onlookers;
+    newscript->RegisterSelf(false);
+
+    newscript = new Script;
+    newscript->Name = "npc_foggy_zoltan";
+    newscript->pGossipHello = &GossipHello_Foggy_Zoltan;
+    newscript->pGossipSelect = &GossipSelect_Foggy_Zoltan;
+    newscript->RegisterSelf(false);
+
+    newscript = new Script;
+    newscript->Name = "npc_brave_cow";
+    newscript->pGossipHello = &GossipHello_Brave_Cow;
+    newscript->pGossipSelect = &GossipSelect_Brave_Cow;
+    newscript->RegisterSelf(false);
+
+    newscript = new Script;
+    newscript->Name = "npc_luke_skywalker";
+    newscript->pGossipHello = &GossipHello_Luke_Skywalker;
+    newscript->pGossipSelect = &GossipSelect_Luke_Skywalker;
     newscript->RegisterSelf(false);
 
     newscript = new Script;

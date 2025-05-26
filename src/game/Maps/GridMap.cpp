@@ -643,7 +643,8 @@ bool GridMap::ExistMap(uint32 mapid, int gx, int gy)
 
     if (!pf)
     {
-        sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Check existing of map file '%s': not exist!", tmp);
+        // ignore .map file not exists error
+        //sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "Check existing of map file '%s': not exist!", tmp);
         delete[] tmp;
         return false;
     }
@@ -882,7 +883,7 @@ bool TerrainInfo::IsOutdoors(float x, float y, float z) const
     int32 adtId, rootId, groupId;
 
     // no wmo found? -> outside by default
-    if (!GetAreaInfo(x, y, z, mogpFlags, adtId, rootId, groupId))
+    if (!GetAreaInfo(x, y, z, mogpFlags, adtId, rootId, groupId) || GetMapId() == 550)
         return true;
 
     return IsOutdoorWMO(mogpFlags);
