@@ -6882,7 +6882,8 @@ void Player::UpdateZone(uint32 newZone, uint32 newArea)
             break;
     }
 
-    if (pvpInfo.inPvPEnforcedArea && !IsTaxiFlying()) // in hostile area
+    // Hardcore Challenger Do Not Update PvP
+    if (pvpInfo.inPvPEnforcedArea && !IsTaxiFlying() && !(GetAreaId() != 2177 && GetAreaId() != 3217 && !InBattleGround() && GetLevel() < 60 && GetQuestStatus(10000) == QUEST_STATUS_COMPLETE)) // in hostile area
         UpdatePvP(true);
 
     // on a ffa realm, ffa is toggled together with pvp flag
@@ -10368,7 +10369,14 @@ Item* Player::StoreNewItem(ItemPosCountVec const& dest, uint32 item, bool update
                 {
                     if (Player* pMember = itr->getSource())
                     {
-                        if (pMember->IsBot() || !pMember->GetMap()->IsRaid() || pMember->GetMap()->GetInstanceId() != GetMap()->GetInstanceId())
+                        bool isPartybotLoad = false;
+                        if (pMember->IsBot())
+                        {
+                            std::unique_ptr<QueryResult> result(CharacterDatabase.PQuery("SELECT 1 FROM `characters` WHERE `guid` = '%u' and `name` = '%s'", pMember->GetObjectGuid(), pMember->GetName()));
+                            if (result)
+                                isPartybotLoad = true;
+                        }
+                        if ((pMember->IsBot() && !isPartybotLoad) || !pMember->GetMap()->IsRaid() || pMember->GetMap()->GetInstanceId() != GetMap()->GetInstanceId())
                             continue;
                         ss << pMember->GetGUIDLow() << ":";
                     }
@@ -17140,8 +17148,7 @@ void Player::_SaveQuestStatus()
             static SqlStatementID deleteQuestStatus ;
             SqlStatement stmt = CharacterDatabase.CreateStatement(deleteQuestStatus, "DELETE FROM `character_queststatus` WHERE `guid` = ? AND `quest` = ?");
             stmt.PExecute(GetGUIDLow(), i->first);
-            mQuestStatus.erase(i);
-            i = mQuestStatus.begin();
+            i = mQuestStatus.erase(i);
             continue;
         }
         switch (i->second.uState)
@@ -17564,7 +17571,7 @@ void Player::AddInstanceEnterTime(uint32 instanceId, time_t enterTime) const
 void Player::UpdatePvPFlagTimer(uint32 diff)
 {
     // Freeze flag timer while participating in PvP combat, in pvp enforced zone, in capture points, when carrying flag or on player preference
-    if (!pvpInfo.inPvPCombat && !pvpInfo.inPvPEnforcedArea && !pvpInfo.inPvPCapturePoint && !pvpInfo.isPvPFlagCarrier && !IsPvPDesired())
+    if (!pvpInfo.inPvPCombat && !pvpInfo.inPvPCapturePoint && !pvpInfo.isPvPFlagCarrier && !IsPvPDesired() && (!pvpInfo.inPvPEnforcedArea || (GetAreaId() != 2177 && GetAreaId() != 3217 && !InBattleGround() && GetLevel() < 60 && GetQuestStatus(10000) == QUEST_STATUS_COMPLETE)))
         pvpInfo.timerPvPRemaining -= std::min(pvpInfo.timerPvPRemaining, diff);
 
     // Timer tries to drop flag if all conditions are met and time has passed

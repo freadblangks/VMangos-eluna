@@ -42,9 +42,9 @@ enum CombatBotSpells
     SPELL_REVIVE_PET = 982,
     SPELL_CALL_PET = 883,
 
-    PET_WOLF    = 565,
-    PET_CAT     = 681,
-    PET_BEAR    = 822,
+    PET_WOLF    = 521,
+    PET_CAT     = 2850,
+    PET_BEAR    = 1130,
     PET_CRAB    = 831,
     PET_GORILLA = 1108,
     PET_BIRD    = 1109,
@@ -53,8 +53,8 @@ enum CombatBotSpells
     PET_CROC    = 1693,
     PET_SPIDER  = 1781,
     PET_OWL     = 1997,
-    PET_STRIDER = 2322,
-    PET_SCORPID = 3127,
+    PET_STRIDER = 3068,
+    PET_SCORPID = 5823,
     PET_SERPENT = 3247,
     PET_RAPTOR  = 3254,
     PET_TURTLE  = 3461,
@@ -2362,6 +2362,31 @@ Player* CombatBotBaseAI::SelectDispelTarget(SpellEntry const* pSpellEntry) const
     return nullptr;
 }
 
+Unit* CombatBotBaseAI::SelectDispelTargetPet(SpellEntry const* pSpellEntry) const
+{
+    Group* pGroup = me->GetGroup();
+    if (pGroup)
+    {
+        for (GroupReference* itr = pGroup->GetFirstMember(); itr != nullptr; itr = itr->next())
+        {
+            if (Player* pMember = itr->getSource())
+            {
+                if (Pet* pPet = pMember->GetPet())
+                {
+                    if (me->IsValidHelpfulTarget(pPet) &&
+                       !pMember->IsGameMaster() &&
+                        IsValidDispelTarget(pPet, pSpellEntry) &&
+                        me->IsWithinLOSInMap(pPet) &&
+                        me->IsWithinDist(pPet, 30.0f))
+                        return pPet;
+                }
+            }
+        }
+    }
+
+    return nullptr;
+}
+
 void CombatBotBaseAI::SummonPetIfNeeded()
 {
     if (me->GetClass() == CLASS_HUNTER && sWorld.getConfig(CONFIG_HUNTER_BOT_SUMMON_PET) == 1)
@@ -3322,8 +3347,12 @@ void CombatBotBaseAI::OnPacketReceived(WorldPacket const* packet)
             }
             else if (status == TRADE_STATUS_TRADE_COMPLETE)
             {
-                EquipOrUseNewItem();
-                UpdateVisualHonorRankBasedOnItems();
+                std::unique_ptr<QueryResult> result(CharacterDatabase.PQuery("SELECT 1 FROM `characters` WHERE `guid` = '%u' and `name` = '%s'", me->GetObjectGuid(), me->GetName()));
+                if (!result)
+                {
+                    EquipOrUseNewItem();
+                    UpdateVisualHonorRankBasedOnItems();
+                }
             }
             break;
         }
@@ -3365,11 +3394,83 @@ void CombatBotBaseAI::OnPacketReceived(WorldPacket const* packet)
 
             uint64 guid = *((uint64*)(*packet).contents());
             uint32 slot = *(((uint32*)(*packet).contents()) + 2);
+            uint32 itemid = *(((uint32*)(*packet).contents()) + 3);
 
             std::unique_ptr<WorldPacket> data = std::make_unique<WorldPacket>(CMSG_LOOT_ROLL);
             *data << uint64(guid);
             *data << uint32(slot);
-            *data << uint8(0); // pass
+            if (sWorld.getConfig(CONFIG_BOT_LOOT_ROLL) == 0)
+            {
+                *data << uint8(0); // pass
+            }
+            else
+            {
+                ItemPrototype const* pProto = sObjectMgr.GetItemPrototype(itemid);
+                if (pProto->Class != ITEM_CLASS_WEAPON && pProto->Class != ITEM_CLASS_ARMOR)
+                {
+                    *data << uint8(0); // pass
+                }
+                else
+                {
+                    // 1. if armor crossover
+                    bool armor_crossover = false;
+                    if (pProto->Class == ITEM_CLASS_ARMOR && (pProto->SubClass == ITEM_SUBCLASS_ARMOR_PLATE || pProto->SubClass == ITEM_SUBCLASS_ARMOR_MAIL || pProto->SubClass == ITEM_SUBCLASS_ARMOR_LEATHER || pProto->SubClass == ITEM_SUBCLASS_ARMOR_CLOTH))
+                    {
+                        uint32 armor_class;
+                        switch (me->GetClass())
+                        {
+                            case CLASS_WARRIOR:
+                            case CLASS_PALADIN:
+                            {
+                                armor_class = 4;
+                                break;
+                            }
+                            case CLASS_HUNTER:
+                            case CLASS_SHAMAN:
+                            {
+                                armor_class = 3;
+                                break;
+                            }
+                            case CLASS_ROGUE:
+                            case CLASS_DRUID:
+                            {
+                                armor_class = 2;
+                                break;
+                            }
+                            case CLASS_MAGE:
+                            case CLASS_WARLOCK:
+                            case CLASS_PRIEST:
+                            {
+                                armor_class = 1;
+                                break;
+                            }
+                        }
+                        if (pProto->SubClass != armor_class && pProto->InventoryType != INVTYPE_CLOAK)
+                            armor_crossover = true;
+                    }
+                    // 2. 20% chance : INVTYPE_NECK / INVTYPE_FINGER / INVTYPE_TRINKET / INVTYPE_CLOAK / INVTYPE_HOLDABLE / INVTYPE_RELIC
+                    bool random_root_roll = false;
+                    if (pProto->Class == ITEM_CLASS_ARMOR && (pProto->InventoryType == INVTYPE_NECK || pProto->InventoryType == INVTYPE_FINGER || pProto->InventoryType == INVTYPE_TRINKET || pProto->InventoryType == INVTYPE_CLOAK || pProto->InventoryType == INVTYPE_HOLDABLE || pProto->InventoryType == INVTYPE_RELIC))
+                    {
+                        uint32 rnd = urand(1, 100);
+                        if (rnd > 20)
+                            random_root_roll = true;
+                    }
+                    // 3. if can store
+                    ItemPosCountVec dest;
+                    InventoryResult msg_1 = me->CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, pProto->ItemId, pProto->Stackable);
+                    // 4. if can use
+                    InventoryResult msg_2 = me->CanUseItem(pProto);
+                    if (!armor_crossover && !random_root_roll && msg_1 == EQUIP_ERR_OK && msg_2 == EQUIP_ERR_OK)
+                    {
+                        *data << uint8(1); // need
+                    }
+                    else
+                    {
+                        *data << uint8(2); // greed
+                    }
+                }
+            }
             me->GetSession()->QueuePacket(std::move(data));
             return;
         }
