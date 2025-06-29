@@ -696,6 +696,16 @@ void CombatBotBaseAI::PopulateSpellData()
                     if (IsHigherRankSpell(m_spells.hunter.pScatterShot))
                         m_spells.hunter.pScatterShot = pSpellEntry;
                 }
+                else if (pSpellEntry->SpellName[0].find("Tranquilizing Shot") != std::string::npos)
+                {
+                    if (IsHigherRankSpell(m_spells.hunter.pTranquilizingShot))
+                        m_spells.hunter.pTranquilizingShot = pSpellEntry;
+                }
+                else if (pSpellEntry->SpellName[0].find("Viper Sting") != std::string::npos)
+                {
+                    if (IsHigherRankSpell(m_spells.hunter.pViperSting))
+                        m_spells.hunter.pViperSting = pSpellEntry;
+                }
                 break;
             }
             case CLASS_MAGE:
@@ -2530,7 +2540,8 @@ void CombatBotBaseAI::LearnPremadeSpecForClass()
         {
             for (const auto itr : vSpecs)
             {
-                if (itr->role == m_role &&
+                // treat ROLE_MELEE_DPS as ROLE_TANK if CLASS_DRUID
+                if ((itr->role == m_role || (itr->role == ROLE_TANK && m_role == ROLE_MELEE_DPS && me->GetClass() == CLASS_DRUID)) &&
                    (!pSpec || pSpec->level < itr->level))
                 {
                     pSpec = itr;
@@ -2642,7 +2653,8 @@ void CombatBotBaseAI::EquipPremadeGearTemplate()
         {
             for (const auto itr : vGear)
             {
-                if (itr->role == m_role)
+                // treat ROLE_MELEE_DPS as ROLE_TANK if CLASS_DRUID
+                if (itr->role == m_role || (itr->role == ROLE_TANK && m_role == ROLE_MELEE_DPS && me->GetClass() == CLASS_DRUID))
                     vGear2.push_back(itr);
             }
         }
@@ -2715,6 +2727,14 @@ void CombatBotBaseAI::EquipRandomGearInEmptySlots()
 
         // No tabards and shirts
         if (pProto->InventoryType == INVTYPE_TABARD || pProto->InventoryType == INVTYPE_BODY)
+            continue;
+
+        // No Seal of Ascension & Drakefire Amulet & Hook of the Master Angler & Cannonball Runner & Stormpike Insignia & Frostwolf Insignia & Spectral Essence
+        if (pProto->ItemId == 12344 || pProto->ItemId == 16309 || pProto->ItemId == 19979 || pProto->ItemId == 13382 ||
+            pProto->ItemId == 17691 || pProto->ItemId == 17900 || pProto->ItemId == 17901 || pProto->ItemId == 17902 ||
+            pProto->ItemId == 17903 || pProto->ItemId == 17904 || pProto->ItemId == 17690 || pProto->ItemId == 17905 ||
+            pProto->ItemId == 17906 || pProto->ItemId == 17907 || pProto->ItemId == 17908 || pProto->ItemId == 17909 ||
+            pProto->ItemId == 13544)
             continue;
 
         if (pProto->SourceQuestRaces && !(pProto->SourceQuestRaces & me->GetRaceMask()))

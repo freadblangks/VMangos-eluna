@@ -1737,6 +1737,14 @@ void Unit::TriggerDamageShields(Unit* pVictim)
 
             uint32 damage = ditheru(fdamage);
 
+            //Sulfuras, Hand of Ragnaros - Immolation : bonus fire resistance difference
+            if (pSpellProto->Id == 21142)
+            {
+                int32 fireResistanceDiff = pVictim->GetResistance(SPELL_SCHOOL_FIRE) - this->GetResistance(SPELL_SCHOOL_FIRE);
+                if (fireResistanceDiff > 0)
+                    damage += fireResistanceDiff; // increase damage by fire resistance difference
+            }
+
             //JieFuFuTi(34001) taken damage
             if (this->HasAura(34001))
             {
@@ -8129,6 +8137,10 @@ bool Unit::HandleAttackPowerModifier(AttackPowerModIndex index, AttackPowerModTy
     if (!CanModifyStats())
         return false;
 
+    // Warlock - Infernal & Doomguard
+    if (IsCreature() && (GetEntry() == 89 || GetEntry() == 11859))
+        return false;
+
     UpdateAttackPowerAndDamage(index == RANGED_AP_MODS);
     return true;
 }
@@ -8178,6 +8190,10 @@ bool Unit::HandleStatModifier(UnitMods unitMod, UnitModifierType modifierType, f
     }
 
     if (!CanModifyStats())
+        return false;
+
+    // Warlock - Infernal & Doomguard
+    if (IsCreature() && (GetEntry() == 89 || GetEntry() == 11859))
         return false;
 
     switch (unitMod)

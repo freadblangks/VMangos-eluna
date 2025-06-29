@@ -78,30 +78,35 @@ uint32 BattleBotAI::GetMountSpellId() const
 {
     if (me->GetLevel() >= 60)
     {
-        if (me->GetClass() == CLASS_PALADIN)
-            return BB_SPELL_MOUNT_60_PALADIN;
-        if (me->GetClass() == CLASS_WARLOCK)
-            return BB_SPELL_MOUNT_60_WARLOCK;
-
-        switch (me->GetRace())
+        if (urand(0, 1))
         {
-            case RACE_HUMAN:
-                return BB_SPELL_MOUNT_60_HUMAN;
-            case RACE_NIGHTELF:
-                return BB_SPELL_MOUNT_60_NELF;
-            case RACE_DWARF:
-                return BB_SPELL_MOUNT_60_DWARF;
-            case RACE_GNOME:
-                return BB_SPELL_MOUNT_60_GNOME;
-            case RACE_TROLL:
-                return BB_SPELL_MOUNT_60_TROLL;
-            case RACE_ORC:
-                return BB_SPELL_MOUNT_60_ORC;
-            case RACE_TAUREN:
-                return BB_SPELL_MOUNT_60_TAUREN;
-            case RACE_UNDEAD:
-                return BB_SPELL_MOUNT_60_UNDEAD;
+            if (me->GetClass() == CLASS_PALADIN)
+                return BB_SPELL_MOUNT_60_PALADIN;
+            if (me->GetClass() == CLASS_WARLOCK)
+                return BB_SPELL_MOUNT_60_WARLOCK;
+
+            switch (me->GetRace())
+            {
+                case RACE_HUMAN:
+                    return BB_SPELL_MOUNT_60_HUMAN;
+                case RACE_NIGHTELF:
+                    return BB_SPELL_MOUNT_60_NELF;
+                case RACE_DWARF:
+                    return BB_SPELL_MOUNT_60_DWARF;
+                case RACE_GNOME:
+                    return BB_SPELL_MOUNT_60_GNOME;
+                case RACE_TROLL:
+                    return BB_SPELL_MOUNT_60_TROLL;
+                case RACE_ORC:
+                    return BB_SPELL_MOUNT_60_ORC;
+                case RACE_TAUREN:
+                    return BB_SPELL_MOUNT_60_TAUREN;
+                case RACE_UNDEAD:
+                    return BB_SPELL_MOUNT_60_UNDEAD;
+            }
         }
+        else
+            return urand(34385, 34462);
     }
     else if (me->GetLevel() >= 40)
     {
@@ -1765,7 +1770,7 @@ void BattleBotAI::UpdateOutOfCombatAI_Hunter()
             {
                 pPet->ToggleAutocast(14920, true);
             }
-            else if(pPet->GetLevel() == 60)
+            else if(pPet->GetLevel() >= 60)
             {
                 pPet->ToggleAutocast(14921, true);
             }
@@ -1811,7 +1816,7 @@ void BattleBotAI::UpdateInCombatAI_Hunter()
             {
                 pPet->ToggleAutocast(14920, true);
             }
-            else if(pPet->GetLevel() == 60)
+            else if(pPet->GetLevel() >= 60)
             {
                 pPet->ToggleAutocast(14921, true);
             }
@@ -1844,6 +1849,14 @@ void BattleBotAI::UpdateInCombatAI_Hunter()
             }
         }
 
+        if (m_spells.hunter.pTranquilizingShot &&
+            IsValidDispelTarget(pVictim, m_spells.hunter.pTranquilizingShot) &&
+            CanTryToCastSpell(pVictim, m_spells.hunter.pTranquilizingShot))
+        {
+            if (DoCastSpell(pVictim, m_spells.hunter.pTranquilizingShot) == SPELL_CAST_OK)
+                return;
+        }
+
         if (m_spells.hunter.pConcussiveShot &&
             pVictim->IsMoving() && (pVictim->GetVictim() == me) &&
             CanTryToCastSpell(pVictim, m_spells.hunter.pConcussiveShot))
@@ -1874,8 +1887,17 @@ void BattleBotAI::UpdateInCombatAI_Hunter()
                 return;
         }
 
+        if (m_spells.hunter.pViperSting &&
+            CanTryToCastSpell(pVictim, m_spells.hunter.pViperSting) &&
+            pVictim->GetPowerType() == POWER_MANA)
+        {
+            if (DoCastSpell(pVictim, m_spells.hunter.pViperSting) == SPELL_CAST_OK)
+                return;
+        }
+
         if (m_spells.hunter.pSerpentSting &&
-            CanTryToCastSpell(pVictim, m_spells.hunter.pSerpentSting))
+            CanTryToCastSpell(pVictim, m_spells.hunter.pSerpentSting) &&
+            pVictim->GetPowerType() != POWER_MANA)
         {
             if (DoCastSpell(pVictim, m_spells.hunter.pSerpentSting) == SPELL_CAST_OK)
                 return;
@@ -2536,6 +2558,14 @@ void BattleBotAI::UpdateInCombatAI_Priest()
                 return;
         }
 
+        if (m_spells.priest.pDispelMagic &&
+            IsValidDispelTarget(pVictim, m_spells.priest.pDispelMagic) &&
+            CanTryToCastSpell(pVictim, m_spells.priest.pDispelMagic))
+        {
+            if (DoCastSpell(pVictim, m_spells.priest.pDispelMagic) == SPELL_CAST_OK)
+                return;
+        }
+
         if (m_spells.priest.pPsychicScream &&
             GetAttackersInRangeCount(10.0f) &&
             CanTryToCastSpell(me, m_spells.priest.pPsychicScream))
@@ -2714,7 +2744,7 @@ void BattleBotAI::UpdateOutOfCombatAI_Warlock()
                 {
                     pPet->ToggleAutocast(11774, true);
                 }
-                else if(pPet->GetLevel() == 60)
+                else if(pPet->GetLevel() >= 60)
                 {
                     pPet->ToggleAutocast(11775, true);
                 }
@@ -2731,7 +2761,7 @@ void BattleBotAI::UpdateOutOfCombatAI_Warlock()
                 {
                     pPet->ToggleAutocast(17751, true);
                 }
-                else if(pPet->GetLevel() == 60)
+                else if(pPet->GetLevel() >= 60)
                 {
                     pPet->ToggleAutocast(17752, true);
                 }
@@ -2759,7 +2789,7 @@ void BattleBotAI::UpdateOutOfCombatAI_Warlock()
                 {
                     pPet->ToggleAutocast(11779, true);
                 }
-                else if(pPet->GetLevel() == 60)
+                else if(pPet->GetLevel() >= 60)
                 {
                     pPet->ToggleAutocast(11780, true);
                 }
@@ -2907,7 +2937,7 @@ void BattleBotAI::UpdateInCombatAI_Warlock()
                     {
                         pPet->ToggleAutocast(11774, true);
                     }
-                    else if(pPet->GetLevel() == 60)
+                    else if(pPet->GetLevel() >= 60)
                     {
                         pPet->ToggleAutocast(11775, true);
                     }
@@ -2924,7 +2954,7 @@ void BattleBotAI::UpdateInCombatAI_Warlock()
                     {
                         pPet->ToggleAutocast(17751, true);
                     }
-                    else if(pPet->GetLevel() == 60)
+                    else if(pPet->GetLevel() >= 60)
                     {
                         pPet->ToggleAutocast(17752, true);
                     }
@@ -2952,7 +2982,7 @@ void BattleBotAI::UpdateInCombatAI_Warlock()
                     {
                         pPet->ToggleAutocast(11779, true);
                     }
-                    else if(pPet->GetLevel() == 60)
+                    else if(pPet->GetLevel() >= 60)
                     {
                         pPet->ToggleAutocast(11780, true);
                     }

@@ -1461,8 +1461,8 @@ bool Pet::InitStatsForLevel(uint32 petlevel, Unit const* owner)
                 }
                 else if(owner->IsPlayer() && creatureId == 417)
                 {
-                    SetBaseWeaponDamage(BASE_ATTACK, MINDAMAGE, float(damageMod * (pInfo->dmgMin + warlock_spell_power / 21) * (float)GetAttackTime(BASE_ATTACK) / 2000));
-                    SetBaseWeaponDamage(BASE_ATTACK, MAXDAMAGE, float(damageMod * (pInfo->dmgMax + warlock_spell_power / 21) * (float)GetAttackTime(BASE_ATTACK) / 2000));
+                    SetBaseWeaponDamage(BASE_ATTACK, MINDAMAGE, float(damageMod * (pInfo->dmgMin + warlock_spell_power / 14) * (float)GetAttackTime(BASE_ATTACK) / 2000));
+                    SetBaseWeaponDamage(BASE_ATTACK, MAXDAMAGE, float(damageMod * (pInfo->dmgMax + warlock_spell_power / 14) * (float)GetAttackTime(BASE_ATTACK) / 2000));
                 }
                 else if(owner->IsPlayer() && creatureId == 200009)
                 {
@@ -1646,6 +1646,7 @@ bool Pet::InitStatsForLevel(uint32 petlevel, Unit const* owner)
         }
         case HUNTER_PET:
         {
+            uint64 hunter_melee_ap = owner->GetTotalAttackPowerValue(BASE_ATTACK);
             uint64 hunter_ranged_ap = owner->GetTotalAttackPowerValue(RANGED_ATTACK);
             uint64 hunter_max_hp = owner->GetMaxHealth();
             uint64 hunter_armor = owner->GetArmor();
@@ -1653,8 +1654,8 @@ bool Pet::InitStatsForLevel(uint32 petlevel, Unit const* owner)
 
             SetUInt32Value(UNIT_FIELD_PETNEXTLEVELEXP, sObjectMgr.GetXPForPetLevel(petlevel));
             // Formulas reviewed by Clank <Nostalrius>, from vanilla pet tab screenshots.
-            SetBaseWeaponDamage(BASE_ATTACK, MINDAMAGE, float(damageMod * (petlevel * 1.15 * 1.05 + hunter_ranged_ap / 14 * petlevel / hunter_level) * (float)GetAttackTime(BASE_ATTACK) / 2000));
-            SetBaseWeaponDamage(BASE_ATTACK, MAXDAMAGE, float(damageMod * (petlevel * 1.45 * 1.05 + hunter_ranged_ap / 14 * petlevel / hunter_level) * (float)GetAttackTime(BASE_ATTACK) / 2000));
+            SetBaseWeaponDamage(BASE_ATTACK, MINDAMAGE, float(damageMod * (petlevel * 1.15 * 1.05 + (hunter_melee_ap + hunter_ranged_ap) / 20 * petlevel / hunter_level) * (float)GetAttackTime(BASE_ATTACK) / 2000));
+            SetBaseWeaponDamage(BASE_ATTACK, MAXDAMAGE, float(damageMod * (petlevel * 1.45 * 1.05 + (hunter_melee_ap + hunter_ranged_ap) / 20 * petlevel / hunter_level) * (float)GetAttackTime(BASE_ATTACK) / 2000));
 
             //stored standard pet stats are entry 1 in pet_levelinfo
             PetLevelInfo const* pInfo = sObjectMgr.GetPetLevelInfo(creatureId, petlevel);

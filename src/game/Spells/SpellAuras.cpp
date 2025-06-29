@@ -339,6 +339,11 @@ void Aura::Refresh(Unit* caster, Unit* target, SpellAuraHolder* pRefreshWithHold
                 lockStats = true;
                 break;
         }
+
+        // Warlock - Infernal & Doomguard
+        if (target->IsCreature() && (target->GetEntry() == 89 || target->GetEntry() == 11859))
+            lockStats = false;
+
         if (lockStats)
             target->SetCanModifyStats(false);
 #endif
@@ -4631,6 +4636,15 @@ float Aura::CalculateDotDamage() const
 
     switch (spellProto->SpellFamilyName)
     {
+        case SPELLFAMILY_MAGE:
+        {
+            // Sulfuras, Hand of Ragnaros - Fireball : dot damage bonus 4% attack power per trigger
+            if (spellProto->Id == 21162)
+            {
+                damage += caster->GetTotalAttackPowerValue(BASE_ATTACK) * 0.04f;
+            }
+            break;
+        }
         case SPELLFAMILY_DRUID:
         {
 #if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_11_2
@@ -6535,7 +6549,8 @@ void Aura::PeriodicTick(SpellEntry const* sProto, AuraType auraType, uint32 data
             if (pCaster->GetMaxPower(power) > 0)
             {
                 gain_multiplier = spellProto->EffectMultipleValue[GetEffIndex()];
-
+                if (spellProto->Id == 3034 || spellProto->Id == 14279 || spellProto->Id == 14280)
+                    gain_multiplier = 1.0f; // Viper Sting gain 100% mana of drained amount
                 if (Player* modOwner = pCaster->GetSpellModOwner())
                     modOwner->ApplySpellMod(GetId(), SPELLMOD_MULTIPLE_VALUE, gain_multiplier);
             }
@@ -7727,6 +7742,20 @@ void SpellAuraHolder::Update(uint32 diff)
                             Spell::SendCastResult(plCaster, m_spellProto, SPELL_FAILED_FIZZLE);
                     }
                 }
+                else if (manaPerSecond && powertype == POWER_HEALTH && m_spellProto->IsFitToFamily<SPELLFAMILY_WARLOCK, CF_WARLOCK_HEALTH_FUNNEL>())
+                {
+                    if (int32(caster->GetHealth()) > int32(manaPerSecond / 2))
+                        caster->ModifyHealth(-int32(manaPerSecond / 2));
+                    else
+                    {
+                        if (target)
+                            target->RemoveAurasDueToSpell(m_spellProto->Id, this);
+                        if (m_isChanneled)
+                            caster->InterruptSpell(CURRENT_CHANNELED_SPELL);
+                        if (Player* plCaster = caster->ToPlayer())
+                            Spell::SendCastResult(plCaster, m_spellProto, SPELL_FAILED_FIZZLE);
+                    }
+                }
             }
         }
     }
@@ -8518,9 +8547,10 @@ void SpellAuraHolder::CalculateHeartBeat(Unit* caster, Unit* target)
 
     // Fingerslayer Blade - item 26044
     // Improved Sap - talent 14095
+    // Improved Enslave Demon - talent 18825
     if (caster)
     {
-        if ((m_spellProto->IsFitToFamily<SPELLFAMILY_MAGE, CF_MAGE_POLYMORPH>() && caster->HasAura(34319)) || (m_spellProto->IsFitToFamily<SPELLFAMILY_ROGUE, CF_ROGUE_SAP>() && caster->HasAura(14095)))
+        if ((m_spellProto->IsFitToFamily<SPELLFAMILY_MAGE, CF_MAGE_POLYMORPH>() && caster->HasAura(34319)) || (m_spellProto->IsFitToFamily<SPELLFAMILY_ROGUE, CF_ROGUE_SAP>() && caster->HasAura(14095)) || (m_spellProto->IsFitToFamily<SPELLFAMILY_WARLOCK, CF_WARLOCK_ENSLAVE_DEMON>() && caster->HasAura(18825)) || ((m_spellProto->Id == 5782 || m_spellProto->Id == 6213 || m_spellProto->Id == 6215 || m_spellProto->Id == 5484 || m_spellProto->Id == 17928) && caster->HasAura(34469)))
             return;
     }
     // Permanent effects and positive spells don't have resist heartbeats.

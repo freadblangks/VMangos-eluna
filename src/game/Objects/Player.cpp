@@ -989,7 +989,7 @@ void Player::OnMirrorTimerExpirationPulse(MirrorTimer::Type timer)
             EnvironmentalDamage(DAMAGE_DROWNING, ((GetMaxHealth() / 5) + urand(0, (GetLevel() - 1))));
             break;
         case MirrorTimer::ENVIRONMENTAL:
-            if (IsInMagma() && m_zoneUpdateId != 718)
+            if (IsInMagma())
                 EnvironmentalDamage(DAMAGE_LAVA, urand(sWorld.getConfig(CONFIG_UINT32_ENVIRONMENTAL_DAMAGE_MIN), sWorld.getConfig(CONFIG_UINT32_ENVIRONMENTAL_DAMAGE_MAX)));
             // FIXME: Need to skip slime damage in Undercity, maybe someone can find better way to handle environmental damage
             //if (IsInSlime() && m_zoneUpdateId != 1497 && m_zoneUpdateId != 3456)
@@ -2389,6 +2389,11 @@ void Player::Regenerate(Powers power)
             addValue = 20 * EnergyRate;
             // 34140 34141 effect
             addValue *= (HasAura_34140_34141_total() * 0.01f + 1.0f);
+            // 14983 Vigor
+            if (HasAura(14983))
+            {
+                addValue *= 1.1f; // 10% bonus
+            }
             break;
         }
         case POWER_FOCUS:

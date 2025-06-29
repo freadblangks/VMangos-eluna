@@ -779,12 +779,15 @@ void PartyBotAI::UpdateAI(uint32 const diff)
 
         // Teleport to leader if too far away.
         // C'Thun room do not teleport
-        if (!me->IsWithinDistInMap(pLeader, 100.0f) && !IsInDuel() && !((me->GetZoneId() == 3428) && (pLeader->GetZoneId() == 3428) && (me->GetPositionZ() - pLeader->GetPositionZ() > 150)))
+        // Blackrock Mountain balcony
+        if ((!me->IsWithinDistInMap(pLeader, 100.0f) && !IsInDuel() && !((me->GetZoneId() == 3428) && (pLeader->GetZoneId() == 3428) && (me->GetPositionZ() - pLeader->GetPositionZ() > 150))) || (me->GetZoneId() == 25 && pLeader->GetZoneId() == 25 && pLeader->GetPositionZ() >= 285.0f && pLeader->GetPositionZ() <= 286.0f && !me->IsWithinDistInMap(pLeader, 10.0f)))
         {
             if (!me->IsStopped())
                 me->StopMoving();
             me->GetMotionMaster()->Clear(false, true);
             me->GetMotionMaster()->MoveIdle();
+            if (me->GetPet())
+                me->RemovePet(PET_SAVE_REAGENTS);
             char name[128] = {};
             strcpy(name, pLeader->GetName());
             ChatHandler(me).HandleGonameCommand(name);
@@ -839,17 +842,30 @@ void PartyBotAI::UpdateAI(uint32 const diff)
                     me->HasAuraType(SPELL_AURA_MOD_SHAPESHIFT))
                     me->RemoveSpellsCausingAura(SPELL_AURA_MOD_SHAPESHIFT);
 
-                auto auraList = pLeader->GetAurasByType(SPELL_AURA_MOUNTED);
-                if (!auraList.empty())
+                if (me->GetLevel() >= 60 && me->GetMapId() != MAP_AHN_QIRAJ_TEMPLE && urand(0, 1))
                 {
                     bool oldStateCastTime = me->HasCheatOption(PLAYER_CHEAT_NO_CAST_TIME);
                     bool oldStatePower = me->HasCheatOption(PLAYER_CHEAT_NO_POWER);
                     me->SetCheatOption(PLAYER_CHEAT_NO_CAST_TIME, true);
                     me->SetCheatOption(PLAYER_CHEAT_NO_POWER, true);
-                    me->CastSpell(me, (*auraList.begin())->GetId(), true);
+                    me->CastSpell(me, urand(34385, 34462), true);
                     me->SetCheatOption(PLAYER_CHEAT_NO_CAST_TIME, oldStateCastTime);
                     me->SetCheatOption(PLAYER_CHEAT_NO_POWER, oldStatePower);
-                } 
+                }
+                else
+                {
+                    auto auraList = pLeader->GetAurasByType(SPELL_AURA_MOUNTED);
+                    if (!auraList.empty())
+                    {
+                        bool oldStateCastTime = me->HasCheatOption(PLAYER_CHEAT_NO_CAST_TIME);
+                        bool oldStatePower = me->HasCheatOption(PLAYER_CHEAT_NO_POWER);
+                        me->SetCheatOption(PLAYER_CHEAT_NO_CAST_TIME, true);
+                        me->SetCheatOption(PLAYER_CHEAT_NO_POWER, true);
+                        me->CastSpell(me, (*auraList.begin())->GetId(), true);
+                        me->SetCheatOption(PLAYER_CHEAT_NO_CAST_TIME, oldStateCastTime);
+                        me->SetCheatOption(PLAYER_CHEAT_NO_POWER, oldStatePower);
+                    }
+                }
             }
         }
         else if (me->IsMounted())
@@ -1654,7 +1670,7 @@ void PartyBotAI::UpdateOutOfCombatAI_Hunter()
             {
                 pPet->ToggleAutocast(14920, true);
             }
-            else if(pPet->GetLevel() == 60)
+            else if(pPet->GetLevel() >= 60)
             {
                 pPet->ToggleAutocast(14921, true);
             }
@@ -1702,7 +1718,7 @@ void PartyBotAI::UpdateInCombatAI_Hunter()
             {
                 pPet->ToggleAutocast(14920, true);
             }
-            else if(pPet->GetLevel() == 60)
+            else if(pPet->GetLevel() >= 60)
             {
                 pPet->ToggleAutocast(14921, true);
             }
@@ -1733,6 +1749,14 @@ void PartyBotAI::UpdateInCombatAI_Hunter()
             CanTryToCastSpell(pVictim, m_spells.hunter.pVolley))
         {
             if (DoCastSpell(pVictim, m_spells.hunter.pVolley) == SPELL_CAST_OK)
+                return;
+        }
+
+        if (m_spells.hunter.pTranquilizingShot &&
+            IsValidDispelTarget(pVictim, m_spells.hunter.pTranquilizingShot) &&
+            CanTryToCastSpell(pVictim, m_spells.hunter.pTranquilizingShot))
+        {
+            if (DoCastSpell(pVictim, m_spells.hunter.pTranquilizingShot) == SPELL_CAST_OK)
                 return;
         }
 
@@ -1782,8 +1806,17 @@ void PartyBotAI::UpdateInCombatAI_Hunter()
                 return;
         }
 
+        if (m_spells.hunter.pViperSting &&
+            CanTryToCastSpell(pVictim, m_spells.hunter.pViperSting) &&
+            pVictim->GetPowerType() == POWER_MANA)
+        {
+            if (DoCastSpell(pVictim, m_spells.hunter.pViperSting) == SPELL_CAST_OK)
+                return;
+        }
+
         if (m_spells.hunter.pSerpentSting &&
-            CanTryToCastSpell(pVictim, m_spells.hunter.pSerpentSting))
+            CanTryToCastSpell(pVictim, m_spells.hunter.pSerpentSting) &&
+            pVictim->GetPowerType() != POWER_MANA)
         {
             if (DoCastSpell(pVictim, m_spells.hunter.pSerpentSting) == SPELL_CAST_OK)
                 return;
@@ -2610,6 +2643,14 @@ void PartyBotAI::UpdateInCombatAI_Priest()
                 return;
         }
 
+        if (m_spells.priest.pDispelMagic &&
+            IsValidDispelTarget(pVictim, m_spells.priest.pDispelMagic) &&
+            CanTryToCastSpell(pVictim, m_spells.priest.pDispelMagic))
+        {
+            if (DoCastSpell(pVictim, m_spells.priest.pDispelMagic) == SPELL_CAST_OK)
+                return;
+        }
+
         if (m_spells.priest.pPsychicScream &&
             GetAttackersInRangeCount(10.0f) &&
             CanTryToCastSpell(me, m_spells.priest.pPsychicScream))
@@ -2785,7 +2826,7 @@ void PartyBotAI::UpdateOutOfCombatAI_Warlock()
                 {
                     pPet->ToggleAutocast(11774, true);
                 }
-                else if(pPet->GetLevel() == 60)
+                else if(pPet->GetLevel() >= 60)
                 {
                     pPet->ToggleAutocast(11775, true);
                 }
@@ -2802,7 +2843,7 @@ void PartyBotAI::UpdateOutOfCombatAI_Warlock()
                 {
                     pPet->ToggleAutocast(17751, true);
                 }
-                else if(pPet->GetLevel() == 60)
+                else if(pPet->GetLevel() >= 60)
                 {
                     pPet->ToggleAutocast(17752, true);
                 }
@@ -2830,7 +2871,7 @@ void PartyBotAI::UpdateOutOfCombatAI_Warlock()
                 {
                     pPet->ToggleAutocast(11779, true);
                 }
-                else if(pPet->GetLevel() == 60)
+                else if(pPet->GetLevel() >= 60)
                 {
                     pPet->ToggleAutocast(11780, true);
                 }
@@ -2978,7 +3019,7 @@ void PartyBotAI::UpdateInCombatAI_Warlock()
                     {
                         pPet->ToggleAutocast(11774, true);
                     }
-                    else if(pPet->GetLevel() == 60)
+                    else if(pPet->GetLevel() >= 60)
                     {
                         pPet->ToggleAutocast(11775, true);
                     }
@@ -2995,7 +3036,7 @@ void PartyBotAI::UpdateInCombatAI_Warlock()
                     {
                         pPet->ToggleAutocast(17751, true);
                     }
-                    else if(pPet->GetLevel() == 60)
+                    else if(pPet->GetLevel() >= 60)
                     {
                         pPet->ToggleAutocast(17752, true);
                     }
@@ -3023,7 +3064,7 @@ void PartyBotAI::UpdateInCombatAI_Warlock()
                     {
                         pPet->ToggleAutocast(11779, true);
                     }
-                    else if(pPet->GetLevel() == 60)
+                    else if(pPet->GetLevel() >= 60)
                     {
                         pPet->ToggleAutocast(11780, true);
                     }
@@ -3881,30 +3922,72 @@ void PartyBotAI::UpdateInCombatAI_Rogue()
     }
 }
 
-bool PartyBotAI::EnterCombatDruidForm()
+bool PartyBotAI::EnterCombatDruidForm(bool inCombat)
 {
     if (m_spells.druid.pCatForm &&
         GetRole() == ROLE_MELEE_DPS &&
         CanTryToCastSpell(me, m_spells.druid.pCatForm))
     {
-        if (DoCastSpell(me, m_spells.druid.pCatForm) == SPELL_CAST_OK)
+        if (inCombat)
+        {
+            if (DoCastSpell(me, m_spells.druid.pCatForm) == SPELL_CAST_OK)
+                return true;
+        }
+        else
+        {
+            bool oldStateCastTime = me->HasCheatOption(PLAYER_CHEAT_NO_CAST_TIME);
+            bool oldStatePower = me->HasCheatOption(PLAYER_CHEAT_NO_POWER);
+            me->SetCheatOption(PLAYER_CHEAT_NO_CAST_TIME, true);
+            me->SetCheatOption(PLAYER_CHEAT_NO_POWER, true);
+            me->CastSpell(me, m_spells.druid.pCatForm->Id, true);
+            me->SetCheatOption(PLAYER_CHEAT_NO_CAST_TIME, oldStateCastTime);
+            me->SetCheatOption(PLAYER_CHEAT_NO_POWER, oldStatePower);
             return true;
+        }
     }
 
     if (m_spells.druid.pBearForm &&
        (m_role == ROLE_TANK || GetRole() == ROLE_MELEE_DPS) &&
         CanTryToCastSpell(me, m_spells.druid.pBearForm))
     {
-        if (DoCastSpell(me, m_spells.druid.pBearForm) == SPELL_CAST_OK)
+        if (inCombat)
+        {
+            if (DoCastSpell(me, m_spells.druid.pBearForm) == SPELL_CAST_OK)
+                return true;
+        }
+        else
+        {
+            bool oldStateCastTime = me->HasCheatOption(PLAYER_CHEAT_NO_CAST_TIME);
+            bool oldStatePower = me->HasCheatOption(PLAYER_CHEAT_NO_POWER);
+            me->SetCheatOption(PLAYER_CHEAT_NO_CAST_TIME, true);
+            me->SetCheatOption(PLAYER_CHEAT_NO_POWER, true);
+            me->CastSpell(me, m_spells.druid.pBearForm->Id, true);
+            me->SetCheatOption(PLAYER_CHEAT_NO_CAST_TIME, oldStateCastTime);
+            me->SetCheatOption(PLAYER_CHEAT_NO_POWER, oldStatePower);
             return true;
+        }
     }
 
     if (m_spells.druid.pMoonkinForm &&
         GetRole() == ROLE_RANGE_DPS &&
         CanTryToCastSpell(me, m_spells.druid.pMoonkinForm))
     {
-        if (DoCastSpell(me, m_spells.druid.pMoonkinForm) == SPELL_CAST_OK)
+        if (inCombat)
+        {
+            if (DoCastSpell(me, m_spells.druid.pMoonkinForm) == SPELL_CAST_OK)
+                return true;
+        }
+        else
+        {
+            bool oldStateCastTime = me->HasCheatOption(PLAYER_CHEAT_NO_CAST_TIME);
+            bool oldStatePower = me->HasCheatOption(PLAYER_CHEAT_NO_POWER);
+            me->SetCheatOption(PLAYER_CHEAT_NO_CAST_TIME, true);
+            me->SetCheatOption(PLAYER_CHEAT_NO_POWER, true);
+            me->CastSpell(me, m_spells.druid.pMoonkinForm->Id, true);
+            me->SetCheatOption(PLAYER_CHEAT_NO_CAST_TIME, oldStateCastTime);
+            me->SetCheatOption(PLAYER_CHEAT_NO_POWER, oldStatePower);
             return true;
+        }
     }
 
     return false;
@@ -4047,7 +4130,7 @@ void PartyBotAI::UpdateOutOfCombatAI_Druid()
 
     if (me->GetShapeshiftForm() == FORM_NONE)
     {
-        if (EnterCombatDruidForm())
+        if (EnterCombatDruidForm(false))
             return;
 
         if ((me->GetPowerPercent(POWER_MANA) > 80.0f) &&
@@ -4131,6 +4214,13 @@ void PartyBotAI::UpdateInCombatAI_Druid()
             }
         }
 
+        // Druid - Rebirth in combat
+        if (urand(0, 1) && m_resurrectionSpell)
+            if (Player* pTarget = SelectResurrectionTarget())
+                if (CanTryToCastSpell(pTarget, m_resurrectionSpell))
+                    if (DoCastSpell(pTarget, m_resurrectionSpell) == SPELL_CAST_OK)
+                        return;
+
         if (m_spells.druid.pNaturesSwiftness &&
             CanTryToCastSpell(me, m_spells.druid.pNaturesSwiftness))
         {
@@ -4188,7 +4278,7 @@ void PartyBotAI::UpdateInCombatAI_Druid()
         if (GetRole() == ROLE_HEALER && FindAndPreHealTarget())
             return;
 
-        if (EnterCombatDruidForm())
+        if (EnterCombatDruidForm(true))
             return;
     }
 

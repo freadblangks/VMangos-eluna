@@ -68,6 +68,13 @@ SpellCastTargets::~SpellCastTargets()
 {
 }
 
+uint32 getTimestamp_spell()
+{
+    time_t rawtime = time(NULL);
+    struct tm *timeinfo = localtime(&rawtime);
+    return mktime(timeinfo);
+}
+
 void SpellCastTargets::setUnitTarget(Unit* target)
 {
     if (!target)
@@ -1914,7 +1921,8 @@ void Spell::DoSpellHitOnUnit(Unit* unit, uint32 effectMask)
     m_diminishGroup = m_spellInfo->GetDiminishingReturnsGroup(m_triggeredByAuraSpell);
     // Fingerslayer Blade - item 26044
     // Improved Sap - talent 14095
-    if ((m_spellInfo->IsFitToFamily<SPELLFAMILY_MAGE, CF_MAGE_POLYMORPH>() && pRealUnitCaster->HasAura(34319)) || (m_spellInfo->IsFitToFamily<SPELLFAMILY_ROGUE, CF_ROGUE_SAP>() && pRealUnitCaster->HasAura(14095)))
+    // Improved Enslave Demon - talent 18825
+    if ((m_spellInfo->IsFitToFamily<SPELLFAMILY_MAGE, CF_MAGE_POLYMORPH>() && pRealUnitCaster->HasAura(34319)) || (m_spellInfo->IsFitToFamily<SPELLFAMILY_ROGUE, CF_ROGUE_SAP>() && pRealUnitCaster->HasAura(14095)) || (m_spellInfo->IsFitToFamily<SPELLFAMILY_WARLOCK, CF_WARLOCK_ENSLAVE_DEMON>() && pRealUnitCaster->HasAura(18825)) || ((m_spellInfo->Id == 5782 || m_spellInfo->Id == 6213 || m_spellInfo->Id == 6215 || m_spellInfo->Id == 5484 || m_spellInfo->Id == 17928) && pRealUnitCaster->HasAura(34469)))
         m_diminishGroup = DIMINISHING_NONE;
     m_diminishLevel = unit->GetDiminishing(m_diminishGroup);
 
@@ -3080,7 +3088,7 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
                 if (m_casterUnit && m_casterUnit != pUnitTarget && std::find(tempTargetUnitMap.begin(), tempTargetUnitMap.end(), m_casterUnit) == tempTargetUnitMap.end())
                     tempTargetUnitMap.push_front(m_casterUnit);
 
-                tempTargetUnitMap.sort(TargetDistanceOrderNear(pUnitTarget));
+                tempTargetUnitMap.sort(ChainHealingOrder(pUnitTarget));
 
                 if (tempTargetUnitMap.empty())
                     break;
@@ -3113,7 +3121,7 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
                     prev = *next;
                     targetUnitMap.push_back(prev);
                     tempTargetUnitMap.erase(next);
-                    tempTargetUnitMap.sort(TargetDistanceOrderNear(prev));
+                    tempTargetUnitMap.sort(ChainHealingOrder(prev));
                     next = tempTargetUnitMap.begin();
 
                     --t;
@@ -5823,6 +5831,31 @@ SpellCastResult Spell::CheckCast(bool strict)
             case 14305:
                 if (m_casterUnit->IsInCombat() && !m_casterUnit->HasAura(34325))
                     return SPELL_FAILED_AFFECTING_COMBAT;
+                break;
+            // E Mo Xie Dian - Inferno can be cast indoors
+            case 1122:
+                if (!m_caster->GetTerrain()->IsOutdoors(m_caster->GetPositionX(), m_caster->GetPositionY(), m_caster->GetPositionZ()) && !m_casterUnit->HasAura(34358))
+                    return SPELL_FAILED_ONLY_OUTDOORS;
+                break;
+            // Warlock Demonic Circle : Teleport
+            case 34295:
+                if (m_caster->GetTypeId() != TYPEID_PLAYER)
+                    return SPELL_FAILED_NOT_READY;
+                if (Player* pCaster = m_caster->ToPlayer())
+                {
+                    std::unique_ptr<QueryResult> result = CharacterDatabase.PQuery("SELECT position_x, position_y, position_z FROM `character_warlock_demonic_circle` WHERE `guid`='%u' and `map_id`='%u' and `timer`>='%u' and `timer`<='%u' and `instance_id`='%u'", pCaster->GetObjectGuid(), pCaster->GetMapId(), getTimestamp_spell()-300, getTimestamp_spell(), pCaster->GetInstanceId());
+                    if (result)
+                    {
+                        Field* fields = result->Fetch();
+                        float x = fields[0].GetFloat();
+                        float y = fields[1].GetFloat();
+                        float z = fields[2].GetFloat();
+                        if (pCaster->GetDistance(x,y,z) > 50.0f)
+                            return SPELL_FAILED_OUT_OF_RANGE;
+                    }
+                    else
+                        return SPELL_FAILED_NOT_HERE;
+                }
                 break;
         }
 

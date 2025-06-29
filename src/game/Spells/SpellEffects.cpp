@@ -326,6 +326,20 @@ void Spell::EffectSchoolDMG(SpellEffectIndex effect_idx)
                             m_casterUnit->ModifyPower(POWER_MANA, (dither(m_casterUnit->GetMaxPower(POWER_MANA) * 0.05f) + 75));
                         break;
                     }
+                    case 21992: // Thunderfury, Blessed Blade of the Windseeker
+                    {
+                        // Thunderfury : 300 nature damage bonus 30% attack power
+                        if (m_casterUnit)
+                            damage = damage + (m_casterUnit->GetTotalAttackPowerValue(BASE_ATTACK) * 0.3f);
+                        break;
+                    }
+                    case 27860: // Blade of Eternal Darkness
+                    {
+                        // Engulfing Shadows : 100 shadow damage bonus intellect
+                        if (m_casterUnit && m_casterUnit->GetTypeId() == TYPEID_PLAYER)
+                            damage = damage + m_casterUnit->GetStat(STAT_INTELLECT);
+                        break;
+                    }
                 }
                 break;
             }
@@ -361,6 +375,11 @@ void Spell::EffectSchoolDMG(SpellEffectIndex effect_idx)
                             if (!pPlayer->IsBot())
                                 pPlayer->GetSession()->SendNotification("Multi Cast X2!");
                         }
+                    }
+                    else if (m_spellInfo->Id == 21162) // Sulfuras, Hand of Ragnaros
+                    {
+                        // Fireball : 273-334 fire damage bonus 40% attack power
+                        damage += pPlayer->GetTotalAttackPowerValue(BASE_ATTACK) * 0.40f;
                     }
                 }
                 break;
@@ -691,20 +710,8 @@ void Spell::EffectDummy(SpellEffectIndex effIdx)
                             if (pCaster->GetDistance(x,y,z) <= 50.0f)
                             {
                                 pCaster->TeleportTo(pCaster->GetMapId(), x, y, z, o);
-                                pCaster->CastSpell(pCaster, 34369, true);
+                                pCaster->CastSpell(pCaster, 5579, true);
                             }
-                            else
-                            {
-                                auto cdCheck = [](SpellEntry const & spellEntry) -> bool { return ((spellEntry.Id == 34295) && spellEntry.GetRecoveryTime() > 0); };
-                                pCaster->RemoveSomeCooldown(cdCheck);
-                                pCaster->GetSession()->SendNotification("Teleport Failed : Demonic Circle Too Far");
-                            }
-                        }
-                        else
-                        {
-                            auto cdCheck = [](SpellEntry const & spellEntry) -> bool { return ((spellEntry.Id == 34295) && spellEntry.GetRecoveryTime() > 0); };
-                            pCaster->RemoveSomeCooldown(cdCheck);
-                            pCaster->GetSession()->SendNotification("Teleport Failed : No Available Demonic Circle");
                         }
                     }
                     return;
@@ -2421,6 +2428,16 @@ void Spell::EffectEnergize(SpellEffectIndex effIdx)
     AddExecuteLogInfo(effIdx, info);
 #endif
 
+    // Blade of Eternal Darkness
+    if (m_spellInfo->Id == 27860 && unitTarget->GetTypeId() == TYPEID_PLAYER)
+    {
+        // Engulfing Shadows : 100 mana bonus spirit, Spirit Tap bonus half
+        if (unitTarget->HasAura(15271))
+            damage += m_casterUnit->GetStat(STAT_SPIRIT) * 0.5f;
+        else
+            damage += m_casterUnit->GetStat(STAT_SPIRIT);
+    }
+
     m_caster->EnergizeBySpell(unitTarget, m_spellInfo->Id, damage, power);
 }
 
@@ -3912,7 +3929,8 @@ void Spell::EffectWeaponDmg(SpellEffectIndex effIdx)
     if (m_spellInfo->Id == 75 && m_casterUnit->HasAura(34322))
         bonus *= 0.7f;
     // Morphling - Frostbolt Volley & Frost Nova
-    if ((m_spellInfo->Id == 34060 || m_spellInfo->Id == 34061) && (unitTarget->HasAura(118) || unitTarget->HasAura(12824) || unitTarget->HasAura(12825) || unitTarget->HasAura(12826) || unitTarget->HasAura(28271) || unitTarget->HasAura(28272)))
+    // Spirit Bear - Radiance
+    if ((m_spellInfo->Id == 34060 || m_spellInfo->Id == 34061 || m_spellInfo->Id == 34078) && (unitTarget->HasAura(118) || unitTarget->HasAura(12824) || unitTarget->HasAura(12825) || unitTarget->HasAura(12826) || unitTarget->HasAura(28271) || unitTarget->HasAura(28272) || unitTarget->HasAura(28270) || unitTarget->HasAura(13327) || unitTarget->HasAura(1090) || unitTarget->HasAura(2637) || unitTarget->HasAura(18657) || unitTarget->HasAura(18658) || unitTarget->HasAura(19503) || unitTarget->HasAura(1499) || unitTarget->HasAura(14310) || unitTarget->HasAura(14311) || unitTarget->HasAura(19386) || unitTarget->HasAura(24132) || unitTarget->HasAura(24133) || unitTarget->HasAura(2878) || unitTarget->HasAura(5627) || unitTarget->HasAura(10326) || unitTarget->HasAura(20066) || unitTarget->HasAura(9484) || unitTarget->HasAura(9485) || unitTarget->HasAura(10955) || unitTarget->HasAura(1776) || unitTarget->HasAura(1777) || unitTarget->HasAura(8629) || unitTarget->HasAura(11285) || unitTarget->HasAura(11286) || unitTarget->HasAura(2094) || unitTarget->HasAura(6770) || unitTarget->HasAura(2070) || unitTarget->HasAura(11297)))
         bonus = 0.f;
     // prevent negative damage
     m_damage += bonus > 0.f ? bonus : 0.f;
@@ -5453,6 +5471,10 @@ void Spell::EffectEnchantHeldItem(SpellEffectIndex effIdx)
 
     Item* item = itemOwner->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_MAINHAND);
 
+    // Warlock - Firestone
+    if (m_spellInfo->Id == 1054 || m_spellInfo->Id == 17936 || m_spellInfo->Id == 17940 || m_spellInfo->Id == 17942)
+        item = itemOwner->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_RANGED);
+
     if (!item)
         return;
 
@@ -6096,6 +6118,14 @@ void Spell::EffectTransmitted(SpellEffectIndex effIdx)
         return;
     }
 
+    // E Mo Xie Dian - Ritual of Doom can be cast without partner
+    if (m_spellInfo->Id == 18540 && m_casterUnit->HasAura(34358))
+    {
+        m_casterUnit->CastSpell(m_casterUnit, 18541, true);
+        m_casterUnit->AddCooldown(*m_spellInfo);
+        return;
+    }
+
     float fx, fy, fz;
     if (m_targets.m_targetMask & TARGET_FLAG_DEST_LOCATION)
     {
@@ -6251,6 +6281,39 @@ void Spell::EffectSummonDemon(SpellEffectIndex effIdx)
 
     // might not always work correctly, maybe the creature that dies from CoD casts the effect on itself and is therefore the caster?
     pSummon->SetLevel(m_caster->GetLevel());
+
+    // Warlock - Infernal & Doomguard
+    if (Player* pPlayer = m_caster->ToPlayer())
+    {
+        // Infernal
+        if (pSummon->GetCreatureInfo()->entry == 89)
+        {
+            pSummon->SetMaxHealth(pSummon->GetMaxHealth() + pPlayer->GetMaxHealth() * 2);
+            pSummon->SetHealth(pSummon->GetMaxHealth() + pPlayer->GetMaxHealth() * 2);
+            pSummon->SetArmor(pSummon->GetArmor() + pPlayer->GetArmor());
+            float dmgMin;
+            float dmgMax;
+            pSummon->GetDefaultDamageRange(dmgMin, dmgMax);
+            pSummon->SetBaseWeaponDamage(BASE_ATTACK, MINDAMAGE, (dmgMin + pPlayer->GetUInt32Value(PLAYER_FIELD_MOD_DAMAGE_DONE_POS + SPELL_SCHOOL_HOLY) / 10 + pPlayer->GetTotalAuraModifier(SPELL_AURA_MOD_HEALING_DONE) / 20));
+            pSummon->SetBaseWeaponDamage(BASE_ATTACK, MAXDAMAGE, (dmgMax + pPlayer->GetUInt32Value(PLAYER_FIELD_MOD_DAMAGE_DONE_POS + SPELL_SCHOOL_HOLY) / 10 + pPlayer->GetTotalAuraModifier(SPELL_AURA_MOD_HEALING_DONE) / 20));
+            pSummon->UpdateDamagePhysical(BASE_ATTACK);
+        }
+        // Doomguard
+        else if (pSummon->GetCreatureInfo()->entry == 11859)
+        {
+            pSummon->SetMaxHealth(pSummon->GetMaxHealth() + pPlayer->GetMaxHealth() + pPlayer->GetMaxPower(POWER_MANA));
+            pSummon->SetHealth(pSummon->GetMaxHealth() + pPlayer->GetMaxHealth() + pPlayer->GetMaxPower(POWER_MANA));
+            pSummon->SetMaxPower(POWER_MANA, pSummon->GetMaxPower(POWER_MANA) + pPlayer->GetMaxPower(POWER_MANA));
+            pSummon->SetPower(POWER_MANA, pSummon->GetMaxPower(POWER_MANA) + pPlayer->GetMaxPower(POWER_MANA));
+            pSummon->SetArmor(pSummon->GetArmor() + pPlayer->GetArmor() * 0.5f);
+            float dmgMin;
+            float dmgMax;
+            pSummon->GetDefaultDamageRange(dmgMin, dmgMax);
+            pSummon->SetBaseWeaponDamage(BASE_ATTACK, MINDAMAGE, (dmgMin + pPlayer->GetUInt32Value(PLAYER_FIELD_MOD_DAMAGE_DONE_POS + SPELL_SCHOOL_HOLY) / 7 + pPlayer->GetTotalAuraModifier(SPELL_AURA_MOD_HEALING_DONE) / 14));
+            pSummon->SetBaseWeaponDamage(BASE_ATTACK, MAXDAMAGE, (dmgMax + pPlayer->GetUInt32Value(PLAYER_FIELD_MOD_DAMAGE_DONE_POS + SPELL_SCHOOL_HOLY) / 7 + pPlayer->GetTotalAuraModifier(SPELL_AURA_MOD_HEALING_DONE) / 14));
+            pSummon->UpdateDamagePhysical(BASE_ATTACK);
+        }
+    }
 
     AddExecuteLogInfo(effIdx, ExecuteLogInfo(pSummon->GetObjectGuid()));
 
