@@ -61,7 +61,7 @@
 #include "LuaEngine.h"
 #include "ElunaConfig.h"
 #include "ElunaLoader.h"
-#endif /* ENABLE_ELUNA */
+#endif
 
 
 Map::~Map()
@@ -73,10 +73,7 @@ Map::~Map()
     if (Eluna* e = GetEluna())
         if (Instanceable())
             e->FreeInstanceId(GetInstanceId());
-
-    delete eluna;
-    eluna = nullptr;
-#endif /* ENABLE_ELUNA */
+#endif
     UnloadAll(true);
 
     if (!m_scriptSchedule.empty())
@@ -220,11 +217,11 @@ Map::Map(uint32 id, time_t expiry, uint32 InstanceId)
     // lua state begins uninitialized
     eluna = nullptr;
     if (sElunaConfig->IsElunaEnabled() && !sElunaConfig->IsElunaCompatibilityMode() && sElunaConfig->ShouldMapLoadEluna(id))
-        eluna = new Eluna(this);
+        eluna = std::make_unique<Eluna>(this);
 
     if (Eluna* e = GetEluna())
         e->OnCreate(this);
-#endif /* ENABLE_ELUNA */
+#endif
 }
 
 // Nostalrius
@@ -497,7 +494,7 @@ bool Map::Add(Player* player)
 
     if (Eluna* e = GetEluna())
         e->OnPlayerEnter(this, player);
-#endif /* ENABLE_ELUNA */
+#endif
 
     if (m_data)
         m_data->OnPlayerEnter(player);
@@ -1100,7 +1097,7 @@ void Map::Update(uint32 t_diff)
 
         e->OnUpdate(this, t_diff);
     }
-#endif /* ENABLE_ELUNA */
+#endif
 
     if (m_data)
         m_data->Update(t_diff);
@@ -1284,7 +1281,7 @@ void Map::Remove(Player* player, bool remove)
 #ifdef ENABLE_ELUNA
     if (Eluna* e = GetEluna())
         e->OnPlayerLeave(this, player);
-#endif /* ENABLE_ELUNA */
+#endif
 
     if (m_data)
         m_data->OnPlayerLeave(player);
@@ -1842,7 +1839,7 @@ void Map::AddObjectToRemoveList(WorldObject* obj)
         else if (GameObject* gameobject = obj->ToGameObject())
             e->OnRemove(gameobject);
     }
-#endif /* ENABLE_ELUNA */
+#endif
 
     obj->CleanupsBeforeDelete();                            // remove or simplify at least cross referenced links
     std::lock_guard<std::mutex> lock(m_objectsToRemoveLock);
@@ -2065,7 +2062,7 @@ void Map::CreateInstanceData(bool load)
 #ifdef ENABLE_ELUNA
     if (Eluna* e = GetEluna())
         m_data = e->GetInstanceData(this);
-#endif /* ENABLE_ELUNA */
+#endif
 
     if (!m_mapEntry->scriptId)
         return;
@@ -3908,6 +3905,6 @@ Eluna* Map::GetEluna() const
     if (sElunaConfig->IsElunaCompatibilityMode())
         return sWorld.GetEluna();
 
-    return eluna;
+    return eluna.get();
 }
 #endif
