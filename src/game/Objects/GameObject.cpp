@@ -314,7 +314,7 @@ void GameObject::Update(uint32 update_diff, uint32 /*p_time*/)
     WorldObject::Update(update_diff, update_diff);
     if (GetObjectGuid().IsMOTransport())
     {
-        //((Transport*)this)->Update(p_time);
+        //((ShipTransport*)this)->Update(p_time);
         return;
     }
 
@@ -361,8 +361,7 @@ void GameObject::Update(uint32 update_diff, uint32 /*p_time*/)
                     if (time(nullptr) > m_respawnTime - FISHING_BOBBER_READY_TIME)
                     {
                         // splash bobber (bobber ready now)
-                        Unit* caster = GetOwner();
-                        if (caster && caster->GetTypeId() == TYPEID_PLAYER)
+                        if (Player* caster = ::ToPlayer(GetOwner()))
                         {
                             SetGoState(GO_STATE_ACTIVE);
                             // SetUInt32Value(GAMEOBJECT_FLAGS, GO_FLAG_NODESPAWN);
@@ -413,8 +412,7 @@ void GameObject::Update(uint32 update_diff, uint32 /*p_time*/)
                     {
                         case GAMEOBJECT_TYPE_FISHINGNODE:   // can't fish now
                         {
-                            Unit* caster = GetOwner();
-                            if (caster && caster->GetTypeId() == TYPEID_PLAYER)
+                            if (Player* caster = ::ToPlayer(GetOwner()))
                             {
                                 caster->FinishSpell(CURRENT_CHANNELED_SPELL);
 
@@ -787,10 +785,10 @@ void GameObject::RemoveUniqueUse(Player const* player)
             {
                 if (GetGoState() != GO_STATE_ACTIVE)
                     SetLootState(GO_JUST_DEACTIVATED);
-                else if (GetOwner())
+                else if (Unit* pOwner = GetOwner())
                     // if active it'll be destroyed in Spell::update
                     // remove it from owner's list to keep it running
-                    GetOwner()->RemoveGameObject(this, false);
+                    pOwner->RemoveGameObject(this, false);
             }
             SetGoState(GO_STATE_READY);
         }
@@ -803,9 +801,9 @@ void GameObject::FinishRitual()
     if (GameObjectInfo const* info = GetGOInfo())
     {
         // take spell cooldown
-        if (GetOwner() && GetOwner()->IsPlayer())
+        if (Player* pOwner = ::ToPlayer(GetOwner()))
             if (SpellEntry const* createBySpell = sSpellMgr.GetSpellEntry(GetSpellId()))
-                GetOwner()->AddCooldown(*createBySpell);
+                pOwner->AddCooldown(*createBySpell);
         if (!info->summoningRitual.ritualPersistent)
             SetLootState(GO_JUST_DEACTIVATED);
         // Only ritual of doom deals a second spell
@@ -1095,9 +1093,9 @@ bool GameObject::IsMoTransport() const
 
 Unit* GameObject::GetOwner() const
 {
-    if (!FindMap())
-        return nullptr;
-    return FindMap()->GetUnit(GetOwnerGuid());
+    if (ObjectGuid ownerid = GetOwnerGuid())
+        return ObjectAccessor::GetUnit(*this, ownerid);
+    return nullptr;
 }
 
 Player* GameObject::GetAffectingPlayer() const
@@ -1148,18 +1146,11 @@ bool GameObject::IsVisibleForInState(WorldObject const* pDetector, WorldObject c
         if (GetGOInfo()->IsServerOnly())
             return false;
 
-        // special invisibility cases
-        /* TODO: implement trap stealth, take look at spell 2836
-        if (GetGOInfo()->type == GAMEOBJECT_TYPE_TRAP && GetGOInfo()->trap.stealthed && u->IsHostileTo(GetOwner()))
-        {
-            if (check stuff here)
-                return false;
-        }*/
         if (Unit const* pDetectorUnit = pDetector->ToUnit())
         {
             if (GetGOInfo()->type == GAMEOBJECT_TYPE_TRAP && GetGOInfo()->trap.stealthed && IsHostileTo(pDetectorUnit))
             {
-                if (!(pDetectorUnit->m_detectInvisibilityMask & (1 << 3))) // Detection des pieges
+                if (!(pDetectorUnit->m_detectInvisibilityMask & (1 << 3))) // Detect Trap
                     return false;
             }
         }
@@ -1508,8 +1499,7 @@ void GameObject::Use(Unit* user)
 
             if (uint32 spellId = GetGOInfo()->trap.spellId)
             {
-                Unit* pOwner = GetOwner();
-                if (pOwner)
+                if (Unit* pOwner = GetOwner())
                     pOwner->CastSpell(user, spellId, true, nullptr, nullptr, GetObjectGuid());
                 else
                     CastSpell(user, spellId, true, nullptr, nullptr, GetObjectGuid());
@@ -1754,12 +1744,9 @@ void GameObject::Use(Unit* user)
                 return;
 
             Player* player = (Player*)user;
-
-            Unit* owner = GetOwner();
-
             GameObjectInfo const* info = GetGOInfo();
 
-            if (owner)
+            if (Unit* owner = GetOwner())
             {
                 if (owner->GetTypeId() != TYPEID_PLAYER)
                     return;
