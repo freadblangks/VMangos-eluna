@@ -1,8 +1,7 @@
-
-# VMangos-eluna
-
 **Notice：**
 For newest version of VMangos + Eluna, see this project: [Eluna-VMaNGOS](https://github.com/Eluna-Ports/Eluna-VMaNGOS).
+
+# VMangos-eluna
 
 This project is a [VMangos](https://github.com/vmangos/core) version with [Eluna](https://github.com/ElunaLuaEngine/Eluna) code merged.
 
