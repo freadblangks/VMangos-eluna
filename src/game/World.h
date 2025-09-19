@@ -35,6 +35,9 @@
 #include "WorldPacket.h"
 #include "Multithreading/Messager.h"
 #include "LFGQueue.h"
+#ifdef ENABLE_ELUNA
+#include "ElunaMgr.h"
+#endif
 
 #include <map>
 #include <set>
@@ -904,8 +907,7 @@ class World
         LFGQueue& GetLFGQueue() { return m_lfgQueue; }
 
 #ifdef ENABLE_ELUNA
-        Eluna* GetEluna() const { return eluna.get(); }
-        std::unique_ptr<Eluna> eluna;
+        Eluna* GetEluna() const { return sElunaMgr->Get(m_elunaInfo); }
 #endif
     protected:
         void _UpdateGameTime();
@@ -1017,6 +1019,10 @@ class World
         static uint32 m_currentDiff;
 
         Messager<World> m_messager;
+
+#ifdef ENABLE_ELUNA
+        ElunaInfo m_elunaInfo;
+#endif
 };
 
 extern uint32 realmID;
