@@ -1737,12 +1737,14 @@ void Unit::TriggerDamageShields(Unit* pVictim)
 
             uint32 damage = ditheru(fdamage);
 
-            //Sulfuras, Hand of Ragnaros - Immolation : bonus fire resistance difference
+            //Cloak of Flames
+            //Sulfuras, Hand of Ragnaros
+            //Immolation : bonus 0.5x fire resistance difference
             if (pSpellProto->Id == 21142)
             {
-                int32 fireResistanceDiff = pVictim->GetResistance(SPELL_SCHOOL_FIRE) - this->GetResistance(SPELL_SCHOOL_FIRE);
+                int32 fireResistanceDiff = ditheru((pVictim->GetResistance(SPELL_SCHOOL_FIRE) - this->GetResistance(SPELL_SCHOOL_FIRE)) * 0.5f);
                 if (fireResistanceDiff > 0)
-                    damage += fireResistanceDiff; // increase damage by fire resistance difference
+                    damage += fireResistanceDiff; // increase damage by 0.5x fire resistance difference
             }
 
             //JieFuFuTi(34001) taken damage
@@ -2277,7 +2279,8 @@ MeleeHitOutcome Unit::RollMeleeOutcomeAgainst(Unit const* pVictim, WeaponAttackT
     //DEBUG_FILTER_LOG(LOG_FILTER_COMBAT, "RollMeleeOutcomeAgainst: rolled %d, miss %d, dodge %d, parry %d, block %d, crit %d", roll, missChance, dodgeChance, parryChance, blockChance, critChance);
 
     //Shaman - Monkey King Bar
-    if(!(IsPlayer() && HasAura(34131)))
+    //Rogue - Blinkstrike
+    if(!(IsPlayer() && (HasAura(34131) || (HasAura(34483) && HasAura(13750)))))
     {
         tmp = missChance;
 
@@ -4443,6 +4446,20 @@ float Unit::HasAura_34382_34383_total() const
             total += 4;
     }
     return float(total);
+}
+
+int32 Unit::HasAura_34477_34478_total() const
+{
+    int32 total = 0;
+    AuraList const& mTotalAuraList = GetAurasByType(SPELL_AURA_DUMMY);
+    for (const auto& i : mTotalAuraList)
+    {
+        if (i->GetId() == 34477)
+            total += 1;
+        else if (i->GetId() == 34478)
+            total += 2;
+    }
+    return total;
 }
 
 GameObject* Unit::GetGameObject(uint32 spellId) const
@@ -9329,7 +9346,7 @@ void Unit::ProcDamageAndSpellFor(bool isVictim, Unit* pTarget, ProcSystemArgumen
 
         // prevent delayed procs from removing auras applied after the proc happened
         // fixes Frostbite being removed by the Frostbolt that applied it
-        if (isVictim && itr.second->GetAuraApplyTime() >= data.procTime && pTarget->GetObjectGuid() == itr.second->GetCasterGuid())
+        if (itr.second->GetAuraApplyTime() >= data.procTime && (isVictim && pTarget->GetObjectGuid() == itr.second->GetCasterGuid() || !isVictim && GetObjectGuid() == itr.second->GetCasterGuid()))
             continue;
 
         // Aura that applies a modifier with charges. Gere? otherwise.
@@ -11200,9 +11217,9 @@ void Unit::DoResetThreat()
     ThreatList const& tList = GetThreatManager().getThreatList();
     for (const auto itr : tList)
     {
-        Unit* pUnit = GetMap()->GetUnit(itr->getUnitGuid());
+        Unit* pUnit = itr->getTarget();
 
-        if (pUnit && GetThreatManager().getThreat(pUnit))
+        if (pUnit && itr->getThreat())
             GetThreatManager().modifyThreatPercent(pUnit, -100);
     }
 }

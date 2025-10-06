@@ -23,7 +23,7 @@
 
 bool GossipHello_Hardcore_Reward_NPC(Player *player, Creature *_Creature)   
 {
-    player->ADD_GOSSIP_ITEM(7, "各职业第一个到达60级的硬核模式玩家，可随机获取一件职业橙装。",               GOSSIP_SENDER_MAIN, 1);
+    player->ADD_GOSSIP_ITEM(7, "各职业第一个到达60级的硬核模式玩家，可随机获取一件未锻造的职业橙装。火之时代的开创者——太阳王葛温，知道如何引导初始之火完成锻造。此刻他正在燃烧平原，寻找传火的薪王。",  GOSSIP_SENDER_MAIN, 1);
     player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
     return true;
 }
@@ -52,28 +52,28 @@ void SendDefaultMenu_Hardcore_Reward_NPC(Player *player, Creature *_Creature, ui
                 player->CLOSE_GOSSIP_MENU();
                 break;
             }
-            bool has_26010 = player->HasItemCount(26010, 1, true);
-            bool has_26020 = player->HasItemCount(26020, 1, true);
-            bool has_26021 = player->HasItemCount(26021, 1, true);
-            bool has_26022 = player->HasItemCount(26022, 1, true);
-            bool has_26023 = player->HasItemCount(26023, 1, true);
-            bool has_26024 = player->HasItemCount(26024, 1, true);
-            bool has_26027 = player->HasItemCount(26027, 1, true);
-            bool has_26028 = player->HasItemCount(26028, 1, true);
-            bool has_26029 = player->HasItemCount(26029, 1, true);
-            bool has_26032 = player->HasItemCount(26032, 1, true);
-            bool has_26034 = player->HasItemCount(26034, 1, true);
-            bool has_26035 = player->HasItemCount(26035, 1, true);
-            bool has_26036 = player->HasItemCount(26036, 1, true);
-            bool has_26037 = player->HasItemCount(26037, 1, true);
-            bool has_26038 = player->HasItemCount(26038, 1, true);
-            bool has_26044_1 = player->HasItemCount(26044, 1, true);
-            bool has_26044_2 = player->HasItemCount(26044, 2, true);
-            bool has_26045 = player->HasItemCount(26045, 1, true);
-            bool has_26046 = player->HasItemCount(26046, 1, true);
-            bool has_26047 = player->HasItemCount(26047, 1, true);
-            bool has_26049 = player->HasItemCount(26049, 1, true);
-            bool has_26050 = player->HasItemCount(26050, 1, true);
+            bool has_26010 = player->HasItemCount(26010, 1, true) || player->HasItemCount(26137, 1, true);
+            bool has_26020 = player->HasItemCount(26020, 1, true) || player->HasItemCount(26138, 1, true);
+            bool has_26021 = player->HasItemCount(26021, 1, true) || player->HasItemCount(26139, 1, true);
+            bool has_26022 = player->HasItemCount(26022, 1, true) || player->HasItemCount(26140, 1, true);
+            bool has_26023 = player->HasItemCount(26023, 1, true) || player->HasItemCount(26141, 1, true);
+            bool has_26024 = player->HasItemCount(26024, 1, true) || player->HasItemCount(26142, 1, true);
+            bool has_26027 = player->HasItemCount(26027, 1, true) || player->HasItemCount(26143, 1, true);
+            bool has_26028 = player->HasItemCount(26028, 1, true) || player->HasItemCount(26144, 1, true);
+            bool has_26029 = player->HasItemCount(26029, 1, true) || player->HasItemCount(26145, 1, true);
+            bool has_26032 = player->HasItemCount(26032, 1, true) || player->HasItemCount(26146, 1, true);
+            bool has_26034 = player->HasItemCount(26034, 1, true) || player->HasItemCount(26147, 1, true);
+            bool has_26035 = player->HasItemCount(26035, 1, true) || player->HasItemCount(26148, 1, true);
+            bool has_26036 = player->HasItemCount(26036, 1, true) || player->HasItemCount(26149, 1, true);
+            bool has_26037 = player->HasItemCount(26037, 1, true) || player->HasItemCount(26150, 1, true);
+            bool has_26038 = player->HasItemCount(26038, 1, true) || player->HasItemCount(26151, 1, true);
+            bool has_26044_1 = player->HasItemCount(26044, 1, true) || player->HasItemCount(26152, 1, true);
+            bool has_26044_2 = player->HasItemCount(26044, 2, true) || player->HasItemCount(26152, 2, true) || (player->HasItemCount(26044, 1, true) && player->HasItemCount(26152, 1, true));
+            bool has_26045 = player->HasItemCount(26045, 1, true) || player->HasItemCount(26153, 1, true);
+            bool has_26046 = player->HasItemCount(26046, 1, true) || player->HasItemCount(26154, 1, true);
+            bool has_26047 = player->HasItemCount(26047, 1, true) || player->HasItemCount(26155, 1, true);
+            bool has_26049 = player->HasItemCount(26049, 1, true) || player->HasItemCount(26156, 1, true);
+            bool has_26050 = player->HasItemCount(26050, 1, true) || player->HasItemCount(26157, 1, true);
             switch (player->GetClass())
             {
                 // WARRIOR
@@ -1427,6 +1427,9 @@ void SendDefaultMenu_TeleportNPC(Player *player, Creature *_Creature, uint32 act
             player->ADD_GOSSIP_ITEM(5, "旧铁炉堡 60级",          GOSSIP_SENDER_MAIN, 1278);
             player->ADD_GOSSIP_ITEM(5, "星露谷 60级",            GOSSIP_SENDER_MAIN, 1279);
             player->ADD_GOSSIP_ITEM(5, "新月林地 60级",   GOSSIP_SENDER_MAIN, 1280);
+            player->ADD_GOSSIP_ITEM(5, "格瑞姆巴托 60级",   GOSSIP_SENDER_MAIN, 1281);
+            player->ADD_GOSSIP_ITEM(5, "逐日者庭院 60级",   GOSSIP_SENDER_MAIN, 1282);
+            player->ADD_GOSSIP_ITEM(5, "阿拉索废墟 60级",   GOSSIP_SENDER_MAIN, 1283);
             player->ADD_GOSSIP_ITEM(7, "<- [后退]",           GOSSIP_SENDER_MAIN, 5552);
             player->ADD_GOSSIP_ITEM(7, "<-[主菜单]",       GOSSIP_SENDER_MAIN, 100);
 
@@ -2099,6 +2102,36 @@ void SendDefaultMenu_TeleportNPC(Player *player, Creature *_Creature, uint32 act
             }
             player->ModifyMoney(-travelboots);
             player->TeleportTo(MAP_EASTERN_KINGDOMS, -213.140915f, -2522.304688f, 118.503098f, 0.00f);
+            break;
+        case 1281:// Teleport player to Dragonmaw
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetMoney() < travelboots)
+            {
+                player->GetSession()->SendNotification(costprice.c_str());
+                break;
+            }
+            player->ModifyMoney(-travelboots);
+            player->TeleportTo(MAP_EASTERN_KINGDOMS, -4062.725830f, -3451.427734f, 281.387482f, 0.00f);
+            break;
+        case 1282:// Teleport player to HighElfPVP
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetMoney() < travelboots)
+            {
+                player->GetSession()->SendNotification(costprice.c_str());
+                break;
+            }
+            player->ModifyMoney(-travelboots);
+            player->TeleportTo(MAP_EASTERN_KINGDOMS, 3373.121582f, -4490.019531f, 144.267410f, 0.00f);
+            break;
+        case 1283:// Teleport player to Balor
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetMoney() < travelboots)
+            {
+                player->GetSession()->SendNotification(costprice.c_str());
+                break;
+            }
+            player->ModifyMoney(-travelboots);
+            player->TeleportTo(MAP_EASTERN_KINGDOMS, -1528.809082f, -1805.616821f, 71.632103f, 0.00f);
             break;
         case 4000:// Teleport to Zul'Gurub
             player->CLOSE_GOSSIP_MENU();
@@ -3086,6 +3119,508 @@ bool GossipSelect_Luke_Skywalker(Player *player, Creature *_Creature, uint32 sen
     return true;
 }
 
+bool GossipHello_Falstad_Wildhammer(Player *player, Creature *_Creature)   
+{
+    if (player->GetMapId() == 555)
+    {
+        player->ADD_GOSSIP_ITEM(5, "离开副本",               GOSSIP_SENDER_MAIN, 1);
+    }
+    else
+    {
+        player->ADD_GOSSIP_ITEM(7, "龙喉兽人占据了格瑞姆巴托。勇士，蛮锤矮人需要帮助！",               GOSSIP_SENDER_MAIN, 2);
+    }
+    player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+    return true;
+}
+void SendDefaultMenu_Falstad_Wildhammer(Player *player, Creature *_Creature, uint32 action)
+{
+    switch (action)
+    {
+        case 1:
+            player->CLOSE_GOSSIP_MENU();
+            player->TeleportTo(MAP_EASTERN_KINGDOMS, -4062.725830f, -3451.427734f, 281.387482f, 0.0f);
+            break;
+        case 2:
+            player->ADD_GOSSIP_ITEM(5, "传送：格瑞姆巴托",               GOSSIP_SENDER_MAIN, 3);
+            player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+            break;
+        case 3:
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetLevel() < 60)
+            {
+                player->GetSession()->SendNotification("You must be at least level 60 to enter.");
+                break;
+            }
+            player->TeleportTo(555, -5807.743164f, -3568.145996f, 303.187378f, 0.0f);
+            break;
+    }
+}
+bool GossipSelect_Falstad_Wildhammer(Player *player, Creature *_Creature, uint32 sender, uint32 action)
+{
+    // Main menu
+    if (sender == GOSSIP_SENDER_MAIN)
+        SendDefaultMenu_Falstad_Wildhammer(player, _Creature, action);
+
+    return true;
+}
+
+bool GossipHello_Blood_Elf_Rogue(Player *player, Creature *_Creature)   
+{
+    if (player->GetMapId() == 556)
+    {
+        player->ADD_GOSSIP_ITEM(5, "离开副本",               GOSSIP_SENDER_MAIN, 1);
+    }
+    else
+    {
+        player->ADD_GOSSIP_ITEM(7, "逐日者庭院只向勇士开放。唯有刀剑与魔法，才能赢得辛多雷的荣耀。",               GOSSIP_SENDER_MAIN, 2);
+    }
+    player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+    return true;
+}
+void SendDefaultMenu_Blood_Elf_Rogue(Player *player, Creature *_Creature, uint32 action)
+{
+    switch (action)
+    {
+        case 1:
+            player->CLOSE_GOSSIP_MENU();
+            player->TeleportTo(MAP_EASTERN_KINGDOMS, 3373.121582f, -4490.019531f, 144.267410f, 0.0f);
+            break;
+        case 2:
+            player->ADD_GOSSIP_ITEM(5, "传送：逐日者庭院",               GOSSIP_SENDER_MAIN, 3);
+            player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+            break;
+        case 3:
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetLevel() < 60)
+            {
+                player->GetSession()->SendNotification("You must be at least level 60 to enter.");
+                break;
+            }
+            player->TeleportTo(556, 300.223511f, 763.826782f, 26.535112f, 0.0f);
+            break;
+    }
+}
+bool GossipSelect_Blood_Elf_Rogue(Player *player, Creature *_Creature, uint32 sender, uint32 action)
+{
+    // Main menu
+    if (sender == GOSSIP_SENDER_MAIN)
+        SendDefaultMenu_Blood_Elf_Rogue(player, _Creature, action);
+
+    return true;
+}
+
+bool GossipHello_Danath_Trollbane(Player *player, Creature *_Creature)   
+{
+    if (player->GetMapId() == 557)
+    {
+        player->ADD_GOSSIP_ITEM(5, "离开副本",               GOSSIP_SENDER_MAIN, 1);
+    }
+    else
+    {
+        player->ADD_GOSSIP_ITEM(7, "激流堡从未沦陷，阿拉索必将复兴！",               GOSSIP_SENDER_MAIN, 2);
+    }
+    player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+    return true;
+}
+void SendDefaultMenu_Danath_Trollbane(Player *player, Creature *_Creature, uint32 action)
+{
+    switch (action)
+    {
+        case 1:
+            player->CLOSE_GOSSIP_MENU();
+            player->TeleportTo(MAP_EASTERN_KINGDOMS, -1528.809082f, -1805.616821f, 71.632103f, 0.0f);
+            break;
+        case 2:
+            player->ADD_GOSSIP_ITEM(5, "传送：阿拉索废墟",               GOSSIP_SENDER_MAIN, 3);
+            player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+            break;
+        case 3:
+            player->CLOSE_GOSSIP_MENU();
+            if(player->GetLevel() < 60)
+            {
+                player->GetSession()->SendNotification("You must be at least level 60 to enter.");
+                break;
+            }
+            player->TeleportTo(557, -5635.961914f, -4369.339355f, 245.164673f, 0.0f);
+            break;
+    }
+}
+bool GossipSelect_Danath_Trollbane(Player *player, Creature *_Creature, uint32 sender, uint32 action)
+{
+    // Main menu
+    if (sender == GOSSIP_SENDER_MAIN)
+        SendDefaultMenu_Danath_Trollbane(player, _Creature, action);
+
+    return true;
+}
+
+bool GossipHello_Gwyn(Player *player, Creature *_Creature)   
+{
+    player->ADD_GOSSIP_ITEM(7, "火已渐熄，位不见王影，而无火的余灰们将纷沓而至。那是无名，成不了薪，且被诅咒的不死人。但正因为如此，灰烬才会如此渴求余火吧。",  GOSSIP_SENDER_MAIN, 1);
+    player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+    return true;
+}
+void SendDefaultMenu_Gwyn(Player *player, Creature *_Creature, uint32 action)
+{
+    switch (action)
+    {
+        case 1:
+            player->ADD_GOSSIP_ITEM(7, "薪王不肯回到王位，那么，将柴薪拿回来就行。",    GOSSIP_SENDER_MAIN, 2);
+            if (player->HasItemCount(26158, 1) && player->HasItemCount(26159, 1) && player->HasItemCount(26160, 1) && player->HasItemCount(26161, 1) && player->HasItemCount(26162, 1) && player->HasItemCount(26163, 1) && player->HasItemCount(26164, 1))
+            {
+                if (player->HasItemWithIdEquipped(26010, 1))
+                    player->ADD_GOSSIP_ITEM(5, "燃烧薪王柴薪，用初始之火锻造：武林之豪",    GOSSIP_SENDER_MAIN, 3);
+                if (player->HasItemWithIdEquipped(26020, 1))
+                    player->ADD_GOSSIP_ITEM(5, "燃烧薪王柴薪，用初始之火锻造：埃辛诺斯战刃",    GOSSIP_SENDER_MAIN, 4);
+                if (player->HasItemWithIdEquipped(26021, 1))
+                    player->ADD_GOSSIP_ITEM(5, "燃烧薪王柴薪，用初始之火锻造：埃辛诺斯战刃",    GOSSIP_SENDER_MAIN, 5);
+                if (player->HasItemWithIdEquipped(26022, 1))
+                    player->ADD_GOSSIP_ITEM(5, "燃烧薪王柴薪，用初始之火锻造：灰烬使者",    GOSSIP_SENDER_MAIN, 6);
+                if (player->HasItemWithIdEquipped(26023, 1))
+                    player->ADD_GOSSIP_ITEM(5, "燃烧薪王柴薪，用初始之火锻造：金箍棒",    GOSSIP_SENDER_MAIN, 7);
+                if (player->HasItemWithIdEquipped(26024, 1))
+                    player->ADD_GOSSIP_ITEM(5, "燃烧薪王柴薪，用初始之火锻造：凤凰",    GOSSIP_SENDER_MAIN, 8);
+                if (player->HasItemWithIdEquipped(26027, 1))
+                    player->ADD_GOSSIP_ITEM(5, "燃烧薪王柴薪，用初始之火锻造：不朽之守护",    GOSSIP_SENDER_MAIN, 9);
+                if (player->HasItemWithIdEquipped(26028, 1))
+                    player->ADD_GOSSIP_ITEM(5, "燃烧薪王柴薪，用初始之火锻造：审判之轮",    GOSSIP_SENDER_MAIN, 10);
+                if (player->HasItemWithIdEquipped(26029, 1))
+                    player->ADD_GOSSIP_ITEM(5, "燃烧薪王柴薪，用初始之火锻造：阿哈利姆神杖",    GOSSIP_SENDER_MAIN, 11);
+                if (player->HasItemWithIdEquipped(26032, 1))
+                    player->ADD_GOSSIP_ITEM(5, "燃烧薪王柴薪，用初始之火锻造：死亡拨弦",    GOSSIP_SENDER_MAIN, 12);
+                if (player->HasItemWithIdEquipped(26034, 1))
+                    player->ADD_GOSSIP_ITEM(5, "燃烧薪王柴薪，用初始之火锻造：巴特克的猛击",    GOSSIP_SENDER_MAIN, 13);
+                if (player->HasItemWithIdEquipped(26035, 1))
+                    player->ADD_GOSSIP_ITEM(5, "燃烧薪王柴薪，用初始之火锻造：赫拉森的庇护",    GOSSIP_SENDER_MAIN, 14);
+                if (player->HasItemWithIdEquipped(26036, 1))
+                    player->ADD_GOSSIP_ITEM(5, "燃烧薪王柴薪，用初始之火锻造：洗礼圣契",    GOSSIP_SENDER_MAIN, 15);
+                if (player->HasItemWithIdEquipped(26037, 1))
+                    player->ADD_GOSSIP_ITEM(5, "燃烧薪王柴薪，用初始之火锻造：月夜枭兽神像",    GOSSIP_SENDER_MAIN, 16);
+                if (player->HasItemWithIdEquipped(26038, 1))
+                    player->ADD_GOSSIP_ITEM(5, "燃烧薪王柴薪，用初始之火锻造：雷云图腾",    GOSSIP_SENDER_MAIN, 17);
+                if (player->HasItemWithIdEquipped(26044, 1))
+                    player->ADD_GOSSIP_ITEM(5, "燃烧薪王柴薪，用初始之火锻造：命定之死",    GOSSIP_SENDER_MAIN, 18);
+                if (player->HasItemWithIdEquipped(26045, 1))
+                    player->ADD_GOSSIP_ITEM(5, "燃烧薪王柴薪，用初始之火锻造：猎杀指头刀",    GOSSIP_SENDER_MAIN, 19);
+                if (player->HasItemWithIdEquipped(26046, 1))
+                    player->ADD_GOSSIP_ITEM(5, "燃烧薪王柴薪，用初始之火锻造：群星",    GOSSIP_SENDER_MAIN, 20);
+                if (player->HasItemWithIdEquipped(26047, 1))
+                    player->ADD_GOSSIP_ITEM(5, "燃烧薪王柴薪，用初始之火锻造：猩红腐败",    GOSSIP_SENDER_MAIN, 21);
+                if (player->HasItemWithIdEquipped(26049, 1))
+                    player->ADD_GOSSIP_ITEM(5, "燃烧薪王柴薪，用初始之火锻造：先锋盾",    GOSSIP_SENDER_MAIN, 22);
+                if (player->HasItemWithIdEquipped(26050, 1))
+                    player->ADD_GOSSIP_ITEM(5, "燃烧薪王柴薪，用初始之火锻造：雷神之锤",    GOSSIP_SENDER_MAIN, 23);
+            }
+            player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _Creature->GetGUID());
+            break;
+        case 2:
+            player->CLOSE_GOSSIP_MENU();
+            break;
+        case 3:
+            if (player->AddItem(26137))
+            {
+                player->DestroyItemCount(26010, 1, true);
+                player->DestroyItemCount(26158, 1, true);
+                player->DestroyItemCount(26159, 1, true);
+                player->DestroyItemCount(26160, 1, true);
+                player->DestroyItemCount(26161, 1, true);
+                player->DestroyItemCount(26162, 1, true);
+                player->DestroyItemCount(26163, 1, true);
+                player->DestroyItemCount(26164, 1, true);
+            }
+            player->CLOSE_GOSSIP_MENU();
+            break;
+        case 4:
+            if (player->AddItem(26138))
+            {
+                player->DestroyItemCount(26020, 1, true);
+                player->DestroyItemCount(26158, 1, true);
+                player->DestroyItemCount(26159, 1, true);
+                player->DestroyItemCount(26160, 1, true);
+                player->DestroyItemCount(26161, 1, true);
+                player->DestroyItemCount(26162, 1, true);
+                player->DestroyItemCount(26163, 1, true);
+                player->DestroyItemCount(26164, 1, true);
+            }
+            player->CLOSE_GOSSIP_MENU();
+            break;
+        case 5:
+            if (player->AddItem(26139))
+            {
+                player->DestroyItemCount(26021, 1, true);
+                player->DestroyItemCount(26158, 1, true);
+                player->DestroyItemCount(26159, 1, true);
+                player->DestroyItemCount(26160, 1, true);
+                player->DestroyItemCount(26161, 1, true);
+                player->DestroyItemCount(26162, 1, true);
+                player->DestroyItemCount(26163, 1, true);
+                player->DestroyItemCount(26164, 1, true);
+            }
+            player->CLOSE_GOSSIP_MENU();
+            break;
+        case 6:
+            if (player->AddItem(26140))
+            {
+                player->DestroyItemCount(26022, 1, true);
+                player->DestroyItemCount(26158, 1, true);
+                player->DestroyItemCount(26159, 1, true);
+                player->DestroyItemCount(26160, 1, true);
+                player->DestroyItemCount(26161, 1, true);
+                player->DestroyItemCount(26162, 1, true);
+                player->DestroyItemCount(26163, 1, true);
+                player->DestroyItemCount(26164, 1, true);
+            }
+            player->CLOSE_GOSSIP_MENU();
+            break;
+        case 7:
+            if (player->AddItem(26141))
+            {
+                player->DestroyItemCount(26023, 1, true);
+                player->DestroyItemCount(26158, 1, true);
+                player->DestroyItemCount(26159, 1, true);
+                player->DestroyItemCount(26160, 1, true);
+                player->DestroyItemCount(26161, 1, true);
+                player->DestroyItemCount(26162, 1, true);
+                player->DestroyItemCount(26163, 1, true);
+                player->DestroyItemCount(26164, 1, true);
+            }
+            player->CLOSE_GOSSIP_MENU();
+            break;
+        case 8:
+            if (player->AddItem(26142))
+            {
+                player->DestroyItemCount(26024, 1, true);
+                player->DestroyItemCount(26158, 1, true);
+                player->DestroyItemCount(26159, 1, true);
+                player->DestroyItemCount(26160, 1, true);
+                player->DestroyItemCount(26161, 1, true);
+                player->DestroyItemCount(26162, 1, true);
+                player->DestroyItemCount(26163, 1, true);
+                player->DestroyItemCount(26164, 1, true);
+            }
+            player->CLOSE_GOSSIP_MENU();
+            break;
+        case 9:
+            if (player->AddItem(26143))
+            {
+                player->DestroyItemCount(26027, 1, true);
+                player->DestroyItemCount(26158, 1, true);
+                player->DestroyItemCount(26159, 1, true);
+                player->DestroyItemCount(26160, 1, true);
+                player->DestroyItemCount(26161, 1, true);
+                player->DestroyItemCount(26162, 1, true);
+                player->DestroyItemCount(26163, 1, true);
+                player->DestroyItemCount(26164, 1, true);
+            }
+            player->CLOSE_GOSSIP_MENU();
+            break;
+        case 10:
+            if (player->AddItem(26144))
+            {
+                player->DestroyItemCount(26028, 1, true);
+                player->DestroyItemCount(26158, 1, true);
+                player->DestroyItemCount(26159, 1, true);
+                player->DestroyItemCount(26160, 1, true);
+                player->DestroyItemCount(26161, 1, true);
+                player->DestroyItemCount(26162, 1, true);
+                player->DestroyItemCount(26163, 1, true);
+                player->DestroyItemCount(26164, 1, true);
+            }
+            player->CLOSE_GOSSIP_MENU();
+            break;
+        case 11:
+            if (player->AddItem(26145))
+            {
+                player->DestroyItemCount(26029, 1, true);
+                player->DestroyItemCount(26158, 1, true);
+                player->DestroyItemCount(26159, 1, true);
+                player->DestroyItemCount(26160, 1, true);
+                player->DestroyItemCount(26161, 1, true);
+                player->DestroyItemCount(26162, 1, true);
+                player->DestroyItemCount(26163, 1, true);
+                player->DestroyItemCount(26164, 1, true);
+            }
+            player->CLOSE_GOSSIP_MENU();
+            break;
+        case 12:
+            if (player->AddItem(26146))
+            {
+                player->DestroyItemCount(26032, 1, true);
+                player->DestroyItemCount(26158, 1, true);
+                player->DestroyItemCount(26159, 1, true);
+                player->DestroyItemCount(26160, 1, true);
+                player->DestroyItemCount(26161, 1, true);
+                player->DestroyItemCount(26162, 1, true);
+                player->DestroyItemCount(26163, 1, true);
+                player->DestroyItemCount(26164, 1, true);
+            }
+            player->CLOSE_GOSSIP_MENU();
+            break;
+        case 13:
+            if (player->AddItem(26147))
+            {
+                player->DestroyItemCount(26034, 1, true);
+                player->DestroyItemCount(26158, 1, true);
+                player->DestroyItemCount(26159, 1, true);
+                player->DestroyItemCount(26160, 1, true);
+                player->DestroyItemCount(26161, 1, true);
+                player->DestroyItemCount(26162, 1, true);
+                player->DestroyItemCount(26163, 1, true);
+                player->DestroyItemCount(26164, 1, true);
+            }
+            player->CLOSE_GOSSIP_MENU();
+            break;
+        case 14:
+            if (player->AddItem(26148))
+            {
+                player->DestroyItemCount(26035, 1, true);
+                player->DestroyItemCount(26158, 1, true);
+                player->DestroyItemCount(26159, 1, true);
+                player->DestroyItemCount(26160, 1, true);
+                player->DestroyItemCount(26161, 1, true);
+                player->DestroyItemCount(26162, 1, true);
+                player->DestroyItemCount(26163, 1, true);
+                player->DestroyItemCount(26164, 1, true);
+            }
+            player->CLOSE_GOSSIP_MENU();
+            break;
+        case 15:
+            if (player->AddItem(26149))
+            {
+                player->DestroyItemCount(26036, 1, true);
+                player->DestroyItemCount(26158, 1, true);
+                player->DestroyItemCount(26159, 1, true);
+                player->DestroyItemCount(26160, 1, true);
+                player->DestroyItemCount(26161, 1, true);
+                player->DestroyItemCount(26162, 1, true);
+                player->DestroyItemCount(26163, 1, true);
+                player->DestroyItemCount(26164, 1, true);
+            }
+            player->CLOSE_GOSSIP_MENU();
+            break;
+        case 16:
+            if (player->AddItem(26150))
+            {
+                player->DestroyItemCount(26037, 1, true);
+                player->DestroyItemCount(26158, 1, true);
+                player->DestroyItemCount(26159, 1, true);
+                player->DestroyItemCount(26160, 1, true);
+                player->DestroyItemCount(26161, 1, true);
+                player->DestroyItemCount(26162, 1, true);
+                player->DestroyItemCount(26163, 1, true);
+                player->DestroyItemCount(26164, 1, true);
+            }
+            player->CLOSE_GOSSIP_MENU();
+            break;
+        case 17:
+            if (player->AddItem(26151))
+            {
+                player->DestroyItemCount(26038, 1, true);
+                player->DestroyItemCount(26158, 1, true);
+                player->DestroyItemCount(26159, 1, true);
+                player->DestroyItemCount(26160, 1, true);
+                player->DestroyItemCount(26161, 1, true);
+                player->DestroyItemCount(26162, 1, true);
+                player->DestroyItemCount(26163, 1, true);
+                player->DestroyItemCount(26164, 1, true);
+            }
+            player->CLOSE_GOSSIP_MENU();
+            break;
+        case 18:
+            if (player->AddItem(26152))
+            {
+                player->DestroyItemCount(26044, 1, true);
+                player->DestroyItemCount(26158, 1, true);
+                player->DestroyItemCount(26159, 1, true);
+                player->DestroyItemCount(26160, 1, true);
+                player->DestroyItemCount(26161, 1, true);
+                player->DestroyItemCount(26162, 1, true);
+                player->DestroyItemCount(26163, 1, true);
+                player->DestroyItemCount(26164, 1, true);
+            }
+            player->CLOSE_GOSSIP_MENU();
+            break;
+        case 19:
+            if (player->AddItem(26153))
+            {
+                player->DestroyItemCount(26045, 1, true);
+                player->DestroyItemCount(26158, 1, true);
+                player->DestroyItemCount(26159, 1, true);
+                player->DestroyItemCount(26160, 1, true);
+                player->DestroyItemCount(26161, 1, true);
+                player->DestroyItemCount(26162, 1, true);
+                player->DestroyItemCount(26163, 1, true);
+                player->DestroyItemCount(26164, 1, true);
+            }
+            player->CLOSE_GOSSIP_MENU();
+            break;
+        case 20:
+            if (player->AddItem(26154))
+            {
+                player->DestroyItemCount(26046, 1, true);
+                player->DestroyItemCount(26158, 1, true);
+                player->DestroyItemCount(26159, 1, true);
+                player->DestroyItemCount(26160, 1, true);
+                player->DestroyItemCount(26161, 1, true);
+                player->DestroyItemCount(26162, 1, true);
+                player->DestroyItemCount(26163, 1, true);
+                player->DestroyItemCount(26164, 1, true);
+            }
+            player->CLOSE_GOSSIP_MENU();
+            break;
+        case 21:
+            if (player->AddItem(26155))
+            {
+                player->DestroyItemCount(26047, 1, true);
+                player->DestroyItemCount(26158, 1, true);
+                player->DestroyItemCount(26159, 1, true);
+                player->DestroyItemCount(26160, 1, true);
+                player->DestroyItemCount(26161, 1, true);
+                player->DestroyItemCount(26162, 1, true);
+                player->DestroyItemCount(26163, 1, true);
+                player->DestroyItemCount(26164, 1, true);
+            }
+            player->CLOSE_GOSSIP_MENU();
+            break;
+        case 22:
+            if (player->AddItem(26156))
+            {
+                player->DestroyItemCount(26049, 1, true);
+                player->DestroyItemCount(26158, 1, true);
+                player->DestroyItemCount(26159, 1, true);
+                player->DestroyItemCount(26160, 1, true);
+                player->DestroyItemCount(26161, 1, true);
+                player->DestroyItemCount(26162, 1, true);
+                player->DestroyItemCount(26163, 1, true);
+                player->DestroyItemCount(26164, 1, true);
+            }
+            player->CLOSE_GOSSIP_MENU();
+            break;
+        case 23:
+            if (player->AddItem(26157))
+            {
+                player->DestroyItemCount(26050, 1, true);
+                player->DestroyItemCount(26158, 1, true);
+                player->DestroyItemCount(26159, 1, true);
+                player->DestroyItemCount(26160, 1, true);
+                player->DestroyItemCount(26161, 1, true);
+                player->DestroyItemCount(26162, 1, true);
+                player->DestroyItemCount(26163, 1, true);
+                player->DestroyItemCount(26164, 1, true);
+            }
+            player->CLOSE_GOSSIP_MENU();
+            break;
+    }
+}
+bool GossipSelect_Gwyn(Player *player, Creature *_Creature, uint32 sender, uint32 action)
+{
+    // Main menu
+    if (sender == GOSSIP_SENDER_MAIN)
+        SendDefaultMenu_Gwyn(player, _Creature, action);
+
+    return true;
+}
+
 bool GossipHello_TransmogNPC(Player* player, Creature* creature)
 {
     player->ADD_GOSSIP_ITEM(5, "头部",      GOSSIP_SENDER_MAIN, EQUIPMENT_SLOT_HEAD);
@@ -4020,6 +4555,24 @@ void AddSC_custom_creatures()
     newscript->RegisterSelf(false);
 
     newscript = new Script;
+    newscript->Name = "npc_falstad_wildhammer";
+    newscript->pGossipHello = &GossipHello_Falstad_Wildhammer;
+    newscript->pGossipSelect = &GossipSelect_Falstad_Wildhammer;
+    newscript->RegisterSelf(false);
+
+    newscript = new Script;
+    newscript->Name = "npc_blood_elf_rogue";
+    newscript->pGossipHello = &GossipHello_Blood_Elf_Rogue;
+    newscript->pGossipSelect = &GossipSelect_Blood_Elf_Rogue;
+    newscript->RegisterSelf(false);
+
+    newscript = new Script;
+    newscript->Name = "npc_danath_trollbane";
+    newscript->pGossipHello = &GossipHello_Danath_Trollbane;
+    newscript->pGossipSelect = &GossipSelect_Danath_Trollbane;
+    newscript->RegisterSelf(false);
+
+    newscript = new Script;
     newscript->Name = "custom_enchant_npc";
     newscript->pGossipHello = &GossipHello_EnchantNPC;
     newscript->pGossipSelect = &GossipSelect_EnchantNPC;
@@ -4035,6 +4588,12 @@ void AddSC_custom_creatures()
     newscript->Name = "custom_reforge_npc";
     newscript->pGossipHello = &GossipHello_ReforgeNPC;
     newscript->pGossipSelect = &GossipSelect_ReforgeNPC;
+    newscript->RegisterSelf(false);
+
+    newscript = new Script;
+    newscript->Name = "the_lord_of_sunlight_gwyn";
+    newscript->pGossipHello = &GossipHello_Gwyn;
+    newscript->pGossipSelect = &GossipSelect_Gwyn;
     newscript->RegisterSelf(false);
 
     newscript = new Script;

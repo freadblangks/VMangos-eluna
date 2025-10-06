@@ -72,7 +72,9 @@ struct WarlockConflagrateScript : SpellScript
                     i->GetCasterGuid() == spell->m_caster->GetObjectGuid())
                 {
                     spell->GetUnitTarget()->RemoveAurasByCasterSpell(i->GetId(), spell->m_caster->GetObjectGuid());
-                    coefficientImmolate = 1.0f;
+                    coefficientImmolate = (float(i->GetSpellProto()->spellLevel) / float(spell->m_spellInfo->spellLevel)) * 0.75f;
+                    if (coefficientImmolate > 0.75f)
+                        coefficientImmolate = 0.75f;
                     break;
                 }
             }
@@ -83,7 +85,9 @@ struct WarlockConflagrateScript : SpellScript
                     i->GetCasterGuid() == spell->m_caster->GetObjectGuid())
                 {
                     spell->GetUnitTarget()->RemoveAurasByCasterSpell(i->GetId(), spell->m_caster->GetObjectGuid());
-                    coefficientCurseOfAgony = 2.0f;
+                    coefficientCurseOfAgony = (float(i->GetSpellProto()->spellLevel) / float(spell->m_spellInfo->spellLevel)) * 1.5f;
+                    if (coefficientCurseOfAgony > 1.5f)
+                        coefficientCurseOfAgony = 1.5f;
                     break;
                 }
             }
@@ -94,11 +98,13 @@ struct WarlockConflagrateScript : SpellScript
                     i->GetCasterGuid() == spell->m_caster->GetObjectGuid())
                 {
                     spell->GetUnitTarget()->RemoveAurasByCasterSpell(i->GetId(), spell->m_caster->GetObjectGuid());
-                    coefficientCorruption = 1.5f;
+                    coefficientCorruption = (float(i->GetSpellProto()->spellLevel) / float(spell->m_spellInfo->spellLevel)) * 1.125f;
+                    if (coefficientCorruption > 1.125f)
+                        coefficientCorruption = 1.125f;
                     break;
                 }
             }
-            spell->damage = spell->damage * (coefficientImmolate + coefficientCurseOfAgony + coefficientCorruption);
+            spell->damage = spell->damage * (coefficientImmolate + coefficientCurseOfAgony + coefficientCorruption + 1.0f);
             // Wildfire - Conflagrate
             if (spell->m_casterUnit->HasAura(34359) && spell->GetUnitTarget()->GetHealthPercent() < 50.0f)
                 spell->damage = spell->damage * 1.3f;
@@ -229,8 +235,8 @@ struct WarlockDevourMagicScript : SpellScript
                     sLog.Out(LOG_SCRIPTS, LOG_LVL_DEBUG, "Spell for Devour Magic %d not handled in Spell::EffectDispel", spell->m_spellInfo->Id);
                     return;
             }
-            // Devour Magic - 33% max health bonus
-            uint32 modPoint = basePoint + dither(spell->m_casterUnit->GetMaxHealth() * 0.33f);
+            // Devour Magic - 40% max mana bonus
+            uint32 modPoint = basePoint + dither(spell->m_casterUnit->GetMaxPower(POWER_MANA) * 0.40f);
             //spell->m_casterUnit->CastSpell(spell->m_casterUnit, healSpell, true);
             spell->m_casterUnit->CastCustomSpell(spell->m_casterUnit, healSpell, modPoint, {}, {}, true, nullptr);
         }

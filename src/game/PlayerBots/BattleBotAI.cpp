@@ -78,7 +78,7 @@ uint32 BattleBotAI::GetMountSpellId() const
 {
     if (me->GetLevel() >= 60)
     {
-        if (urand(0, 1))
+        if (urand(0, 99) < 85) // 85% chance
         {
             if (me->GetClass() == CLASS_PALADIN)
                 return BB_SPELL_MOUNT_60_PALADIN;
@@ -843,6 +843,17 @@ void BattleBotAI::UpdateAI(uint32 const diff)
         me->ClearTarget();
 
     Unit* pVictim = me->GetVictim();
+    
+    // Prevent battelbot from chasing target entered stealth mode
+    if (pVictim && !pVictim->IsVisibleForOrDetect(me, me, false))
+    {
+        me->AttackStop();
+        me->ClearTarget();
+        me->StopMoving();
+        if (pVictim = SelectAttackTarget(pVictim))
+            AttackStart(pVictim);
+        return;
+    }
 
     if (!me->IsInCombat())
     {
@@ -2059,7 +2070,6 @@ void BattleBotAI::UpdateInCombatAI_Mage()
 
         if (m_spells.mage.pATuoSiZhiGun &&
             CanTryToCastSpell(pVictim, m_spells.mage.pATuoSiZhiGun) &&
-            (me->GetDistance(pVictim) < 40.0f) &&
             !pVictim->HasAura(34003))
         {
             if (DoCastSpell(pVictim, m_spells.mage.pATuoSiZhiGun) == SPELL_CAST_OK)
@@ -2810,6 +2820,11 @@ void BattleBotAI::UpdateOutOfCombatAI_Warlock()
                 {
                     pPet->ToggleAutocast(11785, true);
                 }
+                //Lesser Invisibility
+                if(pPet->GetLevel() >= 32 && pPet->GetLevel() <= 60)
+                {
+                    pPet->ToggleAutocast(7870, true);
+                }
             }
             else if(pPet->GetEntry() == 417)
             {
@@ -2838,6 +2853,11 @@ void BattleBotAI::UpdateOutOfCombatAI_Warlock()
                 else if(pPet->GetLevel() >= 52 && pPet->GetLevel() <= 60)
                 {
                     pPet->ToggleAutocast(19647, true);
+                }
+                //Paranoia
+                if(pPet->GetLevel() >= 42 && pPet->GetLevel() <= 60)
+                {
+                    pPet->ToggleAutocast(19480, true);
                 }
             }
             if (!pPet->GetVictim())
@@ -3003,6 +3023,11 @@ void BattleBotAI::UpdateInCombatAI_Warlock()
                     {
                         pPet->ToggleAutocast(11785, true);
                     }
+                    //Lesser Invisibility
+                    if(pPet->GetLevel() >= 32 && pPet->GetLevel() <= 60)
+                    {
+                        pPet->ToggleAutocast(7870, true);
+                    }
                 }
                 else if(pPet->GetEntry() == 417)
                 {
@@ -3031,6 +3056,11 @@ void BattleBotAI::UpdateInCombatAI_Warlock()
                     else if(pPet->GetLevel() >= 52 && pPet->GetLevel() <= 60)
                     {
                         pPet->ToggleAutocast(19647, true);
+                    }
+                    //Paranoia
+                    if(pPet->GetLevel() >= 42 && pPet->GetLevel() <= 60)
+                    {
+                        pPet->ToggleAutocast(19480, true);
                     }
                 }
                 if (!pPet->GetVictim())
@@ -3656,7 +3686,7 @@ void BattleBotAI::UpdateInCombatAI_Rogue()
         }
 
         if (m_spells.rogue.pAdrenalineRush &&
-           !me->GetPower(POWER_ENERGY) &&
+            (me->GetPower(POWER_ENERGY) < 5) &&
             CanTryToCastSpell(me, m_spells.rogue.pAdrenalineRush))
         {
             if (DoCastSpell(me, m_spells.rogue.pAdrenalineRush) == SPELL_CAST_OK)
@@ -3718,6 +3748,13 @@ void BattleBotAI::UpdateInCombatAI_Rogue()
             CanTryToCastSpell(pVictim, m_spells.rogue.pBackstab))
         {
             if (DoCastSpell(pVictim, m_spells.rogue.pBackstab) == SPELL_CAST_OK)
+                return;
+        }
+
+        if (m_spells.rogue.pRiposte &&
+            CanTryToCastSpell(pVictim, m_spells.rogue.pRiposte))
+        {
+            if (DoCastSpell(pVictim, m_spells.rogue.pRiposte) == SPELL_CAST_OK)
                 return;
         }
 
@@ -4255,7 +4292,6 @@ void BattleBotAI::UpdateInCombatAI_Druid()
                 }
 
                 if (m_spells.druid.pFaerieFire &&
-                   (pVictim->GetClass() == CLASS_ROGUE) &&
                     CanTryToCastSpell(pVictim, m_spells.druid.pFaerieFire))
                 {
                     if (DoCastSpell(pVictim, m_spells.druid.pFaerieFire) == SPELL_CAST_OK)

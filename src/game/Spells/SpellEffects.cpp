@@ -335,9 +335,32 @@ void Spell::EffectSchoolDMG(SpellEffectIndex effect_idx)
                     }
                     case 27860: // Blade of Eternal Darkness
                     {
-                        // Engulfing Shadows : 100 shadow damage bonus intellect
+                        // Engulfing Shadows : 100 shadow damage bonus 0.5x intellect
+                        if (m_casterUnit && m_casterUnit->GetTypeId() == TYPEID_PLAYER)
+                            damage = damage + m_casterUnit->GetStat(STAT_INTELLECT) * 0.5f;
+                        break;
+                    }
+                    case 34475: // Atiesh, Greatstaff of the Guardian
+                    {
+                        // Arcane Blast : 150 arcane damage bonus 1.0x intellect
                         if (m_casterUnit && m_casterUnit->GetTypeId() == TYPEID_PLAYER)
                             damage = damage + m_casterUnit->GetStat(STAT_INTELLECT);
+                        break;
+                    }
+                    case 20153: // Infernal
+                    {
+                        // Immolation : 30 fire damage bonus 1% max health
+                        Unit* pOwner = m_casterUnit ? m_casterUnit->GetCharmerOrOwner() : nullptr;
+                        if (pOwner && pOwner->GetTypeId() == TYPEID_PLAYER)
+                            damage = damage + m_casterUnit->GetMaxHealth() * 0.01f;
+                        break;
+                    }
+                    case 19482: // Doomguard
+                    {
+                        // War Stomp : 160 physical damage bonus 4% max health
+                        Unit* pOwner = m_casterUnit ? m_casterUnit->GetCharmerOrOwner() : nullptr;
+                        if (pOwner && pOwner->GetTypeId() == TYPEID_PLAYER)
+                            damage = damage + m_casterUnit->GetMaxHealth() * 0.04f;
                         break;
                     }
                 }
@@ -348,32 +371,41 @@ void Spell::EffectSchoolDMG(SpellEffectIndex effect_idx)
             {
                 if (!m_casterUnit)
                     break;
-                // Multi Cast
                 if (Player* pPlayer = ToPlayer(m_casterUnit))
                 {
-                    if (pPlayer->HasAura(34318) && m_spellInfo->IsFitToFamily<SPELLFAMILY_MAGE, CF_MAGE_ARCANE_MISSILES, CF_MAGE_FIREBALL, CF_MAGE_FROSTBOLT>())
+                    if (m_spellInfo->IsFitToFamily<SPELLFAMILY_MAGE, CF_MAGE_ARCANE_MISSILES, CF_MAGE_FIREBALL, CF_MAGE_PYROBLAST, CF_MAGE_FROSTBOLT>())
                     {
-                        uint32 randomchance = urand(1, 100);
-                        // 3% chances deal 4 times damage
-                        if (randomchance >= 98)
+                        // Torment the Weak
+                        if (pPlayer->HasAura(34488))
                         {
-                            damage *= 4;
-                            if (!pPlayer->IsBot())
-                                pPlayer->GetSession()->SendNotification("Multi Cast X4!");
+                            if (unitTarget->HasUnitState(UNIT_STATE_ROOT) || unitTarget->HasAuraType(SPELL_AURA_MOD_DECREASE_SPEED))
+                                damage *= 1.15f;
                         }
-                        // 6% chances deal 3 times damage
-                        else if (randomchance >= 92 && randomchance < 98)
+                        // Multi Cast
+                        if (pPlayer->HasAura(34318))
                         {
-                            damage *= 3;
-                            if (!pPlayer->IsBot())
-                                pPlayer->GetSession()->SendNotification("Multi Cast X3!");
-                        }
-                        // 12% chances deal 2 times damage
-                        else if (randomchance >= 80 && randomchance < 92)
-                        {
-                            damage *= 2;
-                            if (!pPlayer->IsBot())
-                                pPlayer->GetSession()->SendNotification("Multi Cast X2!");
+                            uint32 randomchance = urand(1, 100);
+                            // 3% chances deal 4 times damage
+                            if (randomchance >= 98)
+                            {
+                                damage *= 4;
+                                if (!pPlayer->IsBot())
+                                    pPlayer->GetSession()->SendNotification("Multi Cast X4!");
+                            }
+                            // 6% chances deal 3 times damage
+                            else if (randomchance >= 92 && randomchance < 98)
+                            {
+                                damage *= 3;
+                                if (!pPlayer->IsBot())
+                                    pPlayer->GetSession()->SendNotification("Multi Cast X3!");
+                            }
+                            // 12% chances deal 2 times damage
+                            else if (randomchance >= 80 && randomchance < 92)
+                            {
+                                damage *= 2;
+                                if (!pPlayer->IsBot())
+                                    pPlayer->GetSession()->SendNotification("Multi Cast X2!");
+                            }
                         }
                     }
                     else if (m_spellInfo->Id == 21162) // Sulfuras, Hand of Ragnaros
@@ -396,13 +428,29 @@ void Spell::EffectSchoolDMG(SpellEffectIndex effect_idx)
             }
             case SPELLFAMILY_WARLOCK:
             {
+                if (!m_casterUnit)
+                    break;
                 // Wildfire - Immolate + Searing Pain + Soul Fire
                 if (m_spellInfo->IsFitToFamilyMask<CF_WARLOCK_IMMOLATE, CF_WARLOCK_SEARING_PAIN>() || m_spellInfo->SpellIconID == 184)
                 {
-                    if (!m_casterUnit)
-                        break;
                     if (m_casterUnit->HasAura(34359) && unitTarget->GetHealthPercent() < 50.0f)
                         damage = damage * 1.3f;
+                }
+                // Firestone Attack
+                else if (m_spellInfo->IsFitToFamilyMask<CF_WARLOCK_FIRESTONE_ATTACK>())
+                {
+                    if (m_casterUnit->HasAura(18767))
+                    {
+                        damage = damage + (m_casterUnit->GetStat(STAT_STAMINA) + m_casterUnit->GetStat(STAT_INTELLECT)) * 0.15f;
+                    }
+                    else if (m_casterUnit->HasAura(18768))
+                    {
+                        damage = damage + (m_casterUnit->GetStat(STAT_STAMINA) + m_casterUnit->GetStat(STAT_INTELLECT)) * 0.2f;
+                    }
+                    else
+                    {
+                        damage = damage + (m_casterUnit->GetStat(STAT_STAMINA) + m_casterUnit->GetStat(STAT_INTELLECT)) * 0.1f;
+                    }
                 }
                 break;
             }
@@ -421,6 +469,24 @@ void Spell::EffectSchoolDMG(SpellEffectIndex effect_idx)
                     // DRUID - Rake : damage bonus 3.5% attack power
                     if (m_casterUnit)
                         damage = damage + (m_casterUnit->GetTotalAttackPowerValue(BASE_ATTACK) * 0.035f);
+                }
+                break;
+            }
+            case SPELLFAMILY_ROGUE:
+            {
+                if (!m_casterUnit)
+                    break;
+                // Master Poisoner - instant poison
+                if (m_spellInfo->IsFitToFamilyMask<CF_ROGUE_INSTANT_POISON>())
+                {
+                    if (m_casterUnit->HasAura(34481))
+                    {
+                        damage = damage + (m_casterUnit->GetTotalAttackPowerValue(BASE_ATTACK) * 0.075f);
+                    }
+                    else if (m_casterUnit->HasAura(34482))
+                    {
+                        damage = damage + (m_casterUnit->GetTotalAttackPowerValue(BASE_ATTACK) * 0.15f);
+                    }
                 }
                 break;
             }
@@ -443,9 +509,9 @@ void Spell::EffectSchoolDMG(SpellEffectIndex effect_idx)
                 // Explosive Trap
                 else if (m_spellInfo->Id == 13812 || m_spellInfo->Id == 14314 || m_spellInfo->Id == 14315)
                 {
-                    // HUNTER - Explosive Trap : direct damage bonus 15% hp and mana
+                    // HUNTER - Explosive Trap : direct damage bonus 15% hp
                     if (m_casterUnit)
-                        damage = damage + ((m_casterUnit->GetMaxHealth() + m_casterUnit->GetMaxPower(POWER_MANA)) * 0.15f);
+                        damage = damage + (m_casterUnit->GetMaxHealth() * 0.15f);
                 }
                 break;
             }
@@ -554,8 +620,10 @@ void Spell::EffectDummy(SpellEffectIndex effIdx)
 
                     switch (m_casterGo->GetEntry())
                     {
-                        case 179785:    // Silverwing Flag
-                        case 179786:    // Warsong Flag
+                        case 179785:    // Silverwing Flag (dropped)
+                        case 179786:    // Warsong Flag (dropped)
+                        case 179830:    // Silverwing Flag (base)
+                        case 179831:    // Warsong Flag (base)
                             if (bg->GetTypeID() == BATTLEGROUND_WS)
                                 bg->EventPlayerClickedOnFlag(pPlayer, m_casterGo);
                             break;
@@ -872,6 +940,58 @@ void Spell::EffectDummy(SpellEffectIndex effIdx)
                             pPlayer->RemoveFromGroup();
                         }
                     }
+                    return;
+                }
+                case 34492:
+                {
+                    if (m_caster->GetTypeId() != TYPEID_PLAYER)
+                        return;
+                    if (!m_casterUnit)
+                        return;
+                    float hp_percent = m_casterUnit->GetHealthPercent();
+                    uint32 haste_point = 0;
+                    if (hp_percent > 80.0f)
+                        haste_point = 5;
+                    else if (hp_percent > 60.0f)
+                        haste_point = 10;
+                    else if (hp_percent > 40.0f)
+                        haste_point = 15;
+                    else if (hp_percent > 20.0f)
+                        haste_point = 20;
+                    else
+                        haste_point = 25;
+                    m_casterUnit->CastCustomSpell(m_casterUnit, 34493, haste_point, haste_point, {}, true);
+                    return;
+                }
+                case 34494:
+                {
+                    if (m_caster->GetTypeId() != TYPEID_PLAYER)
+                        return;
+                    if (!m_casterUnit)
+                        return;
+                    if (Pet* pet = m_casterUnit->GetPet())
+                    {
+                        float pet_hp_percent = pet->GetHealthPercent();
+                        int32 pet_damage_percent = 0;
+                        if (pet_hp_percent < 30.0f)
+                            pet_damage_percent = -60;
+                        else if (pet_hp_percent >= 30.0f && pet_hp_percent <= 90.0f)
+                            pet_damage_percent = dither(pet_hp_percent - 90.0f);
+                        else if (pet_hp_percent > 90.0f)
+                            pet_damage_percent = dither(pet_hp_percent * 2 - 180.0f);
+                        m_casterUnit->CastCustomSpell(m_casterUnit, 34344, pet_damage_percent, {}, {}, true);
+                    }
+                    return;
+                }
+                case 34495:
+                {
+                    if (m_caster->GetTypeId() != TYPEID_PLAYER)
+                        return;
+                    if (!m_casterUnit)
+                        return;
+                    // Ice Cold Milk - Remove Drunk Status
+                    if (Player* pPlayer = m_caster->ToPlayer())
+                        pPlayer->SetDrunkValue(0, m_CastItem ? m_CastItem->GetEntry() : 0);
                     return;
                 }
                 case 8344: // Universal Remote
@@ -1517,6 +1637,18 @@ void Spell::EffectDummy(SpellEffectIndex effIdx)
                         m_casterUnit->CastCustomSpell(m_casterUnit, 23782, LifegivingGemHealthMod, {}, {}, true, nullptr);
                     }
                     return;
+                case 24150:                                 // Stinger Charge Primer
+                {
+                    if (!unitTarget)
+                        return;
+
+                    if (unitTarget->HasAura(25187))
+                        m_caster->CastSpell(unitTarget, 25191, true);
+                    else
+                        m_caster->CastSpell(unitTarget, 25190, true);
+
+                    return;
+                }
                 case 24781:                                 // Dream Fog
                 {
                     if (m_caster->GetTypeId() != TYPEID_UNIT || !unitTarget)
@@ -2215,6 +2347,18 @@ void Spell::EffectHeal(SpellEffectIndex effIdx)
 #endif
 
         m_healing += addhealth;
+        // Improved Healthstone
+        if (unitTarget->HasAura(34020) && m_spellInfo->IsFitToFamily<SPELLFAMILY_WARLOCK, CF_WARLOCK_HEALTHSTONE>())
+        {
+            if (unitTarget->HasAura(18692))
+            {
+                m_healing *= 1.5f;
+            }
+            else if (unitTarget->HasAura(18693))
+            {
+                m_healing *= 2.0f;
+            }
+        }
     }
 }
 
@@ -2431,7 +2575,16 @@ void Spell::EffectEnergize(SpellEffectIndex effIdx)
     // Blade of Eternal Darkness
     if (m_spellInfo->Id == 27860 && unitTarget->GetTypeId() == TYPEID_PLAYER)
     {
-        // Engulfing Shadows : 100 mana bonus spirit, Spirit Tap bonus half
+        // Engulfing Shadows : 100 mana bonus 0.5x spirit, Priest - Spirit Tap bonus half
+        if (unitTarget->HasAura(15271))
+            damage += m_casterUnit->GetStat(STAT_SPIRIT) * 0.25f;
+        else
+            damage += m_casterUnit->GetStat(STAT_SPIRIT) * 0.5f;
+    }
+    // Atiesh, Greatstaff of the Guardian
+    else if (m_spellInfo->Id == 34475 && unitTarget->GetTypeId() == TYPEID_PLAYER)
+    {
+        // Arcane Blast : 150 mana bonus 1.0x spirit, Priest - Spirit Tap bonus half
         if (unitTarget->HasAura(15271))
             damage += m_casterUnit->GetStat(STAT_SPIRIT) * 0.5f;
         else
@@ -2527,6 +2680,7 @@ void Spell::EffectOpenLock(SpellEffectIndex effIdx)
                 return;
             }
         }
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_5_1
         else if (goInfo->type == GAMEOBJECT_TYPE_FLAGSTAND)
         {
             //CanUseBattleGroundObject() already called in CheckCast()
@@ -2534,6 +2688,7 @@ void Spell::EffectOpenLock(SpellEffectIndex effIdx)
             if (BattleGround *bg = player->GetBattleGround())
                 return;
         }
+#endif
         lockId = goInfo->GetLockId();
         guid = gameObjTarget->GetObjectGuid();
     }
@@ -3925,12 +4080,15 @@ void Spell::EffectWeaponDmg(SpellEffectIndex effIdx)
         bonus = unitTarget->SpellDamageBonusTaken(m_casterUnit, m_spellInfo, effIdx, bonus, SPELL_DIRECT_DAMAGE);
     }
 
+    // Obsidian Destroyer‌ - Sanity Eclipse - 34091
+    if (m_spellInfo->Id == 34091)
+        bonus *= m_casterUnit->GetPowerPercent(POWER_MANA) / 100.0f;
     // Hunter - Split Shot - 34322
     if (m_spellInfo->Id == 75 && m_casterUnit->HasAura(34322))
         bonus *= 0.7f;
     // Morphling - Frostbolt Volley & Frost Nova
     // Spirit Bear - Radiance
-    if ((m_spellInfo->Id == 34060 || m_spellInfo->Id == 34061 || m_spellInfo->Id == 34078) && (unitTarget->HasAura(118) || unitTarget->HasAura(12824) || unitTarget->HasAura(12825) || unitTarget->HasAura(12826) || unitTarget->HasAura(28271) || unitTarget->HasAura(28272) || unitTarget->HasAura(28270) || unitTarget->HasAura(13327) || unitTarget->HasAura(1090) || unitTarget->HasAura(2637) || unitTarget->HasAura(18657) || unitTarget->HasAura(18658) || unitTarget->HasAura(19503) || unitTarget->HasAura(1499) || unitTarget->HasAura(14310) || unitTarget->HasAura(14311) || unitTarget->HasAura(19386) || unitTarget->HasAura(24132) || unitTarget->HasAura(24133) || unitTarget->HasAura(2878) || unitTarget->HasAura(5627) || unitTarget->HasAura(10326) || unitTarget->HasAura(20066) || unitTarget->HasAura(9484) || unitTarget->HasAura(9485) || unitTarget->HasAura(10955) || unitTarget->HasAura(1776) || unitTarget->HasAura(1777) || unitTarget->HasAura(8629) || unitTarget->HasAura(11285) || unitTarget->HasAura(11286) || unitTarget->HasAura(2094) || unitTarget->HasAura(6770) || unitTarget->HasAura(2070) || unitTarget->HasAura(11297)))
+    if ((m_spellInfo->Id == 34060 || m_spellInfo->Id == 34061 || m_spellInfo->Id == 34078) && (unitTarget->HasAura(118) || unitTarget->HasAura(12824) || unitTarget->HasAura(12825) || unitTarget->HasAura(12826) || unitTarget->HasAura(28271) || unitTarget->HasAura(28272) || unitTarget->HasAura(28270) || unitTarget->HasAura(13327) || unitTarget->HasAura(1090) || unitTarget->HasAura(2637) || unitTarget->HasAura(18657) || unitTarget->HasAura(18658) || unitTarget->HasAura(19503) || unitTarget->HasAura(1499) || unitTarget->HasAura(14310) || unitTarget->HasAura(14311) || unitTarget->HasAura(19386) || unitTarget->HasAura(24132) || unitTarget->HasAura(24133) || unitTarget->HasAura(2878) || unitTarget->HasAura(5627) || unitTarget->HasAura(10326) || unitTarget->HasAura(20066) || unitTarget->HasAura(9484) || unitTarget->HasAura(9485) || unitTarget->HasAura(10955) || unitTarget->HasAura(1776) || unitTarget->HasAura(1777) || unitTarget->HasAura(8629) || unitTarget->HasAura(11285) || unitTarget->HasAura(11286) || unitTarget->HasAura(2094) || unitTarget->HasAura(6770) || unitTarget->HasAura(2070) || unitTarget->HasAura(11297) || unitTarget->HasAura(6358)))
         bonus = 0.f;
     // prevent negative damage
     m_damage += bonus > 0.f ? bonus : 0.f;
@@ -4689,15 +4847,12 @@ void Spell::EffectScriptEffect(SpellEffectIndex effIdx)
                     // Select maintank + 4 random targets
                     std::vector<Unit*> viableTargets;
                     ThreatList const& tl = m_casterUnit->GetThreatManager().getThreatList();
-                    for (const auto it : tl)
+                    for (auto const& itr : tl)
                     {
-                        if (it->getUnitGuid().IsPlayer())
+                        if (Player* pPlayer = itr->getTarget()->ToPlayer())
                         {
-                            if (Unit* pUnit = m_casterUnit->GetMap()->GetUnit(it->getUnitGuid()))
-                            {
-                                if (pUnit->IsAlive())
-                                    viableTargets.push_back(pUnit);
-                            }
+                            if (pPlayer->IsAlive())
+                                viableTargets.push_back(pPlayer);
                         }
                     }
 
@@ -6227,10 +6382,6 @@ void Spell::EffectTransmitted(SpellEffectIndex effIdx)
             }
             break;
         }
-        case GAMEOBJECT_TYPE_FISHINGHOLE:
-        case GAMEOBJECT_TYPE_CHEST:
-        default:
-            break;
     }
 
     pGameObj->SetRespawnTime(duration > 0 ? duration / IN_MILLISECONDS : 0);

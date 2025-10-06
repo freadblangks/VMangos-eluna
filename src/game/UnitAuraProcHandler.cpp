@@ -730,11 +730,11 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 amount, uint
                     ++triggeredByAura->GetModifier()->m_amount;
                     triggerAmount = triggeredByAura->GetModifier()->m_amount;
 
-                    if (triggerAmount == 10)
+                    if (triggerAmount == 20)
                         MonsterTextEmote(11346, this, true); // begins to crack!
-                    else if (triggerAmount == 20)
+                    else if (triggerAmount == 40)
                         MonsterTextEmote(11347, nullptr, true); // looks ready to shatter!
-                    else if (triggerAmount == 30)
+                    else if (triggerAmount == 60)
                     {
                         RemoveAurasDueToSpell(25937);
                         triggered_spell_id = 25938; // Explode
@@ -791,6 +791,24 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 amount, uint
 
                     target = this;
                     break;
+                }
+                // Leech Life
+                case 34479:
+                case 34484:
+                case 34485:
+                {
+                    if (this->GetTypeId() != TYPEID_PLAYER)
+                        return SPELL_AURA_PROC_FAILED;
+                    if (!pVictim)
+                        return SPELL_AURA_PROC_FAILED;
+                    int32 leech_life_total = this->HasAura_34477_34478_total();
+                    if (leech_life_total <= 0)
+                        return SPELL_AURA_PROC_FAILED;
+                    // heal amount
+                    basepoints[0] = dither(leech_life_total * amount / 100);
+                    target = this;
+                    triggered_spell_id = 34480;
+                    break;                               // no hidden cooldown
                 }
                 // Hunter: Headshot
                 case 34010:

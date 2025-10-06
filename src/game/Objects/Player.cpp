@@ -989,7 +989,7 @@ void Player::OnMirrorTimerExpirationPulse(MirrorTimer::Type timer)
             EnvironmentalDamage(DAMAGE_DROWNING, ((GetMaxHealth() / 5) + urand(0, (GetLevel() - 1))));
             break;
         case MirrorTimer::ENVIRONMENTAL:
-            if (IsInMagma())
+            if (IsInMagma() && GetMapId() != 557)
                 EnvironmentalDamage(DAMAGE_LAVA, urand(sWorld.getConfig(CONFIG_UINT32_ENVIRONMENTAL_DAMAGE_MIN), sWorld.getConfig(CONFIG_UINT32_ENVIRONMENTAL_DAMAGE_MAX)));
             // FIXME: Need to skip slime damage in Undercity, maybe someone can find better way to handle environmental damage
             //if (IsInSlime() && m_zoneUpdateId != 1497 && m_zoneUpdateId != 3456)
@@ -3848,10 +3848,10 @@ bool Player::AddSpell(uint32 spellId, bool active, bool learning, bool dependent
 
 bool Player::IsNeedCastPassiveLikeSpellAtLearn(SpellEntry const* spellInfo) const
 {
-    if (spellInfo->HasAttribute(SPELL_ATTR_EX_CAST_WHEN_LEARNED))
-        return true;
-
     ShapeshiftForm form = GetShapeshiftForm();
+
+    if (spellInfo->HasAttribute(SPELL_ATTR_EX_CAST_WHEN_LEARNED) && spellInfo->GetErrorAtShapeshiftedCast(form) == SPELL_CAST_OK)
+        return true;
 
     if (spellInfo->IsNeedCastSpellAtFormApply(form))        // SPELL_ATTR_PASSIVE | SPELL_ATTR_DO_NOT_DISPLAY spells
         return true;                                        // all stance req. cases, not have auarastate cases
@@ -3861,7 +3861,7 @@ bool Player::IsNeedCastPassiveLikeSpellAtLearn(SpellEntry const* spellInfo) cons
 
     // note: form passives activated with shapeshift spells be implemented by HandleShapeshiftBoosts instead of spell_learn_spell
     // talent dependent passives activated at form apply have proper stance data
-    bool need_cast = (!spellInfo->Stances || (!form && (spellInfo->AttributesEx2 & SPELL_ATTR_EX2_ALLOW_WHILE_NOT_SHAPESHIFTED)));
+    bool need_cast = (!spellInfo->Stances || (!form && spellInfo->HasAttribute(SPELL_ATTR_EX2_ALLOW_WHILE_NOT_SHAPESHIFTED)));
 
     // Check CasterAuraStates
     return need_cast && (!spellInfo->CasterAuraState || HasAuraState(AuraState(spellInfo->CasterAuraState)));
@@ -9883,10 +9883,14 @@ InventoryResult Player::CanEquipItem(uint8 slot, uint16& dest, ItemPrototype con
         // check this only in game
         if (not_loading)
         {
+            // World of Warcraft Client Patch 1.6.0 (2005-07-12)
+            // - It will no longer be possible to swap any equipment while stunned. 
             // May be here should be more stronger checks; STUNNED checked
             // ROOT, CONFUSED, DISTRACTED, FLEEING this needs to be checked.
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_5_1
             if (HasUnitState(UNIT_STATE_STUNNED | UNIT_STATE_PENDING_STUNNED))
                 return EQUIP_ERR_YOU_ARE_STUNNED;
+#endif
 
             // do not allow equipping gear except weapons, offhands, projectiles, relics in
             // - combat
@@ -9898,7 +9902,11 @@ InventoryResult Player::CanEquipItem(uint8 slot, uint16& dest, ItemPrototype con
 
             // prevent equip item in process logout
             if (GetSession()->IsLogingOut())
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_5_1
                 return EQUIP_ERR_YOU_ARE_STUNNED;
+#else
+                return EQUIP_ERR_CANT_DO_RIGHT_NOW;
+#endif
 
             if (IsInCombat() && pProto->Class == ITEM_CLASS_WEAPON && m_weaponChangeTimer != 0)
                 return EQUIP_ERR_CANT_DO_RIGHT_NOW;         // maybe exist better err
@@ -10017,7 +10025,11 @@ InventoryResult Player::CanUnequipItem(uint16 pos, bool swap) const
 
     // prevent unequip item in process logout
     if (GetSession()->IsLogingOut())
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_5_1
         return EQUIP_ERR_YOU_ARE_STUNNED;
+#else
+        return EQUIP_ERR_CANT_DO_RIGHT_NOW;
+#endif
 
     if (!swap && pItem->IsBag() && !((Bag*)pItem)->IsEmpty())
         return EQUIP_ERR_CAN_ONLY_DO_WITH_EMPTY_BAGS;
@@ -10220,9 +10232,6 @@ InventoryResult Player::CanUseItem(Item const* pItem, bool not_loading) const
         if (!IsAlive() && not_loading)
             return EQUIP_ERR_YOU_ARE_DEAD;
 
-        //if (isStunned())
-        //    return EQUIP_ERR_YOU_ARE_STUNNED;
-
         ItemPrototype const* pProto = pItem->GetProto();
         if (pProto)
         {
@@ -10293,8 +10302,7 @@ InventoryResult Player::CanUseAmmo(uint32 item) const
     sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "STORAGE: CanUseAmmo item = %u", item);
     if (!IsAlive())
         return EQUIP_ERR_YOU_ARE_DEAD;
-    //if (isStunned())
-    //    return EQUIP_ERR_YOU_ARE_STUNNED;
+
     ItemPrototype const* pProto = sObjectMgr.GetItemPrototype(item);
     if (pProto)
     {
@@ -15773,10 +15781,10 @@ bool Player::_LoadInventory(std::unique_ptr<QueryResult> result, uint32 timediff
         //NOTE2: the "order by `slot`" is needed because mainhand weapons are (wrongly?)
         //expected to be equipped before offhand items (TODO: fixme)
 
-        std::set<uint32> itemGuids;
+        std::unordered_set<uint32> itemGuids;
         uint32 zone = GetZoneId();
 
-        std::list<Item*> problematicItems;
+        std::vector<Item*> problematicItems;
 
         // prevent items from being added to the queue when stored
         m_itemUpdateQueueBlocked = true;
@@ -15983,8 +15991,8 @@ bool Player::_LoadInventory(std::unique_ptr<QueryResult> result, uint32 timediff
 
             for (int i = 0; !problematicItems.empty() && i < MAX_MAIL_ITEMS; ++i)
             {
-                Item* item = problematicItems.front();
-                problematicItems.pop_front();
+                Item* item = problematicItems.back();
+                problematicItems.pop_back();
 
                 draft.AddItem(item);
             }
@@ -17041,16 +17049,26 @@ void Player::_SaveInventory()
         itr.item->SetEnchantmentDuration(itr.slot, itr.leftduration);
 
     // if no changes
-    if (m_itemUpdateQueue.empty()) return;
+    if (m_itemUpdateQueue.empty())
+        return;
 
     for (auto& item : m_itemUpdateQueue)
     {
         if (!item)
+        {
+            //sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "_SaveInventory - Null item pointer found in item update queue of %s.", GetGuidStr().c_str());
             continue;
+        }
+
+        if (item->IsDeleted())
+        {
+            sLog.Out(LOG_BASIC, LOG_LVL_ERROR, "_SaveInventory - Already deleted item pointer found in item update queue of %s.", GetGuidStr().c_str());
+            continue;
+        }
 
         if (item->GetState() != ITEM_REMOVED)
         {
-            // Plusieurs tests anti dupli ...
+            // Several anti-duplicate tests ...
             Item* test = GetItemByPos(item->GetBagSlot(), item->GetSlot());
 
             if (test == nullptr)
@@ -17078,12 +17096,13 @@ void Player::_SaveInventory()
                 continue;
             }
         }
+
         if (item->GetOwnerGuid() != GetObjectGuid())
             GetSession()->ProcessAnticheatAction("PassiveAnticheat", "_SaveInventory: attempting to save not owned item", CHEAT_ACTION_LOG | CHEAT_ACTION_REPORT_GMS);
 
-        static SqlStatementID insertInventory ;
-        static SqlStatementID updateInventory ;
-        static SqlStatementID deleteInventory ;
+        static SqlStatementID insertInventory;
+        static SqlStatementID updateInventory;
+        static SqlStatementID deleteInventory;
 
         Bag* container = item->GetContainer();
         uint32 bagGuid = container ? container->GetGUIDLow() : 0;
@@ -17108,8 +17127,8 @@ void Player::_SaveInventory()
                 stmt.addUInt64(item->GetLootingTime()); // Modification - trading in loot for two hours.
                 stmt.addString(item->GetRaidGroup()); // Modification - trading in loot for two hours.
                 stmt.Execute();
+                break;
             }
-            break;
             case ITEM_CHANGED:
             {
                 SqlStatement stmt = CharacterDatabase.CreateStatement(updateInventory, "UPDATE `character_inventory` SET `guid` = ?, `bag` = ?, `slot` = ?, `item_id` = ?, `looting_date` = ?, `raid_group` = ? WHERE `item_guid` = ?");
@@ -17121,14 +17140,14 @@ void Player::_SaveInventory()
                 stmt.addString(item->GetRaidGroup()); // Modification - trading in loot for two hours.
                 stmt.addUInt32(item->GetGUIDLow());
                 stmt.Execute();
+                break;
             }
-            break;
             case ITEM_REMOVED:
             {
                 SqlStatement stmt = CharacterDatabase.CreateStatement(deleteInventory, "DELETE FROM `character_inventory` WHERE `item_guid` = ?");
                 stmt.PExecute(item->GetGUIDLow());
+                break;
             }
-            break;
             case ITEM_UNCHANGED:
                 break;
         }
@@ -19195,7 +19214,7 @@ void RemoveBroadcastListener(Player* target, Player* me)
 
 // specialization for players so we can exclude self
 template<>
-void Player::UpdateVisibilityOf<Player>(WorldObject const* viewPoint, Player* target, UpdateData& data, std::set<WorldObject*>& visibleNow)
+void Player::UpdateVisibilityOf<Player>(WorldObject const* viewPoint, Player* target, UpdateData& data)
 {
     // own player is always visible
     if (target == this)
@@ -19221,7 +19240,6 @@ void Player::UpdateVisibilityOf<Player>(WorldObject const* viewPoint, Player* ta
     {
         if (target->FindMap() && target->isWithinVisibilityDistanceOf(this, viewPoint, inVisibleList) && target->IsVisibleForInState(this, viewPoint, false))
         {
-            visibleNow.insert(target);
             target->BuildCreateUpdateBlockForPlayer(data, this);
             std::unique_lock<std::shared_timed_mutex> lock(m_visibleGUIDs_lock);
             UpdateVisibilityOf_helper(m_visibleGUIDs, target);
@@ -19235,7 +19253,7 @@ void Player::UpdateVisibilityOf<Player>(WorldObject const* viewPoint, Player* ta
 
 // handles all other objects except players
 template<class T>
-void Player::UpdateVisibilityOf(WorldObject const* viewPoint, T* target, UpdateData& data, std::set<WorldObject*>& visibleNow)
+void Player::UpdateVisibilityOf(WorldObject const* viewPoint, T* target, UpdateData& data)
 {
     bool inVisibleList = IsInVisibleList(target);
     if (inVisibleList)
@@ -19257,7 +19275,6 @@ void Player::UpdateVisibilityOf(WorldObject const* viewPoint, T* target, UpdateD
     {
         if (target->FindMap() && target->isWithinVisibilityDistanceOf(this, viewPoint, inVisibleList) && target->IsVisibleForInState(this, viewPoint, false))
         {
-            visibleNow.insert(target);
             target->BuildCreateUpdateBlockForPlayer(data, this);
             std::unique_lock<std::shared_timed_mutex> lock(m_visibleGUIDs_lock);
             UpdateVisibilityOf_helper(m_visibleGUIDs, target);
@@ -19269,12 +19286,12 @@ void Player::UpdateVisibilityOf(WorldObject const* viewPoint, T* target, UpdateD
     }
 }
 
-template void Player::UpdateVisibilityOf(WorldObject const* viewPoint, Player*        target, UpdateData& data, std::set<WorldObject*>& visibleNow);
-template void Player::UpdateVisibilityOf(WorldObject const* viewPoint, Creature*      target, UpdateData& data, std::set<WorldObject*>& visibleNow);
-template void Player::UpdateVisibilityOf(WorldObject const* viewPoint, Corpse*        target, UpdateData& data, std::set<WorldObject*>& visibleNow);
-template void Player::UpdateVisibilityOf(WorldObject const* viewPoint, GameObject*    target, UpdateData& data, std::set<WorldObject*>& visibleNow);
-template void Player::UpdateVisibilityOf(WorldObject const* viewPoint, DynamicObject* target, UpdateData& data, std::set<WorldObject*>& visibleNow);
-template void Player::UpdateVisibilityOf(WorldObject const* viewPoint, WorldObject*   target, UpdateData& data, std::set<WorldObject*>& visibleNow);
+template void Player::UpdateVisibilityOf(WorldObject const* viewPoint, Player*        target, UpdateData& data);
+template void Player::UpdateVisibilityOf(WorldObject const* viewPoint, Creature*      target, UpdateData& data);
+template void Player::UpdateVisibilityOf(WorldObject const* viewPoint, Corpse*        target, UpdateData& data);
+template void Player::UpdateVisibilityOf(WorldObject const* viewPoint, GameObject*    target, UpdateData& data);
+template void Player::UpdateVisibilityOf(WorldObject const* viewPoint, DynamicObject* target, UpdateData& data);
+template void Player::UpdateVisibilityOf(WorldObject const* viewPoint, WorldObject*   target, UpdateData& data);
 
 void Player::LeaveCombatWithFarAwayCreatures()
 {
@@ -20799,6 +20816,9 @@ void Player::AutoStoreLoot(Loot& loot, bool broadcast, uint8 bag, uint8 slot)
     for (uint32 i = 0; i < maxSlot; ++i)
     {
         LootItem* lootItem = loot.LootItemInSlot(i, GetGUIDLow());
+        if (!lootItem)
+            continue;
+
         // Don't bypass conditions
         if (lootItem->conditionId && !lootItem->AllowedForPlayer(this, loot.GetLootTarget()))
             continue;

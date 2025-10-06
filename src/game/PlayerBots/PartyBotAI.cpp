@@ -779,8 +779,7 @@ void PartyBotAI::UpdateAI(uint32 const diff)
 
         // Teleport to leader if too far away.
         // C'Thun room do not teleport
-        // Blackrock Mountain balcony
-        if ((!me->IsWithinDistInMap(pLeader, 100.0f) && !IsInDuel() && !((me->GetZoneId() == 3428) && (pLeader->GetZoneId() == 3428) && (me->GetPositionZ() - pLeader->GetPositionZ() > 150))) || (me->GetZoneId() == 25 && pLeader->GetZoneId() == 25 && pLeader->GetPositionZ() >= 285.0f && pLeader->GetPositionZ() <= 286.0f && !me->IsWithinDistInMap(pLeader, 10.0f)))
+        if (!me->IsWithinDistInMap(pLeader, 100.0f) && !IsInDuel() && !((me->GetZoneId() == 3428) && (pLeader->GetZoneId() == 3428) && (me->GetPositionZ() - pLeader->GetPositionZ() > 150)))
         {
             if (!me->IsStopped())
                 me->StopMoving();
@@ -842,7 +841,7 @@ void PartyBotAI::UpdateAI(uint32 const diff)
                     me->HasAuraType(SPELL_AURA_MOD_SHAPESHIFT))
                     me->RemoveSpellsCausingAura(SPELL_AURA_MOD_SHAPESHIFT);
 
-                if (me->GetLevel() >= 60 && me->GetMapId() != MAP_AHN_QIRAJ_TEMPLE && urand(0, 1))
+                if (me->GetLevel() >= 60 && me->GetMapId() != MAP_AHN_QIRAJ_TEMPLE && urand(0, 99) < 20)
                 {
                     bool oldStateCastTime = me->HasCheatOption(PLAYER_CHEAT_NO_CAST_TIME);
                     bool oldStatePower = me->HasCheatOption(PLAYER_CHEAT_NO_POWER);
@@ -906,11 +905,12 @@ void PartyBotAI::UpdateOutOfCombatAI()
 {
     if (!IsInDuel())
     {
-        if (m_resurrectionSpell)
-            if (Player* pTarget = SelectResurrectionTarget())
-                if (CanTryToCastSpell(pTarget, m_resurrectionSpell))
-                    if (DoCastSpell(pTarget, m_resurrectionSpell) == SPELL_CAST_OK)
-                        return;
+        if (me->GetClass() != CLASS_DRUID)
+            if (m_resurrectionSpell)
+                if (Player* pTarget = SelectResurrectionTarget())
+                    if (CanTryToCastSpell(pTarget, m_resurrectionSpell))
+                        if (DoCastSpell(pTarget, m_resurrectionSpell) == SPELL_CAST_OK)
+                            return;
 
         if (m_role != ROLE_TANK && me->GetVictim() && CrowdControlMarkedTargets())
             return;
@@ -2029,7 +2029,6 @@ void PartyBotAI::UpdateInCombatAI_Mage()
 
         if (m_spells.mage.pATuoSiZhiGun &&
             CanTryToCastSpell(pVictim, m_spells.mage.pATuoSiZhiGun) &&
-            (me->GetDistance(pVictim) < 40.0f) &&
             !pVictim->HasAura(34003))
         {
             if (DoCastSpell(pVictim, m_spells.mage.pATuoSiZhiGun) == SPELL_CAST_OK)
@@ -2892,6 +2891,11 @@ void PartyBotAI::UpdateOutOfCombatAI_Warlock()
                 {
                     pPet->ToggleAutocast(11785, true);
                 }
+                //Lesser Invisibility
+                if(pPet->GetLevel() >= 32 && pPet->GetLevel() <= 60)
+                {
+                    pPet->ToggleAutocast(7870, true);
+                }
             }
             else if(pPet->GetEntry() == 417)
             {
@@ -2920,6 +2924,11 @@ void PartyBotAI::UpdateOutOfCombatAI_Warlock()
                 else if(pPet->GetLevel() >= 52 && pPet->GetLevel() <= 60)
                 {
                     pPet->ToggleAutocast(19647, true);
+                }
+                //Paranoia
+                if(pPet->GetLevel() >= 42 && pPet->GetLevel() <= 60)
+                {
+                    pPet->ToggleAutocast(19480, true);
                 }
             }
             if (!pPet->GetVictim())
@@ -3085,6 +3094,11 @@ void PartyBotAI::UpdateInCombatAI_Warlock()
                     {
                         pPet->ToggleAutocast(11785, true);
                     }
+                    //Lesser Invisibility
+                    if(pPet->GetLevel() >= 32 && pPet->GetLevel() <= 60)
+                    {
+                        pPet->ToggleAutocast(7870, true);
+                    }
                 }
                 else if(pPet->GetEntry() == 417)
                 {
@@ -3113,6 +3127,11 @@ void PartyBotAI::UpdateInCombatAI_Warlock()
                     else if(pPet->GetLevel() >= 52 && pPet->GetLevel() <= 60)
                     {
                         pPet->ToggleAutocast(19647, true);
+                    }
+                    //Paranoia
+                    if(pPet->GetLevel() >= 42 && pPet->GetLevel() <= 60)
+                    {
+                        pPet->ToggleAutocast(19480, true);
                     }
                 }
                 if (!pPet->GetVictim())
@@ -3825,7 +3844,7 @@ void PartyBotAI::UpdateInCombatAI_Rogue()
         }
 
         if (m_spells.rogue.pAdrenalineRush &&
-           !me->GetPower(POWER_ENERGY) &&
+            (me->GetPower(POWER_ENERGY) < 5) &&
             CanTryToCastSpell(me, m_spells.rogue.pAdrenalineRush))
         {
             if (DoCastSpell(me, m_spells.rogue.pAdrenalineRush) == SPELL_CAST_OK)
@@ -3887,6 +3906,13 @@ void PartyBotAI::UpdateInCombatAI_Rogue()
             CanTryToCastSpell(pVictim, m_spells.rogue.pBackstab))
         {
             if (DoCastSpell(pVictim, m_spells.rogue.pBackstab) == SPELL_CAST_OK)
+                return;
+        }
+
+        if (m_spells.rogue.pRiposte &&
+            CanTryToCastSpell(pVictim, m_spells.rogue.pRiposte))
+        {
+            if (DoCastSpell(pVictim, m_spells.rogue.pRiposte) == SPELL_CAST_OK)
                 return;
         }
 
@@ -4500,7 +4526,6 @@ void PartyBotAI::UpdateInCombatAI_Druid()
             }
 
             if (m_spells.druid.pFaerieFire &&
-               (pVictim->GetClass() == CLASS_ROGUE) &&
                 CanTryToCastSpell(pVictim, m_spells.druid.pFaerieFire))
             {
                 if (DoCastSpell(pVictim, m_spells.druid.pFaerieFire) == SPELL_CAST_OK)

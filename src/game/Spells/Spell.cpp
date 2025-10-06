@@ -1919,11 +1919,12 @@ void Spell::DoSpellHitOnUnit(Unit* unit, uint32 effectMask)
 
     // Get Data Needed for Diminishing Returns, some effects may have multiple auras, so this must be done on spell hit, not aura add
     m_diminishGroup = m_spellInfo->GetDiminishingReturnsGroup(m_triggeredByAuraSpell);
-    // Fingerslayer Blade - item 26044
-    // Improved Sap - talent 14095
     // Improved Enslave Demon - talent 18825
-    if ((m_spellInfo->IsFitToFamily<SPELLFAMILY_MAGE, CF_MAGE_POLYMORPH>() && pRealUnitCaster->HasAura(34319)) || (m_spellInfo->IsFitToFamily<SPELLFAMILY_ROGUE, CF_ROGUE_SAP>() && pRealUnitCaster->HasAura(14095)) || (m_spellInfo->IsFitToFamily<SPELLFAMILY_WARLOCK, CF_WARLOCK_ENSLAVE_DEMON>() && pRealUnitCaster->HasAura(18825)) || ((m_spellInfo->Id == 5782 || m_spellInfo->Id == 6213 || m_spellInfo->Id == 6215 || m_spellInfo->Id == 5484 || m_spellInfo->Id == 17928) && pRealUnitCaster->HasAura(34469)))
+    // Scream of Pain - talent 34469
+    if ((m_spellInfo->IsFitToFamily<SPELLFAMILY_WARLOCK, CF_WARLOCK_ENSLAVE_DEMON>() && pRealUnitCaster->HasAura(18825)) || ((m_spellInfo->Id == 5782 || m_spellInfo->Id == 6213 || m_spellInfo->Id == 6215 || m_spellInfo->Id == 5484 || m_spellInfo->Id == 17928) && pRealUnitCaster->HasAura(34469)))
+    {
         m_diminishGroup = DIMINISHING_NONE;
+    }
     m_diminishLevel = unit->GetDiminishing(m_diminishGroup);
 
     // Apply additional spell effects to target
@@ -3262,7 +3263,11 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
                                 // clear cooldown at fail
                                 if (m_caster->IsPlayer())
                                     m_caster->RemoveSpellCooldown(*m_spellInfo, true);
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_5_1
                                 SendCastResult(SPELL_FAILED_NO_EDIBLE_CORPSES);
+#else
+                                SendCastResult(SPELL_FAILED_BAD_IMPLICIT_TARGETS);
+#endif
                                 finish(false);
                             }
                             break;
@@ -3905,11 +3910,6 @@ void Spell::cast(bool skipCheck)
             break;
         case SPELLFAMILY_PRIEST:
         {
-            // Power Word: Shield
-            // Nostalrius : Ivina : removed 27779 from cases = priest T0/T0.5 shield proc.
-            if (m_spellInfo->IsFitToFamily<SPELLFAMILY_PRIEST, CF_PRIEST_POWER_WORD_SHIELD>() && (m_spellInfo->Id != 27779))
-                AddPrecastSpell(6788);                      // Weakened Soul
-
             switch (m_spellInfo->Id)
             {
                 case 15237:
@@ -4744,8 +4744,10 @@ void Spell::SendCastResult(Player* caster, SpellEntry const* spellInfo, SpellCas
                 data << uint32(sSpellMgr.GetRequiredAreaForSpell(spellInfo->Id));
                 break;
             case SPELL_FAILED_EQUIPPED_ITEM_CLASS:
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_5_1
             case SPELL_FAILED_EQUIPPED_ITEM_CLASS_MAINHAND:
-#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_10_2
+#endif
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_9_4
             case SPELL_FAILED_EQUIPPED_ITEM_CLASS_OFFHAND:
 #endif
                 data << uint32(spellInfo->EquippedItemClass);
@@ -5813,6 +5815,13 @@ SpellCastResult Spell::CheckCast(bool strict)
 
         switch (m_spellInfo->Id)
         {
+            // Charge
+            case 100:
+            case 6178:
+            case 11578:
+                if (m_casterUnit->IsInCombat() && !m_casterUnit->HasAura(34476))
+                    return SPELL_FAILED_AFFECTING_COMBAT;
+                break;
             // Frost Trap
             case 13809:
             // Freezing Trap
@@ -5856,6 +5865,17 @@ SpellCastResult Spell::CheckCast(bool strict)
                     else
                         return SPELL_FAILED_NOT_HERE;
                 }
+                break;
+            // Mage - Kelens Dagger of Escape
+            // Rogue - Hound Steps
+            // can not be used in Blackrock Spire specific areas
+            case 34002:
+            case 34372:
+                if (m_casterUnit->GetMapId() == MAP_BLACKROCK_SPIRE)
+                    if (m_casterUnit->GetPositionX() >= -20.0f && m_casterUnit->GetPositionX() <= 50.0f)
+                        if (m_casterUnit->GetPositionY() >= -370.0f && m_casterUnit->GetPositionY() <= -290.0f)
+                            if (m_casterUnit->GetPositionZ() >= 30.0f && m_casterUnit->GetPositionZ() <= 100.0f)
+                                return SPELL_FAILED_NOT_HERE;
                 break;
         }
 
@@ -7738,10 +7758,12 @@ SpellCastResult Spell::CheckItems()
             if (m_IsTriggeredSpell)
                 return SPELL_FAILED_DONT_REPORT;
 
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_5_1
             if (m_spellInfo->HasAttribute(SPELL_ATTR_EX3_REQUIRES_MAIN_HAND_WEAPON))
                 return SPELL_FAILED_EQUIPPED_ITEM_CLASS_MAINHAND;
+#endif
 
-#if SUPPORTED_CLIENT_BUILD >= CLIENT_BUILD_1_10_2
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_9_4
             if (m_spellInfo->HasAttribute(SPELL_ATTR_EX3_REQUIRES_OFFHAND_WEAPON))
                 return SPELL_FAILED_EQUIPPED_ITEM_CLASS_OFFHAND;
 #endif
