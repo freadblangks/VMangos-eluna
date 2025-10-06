@@ -37,6 +37,9 @@
 #include "Database/DatabaseEnv.h"
 
 // Target server framerate is 1000/WORLD_SLEEP_CONST
+#ifdef ENABLE_ELUNA
+#include "LuaEngine.h"
+#endif
 #define WORLD_SLEEP_CONST 50
 
 #ifdef WIN32
@@ -63,7 +66,11 @@ void WorldRunnable::operator()()
     auto prevTime = WorldTimer::getMSTime();
     uint32 currTime = 0u;
 
-    // While we have not World::m_stopEvent, update the world
+    uint32 prevSleepTime = 0;                               // used for balanced full tick time length near WORLD_SLEEP_CONST
+
+#ifdef ENABLE_ELUNA
+    sWorld.GetEluna()->OnStartup();
+#endif
     while (!World::IsStopped())
     {
         ++World::m_worldLoopCounter;
@@ -116,6 +123,11 @@ void WorldRunnable::operator()()
     }
 
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Shutting down world...");
+
+#ifdef ENABLE_ELUNA
+    sWorld.GetEluna()->OnShutdown();
+#endif
+
     sWorld.Shutdown();
 
     // unload battleground templates before different singletons destroyed
@@ -127,6 +139,5 @@ void WorldRunnable::operator()()
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Unloading all maps...");
     sMapMgr.UnloadAll();                                    // unload all grids (including locked in memory)
 
-    // End the database thread
     WorldDatabase.ThreadEnd();                              // free mySQL thread resources
 }

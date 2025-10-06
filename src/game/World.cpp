@@ -85,6 +85,11 @@
 #include "TransportMgr.h"
 #include "RealmZone.h"
 #include <chrono>
+#ifdef ENABLE_ELUNA
+#include "LuaEngine.h"
+#include "ElunaConfig.h"
+#include "ElunaLoader.h"
+#endif
 
 INSTANTIATE_SINGLETON_1(World);
 
@@ -948,6 +953,13 @@ void World::LoadConfigSettings(bool reload)
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "WORLD: VMap data directory is: %svmaps", m_dataPath.c_str());
     setConfig(CONFIG_BOOL_MMAP_ENABLED, "mmap.enabled", true);
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "WORLD: mmap pathfinding %sabled", getConfig(CONFIG_BOOL_MMAP_ENABLED) ? "en" : "dis");
+#ifdef ENABLE_ELUNA
+    if (reload)
+    {
+        if (Eluna* e = GetEluna())
+            e->OnConfigLoad(reload);
+    }
+#endif
 
     setConfig(CONFIG_UINT32_EMPTY_MAPS_UPDATE_TIME, "MapUpdate.Empty.UpdateTime", 0);
     setConfigMinMax(CONFIG_UINT32_MAP_OBJECTSUPDATE_THREADS, "MapUpdate.ObjectsUpdate.MaxThreads", 4, 1, 20);
@@ -1426,6 +1438,21 @@ void World::SetInitialWorldSettings()
     sObjectMgr.SetHighestGuids();                           // must be after packing instances
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
 
+#ifdef ENABLE_ELUNA
+    //need to be set here, or will leads to error when loading Transports
+    ELUNA_LOG_INFO("Loading Eluna config...");
+    sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
+    sElunaConfig->Initialize();
+
+    if (sElunaConfig->IsElunaEnabled())
+    {
+        ///- Initialize Lua Engine
+        ELUNA_LOG_INFO("Loading Lua scripts...");
+        sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
+        sElunaLoader->LoadScripts();
+    }
+#endif
+
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Broadcast Texts...");
     sObjectMgr.LoadBroadcastTexts();
 
@@ -1694,6 +1721,19 @@ void World::SetInitialWorldSettings()
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Petitions...");
     sGuildMgr.LoadPetitions();
 
+#ifdef ENABLE_ELUNA
+    if (sElunaConfig->IsElunaEnabled())
+    {
+        ///- Run eluna scripts.
+        sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "");
+        ELUNA_LOG_INFO("Starting Eluna world state...");
+        // use map id -1 for the global Eluna state
+        m_elunaInfo = {ElunaInfoKey::MakeGlobalKey(0)};
+        sElunaMgr->Create(nullptr, m_elunaInfo);
+        ELUNA_LOG_INFO("");
+    }
+#endif
+
     sLog.Out(LOG_BASIC, LOG_LVL_MINIMAL, "Loading Groups...");
     sObjectMgr.LoadGroups();
 
@@ -1878,6 +1918,11 @@ void World::SetInitialWorldSettings()
 
     sAnticheatMgr->StartWardenUpdateThread();
 
+#ifdef ENABLE_ELUNA
+    if (GetEluna())
+        GetEluna()->OnConfigLoad(false); // Must be done after Eluna is initialized and scripts have run
+    ELUNA_LOG_INFO("");
+#endif
     m_broadcaster =
         std::make_unique<MovementBroadcaster>(getConfig(CONFIG_UINT32_PACKET_BCAST_THREADS),
                                               std::chrono::milliseconds(getConfig(CONFIG_UINT32_PACKET_BCAST_FREQUENCY)));
@@ -2051,6 +2096,14 @@ void World::Update(uint32 diff)
     sBattleGroundMgr.Update(diff);
     sGuardMgr.Update(diff);
     sZoneScriptMgr.Update(diff);
+
+#ifdef ENABLE_ELUNA
+    if (Eluna* e = GetEluna())
+    {
+        e->UpdateEluna(diff);
+        e->OnWorldUpdate(diff);
+    }
+#endif
 
     // Update groups with offline leaders
     if (m_timers[WUPDATE_GROUPS].Passed())
@@ -2702,6 +2755,10 @@ void World::ShutdownServ(uint32 time, uint32 options, uint8 exitcode)
         m_ShutdownTimer = time;
         ShutdownMsg(true);
     }
+#ifdef ENABLE_ELUNA
+    if (Eluna* e = GetEluna())
+        e->OnShutdownInitiate(ShutdownExitCode(exitcode), ShutdownMask(options));
+#endif
 }
 
 // Display a shutdown message to the user(s)
@@ -2749,6 +2806,10 @@ void World::ShutdownCancel()
     SendServerMessage(msgid);
 
     sLog.Out(LOG_BASIC, LOG_LVL_DEBUG, "Server %s cancelled.", (m_ShutdownMask & SHUTDOWN_MASK_RESTART ? "restart" : "shutdown"));
+#ifdef ENABLE_ELUNA
+    if (Eluna* e = GetEluna())
+        e->OnShutdownCancel();
+#endif
 }
 
 // Send a server message to the user(s)

@@ -56,6 +56,12 @@
 #include "MovementBroadcaster.h"
 #include "PlayerBroadcaster.h"
 
+#ifdef ENABLE_ELUNA
+#include "LuaEngine.h"
+#include "ElunaConfig.h"
+#include "ElunaEventMgr.h"
+#endif
+
 ////////////////////////////////////////////////////////////
 // Methods of class MovementInfo
 
@@ -1450,12 +1456,14 @@ void WorldObject::SetVisibilityModifier(float f)
 }
 
 WorldObject::WorldObject()
-    :   m_isActiveObject(false), m_visibilityModifier(DEFAULT_VISIBILITY_MODIFIER), m_currMap(nullptr),
+    :   
+        m_isActiveObject(false), m_visibilityModifier(DEFAULT_VISIBILITY_MODIFIER), m_currMap(nullptr),
         m_mapId(0), m_instanceId(0), m_summonLimitAlert(0), m_worldMask(WORLD_DEFAULT_OBJECT), m_zoneScript(nullptr),
         m_transport(nullptr)
 {
     m_movementInfo.stime = WorldTimer::getMSTime();
 }
+
 
 void WorldObject::CleanupsBeforeDelete()
 {
@@ -2273,6 +2281,24 @@ void WorldObject::SetMap(Map* map)
     m_mapId = map->GetId();
     m_instanceId = map->GetInstanceId();
 
+#ifdef ENABLE_ELUNA
+    // always reset Map events, then recreate the Map events procesor if Eluna is enabled for the mapAdd commentMore actions
+    auto& events = GetElunaEvents(m_mapId);
+    if (events)
+        events.reset();
+
+    if (Eluna* e = map->GetEluna())
+        events = std::make_unique<ElunaEventProcessor>(e, this);
+
+    // create the World events processor
+    if (Eluna* e = sWorld.GetEluna())
+    {
+        auto& events = GetElunaEvents(-1);
+        if (!events)
+            events = std::make_unique<ElunaEventProcessor>(e, this);
+    }
+#endif
+
     // Order is important, must be done after m_currMap is set
     SetZoneScript();
 }
@@ -2465,6 +2491,12 @@ Creature* WorldObject::SummonCreature(uint32 id, float x, float y, float z, floa
         ((Creature*)this)->AI()->JustSummoned(pCreature);
     else if (IsGameObject() && ((GameObject*)this)->AI())
         ((GameObject*)this)->AI()->JustSummoned(pCreature);
+
+#ifdef ENABLE_ELUNA
+    if (Unit* summoner = ToUnit())
+        if (Eluna* e = GetEluna())
+            e->OnSummoned(pCreature, summoner);
+#endif
 
     // Creature Linking, Initial load is handled like respawn
     if (pCreature->IsLinkingEventTrigger())
@@ -3748,3 +3780,13 @@ bool WorldObject::IsValidHelpfulTarget(Unit const* target, bool checkAlive) cons
 
     return true;
 }
+
+#ifdef ENABLE_ELUNA
+Eluna* WorldObject::GetEluna() const
+{
+    if (IsInWorld())
+        return GetMap()->GetEluna();
+
+    return nullptr;
+}
+#endif

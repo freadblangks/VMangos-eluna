@@ -37,6 +37,10 @@
 #include "Camera.h"
 #include "Cell.h"
 #include <string>
+#ifdef ENABLE_ELUNA
+#include "LuaValue.h"
+#include "ElunaEventMgr.h"
+#endif
 
 class WorldPacket;
 class UpdateData;
@@ -55,6 +59,10 @@ class ZoneScript;
 class GenericTransport;
 struct FactionEntry;
 struct FactionTemplateEntry;
+#ifdef ENABLE_ELUNA
+class ElunaEventProcessor;
+class Eluna;
+#endif
 
 class NULLNotifier
 {
@@ -479,7 +487,7 @@ class WorldObject : public Object
                 WorldObject* const m_obj;
         };
 
-        virtual ~WorldObject () override {}
+        virtual ~WorldObject() override {}
 
         virtual void Update(uint32 /*update_diff*/, uint32 /*time_diff*/);
 
@@ -802,6 +810,17 @@ class WorldObject : public Object
         uint32 GetCreatureSummonLimit() const;
         void SetCreatureSummonLimit(uint32 limit);
 
+		
+#ifdef ENABLE_ELUNA
+        std::unique_ptr<ElunaEventProcessor> elunaMapEvents;
+        std::unique_ptr<ElunaEventProcessor> elunaWorldEvents;
+
+        Eluna* GetEluna() const;
+
+        std::unique_ptr<ElunaEventProcessor>& GetElunaEvents(int32 mapId) { return (mapId == -1) ? elunaWorldEvents : elunaMapEvents; }
+
+        LuaVal lua_data = LuaVal({});
+#endif 
     protected:
         explicit WorldObject();
 
