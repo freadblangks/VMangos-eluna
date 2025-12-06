@@ -215,7 +215,6 @@ Map::Map(uint32 id, time_t expiry, uint32 InstanceId)
 
 #ifdef ENABLE_ELUNA
     if (sElunaConfig->IsElunaEnabled() && sElunaConfig->ShouldMapLoadEluna(id))
-        if (!Instanceable())
         {
             m_elunaInfo = {ElunaInfoKey::MakeKey(GetId(), GetInstanceId())};
             sElunaMgr->Create(this, m_elunaInfo);
