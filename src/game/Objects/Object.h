@@ -62,6 +62,7 @@ struct FactionEntry;
 struct FactionTemplateEntry;
 #ifdef ENABLE_ELUNA
 class ElunaEventProcessor;
+class ElunaEventProcessorInfo;
 class Eluna;
 #endif
 
@@ -808,12 +809,12 @@ class WorldObject : public Object
 
 		
 #ifdef ENABLE_ELUNA
-        std::unique_ptr<ElunaEventProcessor> elunaMapEvents;
-        std::unique_ptr<ElunaEventProcessor> elunaWorldEvents;
+        std::unique_ptr<ElunaProcessorInfo> elunaMapEvents;
+        std::unique_ptr<ElunaProcessorInfo> elunaWorldEvents;
 
         Eluna* GetEluna() const;
 
-        std::unique_ptr<ElunaEventProcessor>& GetElunaEvents(int32 mapId) { return (mapId == -1) ? elunaWorldEvents : elunaMapEvents; }
+        ElunaEventProcessor* GetElunaEvents(int32 mapId);
 
         LuaVal lua_data = LuaVal({});
 #endif 
