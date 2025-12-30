@@ -93,24 +93,27 @@ ChatCommand * ChatHandler::getCommandTable()
 
     static ChatCommand partyBotCommandTable[] =
     {
-        { "add",        SEC_ADMINISTRATOR,      false, &ChatHandler::HandlePartyBotAddCommand,         "", nullptr },
-        { "clone",      SEC_ADMINISTRATOR,      false, &ChatHandler::HandlePartyBotCloneCommand,       "", nullptr },
-        { "load",       SEC_ADMINISTRATOR,      false, &ChatHandler::HandlePartyBotLoadCommand,        "", nullptr },
-        { "setrole",    SEC_ADMINISTRATOR,      false, &ChatHandler::HandlePartyBotSetRoleCommand,     "", nullptr },
-        { "attackstart",SEC_ADMINISTRATOR,      false, &ChatHandler::HandlePartyBotAttackStartCommand, "", nullptr },
-        { "attackstop", SEC_ADMINISTRATOR,      false, &ChatHandler::HandlePartyBotAttackStopCommand,  "", nullptr },
-        { "pull",       SEC_ADMINISTRATOR,      false, &ChatHandler::HandlePartyBotPullCommand,        "", nullptr },
-        { "aoe",        SEC_ADMINISTRATOR,      false, &ChatHandler::HandlePartyBotAoECommand,         "", nullptr },
-        { "ccmark",     SEC_ADMINISTRATOR,      false, &ChatHandler::HandlePartyBotControlMarkCommand, "", nullptr },
-        { "focusmark",  SEC_ADMINISTRATOR,      false, &ChatHandler::HandlePartyBotFocusMarkCommand,   "", nullptr },
-        { "clearmarks", SEC_ADMINISTRATOR,      false, &ChatHandler::HandlePartyBotClearMarksCommand,  "", nullptr },
-        { "cometome",   SEC_ADMINISTRATOR,      false, &ChatHandler::HandlePartyBotComeToMeCommand,    "", nullptr },
-        { "usegobject", SEC_ADMINISTRATOR,      false, &ChatHandler::HandlePartyBotUseGObjectCommand,  "", nullptr },
-        { "pause",      SEC_ADMINISTRATOR,      false, &ChatHandler::HandlePartyBotPauseCommand,       "", nullptr },
-        { "unpause",    SEC_ADMINISTRATOR,      false, &ChatHandler::HandlePartyBotUnpauseCommand,     "", nullptr },
-        { "unequip",    SEC_ADMINISTRATOR,      false, &ChatHandler::HandlePartyBotUnequipCommand,     "", nullptr },
-        { "remove",     SEC_ADMINISTRATOR,      false, &ChatHandler::HandlePartyBotRemoveCommand,      "", nullptr },
-        { nullptr,      0,                      false, nullptr,                                        "", nullptr },
+        { "add",            SEC_ADMINISTRATOR,      false, &ChatHandler::HandlePartyBotAddCommand,              "", nullptr },
+        { "clone",          SEC_ADMINISTRATOR,      false, &ChatHandler::HandlePartyBotCloneCommand,            "", nullptr },
+        { "load",           SEC_ADMINISTRATOR,      false, &ChatHandler::HandlePartyBotLoadCommand,             "", nullptr },
+        { "authorizeadd",   SEC_ADMINISTRATOR,      false, &ChatHandler::HandlePartyBotAuthorizeAddCommand,     "", nullptr },
+        { "authorizeshow",  SEC_ADMINISTRATOR,      false, &ChatHandler::HandlePartyBotAuthorizeShowCommand,    "", nullptr },
+        { "authorizeclear", SEC_ADMINISTRATOR,      false, &ChatHandler::HandlePartyBotAuthorizeClearCommand,   "", nullptr },
+        { "setrole",        SEC_ADMINISTRATOR,      false, &ChatHandler::HandlePartyBotSetRoleCommand,          "", nullptr },
+        { "attackstart",    SEC_ADMINISTRATOR,      false, &ChatHandler::HandlePartyBotAttackStartCommand,      "", nullptr },
+        { "attackstop",     SEC_ADMINISTRATOR,      false, &ChatHandler::HandlePartyBotAttackStopCommand,       "", nullptr },
+        { "pull",           SEC_ADMINISTRATOR,      false, &ChatHandler::HandlePartyBotPullCommand,             "", nullptr },
+        { "aoe",            SEC_ADMINISTRATOR,      false, &ChatHandler::HandlePartyBotAoECommand,              "", nullptr },
+        { "ccmark",         SEC_ADMINISTRATOR,      false, &ChatHandler::HandlePartyBotControlMarkCommand,      "", nullptr },
+        { "focusmark",      SEC_ADMINISTRATOR,      false, &ChatHandler::HandlePartyBotFocusMarkCommand,        "", nullptr },
+        { "clearmarks",     SEC_ADMINISTRATOR,      false, &ChatHandler::HandlePartyBotClearMarksCommand,       "", nullptr },
+        { "cometome",       SEC_ADMINISTRATOR,      false, &ChatHandler::HandlePartyBotComeToMeCommand,         "", nullptr },
+        { "usegobject",     SEC_ADMINISTRATOR,      false, &ChatHandler::HandlePartyBotUseGObjectCommand,       "", nullptr },
+        { "pause",          SEC_ADMINISTRATOR,      false, &ChatHandler::HandlePartyBotPauseCommand,            "", nullptr },
+        { "unpause",        SEC_ADMINISTRATOR,      false, &ChatHandler::HandlePartyBotUnpauseCommand,          "", nullptr },
+        { "unequip",        SEC_ADMINISTRATOR,      false, &ChatHandler::HandlePartyBotUnequipCommand,          "", nullptr },
+        { "remove",         SEC_ADMINISTRATOR,      false, &ChatHandler::HandlePartyBotRemoveCommand,           "", nullptr },
+        { nullptr,          0,                      false, nullptr,                                             "", nullptr },
     };
     static ChatCommand battleBotAddCommandTable[] =
     {
@@ -2578,7 +2581,9 @@ void ChatHandler::BuildChatPacket(WorldPacket& data, ChatMsg msgtype, char const
         case CHAT_MSG_CHANNEL:
             MANGOS_ASSERT(channelName);
             data << channelName;
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_5_1
             data << uint32(playerRank);
+#endif
             data << ObjectGuid(senderGuid);
             break;
 
@@ -4077,3 +4082,4 @@ char const* NullChatHandler::GetMangosString(int32 entry) const
 {
     return sObjectMgr.GetMangosStringForDBCLocale(entry);
 }
+

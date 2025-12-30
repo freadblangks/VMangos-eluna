@@ -1052,6 +1052,21 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 amount, uint
                         return SPELL_AURA_PROC_FAILED;
                     break;
                 }
+                // priest: impenetrable thorns
+                case 34513:
+                {
+                    if (this->GetTypeId() != TYPEID_PLAYER)
+                        return SPELL_AURA_PROC_FAILED;
+                    if (!pVictim)
+                        return SPELL_AURA_PROC_FAILED;
+                    if (!this->HasAura(6788))
+                        return SPELL_AURA_PROC_FAILED;
+                    // reflect damage amount
+                    basepoints[0] = dither(amount * 0.25f + this->GetUInt32Value(PLAYER_FIELD_MOD_DAMAGE_DONE_POS + SPELL_SCHOOL_SHADOW) * 0.25f);
+                    target = pVictim;
+                    triggered_spell_id = 34514;
+                    break;                               // no hidden cooldown
+                }
                 // Obsidian Armor (Justice Bearer`s Pauldrons shoulder)
                 case 27539:
                 {
@@ -1145,6 +1160,56 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 amount, uint
 
                     CastSpell(this, 28682, true, castItem, triggeredByAura);
                     return (procEx & PROC_EX_CRITICAL_HIT) ? SPELL_AURA_PROC_OK : SPELL_AURA_PROC_FAILED; // charge update only at crit hits, no hidden cooldowns
+                }
+                // Flame, Grant me Strength
+                case 34500:
+                {
+                    if (!pVictim)
+                        return SPELL_AURA_PROC_FAILED;
+
+                    if (procEx & PROC_EX_CRITICAL_HIT)
+                    {
+                        if (HasAura(34501))
+                        {
+                            RemoveAurasDueToSpell(34501);
+                            CastSpell(this, 34502, true, castItem, triggeredByAura);
+                            return SPELL_AURA_PROC_OK;
+                        }
+                        else
+                        {
+                            CastSpell(this, 34501, true, castItem, triggeredByAura);
+                            return SPELL_AURA_PROC_OK;
+                        }
+                    }
+                    else
+                    {
+                        if (HasAura(34501))
+                            RemoveAurasDueToSpell(34501);
+                        return SPELL_AURA_PROC_FAILED;
+                    }
+
+                    return SPELL_AURA_PROC_OK;
+                }
+                // Deep Freeze
+                case 34507:
+                {
+                    if (this->GetTypeId() != TYPEID_PLAYER)
+                        return SPELL_AURA_PROC_FAILED;
+                    if (!pVictim)
+                        return SPELL_AURA_PROC_FAILED;
+
+                    if (pVictim->IsImmuneToSpell(sSpellMgr.GetSpellEntry(34508), false) || pVictim->HasAura(34508))
+                    {
+                        basepoints[0] = dither(this->GetUInt32Value(PLAYER_FIELD_MOD_DAMAGE_DONE_POS + SPELL_SCHOOL_FROST) * 2.0f);
+                        target = pVictim;
+                        triggered_spell_id = 34509;
+                    }
+                    else
+                    {
+                        target = pVictim;
+                        triggered_spell_id = 34508;
+                    }
+                    break;
                 }
             }
             break;
@@ -1932,7 +1997,16 @@ SpellAuraProcResult Unit::HandleProcTriggerSpellAuraProc(Unit* pVictim, uint32 a
             {
                 if (Spell* spell = GetCurrentSpell(CURRENT_GENERIC_SPELL))
                 {
-                    spell->AddTriggeredSpell(trigger_spell_id);
+                    if (Unit* pTarget = spell->m_targets.getUnitTarget())
+                    {
+                        m_Events.AddLambdaEventAtOffset([me = this, targetGuid = pTarget->GetObjectGuid(), trigger_spell_id]()
+                        {
+                            if (!me->IsInWorld() || !me->IsAlive())
+                                return;
+                            if (Unit* pTarget = me->GetMap()->GetUnit(targetGuid))
+                                me->CastSpell(pTarget, trigger_spell_id, true);
+                        }, BATCHING_INTERVAL);
+                    }
                     return SPELL_AURA_PROC_OK;
                 }
                 return SPELL_AURA_PROC_FAILED;

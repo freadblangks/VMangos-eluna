@@ -251,7 +251,7 @@ bool PartyBotAI::ShouldAutoRevive() const
 
             if (pMember->IsAlive())
             {
-                if (IsHealerClass(pMember->GetClass()))
+                if (IsHealerClass(pMember->GetClass()) && pMember->GetClass() != CLASS_DRUID && !(pMember->IsBot() && pMember->GetClass() == CLASS_PRIEST && pMember->HasAura(15473)))
                     return false;
 
                 if (me->IsWithinDistInMap(pMember, 15.0f))
@@ -683,7 +683,7 @@ void PartyBotAI::UpdateAI(uint32 const diff)
         return;
     }
 
-    if (pLeader->IsTaxiFlying())
+    if (pLeader->IsTaxiFlying() || pLeader->HasAura(34499))
     {
         if (me->GetMotionMaster()->GetCurrentMovementGeneratorType())
         {
@@ -3332,6 +3332,7 @@ void PartyBotAI::UpdateOutOfCombatAI_Warrior()
             pPet->ToggleAutocast(34118, true);
             pPet->ToggleAutocast(34119, true);
             pPet->ToggleAutocast(34120, true);
+            pPet->ToggleAutocast(34511, true);
             if (!pPet->GetVictim())
             {
                 pPet->GetCharmInfo()->SetIsCommandAttack(true);
@@ -3364,6 +3365,7 @@ void PartyBotAI::UpdateInCombatAI_Warrior()
                 pPet->ToggleAutocast(34118, true);
                 pPet->ToggleAutocast(34119, true);
                 pPet->ToggleAutocast(34120, true);
+                pPet->ToggleAutocast(34511, true);
                 if (!pPet->GetVictim())
                 {
                     pPet->GetCharmInfo()->SetIsCommandAttack(true);
