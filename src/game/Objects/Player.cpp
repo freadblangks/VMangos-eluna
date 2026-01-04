@@ -14017,7 +14017,7 @@ void Player::SetQuestStatus(uint32 questId, QuestStatus status)
     }
 #ifdef ENABLE_ELUNA
     if (Eluna* e = GetEluna())
-        e->OnQuestStatusChanged(this, quest_id, status);
+        e->OnQuestStatusChanged(this, questId, status);
 #endif
 }
 
