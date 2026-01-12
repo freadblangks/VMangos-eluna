@@ -183,7 +183,7 @@ WorldSocket::HandlerResult WorldSocket::_HandleCompleteReceivedPacket(std::uniqu
 
 #ifdef ENABLE_ELUNA
                 if (!sWorld.GetEluna()->OnPacketReceive(m_Session, *packet))
-                    return 0;
+                    return HandlerResult::Okay;
 #endif /* ENABLE_ELUNA */
 
                 return _HandleAuthSession(*packet);
