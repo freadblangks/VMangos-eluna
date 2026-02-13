@@ -335,6 +335,7 @@ public:
             SpellEntry const* pWaterTotem;
             SpellEntry const* pManaTideTotem;
             SpellEntry const* pWeaponBuff;
+            SpellEntry const* pTotemicRecall;
         } shaman;
         struct
         {
@@ -571,6 +572,7 @@ public:
 
     bool m_initialized = false;
     bool m_isBuffing = false;
+    bool m_preventCasting = false;
     bool m_receivedBgInvite = false;
     uint8 m_visualHonorRank = 0;
     CombatBotRoles m_role = ROLE_INVALID;

@@ -683,7 +683,7 @@ void PartyBotAI::UpdateAI(uint32 const diff)
         return;
     }
 
-    if (pLeader->IsTaxiFlying() || pLeader->HasAura(34499))
+    if (pLeader->IsTaxiFlying() || pLeader->HasAura(34524) || pLeader->HasAura(34499))
     {
         if (me->GetMotionMaster()->GetCurrentMovementGeneratorType())
         {
@@ -1460,7 +1460,25 @@ void PartyBotAI::UpdateOutOfCombatAI_Shaman()
         UpdateInCombatAI_Shaman();
     }
     else
+    {
         SummonPetIfNeeded();
+
+        if (sWorld.getConfig(CONFIG_SHAMAN_BOT_TOTEM) == 1)
+        {
+            for (int slot = TOTEM_SLOT_FIRE; slot < MAX_TOTEM_SLOT; slot++)
+            {
+                if (me->GetTotem(TotemSlot(slot)))
+                {
+                    if (m_spells.shaman.pTotemicRecall &&
+                        CanTryToCastSpell(me, m_spells.shaman.pTotemicRecall))
+                    {
+                        if (DoCastSpell(me, m_spells.shaman.pTotemicRecall) == SPELL_CAST_OK)
+                            return;
+                    }
+                }
+            }
+        }
+    }
 }
 
 void PartyBotAI::UpdateInCombatAI_Shaman()
@@ -2804,6 +2822,11 @@ void PartyBotAI::UpdateOutOfCombatAI_Warlock()
             }
             else if(pPet->GetEntry() == 1860)
             {
+                //Heartstopper Aura
+                if(pPet->GetLevel() >= 10)
+                {
+                    pPet->ToggleAutocast(34527, true);
+                }
                 //Torment
                 if(pPet->GetLevel() >= 10 && pPet->GetLevel() < 20)
                 {
@@ -2899,6 +2922,23 @@ void PartyBotAI::UpdateOutOfCombatAI_Warlock()
             }
             else if(pPet->GetEntry() == 417)
             {
+                //Tainted Blood
+                if(pPet->GetLevel() >= 32 && pPet->GetLevel() < 40)
+                {
+                    pPet->ToggleAutocast(19478, true);
+                }
+                else if(pPet->GetLevel() >= 40 && pPet->GetLevel() < 48)
+                {
+                    pPet->ToggleAutocast(19655, true);
+                }
+                else if(pPet->GetLevel() >= 48 && pPet->GetLevel() < 56)
+                {
+                    pPet->ToggleAutocast(19656, true);
+                }
+                else if(pPet->GetLevel() >= 56 && pPet->GetLevel() <= 60)
+                {
+                    pPet->ToggleAutocast(19660, true);
+                }
                 //Devour Magic
                 if(pPet->GetLevel() >= 30 && pPet->GetLevel() < 38)
                 {
@@ -3007,6 +3047,11 @@ void PartyBotAI::UpdateInCombatAI_Warlock()
                 }
                 else if(pPet->GetEntry() == 1860)
                 {
+                    //Heartstopper Aura
+                    if(pPet->GetLevel() >= 10)
+                    {
+                        pPet->ToggleAutocast(34527, true);
+                    }
                     //Torment
                     if(pPet->GetLevel() >= 10 && pPet->GetLevel() < 20)
                     {
@@ -3102,6 +3147,23 @@ void PartyBotAI::UpdateInCombatAI_Warlock()
                 }
                 else if(pPet->GetEntry() == 417)
                 {
+                    //Tainted Blood
+                    if(pPet->GetLevel() >= 32 && pPet->GetLevel() < 40)
+                    {
+                        pPet->ToggleAutocast(19478, true);
+                    }
+                    else if(pPet->GetLevel() >= 40 && pPet->GetLevel() < 48)
+                    {
+                        pPet->ToggleAutocast(19655, true);
+                    }
+                    else if(pPet->GetLevel() >= 48 && pPet->GetLevel() < 56)
+                    {
+                        pPet->ToggleAutocast(19656, true);
+                    }
+                    else if(pPet->GetLevel() >= 56 && pPet->GetLevel() <= 60)
+                    {
+                        pPet->ToggleAutocast(19660, true);
+                    }
                     //Devour Magic
                     if(pPet->GetLevel() >= 30 && pPet->GetLevel() < 38)
                     {

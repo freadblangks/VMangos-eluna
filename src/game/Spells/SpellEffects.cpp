@@ -363,6 +363,12 @@ void Spell::EffectSchoolDMG(SpellEffectIndex effect_idx)
                             damage = damage + m_casterUnit->GetMaxHealth() * 0.04f;
                         break;
                     }
+                    case 34528: // Voidwalker - Heartstopper Aura
+                    {
+                        if (m_casterUnit)
+                            damage = damage + m_casterUnit->GetMaxHealth() * 0.015f;
+                        break;
+                    }
                 }
                 break;
             }
@@ -451,6 +457,13 @@ void Spell::EffectSchoolDMG(SpellEffectIndex effect_idx)
                     {
                         damage = damage + (m_casterUnit->GetStat(STAT_STAMINA) + m_casterUnit->GetStat(STAT_INTELLECT)) * 0.1f;
                     }
+                }
+                // Succubus - Lash of Pain
+                else if (m_spellInfo->IsFitToFamilyMask<CF_WARLOCK_SUCCUBUS_LASH_OF_PAIN>())
+                {
+                    if (m_casterUnit->HasAura(23836))
+                        if (urand(1, 100) < 25)
+                            m_casterUnit->CastSpell(unitTarget, 34542, true);
                 }
                 break;
             }
@@ -757,7 +770,7 @@ void Spell::EffectDummy(SpellEffectIndex effIdx)
                         return;
                     // Warlock Demonic Circle : Summon
                     if (Player* pCaster = static_cast<Player*>(m_caster))
-                        CharacterDatabase.PExecute("replace into `character_warlock_demonic_circle` (`guid`, `map_id`, `instance_id`, `position_x`, `position_y`, `position_z`, `orientation`, `timer`) VALUES (%u, %u, %u, %f, %f, %f, %f, %u)", pCaster->GetObjectGuid(), pCaster->GetMapId(), pCaster->GetInstanceId(), pCaster->GetPositionX(), pCaster->GetPositionY(), pCaster->GetPositionZ(), pCaster->GetOrientation(), getTimestamp());
+                        CharacterDatabase.PExecute("replace into `character_warlock_demonic_circle` (`guid`, `type`, `map_id`, `instance_id`, `position_x`, `position_y`, `position_z`, `orientation`, `timer`) VALUES (%u, %u, %u, %u, %f, %f, %f, %f, %u)", pCaster->GetObjectGuid(), 1, pCaster->GetMapId(), pCaster->GetInstanceId(), pCaster->GetPositionX(), pCaster->GetPositionY(), pCaster->GetPositionZ(), pCaster->GetOrientation(), getTimestamp());
                     return;
                 }
                 case 34295:
@@ -770,16 +783,31 @@ void Spell::EffectDummy(SpellEffectIndex effIdx)
                         std::unique_ptr<QueryResult> result = CharacterDatabase.PQuery("SELECT position_x, position_y, position_z, orientation FROM `character_warlock_demonic_circle` WHERE `guid`='%u' and `map_id`='%u' and `timer`>='%u' and `timer`<='%u' and `instance_id`='%u'", pCaster->GetObjectGuid(), pCaster->GetMapId(), getTimestamp()-300, getTimestamp(), pCaster->GetInstanceId());
                         if (result)
                         {
-                            Field* fields = result->Fetch();
-                            float x = fields[0].GetFloat();
-                            float y = fields[1].GetFloat();
-                            float z = fields[2].GetFloat();
-                            float o = fields[3].GetFloat();
-                            if (pCaster->GetDistance(x,y,z) <= 50.0f)
+                            float maximumDistance = 0.0f;
+                            float maximumDistance_x = 0.0f;
+                            float maximumDistance_y = 0.0f;
+                            float maximumDistance_z = 0.0f;
+                            float maximumDistance_o = 0.0f;
+                            do
                             {
-                                pCaster->TeleportTo(pCaster->GetMapId(), x, y, z, o);
-                                pCaster->CastSpell(pCaster, 5579, true);
+                                Field* fields = result->Fetch();
+                                float x = fields[0].GetFloat();
+                                float y = fields[1].GetFloat();
+                                float z = fields[2].GetFloat();
+                                float o = fields[3].GetFloat();
+                                float distance = pCaster->GetDistance(x,y,z);
+                                if (distance <= 60.0f && distance >= maximumDistance)
+                                {
+                                    maximumDistance = distance;
+                                    maximumDistance_x = x;
+                                    maximumDistance_y = y;
+                                    maximumDistance_z = z;
+                                    maximumDistance_o = o;
+                                }
                             }
+                            while (result->NextRow());
+                            pCaster->TeleportTo(pCaster->GetMapId(), maximumDistance_x, maximumDistance_y, maximumDistance_z, maximumDistance_o);
+                            pCaster->CastSpell(pCaster, 5579, true);
                         }
                     }
                     return;
@@ -1007,6 +1035,52 @@ void Spell::EffectDummy(SpellEffectIndex effIdx)
                         m_casterUnit->CastCustomSpell(m_casterUnit, 34498, -dither(m_casterUnit->GetStat(STAT_SPIRIT) * 0.2f), {}, {}, true);
                     return;
                 }
+                case 34524:
+                {
+                    if (m_caster->GetTypeId() != TYPEID_PLAYER)
+                        return;
+                    if (!m_casterUnit)
+                        return;
+                    // Horn of Dragonborn
+                    if (Player* player = m_casterUnit->ToPlayer())
+                    {
+                        uint32 questId = 0;
+                        switch (player->GetRace())
+                        {
+                            case RACE_HUMAN:
+                            case RACE_DWARF:
+                            case RACE_NIGHTELF:
+                            case RACE_GNOME:
+                                questId = 10011;
+                                break;
+                            case RACE_ORC:
+                            case RACE_UNDEAD:
+                            case RACE_TAUREN:
+                            case RACE_TROLL:
+                                questId = 10012;
+                                break;
+                        }
+                        if (questId && player->GetQuestStatus(questId) == QUEST_STATUS_COMPLETE)
+                        {
+                            if (Pet* pet = player->GetPet())
+                            {
+                                pet->Unsummon(PET_SAVE_NOT_IN_SLOT);
+                                if (player->GetClass() == CLASS_WARLOCK && (pet->GetEntry() == 417 || pet->GetEntry() == 1860 || pet->GetEntry() == 1863))
+                                    player->AddItem(6265);
+                            }
+                            player->SetCheatFly(true, false);
+                            player->CastSpell(player, 34506, true);
+                            player->SetObjectScale(0.5f);
+                            player->UpdateModelData();
+                            player->SendSysMessage("Jump to switch from flying to running.");
+                        }
+                        else
+                        {
+                            player->SendSysMessage("Only dragonborn can do.");
+                        }
+                    }
+                    return;
+                }
                 case 34499:
                 {
                     if (m_caster->GetTypeId() != TYPEID_PLAYER)
@@ -1048,6 +1122,22 @@ void Spell::EffectDummy(SpellEffectIndex effIdx)
                     // Ji Feng Bu
                     m_casterUnit->CastSpell(m_casterUnit, 34107, true);
                     m_casterUnit->CastSpell(m_casterUnit, 34111, true);
+                    return;
+                }
+                case 34538:
+                {
+                    if (m_caster->GetTypeId() != TYPEID_UNIT)
+                        return;
+                    if (!m_casterUnit)
+                        return;
+                    // Eye of Kilrogg - Demonic Circle : Summon
+                    if (Player* pCharmer = ::ToPlayer(m_casterUnit->GetCharmer()))
+                        if (pCharmer->GetClass() == CLASS_WARLOCK && pCharmer->HasItemCount(6265, 1))
+                        {
+                            pCharmer->DestroyItemCount(6265, 1, true);
+                            CharacterDatabase.PExecute("replace into `character_warlock_demonic_circle` (`guid`, `type`, `map_id`, `instance_id`, `position_x`, `position_y`, `position_z`, `orientation`, `timer`) VALUES (%u, %u, %u, %u, %f, %f, %f, %f, %u)", pCharmer->GetObjectGuid(), 2, m_casterUnit->GetMapId(), m_casterUnit->GetInstanceId(), m_casterUnit->GetPositionX(), m_casterUnit->GetPositionY(), m_casterUnit->GetPositionZ(), m_casterUnit->GetOrientation(), getTimestamp());                        
+                            m_casterUnit->DealDamage(m_casterUnit, m_casterUnit->GetHealth(), nullptr, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, nullptr, false);
+                        }
                     return;
                 }
                 case 8344: // Universal Remote

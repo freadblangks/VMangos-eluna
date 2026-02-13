@@ -1060,10 +1060,19 @@ void Spell::CleanupTargetList()
 
 uint32 Spell::GetSpellBatchingEffectDelay(SpellCaster const* pTarget, SpellEffectIndex effIndex) const
 {
+    if (!sWorld.getConfig(CONFIG_UINT32_SPELL_EFFECT_DELAY))
+        return 0;
+
+    if (pTarget == m_casterUnit && !m_spellInfo->EffectChainTarget[effIndex])
+        return 0;
+
+    // Fix creatures getting an attack in before Sap applies.
+    if (pTarget->IsCreature() && m_spellInfo->HasAttribute(SPELL_ATTR_EX_ONLY_PEACEFUL_TARGETS))
+        return 0;
+
     // This tries to recreate the feeling of spell effect execution being done in batches,
     // by syncing the delay of effects to the world timer so they happen simultaneously.
-    return ((sWorld.getConfig(CONFIG_UINT32_SPELL_EFFECT_DELAY) && (pTarget != m_casterUnit || m_spellInfo->EffectChainTarget[effIndex])) ?
-           (sWorld.getConfig(CONFIG_UINT32_SPELL_EFFECT_DELAY) - (WorldTimer::getMSTime() % sWorld.getConfig(CONFIG_UINT32_SPELL_EFFECT_DELAY))) : 0);
+    return (sWorld.getConfig(CONFIG_UINT32_SPELL_EFFECT_DELAY) - (WorldTimer::getMSTime() % sWorld.getConfig(CONFIG_UINT32_SPELL_EFFECT_DELAY)));
 }
 
 void Spell::AddUnitTarget(Unit* pTarget, SpellEffectIndex effIndex)
@@ -1917,7 +1926,9 @@ void Spell::DoSpellHitOnUnit(Unit* unit, uint32 effectMask)
     // Improved Enslave Demon - talent 18825
     // Scream of Pain - talent 34469
     // Deep Freeze - talent 34508
-    if ((m_spellInfo->IsFitToFamily<SPELLFAMILY_WARLOCK, CF_WARLOCK_ENSLAVE_DEMON>() && pRealUnitCaster->HasAura(18825)) || ((m_spellInfo->Id == 5782 || m_spellInfo->Id == 6213 || m_spellInfo->Id == 6215 || m_spellInfo->Id == 5484 || m_spellInfo->Id == 17928) && pRealUnitCaster->HasAura(34469)) || m_spellInfo->Id == 34508)
+    // Mana Break - Felhunter spell 34541
+    // Lash of Pain - Succubus spell 34542
+    if ((m_spellInfo->IsFitToFamily<SPELLFAMILY_WARLOCK, CF_WARLOCK_ENSLAVE_DEMON>() && pRealUnitCaster->HasAura(18825)) || ((m_spellInfo->Id == 5782 || m_spellInfo->Id == 6213 || m_spellInfo->Id == 6215 || m_spellInfo->Id == 5484 || m_spellInfo->Id == 17928) && pRealUnitCaster->HasAura(34469)) || m_spellInfo->Id == 34508 || m_spellInfo->Id == 34541 || m_spellInfo->Id == 34542)
     {
         m_diminishGroup = DIMINISHING_NONE;
     }
@@ -2811,92 +2822,79 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
             break;
         case TARGET_ENUM_UNITS_ENEMY_IN_CONE_24:
         {
-            SpellNotifyPushType pushType = PUSH_IN_FRONT;
-            switch (m_spellInfo->SpellVisual)            // Some spell require a different target fill
-            {
-                case 3879:
-                    pushType = PUSH_IN_BACK;
-                    break;
-                case 7441:
-                    pushType = PUSH_IN_FRONT_15;
-                    break;
-                case 7619: // anub impale
-                    pushType = PUSH_IN_FRONT_15;
-                    break;
-            }
-            FillAreaTargets(targetUnitMap, radius, pushType, SPELL_TARGETS_AOE_DAMAGE);
+            FillAreaTargets(targetUnitMap, radius, PUSH_IN_CONE, SPELL_TARGETS_AOE_DAMAGE);
             break;
         }
         case TARGET_ENUM_UNITS_ENEMY_IN_CONE_54:
         {
             switch (m_spellInfo->Id)
             {
-            case 24820:
-            case 24821:
-            case 24822:
-            case 24823:
-            case 24835:
-            case 24836:
-            case 24837:
-            case 24838:
-            {
-                UnitList tempTargetUnitMap;
-                FillAreaTargets(tempTargetUnitMap, radius, PUSH_SELF_CENTER, SPELL_TARGETS_AOE_DAMAGE);
-
-                for (const auto itr : tempTargetUnitMap)
+                case 24820:
+                case 24821:
+                case 24822:
+                case 24823:
+                case 24835:
+                case 24836:
+                case 24837:
+                case 24838:
                 {
-                    float angle;
-                    float arc;
+                    UnitList tempTargetUnitMap;
+                    FillAreaTargets(tempTargetUnitMap, radius, PUSH_SELF_CENTER, SPELL_TARGETS_AOE_DAMAGE);
 
-                    switch (m_spellInfo->Id)
+                    for (const auto itr : tempTargetUnitMap)
                     {
-                        case 24820:
-                            angle = 0.0f * M_PI_F / 4.0f;
-                            arc = 2.0f * M_PI_F / 3.0f;
-                            break;
-                        case 24821:
-                            angle = 1.0f * M_PI_F / 4.0f;
-                            arc = 2.0f * M_PI_F / 3.0f;
-                            break;
-                        case 24822:
-                            angle = 2.0f * M_PI_F / 4.0f;
-                            arc = 2.0f * M_PI_F / 3.0f;
-                            break;
-                        case 24823:
-                            angle = 3.0f * M_PI_F / 4.0f;
-                            arc = 2.0f * M_PI_F / 3.0f;
-                            break;
-                        case 24835:
-                            angle = -4.0f * M_PI_F / 4.0f;
-                            arc = 2.0f * M_PI_F / 3.0f;
-                            break;
-                        case 24836:
-                            angle = -3.0f * M_PI_F / 4.0f;
-                            arc = 2.0f * M_PI_F / 3.0f;
-                            break;
-                        case 24837:
-                            angle = -2.0f * M_PI_F / 4.0f;
-                            arc = 2.0f * M_PI_F / 3.0f;
-                            break;
-                        case 24838:
-                            angle = -1.0f * M_PI_F / 4.0f;
-                            arc = 2.0f * M_PI_F / 3.0f;
-                            break;
-                        default:
-                            angle = 0.0f;
-                            arc = M_PI_F / 2.0f;
-                            break;
+                        float angle;
+                        float arc;
+
+                        switch (m_spellInfo->Id)
+                        {
+                            case 24820:
+                                angle = 0.0f * M_PI_F / 4.0f;
+                                arc = 2.0f * M_PI_F / 3.0f;
+                                break;
+                            case 24821:
+                                angle = 1.0f * M_PI_F / 4.0f;
+                                arc = 2.0f * M_PI_F / 3.0f;
+                                break;
+                            case 24822:
+                                angle = 2.0f * M_PI_F / 4.0f;
+                                arc = 2.0f * M_PI_F / 3.0f;
+                                break;
+                            case 24823:
+                                angle = 3.0f * M_PI_F / 4.0f;
+                                arc = 2.0f * M_PI_F / 3.0f;
+                                break;
+                            case 24835:
+                                angle = -4.0f * M_PI_F / 4.0f;
+                                arc = 2.0f * M_PI_F / 3.0f;
+                                break;
+                            case 24836:
+                                angle = -3.0f * M_PI_F / 4.0f;
+                                arc = 2.0f * M_PI_F / 3.0f;
+                                break;
+                            case 24837:
+                                angle = -2.0f * M_PI_F / 4.0f;
+                                arc = 2.0f * M_PI_F / 3.0f;
+                                break;
+                            case 24838:
+                                angle = -1.0f * M_PI_F / 4.0f;
+                                arc = 2.0f * M_PI_F / 3.0f;
+                                break;
+                            default:
+                                angle = 0.0f;
+                                arc = M_PI_F / 2.0f;
+                                break;
+                        }
+
+                        if (m_caster->HasInArc(itr, arc, angle))
+                            targetUnitMap.push_back(itr);
                     }
 
-                    if (m_caster->HasInArc(itr, arc, angle))
-                        targetUnitMap.push_back(itr);
+                    break;
                 }
-
-                break;
-            }
-            default:
-                FillAreaTargets(targetUnitMap, radius, PUSH_IN_FRONT_90, SPELL_TARGETS_AOE_DAMAGE);
-                break;
+                default:
+                    FillAreaTargets(targetUnitMap, radius, PUSH_IN_CONE, SPELL_TARGETS_AOE_DAMAGE);
+                    break;
             }
 
             break;
@@ -2913,7 +2911,7 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
 
             // fill real target list if no spell script target defined
             FillAreaTargets(bounds.first != bounds.second ? tempTargetUnitMap : targetUnitMap,
-                radius, PUSH_IN_FRONT_15, bounds.first != bounds.second ? SPELL_TARGETS_ALL : targetB);
+                radius, PUSH_IN_CONE, bounds.first != bounds.second ? SPELL_TARGETS_ALL : targetB);
 
             for (const auto iter : tempTargetUnitMap)
             {
@@ -5703,12 +5701,32 @@ SpellCastResult Spell::CheckCast(bool strict)
 
         switch (m_spellInfo->Id)
         {
-            // Charge
+            // Warrior - Charge
             case 100:
             case 6178:
             case 11578:
                 if (m_casterUnit->IsInCombat() && !m_casterUnit->HasAura(34327))
                     return SPELL_FAILED_AFFECTING_COMBAT;
+                if (m_casterUnit->HasAura(34524) || m_casterUnit->HasAura(34499))
+                    return SPELL_FAILED_NOPATH;
+                break;
+            // Warrior - Intercept
+            case 20252:
+            case 20616:
+            case 20617:
+            // Druid - Feral Charge
+            case 16979:
+            // Goblin Rocket Helmet & Horned Viking Helmet - Reckless Charge
+            case 22641:
+                if (m_casterUnit->HasAura(34524) || m_casterUnit->HasAura(34499))
+                    return SPELL_FAILED_NOPATH;
+                break;
+            // Druid - Aquatic Form
+            case 1066:
+            // Hook of the Master Angler - Master Angler
+            case 24347:
+                if (m_casterUnit->HasAura(34524) || m_casterUnit->HasAura(34499))
+                    return SPELL_FAILED_ONLY_UNDERWATER;
                 break;
             // Frost Trap
             case 13809:
@@ -5734,6 +5752,17 @@ SpellCastResult Spell::CheckCast(bool strict)
                 if (!m_caster->GetTerrain()->IsOutdoors(m_caster->GetPositionX(), m_caster->GetPositionY(), m_caster->GetPositionZ()) && !m_casterUnit->HasAura(34358))
                     return SPELL_FAILED_ONLY_OUTDOORS;
                 break;
+            // Warlock Demonic Circle : Summon
+            case 34294:
+                if (m_caster->GetTypeId() != TYPEID_PLAYER)
+                    return SPELL_FAILED_NOT_READY;
+                if (Player* pCaster = m_caster->ToPlayer())
+                {
+                    std::unique_ptr<QueryResult> result = CharacterDatabase.PQuery("SELECT 1 FROM `character_warlock_demonic_circle` WHERE `guid`='%u' and `type`='1' and `timer`>='%u' and `timer`<='%u'", pCaster->GetObjectGuid(), getTimestamp_spell()-300, getTimestamp_spell());
+                    if (result)
+                        return SPELL_FAILED_NOT_READY;
+                }
+                break;
             // Warlock Demonic Circle : Teleport
             case 34295:
                 if (m_caster->GetTypeId() != TYPEID_PLAYER)
@@ -5743,11 +5772,17 @@ SpellCastResult Spell::CheckCast(bool strict)
                     std::unique_ptr<QueryResult> result = CharacterDatabase.PQuery("SELECT position_x, position_y, position_z FROM `character_warlock_demonic_circle` WHERE `guid`='%u' and `map_id`='%u' and `timer`>='%u' and `timer`<='%u' and `instance_id`='%u'", pCaster->GetObjectGuid(), pCaster->GetMapId(), getTimestamp_spell()-300, getTimestamp_spell(), pCaster->GetInstanceId());
                     if (result)
                     {
-                        Field* fields = result->Fetch();
-                        float x = fields[0].GetFloat();
-                        float y = fields[1].GetFloat();
-                        float z = fields[2].GetFloat();
-                        if (pCaster->GetDistance(x,y,z) > 50.0f)
+                        float minimumDistance = 100.0f;
+                        do
+                        {
+                            Field* fields = result->Fetch();
+                            float x = fields[0].GetFloat();
+                            float y = fields[1].GetFloat();
+                            float z = fields[2].GetFloat();
+                            minimumDistance = std::min(minimumDistance, pCaster->GetDistance(x,y,z));
+                        }
+                        while (result->NextRow());
+                        if (minimumDistance > 60.0f)
                             return SPELL_FAILED_OUT_OF_RANGE;
                     }
                     else
@@ -5765,6 +5800,7 @@ SpellCastResult Spell::CheckCast(bool strict)
                             if (m_casterUnit->GetPositionZ() >= 30.0f && m_casterUnit->GetPositionZ() <= 100.0f)
                                 return SPELL_FAILED_NOT_HERE;
                 break;
+            case 34524:
             case 34499:
                 if (m_casterUnit->HasAura(23333) || m_casterUnit->HasAura(23335))
                     return SPELL_FAILED_NOT_HERE;
@@ -5799,6 +5835,31 @@ SpellCastResult Spell::CheckCast(bool strict)
         {
             ((Player*)m_casterUnit)->SendPetTameFailure(PETTAME_ANOTHERSUMMONACTIVE);
             return SPELL_FAILED_DONT_REPORT;
+        }
+    }
+
+    // Eye of Kilrogg - Demonic Circle : Summon
+    if (m_spellInfo->Id == 34538)
+    {
+        if (m_caster->GetTypeId() != TYPEID_UNIT)
+            return SPELL_FAILED_NOT_READY;
+        if (Creature* creature = m_caster->ToCreature())
+        {
+            if (creature->GetEntry() != 4277)
+                return SPELL_FAILED_BAD_TARGETS;
+            if (Player* charmer = ::ToPlayer(creature->GetCharmer()))
+            {
+                if (charmer->GetClass() != CLASS_WARLOCK)
+                    return SPELL_FAILED_NOT_KNOWN;
+                if (!charmer->HasItemCount(6265, 1))
+                    return SPELL_FAILED_ITEM_NOT_READY;
+                std::unique_ptr<QueryResult> result = CharacterDatabase.PQuery("SELECT 1 FROM `character_warlock_demonic_circle` WHERE `guid`='%u' and `type`='2' and `timer`>='%u' and `timer`<='%u'", charmer->GetObjectGuid(), getTimestamp_spell()-300, getTimestamp_spell());
+                if (result)
+                {
+                    creature->AddCooldown(*m_spellInfo, nullptr, false, 1.5 * IN_MILLISECONDS);
+                    return SPELL_FAILED_NOT_READY;
+                }
+            }
         }
     }
 
@@ -6727,32 +6788,9 @@ SpellCastResult Spell::CheckCast(bool strict)
                 if (m_casterUnit->IsPlayer() && m_casterUnit->GetTransport() && !static_cast<Player*>(m_casterUnit)->IsOutdoorOnTransport())
                     return SPELL_FAILED_NO_MOUNTS_ALLOWED;
 
-                // Specific case for Temple of Ahn'Qiraj mounts as they are usable only in AQ40 and are the only mounts allowed here
-                // TBC and above handle this by using m_spellInfo->AreaId
-                bool isAQ40Mount = false;
-
-                switch (m_spellInfo->Id)
-                {
-                    case 25863:    // spell used by the Black Qiraji Crystal script when mounting inside AQ40
-                    case 25953:    // spells of the 4 regular AQ40 mounts
-                    case 26054:
-                    case 26055:
-                    case 26056:
-                        if (m_casterUnit->GetMapId() == MAP_AHN_QIRAJ_TEMPLE)
-                        {
-                            isAQ40Mount = true;
-                            break;
-                        }
-                        else
-                            return SPELL_FAILED_NOT_HERE;
-                    default:
-                        if ((m_casterUnit->GetMapId() == MAP_AHN_QIRAJ_TEMPLE && m_casterUnit->GetTerrain()->IsOutdoors(m_casterUnit->GetPositionX(), m_casterUnit->GetPositionY(), m_casterUnit->GetPositionZ())))
-                            isAQ40Mount = true;
-                        break;
-                }
-
                 // Ignore map check if spell have AreaId. AreaId already checked and this prevent special mount spells
-                if (!isAQ40Mount && m_casterUnit->IsPlayer() && !sMapStorage.LookupEntry<MapEntry>(m_casterUnit->GetMapId())->IsMountAllowed() && !m_IsTriggeredSpell) //[-ZERO] && !m_spellInfo->AreaId)
+                if (!sSpellMgr.GetRequiredAreaForSpell(m_spellInfo->Id) && m_casterUnit->IsPlayer() &&
+                    !sMapStorage.LookupEntry<MapEntry>(m_casterUnit->GetMapId())->IsMountAllowed() && !m_IsTriggeredSpell)
                     return SPELL_FAILED_NO_MOUNTS_ALLOWED;
 
                 if (m_casterUnit->GetAreaId() == 35)
@@ -8221,6 +8259,7 @@ public:
     Spell &i_spell;
     SpellNotifyPushType i_push_type;
     float i_radius;
+    float i_angle;
     SpellTargets i_TargetType;
     SpellCaster* i_originalCaster;
     SpellCaster* i_castingObject;
@@ -8238,7 +8277,7 @@ public:
 
     SpellNotifierCreatureAndPlayer(Spell &spell, Spell::UnitList &data, float radius, SpellNotifyPushType type,
                                    SpellTargets TargetType = SPELL_TARGETS_NOT_FRIENDLY, SpellCaster* originalCaster = nullptr)
-        : i_data(&data), i_spell(spell), i_push_type(type), i_radius(radius), i_TargetType(TargetType),
+        : i_data(&data), i_spell(spell), i_push_type(type), i_radius(radius), i_angle(0.0f), i_TargetType(TargetType),
           i_originalCaster(originalCaster), i_castingObject(i_spell.GetCastingObject())
     {
         if (!i_originalCaster)
@@ -8246,10 +8285,9 @@ public:
 
         switch (i_push_type)
         {
-            case PUSH_IN_FRONT:
-            case PUSH_IN_FRONT_90:
-            case PUSH_IN_FRONT_15:
-            case PUSH_IN_BACK:
+            case PUSH_IN_CONE:
+                i_angle = sSpellMgr.GetSpellCone(i_spell.m_spellInfo->Id);
+                // no break
             case PUSH_SELF_CENTER:
                 if (i_castingObject)
                 {
@@ -8367,21 +8405,15 @@ public:
             // we don't need to check InMap here, it's already done some lines above
             switch (i_push_type)
             {
-                case PUSH_IN_FRONT:
-                    if (i_castingObject->IsWithinDist(unit, radius, true, SizeFactor::None) && i_castingObject->HasInArc(unit, 2 * M_PI_F / 3))
-                        inRange = true;
-                    break;
-                case PUSH_IN_FRONT_90:
-                    if (i_castingObject->IsWithinDist(unit, radius, true, SizeFactor::None) && i_castingObject->HasInArc(unit, M_PI_F / 2))
-                        inRange = true;
-                    break;
-                case PUSH_IN_FRONT_15:
-                    if (i_castingObject->IsWithinDist(unit, radius, true, SizeFactor::None) && i_castingObject->HasInArc(unit, M_PI_F / 12))
-                        inRange = true;
-                    break;
-                case PUSH_IN_BACK: // 75
-                    if (i_castingObject->IsWithinDist(unit, radius, true, SizeFactor::None) && !i_castingObject->HasInArc(unit, 2 * M_PI_F - 5 * M_PI_F / 12))
-                        inRange = true;
+                case PUSH_IN_CONE:
+                    if (i_castingObject->IsWithinDist(unit, radius, true, SizeFactor::None))
+                    {
+                        // negative angle means in the back
+                        if (i_angle > 0)
+                            inRange = i_castingObject->HasInArc(unit, i_angle);
+                        else if (i_angle < 0)
+                            inRange = !i_castingObject->HasInArc(unit, (M_PI_F * 2.0f) + i_angle);
+                    }
                     break;
                 case PUSH_SELF_CENTER:
                     if (i_castingObject->IsWithinDist(unit, radius, true, SizeFactor::None))

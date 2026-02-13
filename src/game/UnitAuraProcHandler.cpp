@@ -30,7 +30,9 @@
 #include "ScriptMgr.h"
 #include "Util.h"
 #include "World.h"
+#include "Map.h"
 #include "GridMap.h"
+#include "ScriptMgr.h"
 
 pAuraProcHandler AuraProcHandler[TOTAL_AURAS] =
 {
@@ -536,7 +538,7 @@ SpellAuraProcResult Unit::TriggerProccedSpell(Unit* target, int32* basepoints, S
 SpellAuraProcResult Unit::HandleHasteAuraProc(Unit* pVictim, uint32 amount, uint32 originalAmount, Aura* triggeredByAura, SpellEntry const* /*procSpell*/, uint32 /*procFlag*/, uint32 procEx, uint32 cooldown)
 {
     // Flurry: last charge crit will reapply the buff, don't remove any charges
-    if (triggeredByAura->GetSpellProto()->SpellIconID == 108 && 
+    if (triggeredByAura->GetSpellProto()->SpellIconID == 108 &&
         triggeredByAura->GetSpellProto()->SpellVisual == 2759 &&
         triggeredByAura->GetHolder()->GetAuraCharges() <= 1 &&
         (procEx & PROC_EX_CRITICAL_HIT))
@@ -975,6 +977,52 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 amount, uint
                     triggered_spell_id = 34299;
                     break;                               // no hidden cooldown
                 }
+                // Succubus - Blood Bath
+                case 34529:
+                {
+                    // heal amount
+                    if (this->HasAura(23836))
+                    {
+                        basepoints[0] = dither(45 * amount / 100);
+                        basepoints[1] = dither(30 * amount / 100);
+                    }
+                    else
+                    {
+                        basepoints[0] = dither(30 * amount / 100);
+                        basepoints[1] = dither(20 * amount / 100);
+                    }
+                    target = this;
+                    triggered_spell_id = 34530;
+                    break;                               // no hidden cooldown
+                }
+                // Felhunter - Mana Break
+                case 34531:
+                {
+                    if (!pVictim)
+                        return SPELL_AURA_PROC_FAILED;
+                    if (pVictim->GetPowerType() != POWER_MANA)
+                        return SPELL_AURA_PROC_FAILED;
+                    // mana burn amount
+                    if (this->HasAura(23840))
+                    {
+                        if (urand(1, 100) < 33)
+                        {
+                            this->CastCustomSpell(pVictim, 34541, {}, dither(300 * amount / 100), {}, true, castItem, triggeredByAura);
+                            return SPELL_AURA_PROC_OK;
+                        }
+                        else
+                        {
+                            basepoints[0] = dither(300 * amount / 100);
+                        }
+                    }
+                    else
+                    {
+                        basepoints[0] = dither(200 * amount / 100);
+                    }
+                    target = pVictim;
+                    triggered_spell_id = 34532;
+                    break;                               // no hidden cooldown
+                }
                 // melee blood drain + 1%
                 case 34144:
                 {
@@ -1137,30 +1185,6 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 amount, uint
             }
             switch (dummySpell->Id)
             {
-                // Combustion
-                case 11129:
-                {
-                    // does not proc if no target is affected (aoe like flamestrike)
-                    if (!pVictim)
-                        return SPELL_AURA_PROC_FAILED;
-
-                    // combustion counter was dispelled or clicked off
-                    if (!HasAura(28682))
-                    {
-                        RemoveAurasDueToSpell(11129);
-                        return SPELL_AURA_PROC_FAILED;
-                    }
-
-                    //last charge and crit
-                    if (triggeredByAura->GetHolder()->GetAuraCharges() <= 1 && (procEx & PROC_EX_CRITICAL_HIT))
-                    {
-                        RemoveAurasDueToSpell(28682);       //-> remove Combustion auras
-                        return SPELL_AURA_PROC_OK;                        // charge counting (will removed)
-                    }
-
-                    CastSpell(this, 28682, true, castItem, triggeredByAura);
-                    return (procEx & PROC_EX_CRITICAL_HIT) ? SPELL_AURA_PROC_OK : SPELL_AURA_PROC_FAILED; // charge update only at crit hits, no hidden cooldowns
-                }
                 // Flame, Grant me Strength
                 case 34500:
                 {
@@ -1333,7 +1357,7 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit* pVictim, uint32 amount, uint
                         return SPELL_AURA_PROC_FAILED;
                     triggered_spell_id = 23583;
                     break;
-                    
+
                 // Blade Flurry
                 case 13877:
                 {
@@ -2027,7 +2051,7 @@ SpellAuraProcResult Unit::HandleProcTriggerDamageAuraProc(Unit* pVictim, uint32 
     SpellEntry const* spellInfo = triggeredByAura->GetSpellProto();
     DEBUG_FILTER_LOG(LOG_FILTER_SPELL_CAST, "ProcDamageAndSpell: doing %u damage from spell id %u (triggered by auratype %u of spell %u)",
                      triggeredByAura->GetModifier()->m_amount, spellInfo->Id, triggeredByAura->GetModifier()->m_auraname, triggeredByAura->GetId());
-    
+
     if (!pVictim || !pVictim->IsAlive())
         return SPELL_AURA_PROC_FAILED;
 
@@ -2057,7 +2081,7 @@ SpellAuraProcResult Unit::HandleProcTriggerDamageAuraProc(Unit* pVictim, uint32 
                 if (!roll_chance_i(75)) // made up value
                     return SPELL_AURA_PROC_FAILED;
             }
-            break; 
+            break;
         }
     }
 #endif
@@ -2286,22 +2310,22 @@ SpellAuraProcResult Unit::HandleModDamageAuraProc(Unit* /*pVictim*/, uint32 /*am
 
             /*
             World of Warcraft Client Patch 1.11.0 (2006-06-20)
-            - Judgement of Command: Now consumes a charge of the Zandalarian Hero 
-              Charm. In addition, when this spell is resisted it will no longer 
+            - Judgement of Command: Now consumes a charge of the Zandalarian Hero
+              Charm. In addition, when this spell is resisted it will no longer
               erroneously still do damage.
-            - Judgement of Righteousness: Now consumes a charge of the Zandalarian 
+            - Judgement of Righteousness: Now consumes a charge of the Zandalarian
               Hero Charm.
-            - Shadowguard: This Troll Priest racial spell now works with Vampiric 
-              Embrace, Blackout, and Shadow Weaving. In addition, the damage from 
-              Shadowguard will now consume charges of the Zandalarian Hero Charm's 
+            - Shadowguard: This Troll Priest racial spell now works with Vampiric
+              Embrace, Blackout, and Shadow Weaving. In addition, the damage from
+              Shadowguard will now consume charges of the Zandalarian Hero Charm's
               Unstable Power aura.
             - Zandalarian Hero Charm: The damage and healing on this item have been
-              reduced by 30%. Instead of granting 35 damage and 70 healing per 
-              charge, it now grants 25 damage and 50 healing per charge. Several 
-              Paladin spells, Starshards, and Lightning Shield were not consuming 
-              charges of this trinket. All those spells have been fixed. In 
-              addition, totems which now benefit from increased damage and healing 
-              will also consume charges (Healing Stream Totem, Searing Totem, Magma 
+              reduced by 30%. Instead of granting 35 damage and 70 healing per
+              charge, it now grants 25 damage and 50 healing per charge. Several
+              Paladin spells, Starshards, and Lightning Shield were not consuming
+              charges of this trinket. All those spells have been fixed. In
+              addition, totems which now benefit from increased damage and healing
+              will also consume charges (Healing Stream Totem, Searing Totem, Magma
               Totem, and Fire Nova Totem)
             World of Warcraft Client Patch 1.10.0 (2006-03-28)
             - The charges from the Zandalarian Hero Charm will now be consumed by
@@ -2398,7 +2422,7 @@ SpellAuraProcResult Unit::HandleRemoveFearByDamageChanceProc(Unit* pVictim, uint
     // for mobs, this means max_dmg = 1350 at level 60, or 4050 if the damage source is a dot
 
     // World of Warcraft Client Patch 1.11.0 (2006-06-20)
-    // - Fear: The calculations to determine if Fear effects should break due 
+    // - Fear: The calculations to determine if Fear effects should break due
     //   to receiving damage have been changed.The old calculation used the
     //   base damage of the ability.The new calculation uses the final amount
     //   of damage dealt, after all modifiers.

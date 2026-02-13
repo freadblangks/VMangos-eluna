@@ -788,7 +788,7 @@ bool ChatHandler::PartyBotAddRequirementCheck(Player const* pPlayer, Player cons
         return false;
     }
 
-    if (pPlayer->IsTaxiFlying() || pPlayer->HasAura(34499))
+    if (pPlayer->IsTaxiFlying() || pPlayer->HasAura(34524) || pPlayer->HasAura(34499))
     {
         SendSysMessage("Cannot add bots while flying.");
         return false;
@@ -1038,10 +1038,8 @@ bool ChatHandler::HandlePartyBotLoadCommand(char* args)
     if (!pPlayer)
         return false;
 
-    // Hardcore Challenger Can Not Add Bots
-    if (sWorld.getConfig(CONFIG_HARDCORECHALLENGER_BAN_PARTYBOT) == 1 && pPlayer->GetLevel()<60 && pPlayer->GetQuestStatus(10000) == QUEST_STATUS_COMPLETE)
+    if (!PartyBotAddRequirementCheck(pPlayer, nullptr))
     {
-        SendSysMessage("Hardcore Challenger Can Not Add Bots.");
         SetSentErrorMessage(true);
         return false;
     }
@@ -1384,6 +1382,94 @@ bool ChatHandler::HandlePartyBotAoECommand(char* args)
     }
 
     PSendSysMessage("All party bots are casting AoE spells at %s.", pTarget->GetName());
+    return true;
+}
+
+bool ChatHandler::HandlePartyBotStartCastingCommand(char * args)
+{
+    return HandlePartyBotToggleCastingCommand(true);
+}
+
+bool ChatHandler::HandlePartyBotStopCastingCommand(char * args)
+{
+    return HandlePartyBotToggleCastingCommand(false);
+}
+
+bool ChatHandler::HandlePartyBotToggleCastingCommand(bool allowCasting)
+{
+    if (sWorld.getConfig(CONFIG_PARTYBOT_BANTOGGLECASTINGCOMMAND) == 1)
+    {
+        SendSysMessage("Partybot start&stop casting command is banned.");
+        SetSentErrorMessage(true);
+        return false;
+    }
+
+    Player* pPlayer = GetSession()->GetPlayer();
+    Player* pTarget = GetSelectedPlayer();
+
+    if (pTarget && (pTarget != pPlayer))
+    {
+        if (pTarget->AI())
+        {
+            if (PartyBotAI* pAI = dynamic_cast<PartyBotAI*>(pTarget->AI()))
+            {
+                if (allowCasting)
+                {
+                    pAI->m_preventCasting = false;
+                    PSendSysMessage("%s will be allowed to cast spells.", pTarget->GetName());
+                }
+                else
+                {
+                    pAI->m_preventCasting = true;
+                    pTarget->InterruptNonMeleeSpells(false);
+                    PSendSysMessage("%s will no longer cast spells.", pTarget->GetName());
+                }
+                return true;
+            }
+        }
+        SendSysMessage("Target is not a party bot.");
+        SetSentErrorMessage(true);
+        return false;
+    }
+
+    Group* pGroup = pPlayer->GetGroup();
+    if (!pGroup)
+    {
+        SendSysMessage("You are not in a group.");
+        SetSentErrorMessage(true);
+        return false;
+    }
+
+    for (GroupReference* itr = pGroup->GetFirstMember(); itr != nullptr; itr = itr->next())
+    {
+        if (Player* pMember = itr->getSource())
+        {
+            if (pMember == pPlayer)
+                continue;
+
+            if (pMember->AI())
+            {
+                if (PartyBotAI* pAI = dynamic_cast<PartyBotAI*>(pMember->AI()))
+                {
+                    if (allowCasting)
+                    {
+                        pAI->m_preventCasting = false;
+                    }
+                    else
+                    {
+                        pAI->m_preventCasting = true;
+                        pTarget->InterruptNonMeleeSpells(false);
+                    }
+                }
+            }
+        }
+    }
+
+    if (allowCasting)
+        SendSysMessage("All bots are now allowed to cast spells again.");
+    else
+        SendSysMessage("All bots are now forbidden from casting spells.");
+
     return true;
 }
 
