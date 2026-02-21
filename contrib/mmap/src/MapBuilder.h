@@ -30,7 +30,6 @@
 #include "TileWorker.h"
 
 using namespace VMAP;
-// G3D namespace typedefs conflicts with ACE typedefs
 
 using json = nlohmann::json;
 
@@ -90,6 +89,7 @@ namespace MMAP
             void buildAllMaps();
             // builds all mmap tiles for the specified map id (ignores skip map id settings)
             void buildSingleMap(uint32 mapID);
+            void processQueuedTiles();
 
             void buildGameObject(std::string modelName, uint32 displayId);
             void buildTransports();
@@ -125,6 +125,7 @@ namespace MMAP
             // build performance - not really used for now
             rcContext* m_rcContext;
 
+            mutable std::mutex m_tilesMutex;
             ProducerConsumerQueue<TileInfo> m_tileQueue;
             std::atomic<bool> m_cancel;
             uint8 m_threads;

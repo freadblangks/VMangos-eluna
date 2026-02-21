@@ -20,7 +20,7 @@ namespace MMAP
 {
     struct TileInfo
     {
-        TileInfo() : m_mapId(uint32(-1)), m_tileX(), m_tileY(), m_navMeshParams(), m_curTile(0), m_tileCount(0) {}
+        TileInfo() : m_mapId(uint32(-1)), m_tileX(), m_tileY(), m_navMeshParams(), m_curTile(0), m_tileCount(0), m_forceRebuild(false) {}
 
         uint32 m_mapId;
         uint32 m_tileX;
@@ -28,6 +28,7 @@ namespace MMAP
         uint32 m_curTile;
         uint32 m_tileCount;
         dtNavMeshParams m_navMeshParams;
+        bool m_forceRebuild;
     };
 
     template <typename T>
@@ -112,14 +113,15 @@ namespace MMAP
         TileWorker(MapBuilder* mapBuilder, bool skipLiquid, bool quick, bool enableDebug, json& jsonConfig) :
             m_mapBuilder(mapBuilder),
             m_terrainBuilder(nullptr),
-            m_workerThread(&TileWorker::WorkerThread, this),
             m_rcContext(nullptr),
             m_quick(quick),
             m_debug(enableDebug),
-            m_config(jsonConfig)
+            m_config(jsonConfig),
+            m_threadStarted(false)
         {
             m_terrainBuilder = new TerrainBuilder(skipLiquid, quick);
             m_rcContext = new rcContext(false);
+            Start();
         }
 
         ~TileWorker()
@@ -130,11 +132,21 @@ namespace MMAP
             delete m_rcContext;
         }
 
+        void Start()
+        {
+            if (!m_threadStarted)
+            {
+                m_workerThread = std::thread(&TileWorker::WorkerThread, this);
+                m_threadStarted = true;
+            }
+        }
+
         void WaitCompletion()
         {
-            if (m_workerThread.joinable())
+            if (m_threadStarted && m_workerThread.joinable())
             {
                 m_workerThread.join();
+                m_threadStarted = false;
             }
         }
 
@@ -142,16 +154,19 @@ namespace MMAP
         bool duDumpPolyMeshToObj(rcPolyMesh& pmesh, uint32 mapID, uint32 tileY, uint32 tileX);
         bool duDumpPolyMeshDetailToObj(rcPolyMeshDetail& dmesh, uint32 mapID, uint32 tileY, uint32 tileX);
         bool shouldSkipTile(uint32 mapID, uint32 tileX, uint32 tileY);
-        void buildTile(uint32 mapID, uint32 tileX, uint32 tileY, dtNavMesh* navMesh, uint32 curTile, uint32 tileCount);
+        void buildTile(uint32 mapID, uint32 tileX, uint32 tileY, dtNavMesh* navMesh, uint32 curTile, uint32 tileCount, bool forceRebuild = false);
         void buildMoveMapTile(uint32 mapID, uint32 tileX, uint32 tileY, MeshData& meshData, float bmin[3], float bmax[3], dtNavMesh* navMesh);
 
         json getDefaultConfig();
         json getMapIdConfig(uint32 mapId);
         json getTileConfig(uint32 mapId, uint32 tileX, uint32 tileY);
 
+
+    private:
         MMAP::MapBuilder* m_mapBuilder;
         TerrainBuilder*   m_terrainBuilder;
         std::thread       m_workerThread;
+        bool              m_threadStarted;
         rcContext*        m_rcContext;
         bool              m_quick;
         bool              m_debug;

@@ -27,7 +27,19 @@
 namespace MMAP
 {
     TerrainBuilder::TerrainBuilder(bool skipLiquid, bool quick) : m_skipLiquid(skipLiquid), m_V9(nullptr), m_V8(nullptr), m_quick(quick), m_mapId(0) { }
-    TerrainBuilder::~TerrainBuilder() { }
+    TerrainBuilder::~TerrainBuilder()
+    {
+        if (m_V8)
+        {
+            delete[] m_V8;
+            m_V8 = nullptr;
+        }
+        if (m_V9)
+        {
+            delete[] m_V9;
+            m_V9 = nullptr;
+        }
+    }
 
     /**************************************************************************/
     void TerrainBuilder::getLoopVars(Spot portion, int& loopStart, int& loopEnd, int& loopInc)
@@ -994,7 +1006,7 @@ namespace MMAP
     }
 
     /**************************************************************************/
-    void TerrainBuilder::loadOffMeshConnections(uint32 mapID, uint32 tileX, uint32 tileY, MeshData& meshData, char const* offMeshFilePath)
+    void TerrainBuilder::loadOffMeshConnections(uint32 mapID, uint32 tileX, uint32 tileY, MeshData& meshData, char const* offMeshFilePath, bool printOffmeshData)
     {
         // no meshfile input given?
         if (offMeshFilePath == nullptr)
@@ -1021,6 +1033,12 @@ namespace MMAP
 
             if (mapID == mid && tileX == tx && tileY == ty)
             {
+                if (printOffmeshData)
+                {
+                    printf(" loadOffMeshConnections:: Found offmesh connection for map %u tile [%u,%u]: (%.2f %.2f %.2f) -> (%.2f %.2f %.2f) size %.2f\n",
+                           mapID, tileX, tileY, p0[0], p0[1], p0[2], p1[0], p1[1], p1[2], size);
+                }
+
                 meshData.offMeshConnections.append(p0[1]);
                 meshData.offMeshConnections.append(p0[2]);
                 meshData.offMeshConnections.append(p0[0]);

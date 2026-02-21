@@ -29,10 +29,13 @@
 #include "Crypto/Hash/HMACSHA1.h"
 #include "Crypto/Hash/SHA1.h"
 #include "World.h"
+#include "Errors.h"
 
 #include <string>
 #include <algorithm>
 #include <functional>
+
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_5_1
 
 ScanFlags operator|(ScanFlags lhs, ScanFlags rhs)
 {
@@ -128,7 +131,7 @@ WindowsStringHashScan::WindowsStringHashScan()
     128, sizeof(uint8) + Crypto::Hash::SHA1::Digest::size() + Crypto::Hash::MD5::Digest::size(), "Maiev string hash",
     ScanFlags::Maiev, 0, UINT16_MAX)
 {
-    
+
 }
 
 MacStringHashScan::MacStringHashScan(bool moduleLoaded)
@@ -523,3 +526,5 @@ WindowsTimeScan::WindowsTimeScan(CheckT checker, std::string const& comment, Sca
 {
     MANGOS_ASSERT(!!checker);
 }
+
+#endif

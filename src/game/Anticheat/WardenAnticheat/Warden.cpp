@@ -30,6 +30,7 @@
 #include "WorldSession.h"
 #include "World.h"
 #include "Log.h"
+#include "Errors.h"
 #include "Opcodes.h"
 #include "ByteBuffer.h"
 #include "Database/DatabaseEnv.h"
@@ -45,6 +46,8 @@
 #include <zlib.h>
 #include <algorithm>
 #include <memory>
+
+#if SUPPORTED_CLIENT_BUILD > CLIENT_BUILD_1_5_1
 
 void Log::OutWarden(Warden const* warden, LogLevel logLevel, char const* format, ...)
 {
@@ -718,3 +721,5 @@ void Warden::LogPositiveToDB(std::shared_ptr<Scan const> scan)
 
     sLog.OutWarden(this, LOG_LVL_MINIMAL, "Check %u penalty %u", scan->checkId, scan->penalty);
 }
+
+#endif

@@ -35,6 +35,7 @@
 #include "WorldPacket.h"
 #include "Multithreading/Messager.h"
 #include "LFGQueue.h"
+#include "LockedQueue.h"
 
 #include <map>
 #include <set>
@@ -356,6 +357,7 @@ enum eConfigUInt32Values
     CONFIG_UINT32_PARTY_BOT_RANDOM_GEAR_LEVEL_DIFFERENCE,
     CONFIG_UINT32_PVP_POOL_SIZE_PER_FACTION,
     CONFIG_UINT32_LFG_MATCHMAKING_TIMER,
+    CONFIG_UINT32_REUSABLE_GUID_POOL_SIZE,
     CONFIG_UINT32_VALUE_COUNT
 };
 
@@ -686,9 +688,9 @@ class World
         typedef std::unordered_map<uint32, WorldSession*> SessionMap;
         typedef std::set<WorldSession*> SessionSet;
         SessionMap GetAllSessions() { return m_sessions; }
-        WorldSession* FindSession(uint32 id) const;
-        void AddSession(WorldSession* s);
-        bool RemoveSession(uint32 id);
+        WorldSession* FindSession(uint32 accountId) const;
+        void AddSession(WorldSession* session);
+        bool RemoveSession(uint32 accountId);
         // Get the number of current active sessions
         void UpdateMaxSessionCounters();
         uint32 GetActiveAndQueuedSessionCount() const { return m_sessions.size(); }
@@ -935,7 +937,7 @@ class World
         int32  m_timeZoneOffset;
         IntervalTimer m_timers[WUPDATE_COUNT];
 
-        SessionMap m_sessions;
+        SessionMap m_sessions; // Sessions by accountId
         SessionSet m_disconnectedSessions;
         std::map<uint32 /*accountId*/, AccountPlayHistory> m_accountsPlayHistory;
         bool CanSkipQueue(WorldSession const* session);
